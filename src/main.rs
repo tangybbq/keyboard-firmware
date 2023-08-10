@@ -4,16 +4,18 @@
 #![no_std]
 #![no_main]
 
-use bsp::entry;
+use core::convert::Infallible;
+
+use bsp::{entry, XOSC_CRYSTAL_FREQ};
 use defmt::*;
 use defmt_rtt as _;
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::v2::{InputPin, OutputPin, PinState};
 use panic_probe as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-use rp_pico as bsp;
-// use sparkfun_pro_micro_rp2040 as bsp;
+// use rp_pico as bsp;
+use sparkfun_pro_micro_rp2040 as bsp;
 
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
@@ -31,9 +33,8 @@ fn main() -> ! {
     let sio = Sio::new(pac.SIO);
 
     // External high-speed crystal on the pico board is 12Mhz
-    let external_xtal_freq_hz = 12_000_000u32;
     let clocks = init_clocks_and_plls(
-        external_xtal_freq_hz,
+        XOSC_CRYSTAL_FREQ,
         pac.XOSC,
         pac.CLOCKS,
         pac.PLL_SYS,
@@ -53,21 +54,44 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
-    // This is the correct pin on the Raspberry Pico board. On other boards, even if they have an
-    // on-board LED, it might need to be changed.
-    // Notably, on the Pico W, the LED is not connected to any of the RP2040 GPIOs but to the cyw43 module instead. If you have
-    // a Pico W and want to toggle a LED with a simple GPIO output pin, you can connect an external
-    // LED to one of the GPIO pins, and reference that pin here.
-    let mut led_pin = pins.led.into_push_pull_output();
+    let mut col_a = pins.gpio2.into_push_pull_output_in_state(PinState::Low);
+    let mut col_b = pins.gpio3.into_push_pull_output_in_state(PinState::Low);
+    let mut col_c = pins.gpio4.into_push_pull_output_in_state(PinState::Low);
+    let mut col_d = pins.gpio5.into_push_pull_output_in_state(PinState::Low);
+    let mut col_e = pins.gpio6.into_push_pull_output_in_state(PinState::Low);
+    let cols = [
+        &mut col_a as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_b as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_c as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_d as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_e as &mut dyn OutputPin<Error = Infallible>,
+        ];
+    let row_1 = pins.gpio7.into_pull_down_input();
+    let row_2 = pins.adc0.into_pull_down_input();
+    let row_3 = pins.sck.into_pull_down_input();
+    let rows = [
+        &row_1 as &dyn InputPin<Error = Infallible>,
+        &row_2 as &dyn InputPin<Error = Infallible>,
+        &row_3 as &dyn InputPin<Error = Infallible>,
+        ];
 
     loop {
-        info!("on!");
-        led_pin.set_high().unwrap();
-        delay.delay_ms(500);
-        info!("off!");
-        led_pin.set_low().unwrap();
+        for col in 0 .. cols.len() {
+            let mut seen = false;
+            cols[col].set_high().unwrap();
+            for row in 0 .. rows.len() {
+                if rows[row].is_high().unwrap() {
+                    info!("Pressed col {} row {}", col, row);
+                    seen = true;
+                }
+            }
+            cols[col].set_low().unwrap();
+            if seen {
+                info!("Done");
+            }
+            // delay.delay_ms(1);
+        }
+
         delay.delay_ms(500);
     }
 }
-
-// End of file
