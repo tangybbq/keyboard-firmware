@@ -4,13 +4,21 @@
 #![no_std]
 #![no_main]
 
-use core::convert::Infallible;
+extern crate alloc;
 
+use core::{convert::Infallible};
+
+use alloc::collections::BTreeSet;
 use bsp::{entry, XOSC_CRYSTAL_FREQ};
 use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin, PinState};
 use panic_probe as _;
+
+use embedded_alloc::Heap;
+
+#[global_allocator]
+static HEAP: Heap = Heap::empty();
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
@@ -26,6 +34,13 @@ use bsp::hal::{
 
 #[entry]
 fn main() -> ! {
+    {
+        use core::mem::MaybeUninit;
+        const HEAP_SIZE: usize = 4096;
+        static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+        unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
+    }
+
     info!("Program start");
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
@@ -75,23 +90,37 @@ fn main() -> ! {
         &row_3 as &dyn InputPin<Error = Infallible>,
         ];
 
+    // This is actually a terrible choice here, so move to something better.  But, this is fast.
+    let mut pressed = BTreeSet::new();
+    let mut released = BTreeSet::new();
+
     loop {
         for col in 0 .. cols.len() {
-            let mut seen = false;
             cols[col].set_high().unwrap();
             for row in 0 .. rows.len() {
+                let key = col*3 + row;
                 if rows[row].is_high().unwrap() {
-                    info!("Pressed col {} row {}", col, row);
-                    seen = true;
+                    // info!("Pressed col {} row {}", col, row);
+                    pressed.insert(key);
+                } else if pressed.contains(&key) {
+                    released.insert(key);
                 }
             }
             cols[col].set_low().unwrap();
-            if seen {
-                info!("Done");
+            delay.delay_us(5);
+        }
+        // Check if everything pressed got released.
+        if !released.is_empty() && pressed == released {
+            for key in &released {
+                info!("press: {}", key);
             }
-            // delay.delay_ms(1);
+            info!("Up");
+
+            pressed.clear();
+            released.clear();
         }
 
-        delay.delay_ms(500);
+        // This should be timer triggered so actually 1ms, not just after 1ms.
+        delay.delay_ms(1);
     }
 }
