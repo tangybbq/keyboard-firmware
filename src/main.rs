@@ -97,13 +97,12 @@ fn main() -> ! {
     // let mut pressed = BTreeSet::new();
     // let mut released = BTreeSet::new();
 
-    let mut tick = 0;
     loop {
         for col in 0 .. cols.len() {
             cols[col].set_high().unwrap();
             for row in 0 .. rows.len() {
                 let key = col*3 + row;
-                let action = keys[key].react(tick, rows[row].is_high().unwrap());
+                let action = keys[key].react(rows[row].is_high().unwrap());
                 match action {
                     KeyAction::Press => info!("press: {}", key),
                     KeyAction::Release => info!("release: {}", key),
@@ -127,20 +126,20 @@ fn main() -> ! {
 
         // This should be timer triggered so actually 1ms, not just after 1ms.
         delay.delay_ms(1);
-
-        // TODO: This is good for about 49 days, with a 1ms poll. We need to
-        // periodically reset this, when we find situations where everything can
-        // be reset, such as all keys up.
-        tick += 1;
     }
 }
 
 /// Individual state tracking.
 #[derive(Clone, Copy)]
 enum KeyState {
+    /// Key is in released state.
     Released,
+    /// Key is in pressed state.
     Pressed,
-    Debounce,
+    /// We've seen a release edge, and will consider it released when consistent.
+    DebounceRelease,
+    /// We've seen a press edge, and will consider it pressed when consistent.
+    DebouncePress,
 }
 
 #[derive(Clone, Copy)]
@@ -153,45 +152,67 @@ enum KeyAction {
 // Don't really want Copy, but needed for init.
 #[derive(Clone, Copy)]
 struct Debouncer {
+    /// State for this key.
     state: KeyState,
-    last_time: usize,
+    /// Count how many times we've seen a given debounce state.
+    counter: usize,
 }
+
+const DEBOUNCE_COUNT: usize = 20;
 
 impl Debouncer {
     fn new() -> Debouncer {
         Debouncer {
             state: KeyState::Released,
-            last_time: 0,
+            counter: 0,
         }
     }
 
-    fn react(&mut self, now: usize, pressed: bool) -> KeyAction {
+    fn react(&mut self, pressed: bool) -> KeyAction {
         match self.state {
             KeyState::Released => {
                 if pressed {
-                    self.state = KeyState::Debounce;
-                    self.last_time = now;
+                    self.state = KeyState::DebouncePress;
+                    self.counter = 0;
                 }
                 KeyAction::None
             }
             KeyState::Pressed => {
                 if !pressed {
-                    self.state = KeyState::Debounce;
-                    self.last_time = now;
+                    self.state = KeyState::DebounceRelease;
+                    self.counter = 0;
                 }
                 KeyAction::None
             }
-            KeyState::Debounce => {
-                if self.last_time + 20 <= now {
-                    if pressed {
+            KeyState::DebounceRelease => {
+                if pressed {
+                    // Reset the counter any time we see a press state.
+                    self.counter = 0;
+                    KeyAction::None
+                } else {
+                    self.counter += 1;
+                    if self.counter == DEBOUNCE_COUNT {
+                        self.state = KeyState::Released;
+                        KeyAction::Release
+                    } else {
+                        KeyAction::None
+                    }
+                }
+            }
+            // TODO: We could probably just do two states, and a press/released flag.
+            KeyState::DebouncePress => {
+                if !pressed {
+                    // Reset the counter any time we see a released state.
+                    self.counter = 0;
+                    KeyAction::None
+                } else {
+                    self.counter += 1;
+                    if self.counter == DEBOUNCE_COUNT {
                         self.state = KeyState::Pressed;
                         KeyAction::Press
                     } else {
-                        self.state = KeyState::Released;
-                        KeyAction::Release
+                        KeyAction::None
                     }
-                } else {
-                    KeyAction::None
                 }
             }
         }
