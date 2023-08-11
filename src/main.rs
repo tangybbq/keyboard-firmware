@@ -6,7 +6,7 @@
 
 extern crate alloc;
 
-use core::{convert::Infallible};
+use core::convert::Infallible;
 
 // use alloc::collections::BTreeSet;
 use bsp::{entry, XOSC_CRYSTAL_FREQ};
@@ -80,7 +80,7 @@ fn main() -> ! {
         &mut col_c as &mut dyn OutputPin<Error = Infallible>,
         &mut col_d as &mut dyn OutputPin<Error = Infallible>,
         &mut col_e as &mut dyn OutputPin<Error = Infallible>,
-        ];
+    ];
     let row_1 = pins.gpio7.into_pull_down_input();
     let row_2 = pins.adc0.into_pull_down_input();
     let row_3 = pins.sck.into_pull_down_input();
@@ -88,7 +88,7 @@ fn main() -> ! {
         &row_1 as &dyn InputPin<Error = Infallible>,
         &row_2 as &dyn InputPin<Error = Infallible>,
         &row_3 as &dyn InputPin<Error = Infallible>,
-        ];
+    ];
     const KEYS: usize = 5 * 3;
 
     let mut keys = [Debouncer::new(); KEYS];
@@ -98,10 +98,10 @@ fn main() -> ! {
     // let mut released = BTreeSet::new();
 
     loop {
-        for col in 0 .. cols.len() {
+        for col in 0..cols.len() {
             cols[col].set_high().unwrap();
-            for row in 0 .. rows.len() {
-                let key = col*3 + row;
+            for row in 0..rows.len() {
+                let key = col * 3 + row;
                 let action = keys[key].react(rows[row].is_high().unwrap());
                 match action {
                     KeyAction::Press => info!("press: {}", key),
