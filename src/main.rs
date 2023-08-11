@@ -8,7 +8,7 @@ extern crate alloc;
 
 use core::{convert::Infallible};
 
-use alloc::collections::BTreeSet;
+// use alloc::collections::BTreeSet;
 use bsp::{entry, XOSC_CRYSTAL_FREQ};
 use defmt::*;
 use defmt_rtt as _;
@@ -89,38 +89,111 @@ fn main() -> ! {
         &row_2 as &dyn InputPin<Error = Infallible>,
         &row_3 as &dyn InputPin<Error = Infallible>,
         ];
+    const KEYS: usize = 5 * 3;
+
+    let mut keys = [Debouncer::new(); KEYS];
 
     // This is actually a terrible choice here, so move to something better.  But, this is fast.
-    let mut pressed = BTreeSet::new();
-    let mut released = BTreeSet::new();
+    // let mut pressed = BTreeSet::new();
+    // let mut released = BTreeSet::new();
 
+    let mut tick = 0;
     loop {
         for col in 0 .. cols.len() {
             cols[col].set_high().unwrap();
             for row in 0 .. rows.len() {
                 let key = col*3 + row;
-                if rows[row].is_high().unwrap() {
-                    // info!("Pressed col {} row {}", col, row);
-                    pressed.insert(key);
-                } else if pressed.contains(&key) {
-                    released.insert(key);
+                let action = keys[key].react(tick, rows[row].is_high().unwrap());
+                match action {
+                    KeyAction::Press => info!("press: {}", key),
+                    KeyAction::Release => info!("release: {}", key),
+                    _ => (),
                 }
             }
             cols[col].set_low().unwrap();
             delay.delay_us(5);
         }
-        // Check if everything pressed got released.
-        if !released.is_empty() && pressed == released {
-            for key in &released {
-                info!("press: {}", key);
-            }
-            info!("Up");
 
-            pressed.clear();
-            released.clear();
-        }
+        // Check if everything pressed got released.
+        // if !released.is_empty() && pressed == released {
+        //     for key in &released {
+        //         info!("press: {}", key);
+        //     }
+        //     info!("Up");
+
+        //     pressed.clear();
+        //     released.clear();
+        // }
 
         // This should be timer triggered so actually 1ms, not just after 1ms.
         delay.delay_ms(1);
+
+        // TODO: This is good for about 49 days, with a 1ms poll. We need to
+        // periodically reset this, when we find situations where everything can
+        // be reset, such as all keys up.
+        tick += 1;
+    }
+}
+
+/// Individual state tracking.
+#[derive(Clone, Copy)]
+enum KeyState {
+    Released,
+    Pressed,
+    Debounce,
+}
+
+#[derive(Clone, Copy)]
+enum KeyAction {
+    None,
+    Press,
+    Release,
+}
+
+// Don't really want Copy, but needed for init.
+#[derive(Clone, Copy)]
+struct Debouncer {
+    state: KeyState,
+    last_time: usize,
+}
+
+impl Debouncer {
+    fn new() -> Debouncer {
+        Debouncer {
+            state: KeyState::Released,
+            last_time: 0,
+        }
+    }
+
+    fn react(&mut self, now: usize, pressed: bool) -> KeyAction {
+        match self.state {
+            KeyState::Released => {
+                if pressed {
+                    self.state = KeyState::Debounce;
+                    self.last_time = now;
+                }
+                KeyAction::None
+            }
+            KeyState::Pressed => {
+                if !pressed {
+                    self.state = KeyState::Debounce;
+                    self.last_time = now;
+                }
+                KeyAction::None
+            }
+            KeyState::Debounce => {
+                if self.last_time + 20 <= now {
+                    if pressed {
+                        self.state = KeyState::Pressed;
+                        KeyAction::Press
+                    } else {
+                        self.state = KeyState::Released;
+                        KeyAction::Release
+                    }
+                } else {
+                    KeyAction::None
+                }
+            }
+        }
     }
 }
