@@ -7,13 +7,17 @@
 extern crate alloc;
 
 use core::convert::Infallible;
+use core::iter::once;
 
 // use alloc::collections::BTreeSet;
-use bsp::{entry, XOSC_CRYSTAL_FREQ};
+use bsp::{entry, XOSC_CRYSTAL_FREQ, hal::{uart::{UartConfig, StopBits, DataBits}, Timer}};
 use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin, PinState};
+use fugit::RateExtU32;
 use panic_probe as _;
+use ws2812_pio::Ws2812;
+use smart_leds::{SmartLedsWrite, RGB8};
 
 use embedded_alloc::Heap;
 
@@ -29,8 +33,11 @@ use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
     pac,
     sio::Sio,
+    pio::PIOExt,
     watchdog::Watchdog,
 };
+
+use bsp::hal as hal;
 
 #[entry]
 fn main() -> ! {
@@ -41,12 +48,12 @@ fn main() -> ! {
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
 
-    info!("Program start");
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
     let mut watchdog = Watchdog::new(pac.WATCHDOG);
     let sio = Sio::new(pac.SIO);
 
+    info!("Program start");
     // External high-speed crystal on the pico board is 12Mhz
     let clocks = init_clocks_and_plls(
         XOSC_CRYSTAL_FREQ,
@@ -68,6 +75,62 @@ fn main() -> ! {
         sio.gpio_bank0,
         &mut pac.RESETS,
     );
+
+    // let defmt_uart_pins = (
+    //     pins.tx0.into_mode::<hal::gpio::FunctionUart>(),
+    //     pins.rx0.into_mode::<hal::gpio::FunctionUart>(),
+    // );
+    // let defmt_uart = hal::uart::UartPeripheral::new(pac.UART0, defmt_uart_pins, &mut pac.RESETS)
+    //     .enable(
+    //         UartConfig::new(115200.Hz(), DataBits::Eight, None, StopBits::One),
+    //         clocks.peripheral_clock.freq(),
+    //     )
+    //     .unwrap();
+    // defmt_uart.write_full_blocking(b"Test hello\r\n");
+    // defmt_serial::defmt_serial(defmt_uart);
+    info!("Defmt working");
+
+    let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+
+    let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
+    let mut ws = Ws2812::new(
+        pins.led.into_function(),
+        &mut pio,
+        sm0,
+        clocks.peripheral_clock.freq(),
+        timer.count_down(),
+        );
+
+    ws.write(once(RGB8::new(4, 16, 4))).unwrap();
+
+    // Use the side identifying GPIO, this is on different gpios on proto2 and proto3.
+    let side = pins.adc1.into_pull_down_input();
+    info!("Side: {}", side.is_high().unwrap());
+
+    // Let's see if we can use the UART1.
+    let uart_pins = (
+        pins.tx1.into_mode::<hal::gpio::FunctionUart>(),
+        pins.rx1.into_mode::<hal::gpio::FunctionUart>(),
+    );
+    let uart = hal::uart::UartPeripheral::new(pac.UART1, uart_pins, &mut pac.RESETS)
+        .enable(
+            UartConfig::new(9600.Hz(), DataBits::Eight, None, StopBits::One),
+            clocks.peripheral_clock.freq(),
+        )
+        .unwrap();
+
+    // let mut gotten = false;
+    // while !gotten {
+    //     let mut buf = [0u8];
+    //     if let Ok(count) = uart.read_raw(&mut buf) {
+    //         info!("count = {}", count);
+    //         info!("Read byte: {}", buf[0]);
+    //         if buf[0] == b'\n' {
+    //             gotten = true;
+    //         }
+    //     }
+    //     delay.delay_ms(1);
+    // }
 
     let mut col_a = pins.gpio2.into_push_pull_output_in_state(PinState::Low);
     let mut col_b = pins.gpio3.into_push_pull_output_in_state(PinState::Low);
@@ -113,6 +176,14 @@ fn main() -> ! {
             delay.delay_us(5);
         }
 
+        // For debugging, turn on the red LED in the case where we have keys down.
+        let color = if keys.iter().any(|k| k.is_pressed()) {
+            RGB8::new(15, 15, 0)
+        } else {
+            RGB8::new(0, 15, 0)
+        };
+        ws.write(once(color)).unwrap();
+
         // Check if everything pressed got released.
         // if !released.is_empty() && pressed == released {
         //     for key in &released {
@@ -130,7 +201,7 @@ fn main() -> ! {
 }
 
 /// Individual state tracking.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 enum KeyState {
     /// Key is in released state.
     Released,
@@ -216,5 +287,9 @@ impl Debouncer {
                 }
             }
         }
+    }
+
+    fn is_pressed(&self) -> bool {
+        self.state == KeyState::Pressed || self.state == KeyState::DebounceRelease
     }
 }

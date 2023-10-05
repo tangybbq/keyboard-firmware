@@ -7,3 +7,6 @@ firmware I regularly run, but is still in development.  It is based on the
 
 At this point, there is nothing to configure, as it only supports the proto2
 keyboard and just prints keypress and release events.
+
+I was able to get probe-rs working with the picoprobe by using [this
+firmware](https://github.com/raspberrypi/picoprobe/releases/download/picoprobe-cmsis-v1.02/picoprobe.uf2).

@@ -10,14 +10,19 @@ embedded-hal = { version = "0.2.5", features = ["unproven"] }
 
 defmt = "0.3"
 defmt-rtt = "0.4"
+# defmt-serial = "0.6"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 # We're using a Pico by default on this template
 # rp-pico = "0.7"
 
 # but you can use any BSP. Uncomment this to use the pro_micro_rp2040 BSP instead
-sparkfun-pro-micro-rp2040 = "0.6"
+sparkfun-pro-micro-rp2040 = "0.7"
 embedded-alloc = "0.5.0"
+fugit = "0.3.7"
+
+ws2812-pio = "0.7"
+smart-leds = "0.3"
 
 # If you're not going to use a Board Support Package you'll need these:
 # rp2040-hal = { version="0.8", features=["rt", "critical-section-impl"] }
