@@ -13,10 +13,10 @@ use core::iter::once;
 use bsp::{entry, XOSC_CRYSTAL_FREQ, hal::{uart::{UartConfig, StopBits, DataBits}, Timer}};
 use defmt::*;
 use defmt_rtt as _;
-use embedded_hal::digital::v2::{InputPin, OutputPin, PinState};
-use fugit::RateExtU32;
+use embedded_hal::{digital::v2::{InputPin, OutputPin, PinState}, timer::CountDown};
+use fugit::{ExtU32, RateExtU32};
 use panic_probe as _;
-use ws2812_pio::Ws2812;
+use ws2812_pio::Ws2812Direct;
 use smart_leds::{SmartLedsWrite, RGB8};
 
 use embedded_alloc::Heap;
@@ -91,17 +91,18 @@ fn main() -> ! {
     info!("Defmt working");
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+    let mut ticker = timer.count_down();
+    ticker.start(1.millis());
 
     let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
-    let mut ws = Ws2812::new(
+    let mut ws = Ws2812Direct::new(
         pins.led.into_function(),
         &mut pio,
         sm0,
         clocks.peripheral_clock.freq(),
-        timer.count_down(),
         );
 
-    ws.write(once(RGB8::new(4, 16, 4))).unwrap();
+    // ws.write(once(RGB8::new(4, 16, 4))).unwrap();
 
     // Use the side identifying GPIO, this is on different gpios on proto2 and proto3.
     let side = pins.adc1.into_pull_down_input();
@@ -196,7 +197,8 @@ fn main() -> ! {
         // }
 
         // This should be timer triggered so actually 1ms, not just after 1ms.
-        delay.delay_ms(1);
+        nb::block!(ticker.wait()).unwrap();
+        // delay.delay_ms(1);
     }
 }
 
