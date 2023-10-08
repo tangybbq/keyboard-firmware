@@ -76,6 +76,16 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
+    // The ACD1/GPIO27 gpio pin will be pulled up or down to indicate if this is
+    // the left or right half of the keyboard. High indicates the right side,
+    // and low is the left side.
+    let side_select = pins.adc1.into_pull_down_input();
+    let idle_color = if side_select.is_high().unwrap() {
+        RGB8::new(0, 15, 0)
+    } else {
+        RGB8::new(0, 0, 15)
+    };
+
     // let defmt_uart_pins = (
     //     pins.tx0.into_mode::<hal::gpio::FunctionUart>(),
     //     pins.rx0.into_mode::<hal::gpio::FunctionUart>(),
@@ -102,18 +112,16 @@ fn main() -> ! {
         clocks.peripheral_clock.freq(),
         );
 
-    // ws.write(once(RGB8::new(4, 16, 4))).unwrap();
+    // let usb_alloc = UsbBusAllocator::new(usb_bus);
 
-    // Use the side identifying GPIO, this is on different gpios on proto2 and proto3.
-    let side = pins.adc1.into_pull_down_input();
-    info!("Side: {}", side.is_high().unwrap());
+    // ws.write(once(RGB8::new(4, 16, 4))).unwrap();
 
     // Let's see if we can use the UART1.
     let uart_pins = (
-        pins.tx1.into_mode::<hal::gpio::FunctionUart>(),
-        pins.rx1.into_mode::<hal::gpio::FunctionUart>(),
+        pins.tx1.into_function::<hal::gpio::FunctionUart>(),
+        pins.rx1.into_function::<hal::gpio::FunctionUart>(),
     );
-    let uart = hal::uart::UartPeripheral::new(pac.UART1, uart_pins, &mut pac.RESETS)
+    let _uart = hal::uart::UartPeripheral::new(pac.UART1, uart_pins, &mut pac.RESETS)
         .enable(
             UartConfig::new(9600.Hz(), DataBits::Eight, None, StopBits::One),
             clocks.peripheral_clock.freq(),
@@ -181,7 +189,7 @@ fn main() -> ! {
         let color = if keys.iter().any(|k| k.is_pressed()) {
             RGB8::new(15, 15, 0)
         } else {
-            RGB8::new(0, 15, 0)
+            idle_color
         };
         ws.write(once(color)).unwrap();
 
