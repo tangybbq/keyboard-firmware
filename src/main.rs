@@ -39,6 +39,11 @@ use bsp::hal::{
 
 use bsp::hal as hal;
 
+use usb_device::{class_prelude::*, prelude::*};
+
+use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
+use usbd_hid::hid_class::HIDClass;
+
 #[entry]
 fn main() -> ! {
     {
@@ -112,7 +117,44 @@ fn main() -> ! {
         clocks.peripheral_clock.freq(),
         );
 
-    // let usb_alloc = UsbBusAllocator::new(usb_bus);
+    let usb_bus = UsbBusAllocator::new(hal::usb::UsbBus::new(
+        pac.USBCTRL_REGS,
+        pac.USBCTRL_DPRAM,
+        clocks.usb_clock,
+        true,
+        &mut pac.RESETS,
+    ));
+    let mut usb_hid = HIDClass::new(&usb_bus, KeyboardReport::desc(), 60);
+    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0xfeed, 0xbee0))
+        .manufacturer("David Brown")
+        .product("Proto2 Keyboard")
+        .serial_number("1234")
+        .device_class(0)
+        .build();
+
+    /*
+    delay.delay_ms(100);
+    let report = KeyboardReport {
+        modifier: 0,
+        reserved: 0,
+        leds: 0,
+        keycodes: [0x04, 0x00, 0x00, 0x00, 0x00, 0x00],
+    };
+    usb_hid.push_input(&report).unwrap();
+    usb_dev.poll(&mut [&mut usb_hid]);
+    delay.delay_ms(100);
+    usb_dev.poll(&mut [&mut usb_hid]);
+    let report = KeyboardReport {
+        modifier: 0,
+        reserved: 0,
+        leds: 0,
+        keycodes: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+    };
+    usb_hid.push_input(&report).unwrap();
+    usb_dev.poll(&mut [&mut usb_hid]);
+    delay.delay_ms(100);
+    usb_dev.poll(&mut [&mut usb_hid]);
+    */
 
     // ws.write(once(RGB8::new(4, 16, 4))).unwrap();
 
@@ -204,6 +246,7 @@ fn main() -> ! {
         //     released.clear();
         // }
 
+        usb_dev.poll(&mut [&mut usb_hid]);
         // This should be timer triggered so actually 1ms, not just after 1ms.
         nb::block!(ticker.wait()).unwrap();
         // delay.delay_ms(1);
