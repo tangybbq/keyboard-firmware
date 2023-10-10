@@ -41,8 +41,12 @@ use bsp::hal as hal;
 
 use usb_device::{class_prelude::*, prelude::*};
 
-use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
-use usbd_hid::hid_class::HIDClass;
+use usbd_human_interface_device::{page::Keyboard, device::DeviceClass};
+use usbd_human_interface_device::device::keyboard::{KeyboardLedsReport, BootKeyboardConfig, NKROBootKeyboardConfig};
+use usbd_human_interface_device::prelude::*;
+
+// use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
+// use usbd_hid::hid_class::HIDClass;
 
 #[entry]
 fn main() -> ! {
@@ -108,6 +112,7 @@ fn main() -> ! {
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
     let mut ticker = timer.count_down();
     ticker.start(1.millis());
+    // ticker.start(250.micros());
 
     let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
     let mut ws = Ws2812Direct::new(
@@ -124,13 +129,26 @@ fn main() -> ! {
         true,
         &mut pac.RESETS,
     ));
-    let mut usb_hid = HIDClass::new(&usb_bus, KeyboardReport::desc(), 60);
-    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0xfeed, 0xbee0))
-        .manufacturer("David Brown")
-        .product("Proto2 Keyboard")
-        .serial_number("1234")
+    let mut keyboard = UsbHidClassBuilder::new()
+        .add_device(
+            NKROBootKeyboardConfig::default(),
+            // BootKeyboardConfig::default(),
+        )
+        .build(&usb_bus);
+    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x1209, 0x002))
+        .manufacturer("DavidBrown")
+        .product("Proto2")
+        .serial_number("0001-0001")
         .device_class(0)
+        .max_power(500)
         .build();
+    // let mut usb_hid = HIDClass::new(&usb_bus, KeyboardReport::desc(), 60);
+    // let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0xfeed, 0xbee0))
+    //     .manufacturer("David Brown")
+    //     .product("Proto2 Keyboard")
+    //     .serial_number("1234")
+    //     .device_class(0)
+    //     .build();
 
     /*
     delay.delay_ms(100);
@@ -211,6 +229,8 @@ fn main() -> ! {
     // let mut pressed = BTreeSet::new();
     // let mut released = BTreeSet::new();
 
+    let mut reported: bool = false;
+    let mut previous_state = UsbDeviceState::Suspend;
     loop {
         for col in 0..cols.len() {
             cols[col].set_high().unwrap();
@@ -235,6 +255,22 @@ fn main() -> ! {
         };
         ws.write(once(color)).unwrap();
 
+        let (keys, this_reported) = if keys[0].is_pressed() {
+            ([Keyboard::A], true)
+        } else {
+            ([Keyboard::NoEventIndicated], false)
+        };
+        if this_reported != reported {
+            match keyboard.device().write_report(keys) {
+                Ok(()) => info!("Report ok"),
+                Err(UsbHidError::WouldBlock) => info!("Wouldblock"),
+                Err(UsbHidError::Duplicate) => info!("Duplicate"),
+                Err(UsbHidError::UsbError(_)) => info!("UsbError"),
+                Err(UsbHidError::SerializationError) => info!("SerializationError"),
+            }
+            reported = this_reported;
+        }
+
         // Check if everything pressed got released.
         // if !released.is_empty() && pressed == released {
         //     for key in &released {
@@ -246,9 +282,32 @@ fn main() -> ! {
         //     released.clear();
         // }
 
-        usb_dev.poll(&mut [&mut usb_hid]);
-        // This should be timer triggered so actually 1ms, not just after 1ms.
-        nb::block!(ticker.wait()).unwrap();
+        match keyboard.device().tick() {
+            Ok(_) => (),
+            Err(UsbHidError::WouldBlock) => info!("tick Wouldblock"),
+            Err(UsbHidError::Duplicate) => info!("tick Duplicate"),
+            Err(UsbHidError::UsbError(_)) => info!("tick UsbError"),
+            Err(UsbHidError::SerializationError) => info!("tick SerializationError"),
+        }
+        let state = usb_dev.state();
+        if state != previous_state {
+            match state {
+                UsbDeviceState::Default => info!("State: Default"),
+                UsbDeviceState::Addressed => info!("State: Addressed"),
+                UsbDeviceState::Configured => info!("State: Configured"),
+                UsbDeviceState::Suspend => info!("State: Suspend"),
+            }
+            previous_state = state;
+        }
+        while usb_dev.poll(&mut [&mut keyboard]) {
+            keyboard.poll();
+            match keyboard.device().read_report() {
+                Ok(l) => info!("Report: {}", l.caps_lock),
+                _ => (),
+            }
+        }
+        // usb_dev.poll(&mut [&mut usb_hid]);
+        // nb::block!(ticker.wait()).unwrap();
         // delay.delay_ms(1);
     }
 }
