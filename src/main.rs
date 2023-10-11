@@ -131,38 +131,6 @@ fn main() -> ! {
     ));
     let mut usb_handler = usb::UsbHandler::new(&usb_bus);
 
-    // let mut usb_hid = HIDClass::new(&usb_bus, KeyboardReport::desc(), 60);
-    // let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0xfeed, 0xbee0))
-    //     .manufacturer("David Brown")
-    //     .product("Proto2 Keyboard")
-    //     .serial_number("1234")
-    //     .device_class(0)
-    //     .build();
-
-    /*
-    delay.delay_ms(100);
-    let report = KeyboardReport {
-        modifier: 0,
-        reserved: 0,
-        leds: 0,
-        keycodes: [0x04, 0x00, 0x00, 0x00, 0x00, 0x00],
-    };
-    usb_hid.push_input(&report).unwrap();
-    usb_dev.poll(&mut [&mut usb_hid]);
-    delay.delay_ms(100);
-    usb_dev.poll(&mut [&mut usb_hid]);
-    let report = KeyboardReport {
-        modifier: 0,
-        reserved: 0,
-        leds: 0,
-        keycodes: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-    };
-    usb_hid.push_input(&report).unwrap();
-    usb_dev.poll(&mut [&mut usb_hid]);
-    delay.delay_ms(100);
-    usb_dev.poll(&mut [&mut usb_hid]);
-    */
-
     // ws.write(once(RGB8::new(4, 16, 4))).unwrap();
 
     // Let's see if we can use the UART1.
@@ -219,58 +187,11 @@ fn main() -> ! {
 
     let mut steno_raw_handler = steno::RawStenoHandler::new();
 
-    // This is actually a terrible choice here, so move to something better.  But, this is fast.
-    // let mut pressed = BTreeSet::new();
-    // let mut released = BTreeSet::new();
-
-    // let mut reported: bool = false;
     // TODO: Use the fugit values, and actual intervals.
     let mut next_1ms = timer.get_counter().ticks() + 1_000;
     let mut next_10us = timer.get_counter().ticks() + 10;
     loop {
         let now = timer.get_counter().ticks();
-
-        // for col in 0..cols.len() {
-        //     cols[col].set_high().unwrap();
-        //     for row in 0..rows.len() {
-        //         let key = col * 3 + row;
-        //         let action = keys[key].react(rows[row].is_high().unwrap());
-        //         match action {
-        //             KeyAction::Press => info!("press: {}", key),
-        //             KeyAction::Release => info!("release: {}", key),
-        //             _ => (),
-        //         }
-        //     }
-        //     cols[col].set_low().unwrap();
-        //     delay.delay_us(5);
-        // }
-
-        // For debugging, turn on the red LED in the case where we have keys down.
-        // let color = if keys.iter().any(|k| k.is_pressed()) {
-        //     RGB8::new(15, 15, 0)
-        // } else {
-        //     idle_color
-        // };
-        // ws.write(once(color)).unwrap();
-
-        // let this_reported = keys[0].is_pressed();
-        // if this_reported != reported {
-        //     reported = this_reported;
-        //     if reported {
-        //         usb_handler.enqueue([
-        //             Event::KeyPress(Keyboard::H),
-        //             Event::KeyRelease(Keyboard::H),
-        //             Event::KeyPress(Keyboard::E),
-        //             Event::KeyRelease(Keyboard::E),
-        //             Event::KeyPress(Keyboard::L),
-        //             Event::KeyRelease(Keyboard::L),
-        //             Event::KeyPress(Keyboard::L),
-        //             Event::KeyRelease(Keyboard::L),
-        //             Event::KeyPress(Keyboard::O),
-        //             Event::KeyRelease(Keyboard::O),
-        //         ].iter().cloned());
-        //     }
-        // }
 
         // Rapid poll first.
         if now > next_10us {
@@ -301,14 +222,6 @@ fn main() -> ! {
                     enqueue_event(&mut usb_handler, " ");
                     usb_handler.enqueue([Event::KeyRelease].iter().cloned());
                 }
-                /*
-                if event == KeyEvent::Press(0) {
-                    usb_handler.enqueue([
-                        Event::KeyPress(Keyboard::H),
-                        Event::KeyRelease(Keyboard::H),
-                    ].iter().cloned());
-                }
-                */
             }
 
             next_1ms = now + 1_000;
