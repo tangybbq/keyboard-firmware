@@ -42,7 +42,7 @@ use bsp::hal as hal;
 use usb_device::{class_prelude::*, prelude::*};
 
 use usbd_human_interface_device::{page::Keyboard, device::DeviceClass};
-use usbd_human_interface_device::device::keyboard::{KeyboardLedsReport, BootKeyboardConfig, NKROBootKeyboardConfig};
+use usbd_human_interface_device::device::keyboard::NKROBootKeyboardConfig;
 use usbd_human_interface_device::prelude::*;
 
 // use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
@@ -231,6 +231,7 @@ fn main() -> ! {
 
     let mut reported: bool = false;
     let mut previous_state = UsbDeviceState::Suspend;
+    let mut to_send = [].iter().peekable();
     loop {
         for col in 0..cols.len() {
             cols[col].set_high().unwrap();
@@ -255,21 +256,58 @@ fn main() -> ! {
         };
         ws.write(once(color)).unwrap();
 
-        let (keys, this_reported) = if keys[0].is_pressed() {
-            ([Keyboard::A], true)
-        } else {
-            ([Keyboard::NoEventIndicated], false)
-        };
+        let this_reported = keys[0].is_pressed();
         if this_reported != reported {
-            match keyboard.device().write_report(keys) {
-                Ok(()) => info!("Report ok"),
-                Err(UsbHidError::WouldBlock) => info!("Wouldblock"),
-                Err(UsbHidError::Duplicate) => info!("Duplicate"),
-                Err(UsbHidError::UsbError(_)) => info!("UsbError"),
-                Err(UsbHidError::SerializationError) => info!("SerializationError"),
-            }
             reported = this_reported;
+            if reported {
+                to_send = [
+                    Event::KeyPress(Keyboard::H),
+                    Event::KeyRelease(Keyboard::H),
+                    Event::KeyPress(Keyboard::E),
+                    Event::KeyRelease(Keyboard::E),
+                    Event::KeyPress(Keyboard::L),
+                    Event::KeyRelease(Keyboard::L),
+                    Event::KeyPress(Keyboard::L),
+                    Event::KeyRelease(Keyboard::L),
+                    Event::KeyPress(Keyboard::O),
+                    Event::KeyRelease(Keyboard::O),
+                ].iter().peekable();
+            }
         }
+
+        // If we have something to queue up, try reporting it.
+        if let Some(next) = to_send.peek() {
+            let ks = match next {
+                Event::KeyPress(k) => [*k],
+                Event::KeyRelease(_) => [Keyboard::NoEventIndicated],
+            };
+            match keyboard.device().write_report(ks) {
+                Ok(()) => {
+                    // Successful queue, so remove.
+                    let _ = to_send.next();
+                }
+                Err(UsbHidError::WouldBlock) => (),
+                Err(UsbHidError::Duplicate) => info!("Duplicate seen"),
+                Err(UsbHidError::UsbError(_)) => info!("UsbError seen"),
+                Err(UsbHidError::SerializationError) => info!("SerializationError seen"),
+            }
+        }
+        // The first time we see the first key pressed, queue up some stuff.
+        // let (keys, this_reported) = if keys[0].is_pressed() {
+        //     ([Keyboard::A], true)
+        // } else {
+        //     ([Keyboard::NoEventIndicated], false)
+        // };
+        // if this_reported != reported {
+        //     match keyboard.device().write_report(keys) {
+        //         Ok(()) => info!("Report ok"),
+        //         Err(UsbHidError::WouldBlock) => info!("Wouldblock"),
+        //         Err(UsbHidError::Duplicate) => info!("Duplicate"),
+        //         Err(UsbHidError::UsbError(_)) => info!("UsbError"),
+        //         Err(UsbHidError::SerializationError) => info!("SerializationError"),
+        //     }
+        //     reported = this_reported;
+        // }
 
         // Check if everything pressed got released.
         // if !released.is_empty() && pressed == released {
@@ -404,4 +442,9 @@ impl Debouncer {
     fn is_pressed(&self) -> bool {
         self.state == KeyState::Pressed || self.state == KeyState::DebounceRelease
     }
+}
+
+enum Event {
+    KeyPress(Keyboard),
+    KeyRelease(Keyboard),
 }
