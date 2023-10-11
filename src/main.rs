@@ -6,7 +6,8 @@
 
 extern crate alloc;
 
-use matrix::KeyEvent;
+use arrayvec::ArrayString;
+use usb::UsbHandler;
 
 use core::convert::Infallible;
 
@@ -17,7 +18,7 @@ use defmt_rtt as _;
 use embedded_hal::{digital::v2::{InputPin, OutputPin, PinState}, timer::CountDown};
 use fugit::{ExtU32, RateExtU32};
 use panic_probe as _;
-use usb_device::class_prelude::UsbBusAllocator;
+use usb_device::class_prelude::{UsbBusAllocator, UsbBus};
 
 use embedded_alloc::Heap;
 
@@ -42,6 +43,7 @@ use usbd_human_interface_device::page::Keyboard;
 
 mod matrix;
 mod usb;
+mod steno;
 
 // use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
 // use usbd_hid::hid_class::HIDClass;
@@ -215,6 +217,8 @@ fn main() -> ! {
         rows,
     );
 
+    let mut steno_raw_handler = steno::RawStenoHandler::new();
+
     // This is actually a terrible choice here, so move to something better.  But, this is fast.
     // let mut pressed = BTreeSet::new();
     // let mut released = BTreeSet::new();
@@ -274,6 +278,7 @@ fn main() -> ! {
             // keep up.
             usb_handler.poll();
             matrix_handler.poll();
+            steno_raw_handler.poll();
             next_10us = now + 10;
         }
 
@@ -281,17 +286,31 @@ fn main() -> ! {
         if now > next_1ms {
             usb_handler.tick();
             matrix_handler.tick(&mut delay);
-            next_1ms = now + 1_000;
+            steno_raw_handler.tick();
 
             // Hack: Pull events, and use them to queue up some events.
             while let Some(event) = matrix_handler.next_event() {
+                steno_raw_handler.handle_event(event);
+                if let Some(stroke) = steno_raw_handler.get_stroke() {
+                    let mut buffer = ArrayString::<24>::new();
+                    stroke.to_arraystring(&mut buffer);
+                    // info!("Stroke: {}", buffer.as_str());
+
+                    // Enqueue this up as appropriate.
+                    enqueue_event(&mut usb_handler, buffer.as_str());
+                    enqueue_event(&mut usb_handler, " ");
+                }
+                /*
                 if event == KeyEvent::Press(0) {
                     usb_handler.enqueue([
                         Event::KeyPress(Keyboard::H),
                         Event::KeyRelease(Keyboard::H),
                     ].iter().cloned());
                 }
+                */
             }
+
+            next_1ms = now + 1_000;
         }
     }
 }
@@ -299,5 +318,63 @@ fn main() -> ! {
 #[derive(Clone)]
 pub(crate) enum Event {
     KeyPress(Keyboard),
-    KeyRelease(Keyboard),
+    ShiftedKeyPress(Keyboard),
+    KeyRelease,
+}
+
+fn enqueue_event<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
+    for ch in text.chars() {
+        let keys = match ch {
+            'A' => Event::ShiftedKeyPress(Keyboard::A),
+            'B' => Event::ShiftedKeyPress(Keyboard::B),
+            'C' => Event::ShiftedKeyPress(Keyboard::C),
+            'D' => Event::ShiftedKeyPress(Keyboard::D),
+            'E' => Event::ShiftedKeyPress(Keyboard::E),
+            'F' => Event::ShiftedKeyPress(Keyboard::F),
+            'G' => Event::ShiftedKeyPress(Keyboard::G),
+            'H' => Event::ShiftedKeyPress(Keyboard::H),
+            'I' => Event::ShiftedKeyPress(Keyboard::I),
+            'J' => Event::ShiftedKeyPress(Keyboard::J),
+            'K' => Event::ShiftedKeyPress(Keyboard::K),
+            'L' => Event::ShiftedKeyPress(Keyboard::L),
+            'M' => Event::ShiftedKeyPress(Keyboard::M),
+            'N' => Event::ShiftedKeyPress(Keyboard::N),
+            'O' => Event::ShiftedKeyPress(Keyboard::O),
+            'P' => Event::ShiftedKeyPress(Keyboard::P),
+            'Q' => Event::ShiftedKeyPress(Keyboard::Q),
+            'R' => Event::ShiftedKeyPress(Keyboard::R),
+            'S' => Event::ShiftedKeyPress(Keyboard::S),
+            'T' => Event::ShiftedKeyPress(Keyboard::T),
+            'U' => Event::ShiftedKeyPress(Keyboard::U),
+            'V' => Event::ShiftedKeyPress(Keyboard::V),
+            'W' => Event::ShiftedKeyPress(Keyboard::W),
+            'X' => Event::ShiftedKeyPress(Keyboard::X),
+            'Y' => Event::ShiftedKeyPress(Keyboard::Y),
+            'Z' => Event::ShiftedKeyPress(Keyboard::Z),
+            '0' => Event::KeyPress(Keyboard::Keyboard0),
+            '1' => Event::KeyPress(Keyboard::Keyboard1),
+            '2' => Event::KeyPress(Keyboard::Keyboard2),
+            '3' => Event::KeyPress(Keyboard::Keyboard3),
+            '4' => Event::KeyPress(Keyboard::Keyboard4),
+            '5' => Event::KeyPress(Keyboard::Keyboard5),
+            '6' => Event::KeyPress(Keyboard::Keyboard6),
+            '7' => Event::KeyPress(Keyboard::Keyboard7),
+            '8' => Event::KeyPress(Keyboard::Keyboard8),
+            '9' => Event::KeyPress(Keyboard::Keyboard9),
+            '-' => Event::KeyPress(Keyboard::Minus),
+            ' ' => Event::KeyPress(Keyboard::Space),
+            '#' => Event::ShiftedKeyPress(Keyboard::Keyboard3),
+            '*' => Event::ShiftedKeyPress(Keyboard::Keyboard8),
+            '^' => Event::ShiftedKeyPress(Keyboard::Keyboard6),
+            '+' => Event::ShiftedKeyPress(Keyboard::Minus),
+            ch => {
+                warn!("Unhandled character: {}", ch);
+                Event::ShiftedKeyPress(Keyboard::ForwardSlash)
+            }
+        };
+        usb.enqueue([
+            keys,
+            Event::KeyRelease,
+        ].iter().cloned());
+    }
 }

@@ -4,7 +4,7 @@ use core::fmt::Debug;
 
 use arraydeque::ArrayDeque;
 use cortex_m::delay::Delay;
-use defmt::{info, warn};
+use defmt::warn;
 use embedded_hal::digital::v2::{OutputPin, InputPin};
 
 pub struct Matrix<'r, 'c, E, const NKEYS: usize> {
@@ -38,11 +38,11 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
 
                 let act = match action {
                     KeyAction::Press => {
-                        info!("press: {}", key);
+                        // info!("press: {}", key);
                         Some(KeyEvent::Press(key as u8))
                     }
                     KeyAction::Release => {
-                        info!("release: {}", key);
+                        // info!("release: {}", key);
                         Some(KeyEvent::Release(key as u8))
                     }
                     _ => None,
@@ -71,6 +71,22 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
 pub enum KeyEvent {
     Press(u8),
     Release(u8),
+}
+
+impl KeyEvent {
+    pub fn key(&self) -> u8 {
+        match self {
+            KeyEvent::Press(k) => *k,
+            KeyEvent::Release(k) => *k,
+        }
+    }
+
+    pub fn is_press(&self) -> bool {
+        match self {
+            KeyEvent::Press(_) => true,
+            KeyEvent::Release(_) => false,
+        }
+    }
 }
 
 /// Individual state tracking.

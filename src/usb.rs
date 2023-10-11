@@ -58,11 +58,12 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
 
         // If we have keys to queue up, try to do that here.
         if let Some(key) = self.keys.front() {
-            let ks = match key {
-                Event::KeyPress(k) => [*k],
-                Event::KeyRelease(_) => [Keyboard::NoEventIndicated],
+            let status = match key {
+                Event::KeyPress(k) => self.hid.device().write_report([*k]),
+                Event::ShiftedKeyPress(k) => self.hid.device().write_report([Keyboard::LeftShift, *k]),
+                Event::KeyRelease => self.hid.device().write_report([Keyboard::NoEventIndicated]),
             };
-            match self.hid.device().write_report(ks) {
+            match status {
                 Ok(()) => {
                     // Successful queue, so remove.
                     let _ = self.keys.pop_front();
