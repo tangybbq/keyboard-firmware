@@ -16,6 +16,7 @@ use defmt_rtt as _;
 use embedded_hal::{digital::v2::{InputPin, OutputPin, PinState}, timer::CountDown};
 use fugit::{ExtU32, RateExtU32};
 use panic_probe as _;
+use usb_device::class_prelude::UsbBusAllocator;
 use ws2812_pio::Ws2812Direct;
 use smart_leds::{SmartLedsWrite, RGB8};
 
@@ -39,11 +40,9 @@ use bsp::hal::{
 
 use bsp::hal as hal;
 
-use usb_device::{class_prelude::*, prelude::*};
+use usbd_human_interface_device::page::Keyboard;
 
-use usbd_human_interface_device::{page::Keyboard, device::DeviceClass};
-use usbd_human_interface_device::device::keyboard::NKROBootKeyboardConfig;
-use usbd_human_interface_device::prelude::*;
+mod usb;
 
 // use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
 // use usbd_hid::hid_class::HIDClass;
@@ -129,19 +128,8 @@ fn main() -> ! {
         true,
         &mut pac.RESETS,
     ));
-    let mut keyboard = UsbHidClassBuilder::new()
-        .add_device(
-            NKROBootKeyboardConfig::default(),
-            // BootKeyboardConfig::default(),
-        )
-        .build(&usb_bus);
-    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x1209, 0x002))
-        .manufacturer("DavidBrown")
-        .product("Proto2")
-        .serial_number("0001-0001")
-        .device_class(0)
-        .max_power(500)
-        .build();
+    let mut usb_handler = usb::UsbHandler::new(&usb_bus);
+
     // let mut usb_hid = HIDClass::new(&usb_bus, KeyboardReport::desc(), 60);
     // let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0xfeed, 0xbee0))
     //     .manufacturer("David Brown")
@@ -230,9 +218,12 @@ fn main() -> ! {
     // let mut released = BTreeSet::new();
 
     let mut reported: bool = false;
-    let mut previous_state = UsbDeviceState::Suspend;
-    let mut to_send = [].iter().peekable();
+    // TODO: Use the fugit values, and actual intervals.
+    let mut next_1ms = timer.get_counter().ticks() + 1_000;
+    let mut next_10us = timer.get_counter().ticks() + 10;
     loop {
+        let now = timer.get_counter().ticks();
+
         for col in 0..cols.len() {
             cols[col].set_high().unwrap();
             for row in 0..rows.len() {
@@ -260,7 +251,7 @@ fn main() -> ! {
         if this_reported != reported {
             reported = this_reported;
             if reported {
-                to_send = [
+                usb_handler.enqueue([
                     Event::KeyPress(Keyboard::H),
                     Event::KeyRelease(Keyboard::H),
                     Event::KeyPress(Keyboard::E),
@@ -271,82 +262,23 @@ fn main() -> ! {
                     Event::KeyRelease(Keyboard::L),
                     Event::KeyPress(Keyboard::O),
                     Event::KeyRelease(Keyboard::O),
-                ].iter().peekable();
+                ].iter().cloned());
             }
         }
 
-        // If we have something to queue up, try reporting it.
-        if let Some(next) = to_send.peek() {
-            let ks = match next {
-                Event::KeyPress(k) => [*k],
-                Event::KeyRelease(_) => [Keyboard::NoEventIndicated],
-            };
-            match keyboard.device().write_report(ks) {
-                Ok(()) => {
-                    // Successful queue, so remove.
-                    let _ = to_send.next();
-                }
-                Err(UsbHidError::WouldBlock) => (),
-                Err(UsbHidError::Duplicate) => info!("Duplicate seen"),
-                Err(UsbHidError::UsbError(_)) => info!("UsbError seen"),
-                Err(UsbHidError::SerializationError) => info!("SerializationError seen"),
-            }
+        // Rapid poll first.
+        if now > next_10us {
+            // Ideall this would be periodic, but it is also possible we never
+            // keep up.
+            usb_handler.poll();
+            next_10us = now + 10;
         }
-        // The first time we see the first key pressed, queue up some stuff.
-        // let (keys, this_reported) = if keys[0].is_pressed() {
-        //     ([Keyboard::A], true)
-        // } else {
-        //     ([Keyboard::NoEventIndicated], false)
-        // };
-        // if this_reported != reported {
-        //     match keyboard.device().write_report(keys) {
-        //         Ok(()) => info!("Report ok"),
-        //         Err(UsbHidError::WouldBlock) => info!("Wouldblock"),
-        //         Err(UsbHidError::Duplicate) => info!("Duplicate"),
-        //         Err(UsbHidError::UsbError(_)) => info!("UsbError"),
-        //         Err(UsbHidError::SerializationError) => info!("SerializationError"),
-        //     }
-        //     reported = this_reported;
-        // }
 
-        // Check if everything pressed got released.
-        // if !released.is_empty() && pressed == released {
-        //     for key in &released {
-        //         info!("press: {}", key);
-        //     }
-        //     info!("Up");
-
-        //     pressed.clear();
-        //     released.clear();
-        // }
-
-        match keyboard.device().tick() {
-            Ok(_) => (),
-            Err(UsbHidError::WouldBlock) => info!("tick Wouldblock"),
-            Err(UsbHidError::Duplicate) => info!("tick Duplicate"),
-            Err(UsbHidError::UsbError(_)) => info!("tick UsbError"),
-            Err(UsbHidError::SerializationError) => info!("tick SerializationError"),
+        // Slow poll next.
+        if now > next_1ms {
+            usb_handler.tick();
+            next_1ms = now + 1_000;
         }
-        let state = usb_dev.state();
-        if state != previous_state {
-            match state {
-                UsbDeviceState::Default => info!("State: Default"),
-                UsbDeviceState::Addressed => info!("State: Addressed"),
-                UsbDeviceState::Configured => info!("State: Configured"),
-                UsbDeviceState::Suspend => info!("State: Suspend"),
-            }
-            previous_state = state;
-        }
-        while usb_dev.poll(&mut [&mut keyboard]) {
-            keyboard.poll();
-            match keyboard.device().read_report() {
-                Ok(l) => info!("Report: {}", l.caps_lock),
-                _ => (),
-            }
-        }
-        // usb_dev.poll(&mut [&mut usb_hid]);
-        // nb::block!(ticker.wait()).unwrap();
-        // delay.delay_ms(1);
     }
 }
 
@@ -444,7 +376,8 @@ impl Debouncer {
     }
 }
 
-enum Event {
+#[derive(Clone)]
+pub(crate) enum Event {
     KeyPress(Keyboard),
     KeyRelease(Keyboard),
 }
