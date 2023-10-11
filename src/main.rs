@@ -6,8 +6,9 @@
 
 extern crate alloc;
 
+use matrix::KeyEvent;
+
 use core::convert::Infallible;
-use core::iter::once;
 
 // use alloc::collections::BTreeSet;
 use bsp::{entry, XOSC_CRYSTAL_FREQ, hal::{uart::{UartConfig, StopBits, DataBits}, Timer}};
@@ -17,8 +18,6 @@ use embedded_hal::{digital::v2::{InputPin, OutputPin, PinState}, timer::CountDow
 use fugit::{ExtU32, RateExtU32};
 use panic_probe as _;
 use usb_device::class_prelude::UsbBusAllocator;
-use ws2812_pio::Ws2812Direct;
-use smart_leds::{SmartLedsWrite, RGB8};
 
 use embedded_alloc::Heap;
 
@@ -34,7 +33,6 @@ use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
     pac,
     sio::Sio,
-    pio::PIOExt,
     watchdog::Watchdog,
 };
 
@@ -42,6 +40,7 @@ use bsp::hal as hal;
 
 use usbd_human_interface_device::page::Keyboard;
 
+mod matrix;
 mod usb;
 
 // use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
@@ -87,12 +86,12 @@ fn main() -> ! {
     // The ACD1/GPIO27 gpio pin will be pulled up or down to indicate if this is
     // the left or right half of the keyboard. High indicates the right side,
     // and low is the left side.
-    let side_select = pins.adc1.into_pull_down_input();
-    let idle_color = if side_select.is_high().unwrap() {
-        RGB8::new(0, 15, 0)
-    } else {
-        RGB8::new(0, 0, 15)
-    };
+    // let side_select = pins.adc1.into_pull_down_input();
+    // let idle_color = if side_select.is_high().unwrap() {
+    //     RGB8::new(0, 15, 0)
+    // } else {
+    //     RGB8::new(0, 0, 15)
+    // };
 
     // let defmt_uart_pins = (
     //     pins.tx0.into_mode::<hal::gpio::FunctionUart>(),
@@ -113,13 +112,13 @@ fn main() -> ! {
     ticker.start(1.millis());
     // ticker.start(250.micros());
 
-    let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
-    let mut ws = Ws2812Direct::new(
-        pins.led.into_function(),
-        &mut pio,
-        sm0,
-        clocks.peripheral_clock.freq(),
-        );
+    // let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
+    // let mut ws = Ws2812Direct::new(
+    //     pins.led.into_function(),
+    //     &mut pio,
+    //     sm0,
+    //     clocks.peripheral_clock.freq(),
+    //     );
 
     let usb_bus = UsbBusAllocator::new(hal::usb::UsbBus::new(
         pac.USBCTRL_REGS,
@@ -194,185 +193,106 @@ fn main() -> ! {
     let mut col_c = pins.gpio4.into_push_pull_output_in_state(PinState::Low);
     let mut col_d = pins.gpio5.into_push_pull_output_in_state(PinState::Low);
     let mut col_e = pins.gpio6.into_push_pull_output_in_state(PinState::Low);
-    let cols = [
+    let cols = &mut [
         &mut col_a as &mut dyn OutputPin<Error = Infallible>,
         &mut col_b as &mut dyn OutputPin<Error = Infallible>,
         &mut col_c as &mut dyn OutputPin<Error = Infallible>,
         &mut col_d as &mut dyn OutputPin<Error = Infallible>,
         &mut col_e as &mut dyn OutputPin<Error = Infallible>,
     ];
+
     let row_1 = pins.gpio7.into_pull_down_input();
     let row_2 = pins.adc0.into_pull_down_input();
     let row_3 = pins.sck.into_pull_down_input();
-    let rows = [
+    let rows = &[
         &row_1 as &dyn InputPin<Error = Infallible>,
         &row_2 as &dyn InputPin<Error = Infallible>,
         &row_3 as &dyn InputPin<Error = Infallible>,
     ];
-    const KEYS: usize = 5 * 3;
 
-    let mut keys = [Debouncer::new(); KEYS];
+    let mut matrix_handler: matrix::Matrix<'_, '_, Infallible, 15> = matrix::Matrix::new(
+        cols,
+        rows,
+    );
 
     // This is actually a terrible choice here, so move to something better.  But, this is fast.
     // let mut pressed = BTreeSet::new();
     // let mut released = BTreeSet::new();
 
-    let mut reported: bool = false;
+    // let mut reported: bool = false;
     // TODO: Use the fugit values, and actual intervals.
     let mut next_1ms = timer.get_counter().ticks() + 1_000;
     let mut next_10us = timer.get_counter().ticks() + 10;
     loop {
         let now = timer.get_counter().ticks();
 
-        for col in 0..cols.len() {
-            cols[col].set_high().unwrap();
-            for row in 0..rows.len() {
-                let key = col * 3 + row;
-                let action = keys[key].react(rows[row].is_high().unwrap());
-                match action {
-                    KeyAction::Press => info!("press: {}", key),
-                    KeyAction::Release => info!("release: {}", key),
-                    _ => (),
-                }
-            }
-            cols[col].set_low().unwrap();
-            delay.delay_us(5);
-        }
+        // for col in 0..cols.len() {
+        //     cols[col].set_high().unwrap();
+        //     for row in 0..rows.len() {
+        //         let key = col * 3 + row;
+        //         let action = keys[key].react(rows[row].is_high().unwrap());
+        //         match action {
+        //             KeyAction::Press => info!("press: {}", key),
+        //             KeyAction::Release => info!("release: {}", key),
+        //             _ => (),
+        //         }
+        //     }
+        //     cols[col].set_low().unwrap();
+        //     delay.delay_us(5);
+        // }
 
         // For debugging, turn on the red LED in the case where we have keys down.
-        let color = if keys.iter().any(|k| k.is_pressed()) {
-            RGB8::new(15, 15, 0)
-        } else {
-            idle_color
-        };
-        ws.write(once(color)).unwrap();
+        // let color = if keys.iter().any(|k| k.is_pressed()) {
+        //     RGB8::new(15, 15, 0)
+        // } else {
+        //     idle_color
+        // };
+        // ws.write(once(color)).unwrap();
 
-        let this_reported = keys[0].is_pressed();
-        if this_reported != reported {
-            reported = this_reported;
-            if reported {
-                usb_handler.enqueue([
-                    Event::KeyPress(Keyboard::H),
-                    Event::KeyRelease(Keyboard::H),
-                    Event::KeyPress(Keyboard::E),
-                    Event::KeyRelease(Keyboard::E),
-                    Event::KeyPress(Keyboard::L),
-                    Event::KeyRelease(Keyboard::L),
-                    Event::KeyPress(Keyboard::L),
-                    Event::KeyRelease(Keyboard::L),
-                    Event::KeyPress(Keyboard::O),
-                    Event::KeyRelease(Keyboard::O),
-                ].iter().cloned());
-            }
-        }
+        // let this_reported = keys[0].is_pressed();
+        // if this_reported != reported {
+        //     reported = this_reported;
+        //     if reported {
+        //         usb_handler.enqueue([
+        //             Event::KeyPress(Keyboard::H),
+        //             Event::KeyRelease(Keyboard::H),
+        //             Event::KeyPress(Keyboard::E),
+        //             Event::KeyRelease(Keyboard::E),
+        //             Event::KeyPress(Keyboard::L),
+        //             Event::KeyRelease(Keyboard::L),
+        //             Event::KeyPress(Keyboard::L),
+        //             Event::KeyRelease(Keyboard::L),
+        //             Event::KeyPress(Keyboard::O),
+        //             Event::KeyRelease(Keyboard::O),
+        //         ].iter().cloned());
+        //     }
+        // }
 
         // Rapid poll first.
         if now > next_10us {
             // Ideall this would be periodic, but it is also possible we never
             // keep up.
             usb_handler.poll();
+            matrix_handler.poll();
             next_10us = now + 10;
         }
 
         // Slow poll next.
         if now > next_1ms {
             usb_handler.tick();
+            matrix_handler.tick(&mut delay);
             next_1ms = now + 1_000;
-        }
-    }
-}
 
-/// Individual state tracking.
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum KeyState {
-    /// Key is in released state.
-    Released,
-    /// Key is in pressed state.
-    Pressed,
-    /// We've seen a release edge, and will consider it released when consistent.
-    DebounceRelease,
-    /// We've seen a press edge, and will consider it pressed when consistent.
-    DebouncePress,
-}
-
-#[derive(Clone, Copy)]
-enum KeyAction {
-    None,
-    Press,
-    Release,
-}
-
-// Don't really want Copy, but needed for init.
-#[derive(Clone, Copy)]
-struct Debouncer {
-    /// State for this key.
-    state: KeyState,
-    /// Count how many times we've seen a given debounce state.
-    counter: usize,
-}
-
-const DEBOUNCE_COUNT: usize = 20;
-
-impl Debouncer {
-    fn new() -> Debouncer {
-        Debouncer {
-            state: KeyState::Released,
-            counter: 0,
-        }
-    }
-
-    fn react(&mut self, pressed: bool) -> KeyAction {
-        match self.state {
-            KeyState::Released => {
-                if pressed {
-                    self.state = KeyState::DebouncePress;
-                    self.counter = 0;
-                }
-                KeyAction::None
-            }
-            KeyState::Pressed => {
-                if !pressed {
-                    self.state = KeyState::DebounceRelease;
-                    self.counter = 0;
-                }
-                KeyAction::None
-            }
-            KeyState::DebounceRelease => {
-                if pressed {
-                    // Reset the counter any time we see a press state.
-                    self.counter = 0;
-                    KeyAction::None
-                } else {
-                    self.counter += 1;
-                    if self.counter == DEBOUNCE_COUNT {
-                        self.state = KeyState::Released;
-                        KeyAction::Release
-                    } else {
-                        KeyAction::None
-                    }
-                }
-            }
-            // TODO: We could probably just do two states, and a press/released flag.
-            KeyState::DebouncePress => {
-                if !pressed {
-                    // Reset the counter any time we see a released state.
-                    self.counter = 0;
-                    KeyAction::None
-                } else {
-                    self.counter += 1;
-                    if self.counter == DEBOUNCE_COUNT {
-                        self.state = KeyState::Pressed;
-                        KeyAction::Press
-                    } else {
-                        KeyAction::None
-                    }
+            // Hack: Pull events, and use them to queue up some events.
+            while let Some(event) = matrix_handler.next_event() {
+                if event == KeyEvent::Press(0) {
+                    usb_handler.enqueue([
+                        Event::KeyPress(Keyboard::H),
+                        Event::KeyRelease(Keyboard::H),
+                    ].iter().cloned());
                 }
             }
         }
-    }
-
-    fn is_pressed(&self) -> bool {
-        self.state == KeyState::Pressed || self.state == KeyState::DebounceRelease
     }
 }
 
