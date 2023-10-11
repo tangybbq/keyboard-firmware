@@ -299,6 +299,7 @@ fn main() -> ! {
                     // Enqueue this up as appropriate.
                     enqueue_event(&mut usb_handler, buffer.as_str());
                     enqueue_event(&mut usb_handler, " ");
+                    usb_handler.enqueue([Event::KeyRelease].iter().cloned());
                 }
                 /*
                 if event == KeyEvent::Press(0) {
@@ -374,7 +375,6 @@ fn enqueue_event<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
         };
         usb.enqueue([
             keys,
-            Event::KeyRelease,
         ].iter().cloned());
     }
 }
