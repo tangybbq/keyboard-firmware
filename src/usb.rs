@@ -1,25 +1,25 @@
 // Usb HID management.
 
-use crate::hal::usb::UsbBus;
+// use crate::hal::usb::UsbBus;
 use crate::Event;
 use arraydeque::ArrayDeque;
 use defmt::{info, warn};
 use frunk::{HNil, HCons};
-use usb_device::{class_prelude::{UsbBusAllocator, UsbClass}, prelude::{UsbDeviceBuilder, UsbVidPid, UsbDevice, UsbDeviceState}};
+use usb_device::{class_prelude::{UsbBusAllocator, UsbClass, UsbBus}, prelude::{UsbDeviceBuilder, UsbVidPid, UsbDevice, UsbDeviceState}};
 use usbd_human_interface_device::{usb_class::{UsbHidClassBuilder, UsbHidClass}, device::{keyboard::{NKROBootKeyboardConfig, NKROBootKeyboard}, DeviceClass}, page::Keyboard, UsbHidError};
 
 // Type of the device list, which is internal to usbd_human_interface_device.
-type InterfaceList<'a> = HCons<NKROBootKeyboard<'a, UsbBus>, HNil>;
+type InterfaceList<'a, Bus> = HCons<NKROBootKeyboard<'a, Bus>, HNil>;
 
-pub struct UsbHandler<'a> {
-    dev: UsbDevice<'a, UsbBus>,
-    hid: UsbHidClass<'a, UsbBus, InterfaceList<'a>>,
+pub struct UsbHandler<'a, Bus: UsbBus> {
+    dev: UsbDevice<'a, Bus>,
+    hid: UsbHidClass<'a, Bus, InterfaceList<'a, Bus>>,
     state: Option<UsbDeviceState>,
     keys: ArrayDeque<Event, 128>,
 }
 
-impl<'a> UsbHandler<'a> {
-    pub fn new<'aa>(usb_bus : &'aa UsbBusAllocator<UsbBus>) -> UsbHandler<'aa> {
+impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
+    pub fn new<'aa, Busb: UsbBus>(usb_bus : &'aa UsbBusAllocator<Busb>) -> UsbHandler<'aa, Busb> {
         let keyboard = UsbHidClassBuilder::new()
             .add_device(
                 NKROBootKeyboardConfig::default(),
