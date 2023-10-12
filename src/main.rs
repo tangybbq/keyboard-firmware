@@ -46,6 +46,7 @@ use usbd_human_interface_device::page::Keyboard;
 mod matrix;
 mod usb;
 mod steno;
+mod inter;
 mod leds;
 
 // use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
@@ -142,12 +143,17 @@ fn main() -> ! {
         pins.tx1.into_function::<hal::gpio::FunctionUart>(),
         pins.rx1.into_function::<hal::gpio::FunctionUart>(),
     );
-    let _uart = hal::uart::UartPeripheral::new(pac.UART1, uart_pins, &mut pac.RESETS)
+    // info!("Uart clk: {}", clocks.peripheral_clock.freq().raw());
+    let uart = hal::uart::UartPeripheral::new(pac.UART1, uart_pins, &mut pac.RESETS)
         .enable(
-            UartConfig::new(9600.Hz(), DataBits::Eight, None, StopBits::One),
+            // Ideally, being above 320k will allow full frames to be sent each
+            // tick.  This number is chosen to be an exact divisor of the clock rate.
+            UartConfig::new(390625.Hz(), DataBits::Eight, None, StopBits::One),
             clocks.peripheral_clock.freq(),
         )
         .unwrap();
+
+    let mut inter_handler = inter::InterHandler::new(uart);
 
     // let mut gotten = false;
     // while !gotten {
@@ -204,6 +210,7 @@ fn main() -> ! {
             usb_handler.poll();
             matrix_handler.poll();
             steno_raw_handler.poll();
+            inter_handler.poll();
             next_10us = now + 10;
         }
 
@@ -227,6 +234,7 @@ fn main() -> ! {
                     usb_handler.enqueue([Event::KeyRelease].iter().cloned());
                 }
             }
+            inter_handler.tick();
             led_manager.tick();
 
             next_1ms = now + 1_000;
