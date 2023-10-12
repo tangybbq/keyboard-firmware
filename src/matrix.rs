@@ -2,17 +2,16 @@
 
 use core::fmt::Debug;
 
-use arraydeque::ArrayDeque;
 use cortex_m::delay::Delay;
-use defmt::warn;
 use embedded_hal::digital::v2::{OutputPin, InputPin};
+
+use crate::{EventQueue, Event};
 
 pub struct Matrix<'r, 'c, E, const NKEYS: usize> {
     cols: &'c mut [&'c mut dyn OutputPin<Error = E>],
     rows: &'r [&'r dyn InputPin<Error = E>],
     nrows: usize,
     keys: [Debouncer; NKEYS],
-    status: ArrayDeque<KeyEvent, NKEYS>,
 }
 
 impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
@@ -22,14 +21,13 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
     ) -> Self {
         let nrows = rows.len();
         let keys = [Debouncer::new(); NKEYS];
-        let status = ArrayDeque::new();
-        Matrix { cols, rows, nrows, keys, status }
+        Matrix { cols, rows, nrows, keys }
     }
 
     pub fn poll(&mut self) {
     }
 
-    pub fn tick(&mut self, delay: &mut Delay) {
+    pub(crate) fn tick(&mut self, delay: &mut Delay, events: &mut EventQueue) {
         for col in 0..self.cols.len() {
             self.cols[col].set_high().unwrap();
             for row in 0..self.rows.len() {
@@ -48,21 +46,12 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
                     _ => None,
                 };
                 if let Some(act) = act {
-                    match self.status.push_back(act) {
-                        Ok(()) => (),
-                        Err(_) => warn!("Key queue overflow"),
-                    }
+                    events.push(Event::Matrix(act));
                 }
             }
             self.cols[col].set_low().unwrap();
             delay.delay_us(5);
         }
-    }
-
-    // Extract the next action that came from the previous 'tick' scan. This
-    // will generally be called until it is exhausted.
-    pub fn next_event(&mut self) -> Option<KeyEvent> {
-        self.status.pop_front()
     }
 }
 

@@ -1,8 +1,8 @@
 //! Steno key handling.
 
-use crate::matrix::KeyEvent;
+use crate::{matrix::KeyEvent, EventQueue, Event};
 
-use self::stroke::Stroke;
+pub use self::stroke::Stroke;
 
 mod stroke;
 
@@ -24,7 +24,7 @@ impl RawStenoHandler {
     pub fn poll(&mut self) {}
 
     // Handle a single event.
-    pub fn handle_event(&mut self, event: KeyEvent) {
+    pub(crate) fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
         let key = event.key();
         if let Some(st) = LEFT_KEYS[key as usize] {
             if event.is_press() {
@@ -34,10 +34,14 @@ impl RawStenoHandler {
                 self.down.0 &= !st.0;
             }
         }
+
+        if let Some(stroke) = self.get_stroke() {
+            events.push(Event::RawSteno(stroke));
+        }
     }
 
     // Handle the case of all keys up, and a steno stroke being available.
-    pub fn get_stroke(&mut self) -> Option<Stroke> {
+    fn get_stroke(&mut self) -> Option<Stroke> {
         if self.seen.0 != 0 && self.down.0 == 0 {
             let result = self.seen;
             self.seen.0 = 0;

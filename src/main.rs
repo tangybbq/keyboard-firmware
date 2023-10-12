@@ -6,11 +6,15 @@
 
 extern crate alloc;
 
+use arraydeque::ArrayDeque;
 use arrayvec::ArrayString;
+use matrix::KeyEvent;
+use steno::Stroke;
 use usb::UsbHandler;
 use ws2812_pio::Ws2812Direct;
 
 use core::convert::Infallible;
+use core::iter::once;
 
 // use alloc::collections::BTreeSet;
 use bsp::{entry, XOSC_CRYSTAL_FREQ, hal::{uart::{UartConfig, StopBits, DataBits}, Timer}};
@@ -200,6 +204,8 @@ fn main() -> ! {
     // TODO: Use the fugit values, and actual intervals.
     let mut next_1ms = timer.get_counter().ticks() + 1_000;
     let mut next_10us = timer.get_counter().ticks() + 10;
+
+    let mut events = EventQueue::new();
     loop {
         let now = timer.get_counter().ticks();
 
@@ -217,21 +223,24 @@ fn main() -> ! {
         // Slow poll next.
         if now > next_1ms {
             usb_handler.tick();
-            matrix_handler.tick(&mut delay);
+            matrix_handler.tick(&mut delay, &mut events);
             steno_raw_handler.tick();
 
-            // Hack: Pull events, and use them to queue up some events.
-            while let Some(event) = matrix_handler.next_event() {
-                steno_raw_handler.handle_event(event);
-                if let Some(stroke) = steno_raw_handler.get_stroke() {
-                    let mut buffer = ArrayString::<24>::new();
-                    stroke.to_arraystring(&mut buffer);
-                    // info!("Stroke: {}", buffer.as_str());
+            // Handle the event queue.
+            while let Some(event) = events.pop() {
+                match event {
+                    Event::Matrix(key) => {
+                        steno_raw_handler.handle_event(key, &mut events);
+                    }
+                    Event::RawSteno(stroke) => {
+                        let mut buffer = ArrayString::<24>::new();
+                        stroke.to_arraystring(&mut buffer);
 
-                    // Enqueue this up as appropriate.
-                    enqueue_action(&mut usb_handler, buffer.as_str());
-                    enqueue_action(&mut usb_handler, " ");
-                    usb_handler.enqueue([KeyAction::KeyRelease].iter().cloned());
+                        // Enqueue with USB to send.
+                        enqueue_action(&mut usb_handler, buffer.as_str());
+                        enqueue_action(&mut usb_handler, " ");
+                        usb_handler.enqueue(once(KeyAction::KeyRelease));
+                    }
                 }
             }
             inter_handler.tick();
@@ -239,6 +248,35 @@ fn main() -> ! {
 
             next_1ms = now + 1_000;
         }
+    }
+}
+
+/// An event is something that happens in a handler to indicate some action
+/// likely needs to be performed on it.
+pub(crate) enum Event {
+    /// Events from the Matrix layer indicating changes in key actions.
+    Matrix(KeyEvent),
+
+    /// Indication of a "raw" steno stroke from the steno layer.  This is
+    /// untranslated and should just be typed.
+    RawSteno(Stroke),
+}
+
+pub(crate) struct EventQueue(ArrayDeque<Event, 256>);
+
+impl EventQueue {
+    pub fn new() -> Self {
+        EventQueue(ArrayDeque::new())
+    }
+
+    pub fn push(&mut self, event: Event) {
+        if let Err(_) = self.0.push_back(event) {
+            warn!("Internal event queue overflow");
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<Event> {
+        self.0.pop_front()
     }
 }
 
