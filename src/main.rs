@@ -23,7 +23,7 @@ use defmt_rtt as _;
 use embedded_hal::{digital::v2::{InputPin, OutputPin, PinState}, timer::CountDown};
 use fugit::{ExtU32, RateExtU32};
 use panic_probe as _;
-use usb_device::class_prelude::{UsbBusAllocator, UsbBus};
+use usb_device::{class_prelude::{UsbBusAllocator, UsbBus}, prelude::UsbDeviceState};
 
 use embedded_alloc::Heap;
 
@@ -213,7 +213,7 @@ fn main() -> ! {
         if now > next_10us {
             // Ideall this would be periodic, but it is also possible we never
             // keep up.
-            usb_handler.poll();
+            usb_handler.poll(&mut events);
             matrix_handler.poll();
             steno_raw_handler.poll();
             inter_handler.poll();
@@ -241,6 +241,13 @@ fn main() -> ! {
                         enqueue_action(&mut usb_handler, " ");
                         usb_handler.enqueue(once(KeyAction::KeyRelease));
                     }
+                    Event::UsbState(UsbDeviceState::Configured) => {
+                        // TODO: Unclear how to handle suspend, but once we are
+                        // configured, we need to start figuring out which side
+                        // we are so we can communicate between the halves.
+                        led_manager.set_global(&leds::USB_PRIMARY);
+                    }
+                    Event::UsbState(_) => (),
                 }
             }
             inter_handler.tick();
@@ -260,6 +267,9 @@ pub(crate) enum Event {
     /// Indication of a "raw" steno stroke from the steno layer.  This is
     /// untranslated and should just be typed.
     RawSteno(Stroke),
+
+    /// Change in USB status.
+    UsbState(UsbDeviceState),
 }
 
 pub(crate) struct EventQueue(ArrayDeque<Event, 256>);

@@ -1,6 +1,6 @@
 // Usb HID management.
 
-use crate::KeyAction;
+use crate::{KeyAction, EventQueue, Event};
 use arraydeque::ArrayDeque;
 use defmt::{info, warn};
 use frunk::{HNil, HCons};
@@ -80,7 +80,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
     /// calling sufficiently fast should also work.
     /// The docs suggest this can be called on say a 1ms tick, but this seems to
     /// break device identification.
-    pub fn poll(&mut self) {
+    pub(crate) fn poll(&mut self, events: &mut EventQueue) {
         if self.dev.poll(&mut [&mut self.hid]) {
             self.hid.poll();
             match self.hid.device().read_report() {
@@ -104,6 +104,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                 UsbDeviceState::Suspend => info!("State: Suspend"),
             }
             self.state = Some(new_state);
+            events.push(Event::UsbState(new_state));
         }
     }
 }
