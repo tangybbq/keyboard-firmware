@@ -96,7 +96,14 @@ fn main() -> ! {
     // The ACD1/GPIO27 gpio pin will be pulled up or down to indicate if this is
     // the left or right half of the keyboard. High indicates the right side,
     // and low is the left side.
-    // let side_select = pins.adc1.into_pull_down_input();
+    let side_select = pins.adc1.into_pull_down_input();
+    let side = if side_select.is_high().unwrap() {
+        info!("Right side");
+        Side::Right
+    } else {
+        info!("Left side");
+        Side::Left
+    };
     // let idle_color = if side_select.is_high().unwrap() {
     //     RGB8::new(0, 15, 0)
     // } else {
@@ -157,7 +164,7 @@ fn main() -> ! {
         )
         .unwrap();
 
-    let mut inter_handler = inter::InterHandler::new(uart);
+    let mut inter_handler = inter::InterHandler::new(uart, side);
 
     // let mut gotten = false;
     // while !gotten {
@@ -197,6 +204,7 @@ fn main() -> ! {
     let mut matrix_handler: matrix::Matrix<'_, '_, Infallible, 15> = matrix::Matrix::new(
         cols,
         rows,
+        side,
     );
 
     let mut steno_raw_handler = steno::RawStenoHandler::new();
@@ -351,5 +359,21 @@ fn enqueue_action<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
         usb.enqueue([
             keys,
         ].iter().cloned());
+    }
+}
+
+/// Which side of the keyboard are we.
+#[derive(Eq, PartialEq, Clone, Copy)]
+pub enum Side {
+    Left,
+    Right,
+}
+
+impl Side {
+    pub fn is_left(&self) -> bool {
+        match *self {
+            Side::Left => true,
+            Side::Right => false,
+        }
     }
 }

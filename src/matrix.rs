@@ -5,23 +5,25 @@ use core::fmt::Debug;
 use cortex_m::delay::Delay;
 use embedded_hal::digital::v2::{OutputPin, InputPin};
 
-use crate::{EventQueue, Event};
+use crate::{EventQueue, Event, Side};
 
 pub struct Matrix<'r, 'c, E, const NKEYS: usize> {
     cols: &'c mut [&'c mut dyn OutputPin<Error = E>],
     rows: &'r [&'r dyn InputPin<Error = E>],
     nrows: usize,
     keys: [Debouncer; NKEYS],
+    side: Side,
 }
 
 impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
     pub fn new(
         cols: &'c mut [&'c mut dyn OutputPin<Error = E>],
         rows: &'r [&'r dyn InputPin<Error = E>],
+        side: Side,
     ) -> Self {
         let nrows = rows.len();
         let keys = [Debouncer::new(); NKEYS];
-        Matrix { cols, rows, nrows, keys }
+        Matrix { cols, rows, nrows, keys, side }
     }
 
     pub fn poll(&mut self) {
@@ -31,7 +33,11 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
         for col in 0..self.cols.len() {
             self.cols[col].set_high().unwrap();
             for row in 0..self.rows.len() {
-                let key = col * self.nrows + row;
+                let key = col * self.nrows + row +
+                    (match self.side {
+                        Side::Left => 0,
+                        Side::Right => NKEYS,
+                    });
                 let action = self.keys[key].react(self.rows[row].is_high().unwrap());
 
                 let act = match action {
