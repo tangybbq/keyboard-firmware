@@ -350,7 +350,7 @@ fn enqueue_action<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
             '#' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard3),
             '*' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard8),
             '^' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard6),
-            '+' => KeyAction::ShiftedKeyPress(Keyboard::Minus),
+            '+' => KeyAction::ShiftedKeyPress(Keyboard::Equal),
             ch => {
                 warn!("Unhandled character: {}", ch);
                 KeyAction::ShiftedKeyPress(Keyboard::ForwardSlash)
