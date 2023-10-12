@@ -8,6 +8,7 @@ extern crate alloc;
 
 use arrayvec::ArrayString;
 use usb::UsbHandler;
+use ws2812_pio::Ws2812Direct;
 
 use core::convert::Infallible;
 
@@ -34,6 +35,7 @@ use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
     pac,
     sio::Sio,
+    pio::PIOExt,
     watchdog::Watchdog,
 };
 
@@ -44,6 +46,7 @@ use usbd_human_interface_device::page::Keyboard;
 mod matrix;
 mod usb;
 mod steno;
+mod leds;
 
 // use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
 // use usbd_hid::hid_class::HIDClass;
@@ -114,13 +117,14 @@ fn main() -> ! {
     ticker.start(1.millis());
     // ticker.start(250.micros());
 
-    // let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
-    // let mut ws = Ws2812Direct::new(
-    //     pins.led.into_function(),
-    //     &mut pio,
-    //     sm0,
-    //     clocks.peripheral_clock.freq(),
-    //     );
+    let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
+    let mut ws = Ws2812Direct::new(
+        pins.led.into_function(),
+        &mut pio,
+        sm0,
+        clocks.peripheral_clock.freq(),
+        );
+    let mut led_manager = leds::LedManager::new(&mut ws);
 
     let usb_bus = UsbBusAllocator::new(hal::usb::UsbBus::new(
         pac.USBCTRL_REGS,
@@ -223,6 +227,7 @@ fn main() -> ! {
                     usb_handler.enqueue([Event::KeyRelease].iter().cloned());
                 }
             }
+            led_manager.tick();
 
             next_1ms = now + 1_000;
         }
