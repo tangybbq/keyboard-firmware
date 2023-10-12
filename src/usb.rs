@@ -1,6 +1,6 @@
 // Usb HID management.
 
-use crate::Event;
+use crate::KeyAction;
 use arraydeque::ArrayDeque;
 use defmt::{info, warn};
 use frunk::{HNil, HCons};
@@ -14,7 +14,7 @@ pub struct UsbHandler<'a, Bus: UsbBus> {
     dev: UsbDevice<'a, Bus>,
     hid: UsbHidClass<'a, Bus, InterfaceList<'a, Bus>>,
     state: Option<UsbDeviceState>,
-    keys: ArrayDeque<Event, 128>,
+    keys: ArrayDeque<KeyAction, 128>,
 }
 
 impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
@@ -41,7 +41,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
 
     /// Add a sequence of events to be shipped off to the USB host.  If the
     /// deque is full, log a message, but discard.
-    pub(crate) fn enqueue<I: Iterator<Item = Event>>(&mut self, events: I) {
+    pub(crate) fn enqueue<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
         for key in events {
             if self.keys.push_back(key).is_err() {
                 info!("Key event queue full.");
@@ -59,9 +59,9 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
         // If we have keys to queue up, try to do that here.
         if let Some(key) = self.keys.front() {
             let status = match key {
-                Event::KeyPress(k) => self.hid.device().write_report([*k]),
-                Event::ShiftedKeyPress(k) => self.hid.device().write_report([Keyboard::LeftShift, *k]),
-                Event::KeyRelease => self.hid.device().write_report([Keyboard::NoEventIndicated]),
+                KeyAction::KeyPress(k) => self.hid.device().write_report([*k]),
+                KeyAction::ShiftedKeyPress(k) => self.hid.device().write_report([Keyboard::LeftShift, *k]),
+                KeyAction::KeyRelease => self.hid.device().write_report([Keyboard::NoEventIndicated]),
             };
             match status {
                 Ok(()) => {

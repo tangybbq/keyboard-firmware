@@ -229,9 +229,9 @@ fn main() -> ! {
                     // info!("Stroke: {}", buffer.as_str());
 
                     // Enqueue this up as appropriate.
-                    enqueue_event(&mut usb_handler, buffer.as_str());
-                    enqueue_event(&mut usb_handler, " ");
-                    usb_handler.enqueue([Event::KeyRelease].iter().cloned());
+                    enqueue_action(&mut usb_handler, buffer.as_str());
+                    enqueue_action(&mut usb_handler, " ");
+                    usb_handler.enqueue([KeyAction::KeyRelease].iter().cloned());
                 }
             }
             inter_handler.tick();
@@ -242,61 +242,62 @@ fn main() -> ! {
     }
 }
 
+/// Indicates keypress that should be sent to the host.
 #[derive(Clone)]
-pub(crate) enum Event {
+pub(crate) enum KeyAction {
     KeyPress(Keyboard),
     ShiftedKeyPress(Keyboard),
     KeyRelease,
 }
 
-fn enqueue_event<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
+fn enqueue_action<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
     for ch in text.chars() {
         let keys = match ch {
-            'A' => Event::ShiftedKeyPress(Keyboard::A),
-            'B' => Event::ShiftedKeyPress(Keyboard::B),
-            'C' => Event::ShiftedKeyPress(Keyboard::C),
-            'D' => Event::ShiftedKeyPress(Keyboard::D),
-            'E' => Event::ShiftedKeyPress(Keyboard::E),
-            'F' => Event::ShiftedKeyPress(Keyboard::F),
-            'G' => Event::ShiftedKeyPress(Keyboard::G),
-            'H' => Event::ShiftedKeyPress(Keyboard::H),
-            'I' => Event::ShiftedKeyPress(Keyboard::I),
-            'J' => Event::ShiftedKeyPress(Keyboard::J),
-            'K' => Event::ShiftedKeyPress(Keyboard::K),
-            'L' => Event::ShiftedKeyPress(Keyboard::L),
-            'M' => Event::ShiftedKeyPress(Keyboard::M),
-            'N' => Event::ShiftedKeyPress(Keyboard::N),
-            'O' => Event::ShiftedKeyPress(Keyboard::O),
-            'P' => Event::ShiftedKeyPress(Keyboard::P),
-            'Q' => Event::ShiftedKeyPress(Keyboard::Q),
-            'R' => Event::ShiftedKeyPress(Keyboard::R),
-            'S' => Event::ShiftedKeyPress(Keyboard::S),
-            'T' => Event::ShiftedKeyPress(Keyboard::T),
-            'U' => Event::ShiftedKeyPress(Keyboard::U),
-            'V' => Event::ShiftedKeyPress(Keyboard::V),
-            'W' => Event::ShiftedKeyPress(Keyboard::W),
-            'X' => Event::ShiftedKeyPress(Keyboard::X),
-            'Y' => Event::ShiftedKeyPress(Keyboard::Y),
-            'Z' => Event::ShiftedKeyPress(Keyboard::Z),
-            '0' => Event::KeyPress(Keyboard::Keyboard0),
-            '1' => Event::KeyPress(Keyboard::Keyboard1),
-            '2' => Event::KeyPress(Keyboard::Keyboard2),
-            '3' => Event::KeyPress(Keyboard::Keyboard3),
-            '4' => Event::KeyPress(Keyboard::Keyboard4),
-            '5' => Event::KeyPress(Keyboard::Keyboard5),
-            '6' => Event::KeyPress(Keyboard::Keyboard6),
-            '7' => Event::KeyPress(Keyboard::Keyboard7),
-            '8' => Event::KeyPress(Keyboard::Keyboard8),
-            '9' => Event::KeyPress(Keyboard::Keyboard9),
-            '-' => Event::KeyPress(Keyboard::Minus),
-            ' ' => Event::KeyPress(Keyboard::Space),
-            '#' => Event::ShiftedKeyPress(Keyboard::Keyboard3),
-            '*' => Event::ShiftedKeyPress(Keyboard::Keyboard8),
-            '^' => Event::ShiftedKeyPress(Keyboard::Keyboard6),
-            '+' => Event::ShiftedKeyPress(Keyboard::Minus),
+            'A' => KeyAction::ShiftedKeyPress(Keyboard::A),
+            'B' => KeyAction::ShiftedKeyPress(Keyboard::B),
+            'C' => KeyAction::ShiftedKeyPress(Keyboard::C),
+            'D' => KeyAction::ShiftedKeyPress(Keyboard::D),
+            'E' => KeyAction::ShiftedKeyPress(Keyboard::E),
+            'F' => KeyAction::ShiftedKeyPress(Keyboard::F),
+            'G' => KeyAction::ShiftedKeyPress(Keyboard::G),
+            'H' => KeyAction::ShiftedKeyPress(Keyboard::H),
+            'I' => KeyAction::ShiftedKeyPress(Keyboard::I),
+            'J' => KeyAction::ShiftedKeyPress(Keyboard::J),
+            'K' => KeyAction::ShiftedKeyPress(Keyboard::K),
+            'L' => KeyAction::ShiftedKeyPress(Keyboard::L),
+            'M' => KeyAction::ShiftedKeyPress(Keyboard::M),
+            'N' => KeyAction::ShiftedKeyPress(Keyboard::N),
+            'O' => KeyAction::ShiftedKeyPress(Keyboard::O),
+            'P' => KeyAction::ShiftedKeyPress(Keyboard::P),
+            'Q' => KeyAction::ShiftedKeyPress(Keyboard::Q),
+            'R' => KeyAction::ShiftedKeyPress(Keyboard::R),
+            'S' => KeyAction::ShiftedKeyPress(Keyboard::S),
+            'T' => KeyAction::ShiftedKeyPress(Keyboard::T),
+            'U' => KeyAction::ShiftedKeyPress(Keyboard::U),
+            'V' => KeyAction::ShiftedKeyPress(Keyboard::V),
+            'W' => KeyAction::ShiftedKeyPress(Keyboard::W),
+            'X' => KeyAction::ShiftedKeyPress(Keyboard::X),
+            'Y' => KeyAction::ShiftedKeyPress(Keyboard::Y),
+            'Z' => KeyAction::ShiftedKeyPress(Keyboard::Z),
+            '0' => KeyAction::KeyPress(Keyboard::Keyboard0),
+            '1' => KeyAction::KeyPress(Keyboard::Keyboard1),
+            '2' => KeyAction::KeyPress(Keyboard::Keyboard2),
+            '3' => KeyAction::KeyPress(Keyboard::Keyboard3),
+            '4' => KeyAction::KeyPress(Keyboard::Keyboard4),
+            '5' => KeyAction::KeyPress(Keyboard::Keyboard5),
+            '6' => KeyAction::KeyPress(Keyboard::Keyboard6),
+            '7' => KeyAction::KeyPress(Keyboard::Keyboard7),
+            '8' => KeyAction::KeyPress(Keyboard::Keyboard8),
+            '9' => KeyAction::KeyPress(Keyboard::Keyboard9),
+            '-' => KeyAction::KeyPress(Keyboard::Minus),
+            ' ' => KeyAction::KeyPress(Keyboard::Space),
+            '#' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard3),
+            '*' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard8),
+            '^' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard6),
+            '+' => KeyAction::ShiftedKeyPress(Keyboard::Minus),
             ch => {
                 warn!("Unhandled character: {}", ch);
-                Event::ShiftedKeyPress(Keyboard::ForwardSlash)
+                KeyAction::ShiftedKeyPress(Keyboard::ForwardSlash)
             }
         };
         usb.enqueue([
