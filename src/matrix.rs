@@ -33,21 +33,18 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
         for col in 0..self.cols.len() {
             self.cols[col].set_high().unwrap();
             for row in 0..self.rows.len() {
-                let key = col * self.nrows + row +
-                    (match self.side {
-                        Side::Left => 0,
-                        Side::Right => NKEYS,
-                    });
+                let key = col * self.nrows + row;
                 let action = self.keys[key].react(self.rows[row].is_high().unwrap());
 
+                let bias = if self.side.is_left() { 0 } else { NKEYS };
                 let act = match action {
                     KeyAction::Press => {
                         // info!("press: {}", key);
-                        Some(KeyEvent::Press(key as u8))
+                        Some(KeyEvent::Press((key + bias) as u8))
                     }
                     KeyAction::Release => {
                         // info!("release: {}", key);
-                        Some(KeyEvent::Release(key as u8))
+                        Some(KeyEvent::Release((key + bias) as u8))
                     }
                     _ => None,
                 };

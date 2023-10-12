@@ -53,6 +53,7 @@ impl RawStenoHandler {
 }
 
 static LEFT_KEYS: &[Option<Stroke>] = &[
+    // Left side
     Some(Stroke::from_raw(0x1 << 13)), // 'O'
     Some(Stroke::from_raw(0x1 << 14)), // 'A'
     Some(Stroke::from_raw(0x1000000)), // '#'
@@ -68,7 +69,23 @@ static LEFT_KEYS: &[Option<Stroke>] = &[
     Some(Stroke::from_raw(0x1 << 21)), // 'S'
     Some(Stroke::from_raw(        0)), // ''
     Some(Stroke::from_raw(        0)), // ''
-    Some(Stroke::from_raw(        0)), // ''
+
+    // Right side
+    Some(Stroke::from_raw(0x1 << 11)), // 'E'
+    Some(Stroke::from_raw(0x1 << 10)), // 'U'
+    Some(Stroke::from_raw(0x1000000)), // '#'
+    Some(Stroke::from_raw( 0x400000)), // '+'
+    Some(Stroke::from_raw( 0x400000)), // '+'
+    Some(Stroke::from_raw(0x1 <<  8)), // '-R'
+    Some(Stroke::from_raw(0x1 <<  9)), // '-F'
+    Some(Stroke::from_raw(0x1 <<  6)), // '-B'
+    Some(Stroke::from_raw(0x1 <<  7)), // '-P'
+    Some(Stroke::from_raw(0x1 <<  5)), // '-L'
+    Some(Stroke::from_raw(0x1 <<  4)), // '-G'
+    Some(Stroke::from_raw(0x1 <<  3)), // '-T'
+    Some(Stroke::from_raw(0x1 <<  2)), // '-S'
+    Some(Stroke::from_raw(0x1 <<  1)), // '-D'
+    Some(Stroke::from_raw(0x1 <<  0)), // '-Z'
 ];
 /*
 static RIGHT_KEYS: &[Option<Stroke>] = &[
