@@ -172,10 +172,24 @@ impl Decoder {
             }
             return None;
         }
+
         if let DecodeState::Init = self.state {
             return None;
         }
-        if let DecodeState::Inside { inner, crc: _, side: _ } = &mut self.state {
+
+        if let DecodeState::Inside { inner, crc, side } = &mut self.state {
+            crc.update(&[byte]);
+            if byte == 0xff {
+                // Transition to the CRC state.
+                self.state = DecodeState::CRC {
+                    inner: inner.clone(),
+                    expected_crc: crc_split(crc.clone().finalize()),
+                    gotten: [0, 0],
+                    pos: 0,
+                    side: *side,
+                };
+                return None;
+            }
             inner.decode(byte);
             return None;
         }
@@ -361,5 +375,23 @@ fn test_serialize() {
     }
     assert_eq!(Some(b), bb);
 
-    todo!("Write test for Secondary");
+    let mut keys = EventVec::new();
+    keys.push(KeyEvent::Press(5));
+    keys.push(KeyEvent::Press(18));
+    keys.push(KeyEvent::Release(18));
+    keys.push(KeyEvent::Release(5));
+    keys.push(KeyEvent::Release(7));
+    let c = Packet::Secondary {
+        side: Side::Left,
+        keys,
+    };
+    c.encode(&mut buf, &mut seq);
+
+    let mut cc = None;
+    for ch in buf.iter() {
+        if let Some(decoded) = decoder.add_byte(*ch) {
+            cc = Some(decoded);
+        }
+    }
+    assert_eq!(Some(c), cc);
 }
