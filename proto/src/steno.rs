@@ -4,9 +4,8 @@ use crate::{EventQueue, Event};
 
 use bbq_keyboard::KeyEvent;
 
-pub use self::stroke::Stroke;
-
-mod stroke;
+pub use bbq_steno::Stroke;
+use bbq_steno::stroke::EMPTY_STROKE;
 
 pub struct RawStenoHandler {
     // Keys that have been currently seen.
@@ -30,10 +29,10 @@ impl RawStenoHandler {
         let key = event.key();
         if let Some(st) = LEFT_KEYS[key as usize] {
             if event.is_press() {
-                self.seen.0 |= st.0;
-                self.down.0 |= st.0;
+                self.seen = self.seen.merge(st);
+                self.down = self.down.merge(st);
             } else {
-                self.down.0 &= !st.0;
+                self.down = self.down.mask(st);
             }
         }
 
@@ -44,9 +43,9 @@ impl RawStenoHandler {
 
     // Handle the case of all keys up, and a steno stroke being available.
     fn get_stroke(&mut self) -> Option<Stroke> {
-        if self.seen.0 != 0 && self.down.0 == 0 {
+        if !self.seen.is_empty() && self.down.is_empty() {
             let result = self.seen;
-            self.seen.0 = 0;
+            self.seen = EMPTY_STROKE;
             Some(result)
         } else {
             None

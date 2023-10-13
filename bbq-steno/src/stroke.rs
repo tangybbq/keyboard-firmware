@@ -18,6 +18,7 @@
 use arrayvec::ArrayString;
 
 /// A simple error type.
+#[derive(Debug)]
 pub enum Error {
     InvalidHyphen,
     InvalidChar(char),
@@ -26,6 +27,9 @@ pub enum Error {
 /// The stroke itself is just a 32 bit number.  It represents a single stroke on the machine.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Stroke(pub(super) u32);
+
+/// A stroke with no keys pressed.  Useful for building strokes.
+pub const EMPTY_STROKE: Stroke = Stroke(0);
 
 /// A steno word is a group of strokes that are represented separated by slashes.
 //#[derive(Clone, Debug)]
@@ -239,6 +243,21 @@ impl Stroke {
             self == CARET ||
             self == PLUS
     }
+
+    /// Merge the two strokes.
+    pub fn merge(self, other: Stroke) -> Stroke {
+        Stroke(self.0 | other.0)
+    }
+
+    /// Eliminate the keys in 'other' from self.
+    pub fn mask(self, other: Stroke) -> Stroke {
+        Stroke(self.0 & !other.0)
+    }
+
+    /// Is this an empty stroke (with no keys pressed)
+    pub fn is_empty(self) -> bool {
+        self.0 == 0
+    }
 }
 
 // A builder that can generate stroke diagrams.
@@ -316,10 +335,12 @@ impl Diagrammer {
             .collect()
     }
 }
+*/
 
 // Display is in canoncal order.
-impl fmt::Display for Stroke {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+#[cfg(feature = "std")]
+impl std::fmt::Display for Stroke {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // The '#' should be printed if the number is present, but none of the digits are present.
         if self.has_any(NUM) && !self.has_any(DIGITS) {
             write!(f, "#")?;
@@ -340,7 +361,6 @@ impl fmt::Display for Stroke {
         Ok(())
     }
 }
-*/
 
 // Like display, but sticks the result in an ArrayString to avoid needing allocation.
 impl Stroke {
@@ -366,6 +386,8 @@ impl Stroke {
 
 #[test]
 fn stroke_roundtrip() {
+    crate::testlog::setup();
+
     for ch in 1u32..0x2000000 {
         let text = format!("{}", Stroke(ch));
         let orig = Stroke::from_text(&text).unwrap();

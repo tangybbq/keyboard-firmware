@@ -41,6 +41,7 @@ usbd-human-interface-device = "0.4"
 
 # Child crates containing the implementation.
 bbq-keyboard = { version = "0.1.0", default-features = false, path = "../bbq-keyboard" }
+bbq-steno = { version = "0.1.0", default-features = false, path = "../bbq-steno" }
 
 # cargo build/run
 [profile.dev]
