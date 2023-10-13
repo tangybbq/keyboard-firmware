@@ -6,6 +6,21 @@
 #[cfg(not(any(feature = "std", test)))]
 extern crate core as std;
 
+pub mod serialize;
+
+#[cfg(test)]
+mod testlog;
+
+#[cfg(test)]
+mod log {
+    pub use log::warn;
+}
+
+#[cfg(not(test))]
+mod log {
+    pub use defmt::warn;
+}
+
 /// Which side of the keyboard are we.
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub enum Side {

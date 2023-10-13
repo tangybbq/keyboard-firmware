@@ -16,9 +16,7 @@ use crate::{Side, InterState, EventQueue, Event};
 
 use bbq_keyboard::KeyEvent;
 
-use self::serialize::{PacketBuffer, Decoder, Packet, EventVec};
-
-mod serialize;
+use bbq_keyboard::serialize::{PacketBuffer, Decoder, Packet, EventVec};
 
 pub struct InterHandler<D, P>
     where D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>

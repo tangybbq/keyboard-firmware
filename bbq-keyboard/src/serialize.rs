@@ -11,11 +11,11 @@ use smart_leds::RGB8;
 use defmt::warn;
 
 #[cfg(feature = "std")]
-use log::warn;
+use crate::log::warn;
 
 // TODO: Make the hardcoded sizes part of the board support.
 
-use bbq_keyboard::{Side, KeyEvent};
+use crate::{Side, KeyEvent};
 
 pub type PacketBuffer = ArrayDeque<u8, 28>;
 pub type EventVec = ArrayVec<KeyEvent, 21>;
@@ -326,4 +326,40 @@ fn token(code: u8, side : Side) -> u8 {
         Side::Left => 0x00,
         Side::Right => 0x40,
     })
+}
+
+#[test]
+fn test_serialize() {
+    crate::testlog::setup();
+
+    let mut seq = 1u8;
+
+    let a = Packet::Idle { side: Side::Left };
+    let mut buf = ArrayDeque::new();
+    a.encode(&mut buf, &mut seq);
+
+    let mut decoder = Decoder::new();
+    let mut aa = None;
+    for ch in buf.iter() {
+        if let Some(decoded) = decoder.add_byte(*ch) {
+            aa = Some(decoded);
+        }
+    }
+    assert_eq!(Some(a), aa);
+
+    let b = Packet::Primary {
+        side: Side::Right,
+        led: RGB8::new(16, 12, 34),
+    };
+    b.encode(&mut buf, &mut seq);
+
+    let mut bb = None;
+    for ch in buf.iter() {
+        if let Some(decoded) = decoder.add_byte(*ch) {
+            bb = Some(decoded);
+        }
+    }
+    assert_eq!(Some(b), bb);
+
+    todo!("Write test for Secondary");
 }
