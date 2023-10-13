@@ -224,7 +224,7 @@ fn main() -> ! {
             usb_handler.poll(&mut events);
             matrix_handler.poll();
             steno_raw_handler.poll();
-            inter_handler.poll();
+            inter_handler.poll(&mut events);
             next_10us = now + 10;
         }
 
@@ -254,8 +254,12 @@ fn main() -> ! {
                         // configured, we need to start figuring out which side
                         // we are so we can communicate between the halves.
                         led_manager.set_global(&leds::USB_PRIMARY);
+
+                        // Indicate to the inter channel that we are now primary.
+                        inter_handler.set_state(InterState::Primary);
                     }
                     Event::UsbState(_) => (),
+                    Event::BecomeState(_) => (),
                 }
             }
             inter_handler.tick();
@@ -278,6 +282,9 @@ pub(crate) enum Event {
 
     /// Change in USB status.
     UsbState(UsbDeviceState),
+
+    /// Indicates that the inner channel has determined we are secondary.
+    BecomeState(InterState),
 }
 
 pub(crate) struct EventQueue(ArrayDeque<Event, 256>);
@@ -376,4 +383,12 @@ impl Side {
             Side::Right => false,
         }
     }
+}
+
+/// State of inter communication.
+#[derive(Eq, PartialEq, Clone, Copy)]
+pub enum InterState {
+    Idle,
+    Primary,
+    Secondary,
 }
