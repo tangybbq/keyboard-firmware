@@ -6,7 +6,7 @@ use core::mem::replace;
 
 use arraydeque::ArrayDeque;
 use arrayvec::ArrayVec;
-use defmt::{warn, info};
+use defmt::warn;
 use embedded_hal::serial::Read;
 use smart_leds::RGB8;
 use sparkfun_pro_micro_rp2040::hal;
@@ -75,9 +75,9 @@ impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>>
             }
             InterState::Secondary => {
                 let keys = replace(&mut self.keys, ArrayVec::new());
-                if !keys.is_empty() {
-                    info!("Send secondary {} keys", keys.len());
-                }
+                // if !keys.is_empty() {
+                //     info!("Send secondary {} keys", keys.len());
+                // }
                 Packet::Secondary {
                     side: self.side,
                     keys,
@@ -128,14 +128,17 @@ impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>>
                     Packet::Primary { side: _, led: _ } => {
                         // Upon receiving a primary message, this tells us we
                         // are secondary.
-                        info!("Got primary");
+                        // info!("Got primary");
                         self.set_state(InterState::Secondary, events);
                     }
                     Packet::Secondary { side: _, keys } => {
                         events.push(Event::Heartbeat);
-                        if !keys.is_empty() {
-                            info!("{} keys", keys.len());
+                        for key in &keys {
+                            events.push(Event::InterKey(*key));
                         }
+                        // if !keys.is_empty() {
+                        //     info!("{} keys", keys.len());
+                        // }
                     }
                 }
             }

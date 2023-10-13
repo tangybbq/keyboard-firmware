@@ -248,6 +248,11 @@ fn main() -> ! {
                                 inter_handler.add_key(key),
                         }
                     }
+                    Event::InterKey(key) => {
+                        if state == InterState::Primary {
+                            steno_raw_handler.handle_event(key, &mut events)
+                        }
+                    }
                     Event::RawSteno(stroke) => {
                         let mut buffer = ArrayString::<24>::new();
                         stroke.to_arraystring(&mut buffer);
@@ -303,6 +308,9 @@ fn main() -> ! {
 pub(crate) enum Event {
     /// Events from the Matrix layer indicating changes in key actions.
     Matrix(KeyEvent),
+
+    /// Events from the inner layer indicating changes in key actions.
+    InterKey(KeyEvent),
 
     /// Indication of a "raw" steno stroke from the steno layer.  This is
     /// untranslated and should just be typed.
