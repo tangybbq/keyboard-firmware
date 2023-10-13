@@ -400,7 +400,7 @@ fn enqueue_action<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
 }
 
 /// Which side of the keyboard are we.
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub enum Side {
     Left,
     Right,

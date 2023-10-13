@@ -59,7 +59,7 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
 }
 
 /// Key events indicate keys going up or down.
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum KeyEvent {
     Press(u8),
     Release(u8),
