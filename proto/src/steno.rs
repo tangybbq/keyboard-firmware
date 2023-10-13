@@ -1,6 +1,8 @@
 //! Steno key handling.
 
-use crate::{matrix::KeyEvent, EventQueue, Event};
+use crate::{EventQueue, Event};
+
+use bbq_keyboard::KeyEvent;
 
 pub use self::stroke::Stroke;
 

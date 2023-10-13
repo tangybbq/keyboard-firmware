@@ -39,6 +39,9 @@ usbd-human-interface-device = "0.4"
 # rp2040-hal = { version="0.8", features=["rt", "critical-section-impl"] }
 # rp2040-boot2 = "0.2"
 
+# Child crates containing the implementation.
+bbq-keyboard = { version = "0.1.0", default-features = false, path = "../bbq-keyboard" }
+
 # cargo build/run
 [profile.dev]
 codegen-units = 1

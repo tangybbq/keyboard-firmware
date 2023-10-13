@@ -7,6 +7,8 @@ use embedded_hal::digital::v2::{OutputPin, InputPin};
 
 use crate::{EventQueue, Event, Side};
 
+use bbq_keyboard::KeyEvent;
+
 pub struct Matrix<'r, 'c, E, const NKEYS: usize> {
     cols: &'c mut [&'c mut dyn OutputPin<Error = E>],
     rows: &'r [&'r dyn InputPin<Error = E>],
@@ -54,29 +56,6 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
             }
             self.cols[col].set_low().unwrap();
             delay.delay_us(5);
-        }
-    }
-}
-
-/// Key events indicate keys going up or down.
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum KeyEvent {
-    Press(u8),
-    Release(u8),
-}
-
-impl KeyEvent {
-    pub fn key(&self) -> u8 {
-        match self {
-            KeyEvent::Press(k) => *k,
-            KeyEvent::Release(k) => *k,
-        }
-    }
-
-    pub fn is_press(&self) -> bool {
-        match self {
-            KeyEvent::Press(_) => true,
-            KeyEvent::Release(_) => false,
         }
     }
 }

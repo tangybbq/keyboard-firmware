@@ -15,7 +15,7 @@ use log::warn;
 
 // TODO: Make the hardcoded sizes part of the board support.
 
-use crate::{Side, matrix::KeyEvent};
+use bbq_keyboard::{Side, KeyEvent};
 
 pub type PacketBuffer = ArrayDeque<u8, 28>;
 pub type EventVec = ArrayVec<KeyEvent, 21>;

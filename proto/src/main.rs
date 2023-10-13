@@ -8,7 +8,6 @@ extern crate alloc;
 
 use arraydeque::ArrayDeque;
 use arrayvec::ArrayString;
-use matrix::KeyEvent;
 use steno::Stroke;
 use usb::UsbHandler;
 use ws2812_pio::Ws2812Direct;
@@ -26,6 +25,8 @@ use panic_probe as _;
 use usb_device::{class_prelude::{UsbBusAllocator, UsbBus}, prelude::UsbDeviceState};
 
 use embedded_alloc::Heap;
+
+use bbq_keyboard::{KeyEvent, Side};
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
@@ -396,22 +397,6 @@ fn enqueue_action<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
         usb.enqueue([
             keys,
         ].iter().cloned());
-    }
-}
-
-/// Which side of the keyboard are we.
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub enum Side {
-    Left,
-    Right,
-}
-
-impl Side {
-    pub fn is_left(&self) -> bool {
-        match *self {
-            Side::Left => true,
-            Side::Right => false,
-        }
     }
 }
 
