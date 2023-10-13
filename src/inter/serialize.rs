@@ -5,8 +5,13 @@ use core::mem::replace;
 use arraydeque::ArrayDeque;
 use arrayvec::ArrayVec;
 use crc::{Crc, CRC_16_IBM_SDLC, Digest};
-use defmt::warn;
 use smart_leds::RGB8;
+
+#[cfg(not(feature = "std"))]
+use defmt::warn;
+
+#[cfg(feature = "std")]
+use log::warn;
 
 // TODO: Make the hardcoded sizes part of the board support.
 
@@ -18,6 +23,7 @@ pub type EventVec = ArrayVec<KeyEvent, 21>;
 /// The CRC generator we are using.
 pub const CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_IBM_SDLC);
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Packet {
     /// The idle packet is sent before we know anything about which side of the
     /// channel we are on.
@@ -83,7 +89,7 @@ impl Packet {
                 buf.push_back(led.b >> 1).unwrap();
             }
             Packet::Secondary { side, keys } => {
-                buf.push_back(token(2, *side)).unwrap();
+                buf.push_back(token(3, *side)).unwrap();
                 buf.push_back(*seq).unwrap();
                 for elt in keys {
                     let b = match elt {
@@ -139,7 +145,7 @@ impl Decoder {
         if let DecodeState::First { token } = self.state {
             let side = if (token & 0x40) == 0 { Side::Left } else { Side::Right };
             let mut crc = CRC.digest();
-            let inner = match byte & 0x3f {
+            let inner = match token & 0x3f {
                 1 => Some(InnerDecodeState::Idle),
                 2 => Some(InnerDecodeState::Primary {
                     leds: [0, 0, 0],

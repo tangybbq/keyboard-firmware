@@ -53,7 +53,9 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
     pub fn tick(&mut self) {
         match self.hid.device().tick() {
             Ok(()) => (),
-            Err(_) => info!("tick error"),
+            Err(_) => {
+                // info!("tick error");
+            }
         }
 
         // If we have keys to queue up, try to do that here.

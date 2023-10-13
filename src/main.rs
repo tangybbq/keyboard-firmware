@@ -214,6 +214,8 @@ fn main() -> ! {
     let mut next_10us = timer.get_counter().ticks() + 10;
 
     let mut events = EventQueue::new();
+    let mut state = InterState::Idle;
+    let mut flashing = true;
     loop {
         let now = timer.get_counter().ticks();
 
@@ -238,7 +240,12 @@ fn main() -> ! {
             while let Some(event) = events.pop() {
                 match event {
                     Event::Matrix(key) => {
-                        steno_raw_handler.handle_event(key, &mut events);
+                        match state {
+                            InterState::Primary | InterState::Idle =>
+                                steno_raw_handler.handle_event(key, &mut events),
+                            InterState::Secondary =>
+                                inter_handler.add_key(key),
+                        }
                     }
                     Event::RawSteno(stroke) => {
                         let mut buffer = ArrayString::<24>::new();
@@ -256,10 +263,30 @@ fn main() -> ! {
                         led_manager.set_global(&leds::USB_PRIMARY);
 
                         // Indicate to the inter channel that we are now primary.
-                        inter_handler.set_state(InterState::Primary);
+                        inter_handler.set_state(InterState::Primary, &mut events);
                     }
                     Event::UsbState(_) => (),
-                    Event::BecomeState(_) => (),
+                    Event::BecomeState(new_state) => {
+                        if state != new_state {
+                            if new_state == InterState::Secondary  {
+                                info!("Secondary");
+                                // We've gone into secondary state, stop blinking the LEDs.
+                                led_manager.set_global(&leds::OFF_INDICATOR);
+                            } else if new_state == InterState::Idle {
+                                info!("Idle");
+                                led_manager.set_global(&leds::INIT_INDICATOR);
+                            } else {
+                                info!("Primary");
+                            }
+                            state = new_state;
+                        }
+                    }
+                    Event::Heartbeat => {
+                        if flashing {
+                            led_manager.set_global(&leds::OFF_INDICATOR);
+                            flashing = false;
+                        }
+                    }
                 }
             }
             inter_handler.tick();
@@ -285,6 +312,9 @@ pub(crate) enum Event {
 
     /// Indicates that the inner channel has determined we are secondary.
     BecomeState(InterState),
+
+    /// Got heartbeat from secondary
+    Heartbeat,
 }
 
 pub(crate) struct EventQueue(ArrayDeque<Event, 256>);

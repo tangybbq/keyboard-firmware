@@ -30,6 +30,11 @@ pub static USB_PRIMARY: Indication = Indication(&[
     Step { color: OFF,                count: 300 },
 ]);
 
+/// Just off.
+pub static OFF_INDICATOR: Indication = Indication(&[
+    Step { color: OFF,                count: 10000 },
+]);
+
 pub struct LedManager<'a, L: SmartLedsWrite<Color = RGB8>> {
     leds: &'a mut L,
 
