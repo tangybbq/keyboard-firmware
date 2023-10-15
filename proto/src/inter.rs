@@ -5,7 +5,6 @@
 use core::mem::replace;
 
 use arraydeque::ArrayDeque;
-use arrayvec::ArrayVec;
 use defmt::warn;
 use embedded_hal::serial::Read;
 use smart_leds::RGB8;
@@ -44,7 +43,7 @@ impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>>
             seq: 1,
             side,
             state: InterState::Idle,
-            keys: ArrayVec::new(),
+            keys: EventVec::new(),
         }
     }
 
@@ -74,7 +73,7 @@ impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>>
                 }.encode(&mut self.xmit_buffer, &mut self.seq);
             }
             InterState::Secondary => {
-                let keys = replace(&mut self.keys, ArrayVec::new());
+                let keys = replace(&mut self.keys, EventVec::new());
                 // if !keys.is_empty() {
                 //     info!("Send secondary {} keys", keys.len());
                 // }

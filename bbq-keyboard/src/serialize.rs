@@ -1,9 +1,11 @@
 //! Serialization of the inter protocol.
 
+extern crate alloc;
+
 use core::mem::replace;
+use alloc::vec::Vec;
 
 use arraydeque::ArrayDeque;
-use arrayvec::ArrayVec;
 use crc::{Crc, CRC_16_IBM_SDLC, Digest};
 use smart_leds::RGB8;
 
@@ -18,7 +20,8 @@ use crate::log::warn;
 use crate::{Side, KeyEvent};
 
 pub type PacketBuffer = ArrayDeque<u8, 28>;
-pub type EventVec = ArrayVec<KeyEvent, 21>;
+// pub type EventVec = ArrayVec<KeyEvent, 21>;
+pub type EventVec = Vec<KeyEvent>;
 
 /// The CRC generator we are using.
 pub const CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_IBM_SDLC);
@@ -152,7 +155,7 @@ impl Decoder {
                     pos: 0,
                 }),
                 3 => Some(InnerDecodeState::Secondary {
-                    events: ArrayVec::new(),
+                    events: EventVec::new(),
                 }),
                 // Otherwise, invalid, start over.
                 _ => None,
