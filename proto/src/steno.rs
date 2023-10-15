@@ -6,6 +6,7 @@ use bbq_keyboard::KeyEvent;
 
 pub use bbq_steno::Stroke;
 use bbq_steno::stroke::EMPTY_STROKE;
+use bbq_steno_macros::stroke;
 
 pub struct RawStenoHandler {
     // Keys that have been currently seen.
@@ -55,73 +56,36 @@ impl RawStenoHandler {
 
 static LEFT_KEYS: &[Option<Stroke>] = &[
     // Left side
-    Some(Stroke::from_raw(0x1 << 13)), // 'O'
-    Some(Stroke::from_raw(0x1 << 14)), // 'A'
-    Some(Stroke::from_raw(0x1000000)), // '#'
-    Some(Stroke::from_raw( 0x800000)), // '^'
-    Some(Stroke::from_raw( 0x800000)), // '^'
-    Some(Stroke::from_raw(0x1 << 15)), // 'R'
-    Some(Stroke::from_raw(0x1 << 16)), // 'H'
-    Some(Stroke::from_raw(0x1 << 17)), // 'W'
-    Some(Stroke::from_raw(0x1 << 18)), // 'P'
-    Some(Stroke::from_raw(0x1 << 20)), // 'T'
-    Some(Stroke::from_raw(0x1 << 19)), // 'K'
-    Some(Stroke::from_raw(0x1 << 12)), // '*'
-    Some(Stroke::from_raw(0x1 << 21)), // 'S'
-    Some(Stroke::from_raw(        0)), // ''
-    Some(Stroke::from_raw(        0)), // ''
+    Some(stroke!("O")),
+    Some(stroke!("A")),
+    Some(stroke!("#")),
+    Some(stroke!("^")),
+    Some(stroke!("^")),
+    Some(stroke!("R")),
+    Some(stroke!("H")),
+    Some(stroke!("W")),
+    Some(stroke!("P")),
+    Some(stroke!("T")),
+    Some(stroke!("K")),
+    Some(stroke!("*")),
+    Some(stroke!("S")),
+    Some(Stroke::empty()),
+    Some(Stroke::empty()),
 
     // Right side
-    Some(Stroke::from_raw(0x1 << 11)), // 'E'
-    Some(Stroke::from_raw(0x1 << 10)), // 'U'
-    Some(Stroke::from_raw(0x1000000)), // '#'
-    Some(Stroke::from_raw( 0x400000)), // '+'
-    Some(Stroke::from_raw( 0x400000)), // '+'
-    Some(Stroke::from_raw(0x1 <<  8)), // '-R'
-    Some(Stroke::from_raw(0x1 <<  9)), // '-F'
-    Some(Stroke::from_raw(0x1 <<  6)), // '-B'
-    Some(Stroke::from_raw(0x1 <<  7)), // '-P'
-    Some(Stroke::from_raw(0x1 <<  5)), // '-L'
-    Some(Stroke::from_raw(0x1 <<  4)), // '-G'
-    Some(Stroke::from_raw(0x1 <<  3)), // '-T'
-    Some(Stroke::from_raw(0x1 <<  2)), // '-S'
-    Some(Stroke::from_raw(0x1 <<  1)), // '-D'
-    Some(Stroke::from_raw(0x1 <<  0)), // '-Z'
+    Some(stroke!("E")),
+    Some(stroke!("U")),
+    Some(stroke!("#")),
+    Some(stroke!("+")),
+    Some(stroke!("+")),
+    Some(stroke!("-R")),
+    Some(stroke!("-F")),
+    Some(stroke!("-B")),
+    Some(stroke!("-P")),
+    Some(stroke!("-L")),
+    Some(stroke!("-G")),
+    Some(stroke!("-T")),
+    Some(stroke!("-S")),
+    Some(stroke!("-D")),
+    Some(stroke!("-Z")),
 ];
-/*
-static RIGHT_KEYS: &[Option<Stroke>] = &[
-    Some(Stroke::from_raw(0x1000000)),
-    Some(Stroke::from_raw(0x2000)),
-    Some(Stroke::from_raw(0x4000)),
-    Some(Stroke::from_raw(0x1 << 0)),
-    Some(Stroke::from_raw(0x1 << 1)),
-    Some(Stroke::from_raw(0x1 << 2)),
-    Some(Stroke::from_raw(0x1 << 3)),
-    Some(Stroke::from_raw(0x1 << 4)),
-    Some(Stroke::from_raw(0x1 << 5)),
-    Some(Stroke::from_raw(0x1 << 6)),
-    Some(Stroke::from_raw(0x1 << 7)),
-    Some(Stroke::from_raw(0x1 << 8)),
-    Some(Stroke::from_raw(0x1 << 9)),
-    Some(Stroke::from_raw(0x1 << 10)),
-    Some(Stroke::from_raw(0x8000000)),
-    Some(Stroke::from_raw(0x8000000)),
-    /*
-    Some(Stroke::from_text_const("#")),
-    Some(Stroke::from_text_const("U")),
-    Some(Stroke::from_text_const("E")),
-    Some(Stroke::from_text_const("-D")),
-    Some(Stroke::from_text_const("-Z")),
-    Some(Stroke::from_text_const("-S")),
-    Some(Stroke::from_text_const("-T")),
-    Some(Stroke::from_text_const("-G")),
-    Some(Stroke::from_text_const("-L")),
-    Some(Stroke::from_text_const("-P")),
-    Some(Stroke::from_text_const("-B")),
-    Some(Stroke::from_text_const("-F")),
-    Some(Stroke::from_text_const("-R")),
-    Some(Stroke::from_text_const("^")),
-    Some(Stroke::from_text_const("^")),
-    */
-];
-*/

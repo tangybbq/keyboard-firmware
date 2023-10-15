@@ -58,7 +58,7 @@ static PLUS: Stroke = Stroke(0x400000);
 
 impl Stroke {
     // The empty stroke is useful for keyboards and such that build up strokes.
-    pub fn empty() -> Stroke {
+    pub const fn empty() -> Stroke {
         Stroke(0)
     }
 
@@ -133,6 +133,10 @@ impl Stroke {
 
     pub const fn from_raw(raw: u32) -> Stroke {
         Stroke(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
     }
 
     // Const version of the above.  This will panic if the stroke is invalid.
