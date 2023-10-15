@@ -25,19 +25,11 @@ pub enum Error {
 }
 
 /// The stroke itself is just a 32 bit number.  It represents a single stroke on the machine.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Stroke(pub(super) u32);
 
 /// A stroke with no keys pressed.  Useful for building strokes.
 pub const EMPTY_STROKE: Stroke = Stroke(0);
-
-/// A steno word is a group of strokes that are represented separated by slashes.
-//#[derive(Clone, Debug)]
-//pub struct StenoWord(pub Vec<Stroke>);
-
-/// A steno phrase is a group of words.
-//#[derive(Clone, Debug)]
-//pub struct StenoPhrase(pub Vec<StenoWord>);
 
 //                     2   1         0
 //                     321098765432109876543210
@@ -402,61 +394,86 @@ fn stroke_roundtrip() {
     }
 }
 
-/*
-impl StenoPhrase {
-    pub fn parse(text: &str) -> Result<StenoPhrase> {
-        let words: Result<Vec<_>> = text.split(' ').map(|w| StenoWord::parse(w)).collect();
-        Ok(StenoPhrase(words?))
-    }
+#[cfg(feature = "std")]
+mod std_features {
+    use super::Stroke;
+    use std::fmt;
+    use super::Error;
 
-    pub fn linear(&self) -> Vec<Stroke> {
-        let mut result = vec![];
-        for w in &self.0 {
-            for st in &w.0 {
-                result.push(*st);
-            }
+    impl std::fmt::Display for Error {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{:?}", self)
         }
-        result
     }
-}
-*/
 
-/*
-impl StenoWord {
-    pub fn parse(text: &str) -> Result<StenoWord> {
-        let strokes: Result<Vec<_>> = text.split('/').map(|w| Stroke::from_text(w)).collect();
-        Ok(StenoWord(strokes?))
+    impl std::error::Error for Error {
     }
-}
 
-// Display is the same as was parsed, words separated by space, strokes separated by slashes.
-impl fmt::Display for StenoPhrase {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut sep = false;
-        for word in &self.0 {
-            if sep {
-                write!(f, " ")?;
-            }
-            sep = true;
+    type Result<T> = std::result::Result<T, Error>;
 
-            write!(f, "{}", word)?;
+    /// A steno word is a group of strokes that are represented separated by slashes.
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct StenoWord(pub Vec<Stroke>);
+
+    /// A steno phrase is a group of words.
+    #[derive(Clone, Debug)]
+    pub struct StenoPhrase(pub Vec<StenoWord>);
+
+    impl StenoPhrase {
+        pub fn parse(text: &str) -> Result<StenoPhrase> {
+            let words: Result<Vec<_>> = text.split(' ').map(|w| StenoWord::parse(w)).collect();
+            Ok(StenoPhrase(words?))
         }
-        Ok(())
-    }
-}
 
-impl fmt::Display for StenoWord {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut sep = false;
-        for stroke in &self.0 {
-            if sep {
-                write!(f, "/")?;
+        pub fn linear(&self) -> Vec<Stroke> {
+            let mut result = vec![];
+            for w in &self.0 {
+                for st in &w.0 {
+                    result.push(*st);
+                }
             }
-            sep = true;
-
-            write!(f, "{}", stroke)?;
+            result
         }
-        Ok(())
+    }
+
+    impl StenoWord {
+        pub fn parse(text: &str) -> Result<StenoWord> {
+            let strokes: Result<Vec<_>> = text.split('/').map(|w| Stroke::from_text(w)).collect();
+            Ok(StenoWord(strokes?))
+        }
+    }
+
+    // Display is the same as was parsed, words separated by space, strokes separated by slashes.
+    impl fmt::Display for StenoPhrase {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let mut sep = false;
+            for word in &self.0 {
+                if sep {
+                    write!(f, " ")?;
+                }
+                sep = true;
+
+                write!(f, "{}", word)?;
+            }
+            Ok(())
+        }
+    }
+
+    impl fmt::Display for StenoWord {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let mut sep = false;
+            for stroke in &self.0 {
+                if sep {
+                    write!(f, "/")?;
+                }
+                sep = true;
+
+                write!(f, "{}", stroke)?;
+            }
+            Ok(())
+        }
     }
 }
-*/
+
+#[cfg(feature = "std")]
+pub use std_features::*;
