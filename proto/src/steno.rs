@@ -3,21 +3,30 @@
 use crate::{EventQueue, Event};
 
 use bbq_keyboard::KeyEvent;
+use bbq_keyboard::modifiers::Modifiers;
 
 pub use bbq_steno::Stroke;
 use bbq_steno::stroke::EMPTY_STROKE;
 use bbq_steno_macros::stroke;
+use defmt::info;
 
 pub struct RawStenoHandler {
     // Keys that have been currently seen.
     seen: Stroke,
     // Keys that are still pressed.
     down: Stroke,
+
+    // Modifier.
+    modifier: Modifiers,
 }
 
 impl RawStenoHandler {
     pub fn new() -> Self {
-        RawStenoHandler { seen: Stroke::empty(), down: Stroke::empty() }
+        RawStenoHandler {
+            seen: Stroke::empty(),
+            down: Stroke::empty(),
+            modifier: Modifiers::new(),
+        }
     }
 
     // For now, we don't do anything with the tick, but it will be needed when
@@ -38,6 +47,12 @@ impl RawStenoHandler {
         }
 
         if let Some(stroke) = self.get_stroke() {
+            // For testing, Show emily's conversion.
+            if let Some(text) = self.modifier.lookup(stroke) {
+                info!("Mod: {}", text.as_str());
+            } else {
+                info!("Mod: None");
+            }
             events.push(Event::RawSteno(stroke));
         }
     }

@@ -7,6 +7,7 @@
 extern crate core as std;
 
 pub mod serialize;
+pub mod modifiers;
 
 #[cfg(test)]
 mod testlog;
@@ -14,10 +15,12 @@ mod testlog;
 #[cfg(test)]
 mod log {
     pub use log::warn;
+    pub use log::info;
 }
 
 #[cfg(not(test))]
 mod log {
+    pub use defmt::info;
     pub use defmt::warn;
 }
 

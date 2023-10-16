@@ -15,6 +15,8 @@
 // Until everything is used.
 #![allow(dead_code)]
 
+use core::ops::BitAnd;
+
 use arrayvec::ArrayString;
 
 /// A simple error type.
@@ -40,13 +42,13 @@ static NUMS: &str = "^+12K3W4R50*EU6R7B8G9SDZ";
 
 // Various masks.
 // static LEFT: Stroke = Stroke(0x7f8000);
-static MID: Stroke = Stroke(0x007c00);
-static RIGHT: Stroke = Stroke(0x0003ff);
-static NUM: Stroke = Stroke(0x1000000);
-static DIGITS: Stroke = Stroke(0x3562a8);
-static STAR: Stroke = Stroke(0x001000);
-static CARET: Stroke = Stroke(0x800000);
-static PLUS: Stroke = Stroke(0x400000);
+pub const MID: Stroke = Stroke(0x007c00);
+pub const RIGHT: Stroke = Stroke(0x0003ff);
+pub const NUM: Stroke = Stroke(0x1000000);
+pub const DIGITS: Stroke = Stroke(0x3562a8);
+pub const STAR: Stroke = Stroke(0x001000);
+pub const CARET: Stroke = Stroke(0x800000);
+pub const PLUS: Stroke = Stroke(0x400000);
 
 impl Stroke {
     // The empty stroke is useful for keyboards and such that build up strokes.
@@ -241,7 +243,7 @@ impl Stroke {
     }
 
     /// Merge the two strokes.
-    pub fn merge(self, other: Stroke) -> Stroke {
+    pub const fn merge(self, other: Stroke) -> Stroke {
         Stroke(self.0 | other.0)
     }
 
@@ -253,6 +255,14 @@ impl Stroke {
     /// Is this an empty stroke (with no keys pressed)
     pub fn is_empty(self) -> bool {
         self.0 == 0
+    }
+}
+
+impl BitAnd<Self> for Stroke {
+    type Output = Stroke;
+
+    fn bitand(self, rhs: Self) -> Self {
+        Stroke(self.0 & rhs.0)
     }
 }
 
