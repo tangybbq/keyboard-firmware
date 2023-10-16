@@ -267,6 +267,7 @@ fn main() -> ! {
                         // configured, we need to start figuring out which side
                         // we are so we can communicate between the halves.
                         led_manager.set_global(&leds::USB_PRIMARY);
+                        flashing = true;
 
                         // Indicate to the inter channel that we are now primary.
                         inter_handler.set_state(InterState::Primary, &mut events);
@@ -285,6 +286,14 @@ fn main() -> ! {
                                 info!("Primary");
                             }
                             state = new_state;
+                        } else if new_state == InterState::Secondary && flashing {
+                            // This happens if the secondary side is running,
+                            // and the primary side is reset (common when
+                            // programming firmware, or waking from sleep).
+                            // Detect that we are flashing the lights, and turn
+                            // them off.
+                            led_manager.set_global(&leds::OFF_INDICATOR);
+                            flashing = false;
                         }
                     }
                     Event::Heartbeat => {
