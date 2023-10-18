@@ -102,4 +102,89 @@ impl MemDict {
             Err(_) => None,
         }
     }
+
+    /// Lookup a sequence in the steno dictionary.  Similar to `lookup()` but
+    /// will return success if the matched string only returns a prefix of the
+    /// input.  As such, the return result is a bit richer, as it returns the
+    /// number of strokes in the match.
+    pub fn prefix_lookup(&self, query: &[Stroke]) -> Option<(usize, &'static str)> {
+        // The best result we've seen so far, as an offset.
+        let mut best = None;
+
+        // How many strokes of the query we are searching for.
+        let mut used = 1;
+
+        // Starting position for the search.  Once we find a prefix in the
+        // dictionary, it is no longer necessary to search any entries before
+        // this.
+        let mut start = 0;
+
+        // Perform the search of a given prefix.
+        loop {
+            let subdict = &self.key_offsets[start..];
+            let subquery = &query[0..used];
+            match subdict.binary_search_by_key(&subquery, |k| {
+                let code = *k as usize;
+                let offset = code & ((1 << 24) - 1);
+                let length = code >> 24;
+                &self.keys[offset .. offset + length]
+            }) {
+                Ok(pos) => {
+                    let pos = start + pos;
+
+                    // This matches, so consider it a potential candidate.
+                    // Longer results will replace this.
+                    best = Some(pos);
+
+                    // If we have searched our entire query, this is our best
+                    // result.
+                    if used == query.len() {
+                        break;
+                    }
+
+                    // Otherwise, try longer searches to see if we can find a
+                    // longer match.  We don't need to search for the current
+                    // entry, as it is an exact match.
+                    start = pos + 1;
+                    used += 1;
+                }
+                Err(pos) => {
+                    let pos = start + pos;
+
+                    // If we have searched our entire query, we have our best
+                    // result.
+                    if used == query.len() {
+                        break;
+                    }
+
+                    // If this input stroke is after all existing entries, there
+                    // is nothing more to search for.
+                    if pos >= self.key_offsets.len() {
+                        break;
+                    }
+
+                    // Nothing matches, but we are at the place this entry would
+                    // be inserted.  If the prefix does indeed match, then we
+                    // can look for more strokes.
+                    if self.get_key(pos).starts_with(subquery) {
+                        // Start here, since the longer query could match this
+                        // entry.
+                        start = pos;
+                        // But search for an additional stroke.
+                        used += 1;
+                    } else {
+                        // There aren't any more possible matches, so return
+                        // whatever best result we've seen so far.
+                        break;
+                    }
+                }
+            }
+        }
+
+        best.map(|pos| {
+            let key = self.get_key(pos);
+            let text = self.get_text(pos);
+            (key.len(), text)
+        })
+    }
 }

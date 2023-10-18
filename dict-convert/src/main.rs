@@ -4,6 +4,7 @@ use std::{fs::File, collections::BTreeMap, io::Write};
 
 use anyhow::Result;
 
+use bbq_steno::Stroke;
 use bbq_steno::stroke::StenoWord;
 use bbq_steno::memdict::{MAGIC1, MemDict};
 use bbq_steno_macros::stroke;
@@ -25,6 +26,10 @@ fn main() -> Result<()> {
         dict.insert(k, v.clone());
     }
 
+    // Print out the longest entry.
+    let longest = dict.keys().map(|k| k.0.len()).max();
+    println!("Longest key: {:?}", longest);
+
     let memory = encode_dict(&dict)?;
 
     File::create("main.bindict")?.write_all(&memory)?;
@@ -43,29 +48,62 @@ fn main() -> Result<()> {
     }
 
     // Try some lookups.
-    let text = mdict.lookup(&[stroke!("-T")]);
-    println!("  -T = {:?}", text);
-    let text = mdict.lookup(&[stroke!("THE")]);
-    println!("  THE = {:?}", text);
-    let text = mdict.lookup(&[
+    println!("lookup test");
+    for stroke in TEST_STROKES {
+        let text = mdict.lookup(stroke);
+        println!("  {} -> {:?}", StenoWord(stroke.to_vec()), text);
+        let text = mdict.prefix_lookup(stroke);
+        println!("  {} -> {:?}", StenoWord(stroke.to_vec()), text);
+    }
+
+    println!("prefix lookup test");
+    for stroke in PREFIX_STROKES {
+        let text = mdict.prefix_lookup(stroke);
+        println!("  {} -> {:?}", StenoWord(stroke.to_vec()), text);
+    }
+    Ok(())
+}
+
+static TEST_STROKES: &[&[Stroke]] = &[
+    &[stroke!("-T")],
+    &[stroke!("THE")],
+    &[
         stroke!("AOE"),
         stroke!("PHRAOUR"),
         stroke!("PWUS"),
         stroke!("KWRAOU"),
         stroke!("TPHUPL"),
-    ]);
-    println!("  AOE... = {:?}", text);
-    let text = mdict.lookup(&[
+    ],
+    &[
         stroke!("AOE"),
         stroke!("PHRAOUR"),
         stroke!("PWUS"),
         stroke!("KWRAOU"),
         stroke!("TPHUPLZ"),
-    ]);
-    println!("  AOE...bad = {:?}", text);
+    ]];
 
-    Ok(())
-}
+static PREFIX_STROKES: &[&[Stroke]] = &[
+    &[stroke!("-T"), stroke!("S")],
+    &[stroke!("-T"), stroke!("-Z")],
+    &[stroke!("THE"), stroke!("S")],
+    &[stroke!("THE"), stroke!("-Z")],
+    &[
+        stroke!("AOE"),
+        stroke!("PHRAOUR"),
+        stroke!("PWUS"),
+        stroke!("KWRAOU"),
+        stroke!("TPHUPL"),
+        stroke!("S"),
+    ],
+    &[
+        stroke!("AOE"),
+        stroke!("PHRAOUR"),
+        stroke!("PWUS"),
+        stroke!("KWRAOU"),
+        stroke!("TPHUPL"),
+        stroke!("-Z"),
+    ],
+];
 
 fn encode_dict(dict: &BTreeMap<StenoWord, String>) -> Result<Vec<u8>> {
     let mut result = Vec::new();
