@@ -261,7 +261,7 @@ impl Stroke {
 impl BitAnd<Self> for Stroke {
     type Output = Stroke;
 
-    fn bitand(self, rhs: Self) -> Self {
+    fn bitand(self, rhs: Self) -> Self::Output {
         Stroke(self.0 & rhs.0)
     }
 }
