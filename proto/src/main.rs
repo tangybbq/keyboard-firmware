@@ -9,8 +9,8 @@ extern crate alloc;
 use arraydeque::ArrayDeque;
 use arrayvec::ArrayString;
 use steno::Stroke;
-use usb::UsbHandler;
 use ws2812_pio::Ws2812Direct;
+use usb::typer::enqueue_action;
 
 use core::convert::Infallible;
 use core::iter::once;
@@ -22,7 +22,7 @@ use defmt_rtt as _;
 use embedded_hal::{digital::v2::{InputPin, OutputPin, PinState}, timer::CountDown};
 use fugit::{ExtU32, RateExtU32};
 use panic_probe as _;
-use usb_device::{class_prelude::{UsbBusAllocator, UsbBus}, prelude::UsbDeviceState};
+use usb_device::{class_prelude::UsbBusAllocator, prelude::UsbDeviceState};
 
 use embedded_alloc::Heap;
 
@@ -359,62 +359,6 @@ pub(crate) enum KeyAction {
     KeyPress(Keyboard),
     ShiftedKeyPress(Keyboard),
     KeyRelease,
-}
-
-fn enqueue_action<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
-    for ch in text.chars() {
-        let keys = match ch {
-            'A' => KeyAction::ShiftedKeyPress(Keyboard::A),
-            'B' => KeyAction::ShiftedKeyPress(Keyboard::B),
-            'C' => KeyAction::ShiftedKeyPress(Keyboard::C),
-            'D' => KeyAction::ShiftedKeyPress(Keyboard::D),
-            'E' => KeyAction::ShiftedKeyPress(Keyboard::E),
-            'F' => KeyAction::ShiftedKeyPress(Keyboard::F),
-            'G' => KeyAction::ShiftedKeyPress(Keyboard::G),
-            'H' => KeyAction::ShiftedKeyPress(Keyboard::H),
-            'I' => KeyAction::ShiftedKeyPress(Keyboard::I),
-            'J' => KeyAction::ShiftedKeyPress(Keyboard::J),
-            'K' => KeyAction::ShiftedKeyPress(Keyboard::K),
-            'L' => KeyAction::ShiftedKeyPress(Keyboard::L),
-            'M' => KeyAction::ShiftedKeyPress(Keyboard::M),
-            'N' => KeyAction::ShiftedKeyPress(Keyboard::N),
-            'O' => KeyAction::ShiftedKeyPress(Keyboard::O),
-            'P' => KeyAction::ShiftedKeyPress(Keyboard::P),
-            'Q' => KeyAction::ShiftedKeyPress(Keyboard::Q),
-            'R' => KeyAction::ShiftedKeyPress(Keyboard::R),
-            'S' => KeyAction::ShiftedKeyPress(Keyboard::S),
-            'T' => KeyAction::ShiftedKeyPress(Keyboard::T),
-            'U' => KeyAction::ShiftedKeyPress(Keyboard::U),
-            'V' => KeyAction::ShiftedKeyPress(Keyboard::V),
-            'W' => KeyAction::ShiftedKeyPress(Keyboard::W),
-            'X' => KeyAction::ShiftedKeyPress(Keyboard::X),
-            'Y' => KeyAction::ShiftedKeyPress(Keyboard::Y),
-            'Z' => KeyAction::ShiftedKeyPress(Keyboard::Z),
-            '0' => KeyAction::KeyPress(Keyboard::Keyboard0),
-            '1' => KeyAction::KeyPress(Keyboard::Keyboard1),
-            '2' => KeyAction::KeyPress(Keyboard::Keyboard2),
-            '3' => KeyAction::KeyPress(Keyboard::Keyboard3),
-            '4' => KeyAction::KeyPress(Keyboard::Keyboard4),
-            '5' => KeyAction::KeyPress(Keyboard::Keyboard5),
-            '6' => KeyAction::KeyPress(Keyboard::Keyboard6),
-            '7' => KeyAction::KeyPress(Keyboard::Keyboard7),
-            '8' => KeyAction::KeyPress(Keyboard::Keyboard8),
-            '9' => KeyAction::KeyPress(Keyboard::Keyboard9),
-            '-' => KeyAction::KeyPress(Keyboard::Minus),
-            ' ' => KeyAction::KeyPress(Keyboard::Space),
-            '#' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard3),
-            '*' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard8),
-            '^' => KeyAction::ShiftedKeyPress(Keyboard::Keyboard6),
-            '+' => KeyAction::ShiftedKeyPress(Keyboard::Equal),
-            ch => {
-                warn!("Unhandled character: {}", ch);
-                KeyAction::ShiftedKeyPress(Keyboard::ForwardSlash)
-            }
-        };
-        usb.enqueue([
-            keys,
-        ].iter().cloned());
-    }
 }
 
 /// State of inter communication.
