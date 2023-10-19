@@ -6,6 +6,8 @@
 #[cfg(not(any(feature = "std", test)))]
 extern crate core as std;
 
+use usbd_human_interface_device::page::Keyboard;
+
 pub mod serialize;
 pub mod modifiers;
 
@@ -61,4 +63,12 @@ impl KeyEvent {
             KeyEvent::Release(_) => false,
         }
     }
+}
+
+/// Indicates keypress that should be sent to the host.
+#[derive(Clone)]
+pub enum KeyAction {
+    KeyPress(Keyboard),
+    ShiftedKeyPress(Keyboard),
+    KeyRelease,
 }

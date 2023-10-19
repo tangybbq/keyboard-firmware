@@ -26,7 +26,7 @@ use usb_device::{class_prelude::UsbBusAllocator, prelude::UsbDeviceState};
 
 use embedded_alloc::Heap;
 
-use bbq_keyboard::{KeyEvent, Side};
+use bbq_keyboard::{KeyAction, KeyEvent, Side};
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
@@ -46,7 +46,6 @@ use bsp::hal::{
 
 use bsp::hal as hal;
 
-use usbd_human_interface_device::page::Keyboard;
 
 mod matrix;
 mod usb;
@@ -351,14 +350,6 @@ impl EventQueue {
     pub fn pop(&mut self) -> Option<Event> {
         self.0.pop_front()
     }
-}
-
-/// Indicates keypress that should be sent to the host.
-#[derive(Clone)]
-pub(crate) enum KeyAction {
-    KeyPress(Keyboard),
-    ShiftedKeyPress(Keyboard),
-    KeyRelease,
 }
 
 /// State of inter communication.

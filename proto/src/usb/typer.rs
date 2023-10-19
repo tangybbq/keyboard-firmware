@@ -8,7 +8,7 @@
 use usb_device::class_prelude::UsbBus;
 use usbd_human_interface_device::page::Keyboard;
 
-use crate::KeyAction;
+use bbq_keyboard::KeyAction;
 
 use super::UsbHandler;
 

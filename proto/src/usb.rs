@@ -1,6 +1,7 @@
 // Usb HID management.
 
-use crate::{KeyAction, EventQueue, Event};
+use crate::{EventQueue, Event};
+use bbq_keyboard::KeyAction;
 use arraydeque::ArrayDeque;
 use defmt::{info, warn};
 use frunk::{HNil, HCons};
