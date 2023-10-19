@@ -24,6 +24,19 @@ pub struct ArtseyManager {
 
     // Modifiers that are locked down.
     locked: Mods,
+
+    // The key that got us into a hold mode.
+    hold_mode: u8,
+
+    // When in hold mode, was a key pressed?
+    hold_sent: bool,
+
+    // Cached mapping table.
+    mapping: &'static[Entry],
+
+    // Was the last key seen on the left or right side. The hold maps differ
+    // between sides, so we need this to decide which map to use.
+    is_right: bool,
 }
 
 // The Artsey keyboard consists of a full keyboard layout implemented on 8 keys.
@@ -50,9 +63,37 @@ pub struct ArtseyManager {
 //    80 40 20 10
 //    08 04 02 01
 // The left side is the same, but flipped left to right.
+//
+// The hold keys are a little bit tricky, with several scenarios that can
+// happen. On the one hand, it'd be nice if just holding down one of them would
+// send that plain key, with repeats. However, this probably can't be done
+// ambiguously with "hold", so we might have to just live with not being able to
+// repeat one of 'A', 'E', 'S' or 'O'. This is in line with how qmk handles
+// this. As such, we will consider one of these keys to have been "held" if it
+// was held for a certain threshold of time. We will clear that key from the
+// held mask, and indicate our special mode through other fields. When the
+// special key is released, we'll undo the mode. If at this time, we discover
+// that there wasn't actually anything done with the hold key, we'll then send
+// what that key would send, otherwise these keys won't actually be useful.
 
-// To start with, implement just the plain mapping, not the nav, mouse, holds,
-// or modifiers.
+static LEFT_HOLD_KEYS: [HoldEntry; 4] = [
+    HoldEntry { code: 0x80, mapping: &LEFT_BRACKET_MAP },
+    HoldEntry { code: 0x10, mapping: &NUMBER_MAP },
+    HoldEntry { code: 0x08, mapping: &PUNCT_MAP },
+    HoldEntry { code: 0x01, mapping: &NORMAL },
+];
+
+static RIGHT_HOLD_KEYS: [HoldEntry; 4] = [
+    HoldEntry { code: 0x80, mapping: &RIGHT_BRACKET_MAP },
+    HoldEntry { code: 0x10, mapping: &NUMBER_MAP },
+    HoldEntry { code: 0x08, mapping: &PUNCT_MAP },
+    HoldEntry { code: 0x01, mapping: &NORMAL },
+];
+
+struct HoldEntry {
+    code: u8,
+    mapping: &'static [Entry],
+}
 
 // Mapping of proto2 keys to artsey bits.  Codes past this will result in zero.
 static KEY_TO_ARTSEY: [u8; 28] = [
@@ -149,6 +190,52 @@ static NORMAL: [Entry; 44] = [
 
 ];
 
+// The number Artsey mapping.
+static NUMBER_MAP: [Entry; 10] = [
+    Entry { code: 0x80, value: Value::Simple(Keyboard::Keyboard1), },
+    Entry { code: 0x40, value: Value::Simple(Keyboard::Keyboard2), },
+    Entry { code: 0x20, value: Value::Simple(Keyboard::Keyboard3), },
+    Entry { code: 0x08, value: Value::Simple(Keyboard::Keyboard4), },
+    Entry { code: 0x04, value: Value::Simple(Keyboard::Keyboard5), },
+    Entry { code: 0x02, value: Value::Simple(Keyboard::Keyboard6), },
+    Entry { code: 0xc0, value: Value::Simple(Keyboard::Keyboard7), },
+    Entry { code: 0x60, value: Value::Simple(Keyboard::Keyboard8), },
+    Entry { code: 0x0c, value: Value::Simple(Keyboard::Keyboard9), },
+    Entry { code: 0x06, value: Value::Simple(Keyboard::Keyboard0), },
+];
+
+// The bracket Artsey mapping, for the right side of the keyboard
+static RIGHT_BRACKET_MAP: [Entry; 6] = [
+    Entry { code: 0x40, value: Value::Shifted(Keyboard::Keyboard9), },
+    Entry { code: 0x20, value: Value::Shifted(Keyboard::Keyboard0), },
+    Entry { code: 0x10, value: Value::Shifted(Keyboard::LeftBrace), },
+    Entry { code: 0x04, value: Value::Simple(Keyboard::LeftBrace), },
+    Entry { code: 0x02, value: Value::Simple(Keyboard::RightBrace), },
+    Entry { code: 0x01, value: Value::Shifted(Keyboard::RightBrace), },
+];
+
+// The bracket Artsey mapping, for the left side of the keyboard
+// The standard Artsey swaps the curly braces, even though they are positioned
+// vertically. I have not done this, because this doesn't make sense to me.
+static LEFT_BRACKET_MAP: [Entry; 6] = [
+    Entry { code: 0x20, value: Value::Shifted(Keyboard::Keyboard9), },
+    Entry { code: 0x40, value: Value::Shifted(Keyboard::Keyboard0), },
+    Entry { code: 0x10, value: Value::Shifted(Keyboard::LeftBrace), },
+    Entry { code: 0x02, value: Value::Simple(Keyboard::LeftBrace), },
+    Entry { code: 0x04, value: Value::Simple(Keyboard::RightBrace), },
+    Entry { code: 0x01, value: Value::Shifted(Keyboard::RightBrace), },
+];
+
+static PUNCT_MAP: [Entry; 7] = [
+    Entry { code: 0x80, value: Value::Shifted(Keyboard::Keyboard1), },
+    Entry { code: 0x40, value: Value::Simple(Keyboard::Backslash), },
+    Entry { code: 0x20, value: Value::Simple(Keyboard::Semicolon), },
+    Entry { code: 0x10, value: Value::Simple(Keyboard::Grave), },
+    Entry { code: 0x04, value: Value::Shifted(Keyboard::ForwardSlash), },
+    Entry { code: 0x02, value: Value::Simple(Keyboard::Minus), },
+    Entry { code: 0x01, value: Value::Simple(Keyboard::Equal), },
+];
+
 impl Default for ArtseyManager {
     fn default() -> Self {
         ArtseyManager {
@@ -158,6 +245,10 @@ impl Default for ArtseyManager {
             pressed: 0,
             oneshot: Mods::empty(),
             locked: Mods::empty(),
+            hold_mode: 0x00,
+            hold_sent: false,
+            mapping: &NORMAL,
+            is_right: false,
         }
     }
 }
@@ -177,24 +268,43 @@ impl ArtseyManager {
         }
 
         if self.seen != 0 && self.age >= 100 {
-            self.handle_down(events);
+            // If we have a 'seen' value, and suffient age, and we aren't in a
+            // special mode, then activate the special mode.
+            if self.hold_mode == 0 {
+                let hold = if self.is_right { &RIGHT_HOLD_KEYS } else { &LEFT_HOLD_KEYS };
+                if let Some(HoldEntry { mapping, .. }) = hold.iter().find(|k| k.code == self.seen) {
+                    self.hold_mode = self.seen;
+                    self.mapping = mapping;
+                    // Pretend this key isn't actually held down.
+                    self.seen = 0;
+                    self.pressed = 0;
+                    // And note that we haven't sent any of these keys yet.
+                    self.hold_sent = false;
+                }
+            }
+
+            if self.seen != 0 {
+                self.handle_down(events);
+            }
         }
     }
 
     fn handle_down(&mut self, events: &mut EventQueue) {
         let base_mods = self.locked | self.oneshot;
 
-        match NORMAL.iter().find(|e| e.code == self.seen) {
+        match self.mapping.iter().find(|e| e.code == self.seen) {
             Some(Entry { value: Value::Simple(k), .. }) => {
                 self.down = true;
                 events.push(Event::Key(KeyAction::KeyPress(*k, base_mods)));
                 self.oneshot = Mods::empty();
+                self.hold_sent = true;
                 // info!("Simple: {}", *k as u8);
             }
             Some(Entry { value: Value::Shifted(k), .. }) => {
                 self.down = true;
                 events.push(Event::Key(KeyAction::KeyPress(*k, base_mods | Mods::SHIFT)));
                 self.oneshot = Mods::empty();
+                self.hold_sent = true;
                 // info!("Shifted: {}", *k as u8);
             }
             Some(Entry { value: Value::OneShot(k), .. }) => {
@@ -218,6 +328,9 @@ impl ArtseyManager {
         // info!("Artsey {}", event);
         match event {
             KeyEvent::Press(k) => {
+                // The right side for the proto2.  This will be board specific.
+                self.is_right = k >= 16;
+
                 let code = to_artsey(k);
                 self.pressed |= code;
                 self.seen |= code;
@@ -226,6 +339,20 @@ impl ArtseyManager {
             KeyEvent::Release(k) => {
                 let code = to_artsey(k);
                 self.pressed &= !code;
+
+                // If the hold mode key is released, back out of the mode. TODO:
+                // Is this funny if the hold is released before the other key?
+                if code == self.hold_mode {
+                    // If we entered hold mode, but didn't send anything, put
+                    // the hold key down as a seen key so that it can still be
+                    // just typed.
+                    if !self.hold_sent {
+                        self.seen = self.hold_mode;
+                    }
+
+                    self.hold_mode = 0x00;
+                    self.mapping = &NORMAL;
+                }
 
                 // When we actually released one of our keys, and the result has
                 // no keys pressed.
