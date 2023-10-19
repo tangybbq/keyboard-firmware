@@ -1,6 +1,7 @@
 // Usb HID management.
 
-use bbq_keyboard::{EventQueue, Event, KeyAction};
+use arrayvec::ArrayVec;
+use bbq_keyboard::{EventQueue, Event, KeyAction, Mods};
 use bbq_keyboard::usb_typer::ActionHandler;
 use arraydeque::ArrayDeque;
 use defmt::{info, warn};
@@ -61,11 +62,32 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
 
         // If we have keys to queue up, try to do that here.
         if let Some(key) = self.keys.front() {
-            let status = match key {
-                KeyAction::KeyPress(k) => self.hid.device().write_report([*k]),
-                KeyAction::ShiftedKeyPress(k) => self.hid.device().write_report([Keyboard::LeftShift, *k]),
-                KeyAction::KeyRelease => self.hid.device().write_report([Keyboard::NoEventIndicated]),
-            };
+            let mut keys = ArrayVec::<_, 5>::new();
+
+            // Capture all of the keys that should be down for this press.
+            match key {
+                KeyAction::KeyPress(k, m) => {
+                    if m.contains(Mods::SHIFT) {
+                        keys.push(Keyboard::LeftShift);
+                    }
+                    if m.contains(Mods::CONTROL) {
+                        keys.push(Keyboard::LeftControl);
+                    }
+                    if m.contains(Mods::ALT) {
+                        keys.push(Keyboard::LeftAlt);
+                    }
+                    if m.contains(Mods::GUI) {
+                        keys.push(Keyboard::LeftGUI);
+                    }
+                    keys.push(*k);
+                }
+                KeyAction::KeyRelease => {
+                    // Unclear if this is needed, or just empty is fine.
+                    keys.push(Keyboard::NoEventIndicated);
+                }
+            }
+
+            let status = self.hid.device().write_report(keys.iter().cloned());
             match status {
                 Ok(()) => {
                     // Successful queue, so remove.

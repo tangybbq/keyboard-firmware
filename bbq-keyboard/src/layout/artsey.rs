@@ -4,7 +4,7 @@ use usbd_human_interface_device::page::Keyboard;
 
 use crate::log::info;
 
-use crate::{KeyEvent, EventQueue, KeyAction, Event};
+use crate::{KeyEvent, EventQueue, KeyAction, Event, Mods};
 
 pub struct ArtseyManager {
     // Keys that are currently down.
@@ -174,15 +174,17 @@ impl ArtseyManager {
     }
 
     fn handle_down(&mut self, events: &mut EventQueue) {
+        let base_mods = Mods::None;
+
         match NORMAL.iter().find(|e| e.code == self.seen) {
             Some(Entry { value: Value::Simple(k), .. }) => {
                 self.down = true;
-                events.push(Event::Key(KeyAction::KeyPress(*k)))
+                events.push(Event::Key(KeyAction::KeyPress(*k, base_mods)))
                 // info!("Simple: {}", *k as u8);
             }
             Some(Entry { value: Value::Shifted(k), .. }) => {
                 self.down = true;
-                events.push(Event::Key(KeyAction::ShiftedKeyPress(*k)))
+                events.push(Event::Key(KeyAction::KeyPress(*k, base_mods | Mods::SHIFT)))
                 // info!("Shifted: {}", *k as u8);
             }
             Some(Entry { value: Value::OneShot(k), .. }) =>

@@ -10,6 +10,7 @@ use arraydeque::ArrayDeque;
 use bbq_steno::Stroke;
 use usbd_human_interface_device::page::Keyboard;
 use usb_device::prelude::UsbDeviceState;
+use bitflags::bitflags;
 
 pub use layout::LayoutMode;
 
@@ -86,9 +87,22 @@ impl KeyEvent {
 /// Indicates keypress that should be sent to the host.
 #[derive(Clone)]
 pub enum KeyAction {
-    KeyPress(Keyboard),
-    ShiftedKeyPress(Keyboard),
+    KeyPress(Keyboard, Mods),
     KeyRelease,
+}
+
+bitflags! {
+    /// A modifier map. This indicates what modifiers should be held down when
+    /// this keypress is sent.
+    #[derive(Clone, Copy)]
+    pub struct Mods: u8 {
+        const SHIFT = 0b0000_0001;
+        const CONTROL = 0b0000_0010;
+        const ALT = 0b0000_0100;
+        const GUI = 0b0000_1000;
+
+        const None = 0;
+    }
 }
 
 /// An event is something that happens in a handler to indicate some action

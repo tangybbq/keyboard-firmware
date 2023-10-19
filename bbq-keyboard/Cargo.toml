@@ -17,6 +17,7 @@ usbd-human-interface-device = "0.4"
 
 bbq-steno = { version = "0.1", default-features = false, path = "../bbq-steno" }
 bbq-steno-macros = { version = "0.1", path = "../bbq-steno-macros", default-features = false }
+bitflags = "2.4.1"
 
 [dev-dependencies]
 env_logger = "0.10.0"
