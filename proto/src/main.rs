@@ -25,6 +25,7 @@ use embedded_alloc::Heap;
 
 use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event};
 use bbq_keyboard::usb_typer::enqueue_action;
+use bbq_keyboard::layout::steno::RawStenoHandler;
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
@@ -44,10 +45,8 @@ use bsp::hal::{
 
 use bsp::hal as hal;
 
-
 mod matrix;
 mod usb;
-mod steno;
 mod inter;
 mod leds;
 
@@ -205,7 +204,7 @@ fn main() -> ! {
         side,
     );
 
-    let mut steno_raw_handler = steno::RawStenoHandler::new();
+    let mut steno_raw_handler = RawStenoHandler::new();
 
     // TODO: Use the fugit values, and actual intervals.
     let mut next_1ms = timer.get_counter().ticks() + 1_000;

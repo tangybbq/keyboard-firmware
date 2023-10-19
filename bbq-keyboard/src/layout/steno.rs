@@ -1,7 +1,7 @@
 //! Steno key handling.
 
-use bbq_keyboard::{EventQueue, Event, KeyEvent};
-use bbq_keyboard::modifiers::Modifiers;
+use crate::{EventQueue, Event, KeyEvent};
+use crate::modifiers::Modifiers;
 
 pub use bbq_steno::Stroke;
 use bbq_steno::stroke::EMPTY_STROKE;
@@ -33,7 +33,7 @@ impl RawStenoHandler {
     pub fn poll(&mut self) {}
 
     // Handle a single event.
-    pub(crate) fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
+    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
         let key = event.key();
         if let Some(st) = LEFT_KEYS[key as usize] {
             if event.is_press() {
