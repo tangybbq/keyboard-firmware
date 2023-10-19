@@ -48,8 +48,6 @@ impl RawStenoHandler {
             // For testing, Show emily's conversion.
             if let Some(text) = self.modifier.lookup(stroke) {
                 info!("Mod: {}", text.as_str());
-            } else {
-                info!("Mod: None");
             }
             events.push(Event::RawSteno(stroke));
         }

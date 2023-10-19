@@ -15,7 +15,6 @@ use bbq_steno_macros::stroke;
 
 extern crate alloc;
 use alloc::string::String;
-use crate::log::info;
 
 pub struct Modifiers;
 
@@ -64,13 +63,11 @@ impl Modifiers {
     /// Perform a basic lookup of a single stroke.
     pub fn lookup(&self, stroke: Stroke) -> Option<String> {
         let right = stroke & Self::SELECT_MASK;
-        info!("right: {}", right.into_raw());
         if right != Self::SELECT && right != Self::SELECT_SYMBOL {
             return None;
         }
         let left = stroke & Self::LEFT;
 
-        info!("left: {}", left.into_raw());
         if right == Self::SELECT {
             if let Some(elt) = Self::LETTERS.iter().find(|l| l.stroke == left) {
                 // TODO: match letters.
