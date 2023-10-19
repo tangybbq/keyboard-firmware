@@ -25,7 +25,7 @@ use embedded_alloc::Heap;
 
 use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event};
 use bbq_keyboard::usb_typer::enqueue_action;
-use bbq_keyboard::layout::steno::RawStenoHandler;
+use bbq_keyboard::layout::LayoutManager;
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
@@ -204,7 +204,7 @@ fn main() -> ! {
         side,
     );
 
-    let mut steno_raw_handler = RawStenoHandler::new();
+    let mut layout_manager = LayoutManager::new();
 
     // TODO: Use the fugit values, and actual intervals.
     let mut next_1ms = timer.get_counter().ticks() + 1_000;
@@ -222,7 +222,7 @@ fn main() -> ! {
             // keep up.
             usb_handler.poll(&mut events);
             matrix_handler.poll();
-            steno_raw_handler.poll();
+            layout_manager.poll();
             inter_handler.poll(&mut events);
             next_10us = now + 10;
         }
@@ -231,7 +231,7 @@ fn main() -> ! {
         if now > next_1ms {
             usb_handler.tick();
             matrix_handler.tick(&mut delay, &mut events);
-            steno_raw_handler.tick();
+            layout_manager.tick();
 
             // Handle the event queue.
             while let Some(event) = events.pop() {
@@ -239,14 +239,14 @@ fn main() -> ! {
                     Event::Matrix(key) => {
                         match state {
                             InterState::Primary | InterState::Idle =>
-                                steno_raw_handler.handle_event(key, &mut events),
+                                layout_manager.handle_event(key, &mut events),
                             InterState::Secondary =>
                                 inter_handler.add_key(key),
                         }
                     }
                     Event::InterKey(key) => {
                         if state == InterState::Primary {
-                            steno_raw_handler.handle_event(key, &mut events)
+                            layout_manager.handle_event(key, &mut events)
                         }
                     }
                     Event::RawSteno(stroke) => {
