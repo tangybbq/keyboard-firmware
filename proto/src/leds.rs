@@ -35,6 +35,16 @@ pub static OFF_INDICATOR: Indication = Indication(&[
     Step { color: OFF,                count: 10000 },
 ]);
 
+/// Steno mode
+pub static STENO_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(0, 0, 16), count: 10000 },
+]);
+
+/// Artsey mode
+pub static ARTSEY_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(0, 16, 0), count: 10000 },
+]);
+
 pub struct LedManager<'a, L: SmartLedsWrite<Color = RGB8>> {
     leds: &'a mut L,
 

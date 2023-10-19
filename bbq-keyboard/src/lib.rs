@@ -11,6 +11,8 @@ use bbq_steno::Stroke;
 use usbd_human_interface_device::page::Keyboard;
 use usb_device::prelude::UsbDeviceState;
 
+pub use layout::LayoutMode;
+
 pub mod serialize;
 pub mod modifiers;
 pub mod usb_typer;
@@ -101,6 +103,9 @@ pub enum Event {
 
     /// Got heartbeat from secondary
     Heartbeat,
+
+    /// Major mode indication change.
+    Mode(LayoutMode),
 }
 
 pub struct EventQueue(ArrayDeque<Event, 256>);

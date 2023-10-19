@@ -23,7 +23,7 @@ use usb_device::{class_prelude::UsbBusAllocator, prelude::UsbDeviceState};
 
 use embedded_alloc::Heap;
 
-use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event};
+use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event, LayoutMode};
 use bbq_keyboard::usb_typer::enqueue_action;
 use bbq_keyboard::layout::LayoutManager;
 
@@ -291,6 +291,13 @@ fn main() -> ! {
                             led_manager.set_global(&leds::OFF_INDICATOR);
                             flashing = false;
                         }
+                    }
+                    Event::Mode(mode) => {
+                        let visible = match mode {
+                            LayoutMode::Steno => &leds::STENO_INDICATOR,
+                            LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
+                        };
+                        led_manager.set_global(visible);
                     }
                     Event::Heartbeat => {
                         if flashing {

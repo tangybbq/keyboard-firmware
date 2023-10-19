@@ -81,7 +81,7 @@ impl LayoutManager {
 
     /// Handle a single key event.
     pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
-        if self.mode.event(event) {
+        if self.mode.event(event, events) {
             match self.mode.get() {
                 LayoutMode::Artsey => info!("TODO: Artsey"),
                 LayoutMode::Steno => {
@@ -94,7 +94,7 @@ impl LayoutManager {
 
 /// The global keyboard mode.
 #[derive(Clone, Copy)]
-enum LayoutMode {
+pub enum LayoutMode {
     Steno,
     Artsey,
 }
@@ -139,7 +139,7 @@ impl ModeSelector {
     }
 
     /// Handle a keyevent, and return 'true' if the key even should be passed down to lower layers.
-    fn event(&mut self, event: KeyEvent) -> bool {
+    fn event(&mut self, event: KeyEvent, events: &mut EventQueue) -> bool {
         // Update the mask of keys that have been pressed.
         match event {
             KeyEvent::Press(k) => self.pressed |= 1 << k,
@@ -168,6 +168,7 @@ impl ModeSelector {
                 // now, just do toggle.
                 self.seen = 0;
                 self.selecting = false;
+                events.push(crate::Event::Mode(self.mode));
                 info!("Mode change: {:?}", self.mode);
             }
             false
