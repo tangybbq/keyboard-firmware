@@ -13,6 +13,7 @@ use usb_device::prelude::UsbDeviceState;
 
 pub mod serialize;
 pub mod modifiers;
+pub mod usb_typer;
 
 #[cfg(test)]
 mod testlog;

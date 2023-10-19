@@ -8,7 +8,6 @@ extern crate alloc;
 
 use arrayvec::ArrayString;
 use ws2812_pio::Ws2812Direct;
-use usb::typer::enqueue_action;
 
 use core::convert::Infallible;
 use core::iter::once;
@@ -25,6 +24,7 @@ use usb_device::{class_prelude::UsbBusAllocator, prelude::UsbDeviceState};
 use embedded_alloc::Heap;
 
 use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event};
+use bbq_keyboard::usb_typer::enqueue_action;
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();

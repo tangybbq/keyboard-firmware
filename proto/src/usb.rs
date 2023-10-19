@@ -1,13 +1,12 @@
 // Usb HID management.
 
 use bbq_keyboard::{EventQueue, Event, KeyAction};
+use bbq_keyboard::usb_typer::ActionHandler;
 use arraydeque::ArrayDeque;
 use defmt::{info, warn};
 use frunk::{HNil, HCons};
 use usb_device::{class_prelude::{UsbBusAllocator, UsbClass, UsbBus}, prelude::{UsbDeviceBuilder, UsbVidPid, UsbDevice, UsbDeviceState}};
 use usbd_human_interface_device::{usb_class::{UsbHidClassBuilder, UsbHidClass}, device::{keyboard::{NKROBootKeyboardConfig, NKROBootKeyboard}, DeviceClass}, page::Keyboard, UsbHidError};
-
-pub mod typer;
 
 // Type of the device list, which is internal to usbd_human_interface_device.
 type InterfaceList<'a, Bus> = HCons<NKROBootKeyboard<'a, Bus>, HNil>;
@@ -110,5 +109,11 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             self.state = Some(new_state);
             events.push(Event::UsbState(new_state));
         }
+    }
+}
+
+impl<'a, Bus: UsbBus> ActionHandler for UsbHandler<'a, Bus> {
+    fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
+        self.enqueue(events)
     }
 }

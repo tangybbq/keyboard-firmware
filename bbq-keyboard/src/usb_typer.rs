@@ -5,12 +5,9 @@
 // The keytable represents the keys as u16's, with the low 8 bits corresponding
 // to the Keyboard enum value, and the upper bits indicating modifiers.
 
-use usb_device::class_prelude::UsbBus;
 use usbd_human_interface_device::page::Keyboard;
 
-use bbq_keyboard::KeyAction;
-
-use super::UsbHandler;
+use crate::KeyAction;
 
 /// A shift modifier.
 const SHIFT: u16 = 0x100;
@@ -159,8 +156,13 @@ static KEY_TABLE: [u16; 128] = [
     NONE, // 0x7F, Delete (often represented as DEL)
 ];
 
+/// An ActionHandler is something that is able to take actions.
+pub trait ActionHandler {
+    fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I);
+}
+
 /// Enqueue an action as keypresses.
-pub fn enqueue_action<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
+pub fn enqueue_action<H: ActionHandler>(usb: &mut H, text: &str) {
     for ch in text.chars() {
         if ch < (128 as char) {
             let code = KEY_TABLE[ch as usize];
@@ -174,7 +176,7 @@ pub fn enqueue_action<Bus: UsbBus>(usb: &mut UsbHandler<Bus>, text: &str) {
             } else {
                 KeyAction::KeyPress(code)
             };
-            usb.enqueue([action].iter().cloned());
+            usb.enqueue_actions([action].iter().cloned());
         }
     }
 }
