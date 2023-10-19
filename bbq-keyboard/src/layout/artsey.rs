@@ -171,11 +171,11 @@ static NORMAL: [Entry; 44] = [
 
     Entry { code: 0x88, value: Value::Simple(Keyboard::ReturnEnter), },
     Entry { code: 0xc1, value: Value::Simple(Keyboard::Escape), },
-    Entry { code: 0x86, value: Value::Simple(Keyboard::Grave), },
+    Entry { code: 0x86, value: Value::Simple(Keyboard::Apostrophe), },
     Entry { code: 0xe1, value: Value::Simple(Keyboard::Tab), },
     Entry { code: 0x84, value: Value::Simple(Keyboard::Dot), },
     Entry { code: 0x18, value: Value::OneShot(Mods::CONTROL), },
-    Entry { code: 0x82, value: Value::Simple(Keyboard::Apostrophe), },
+    Entry { code: 0x82, value: Value::Simple(Keyboard::Comma), },
     Entry { code: 0x14, value: Value::OneShot(Mods::GUI), },
     Entry { code: 0x81, value: Value::Simple(Keyboard::ForwardSlash), },
     Entry { code: 0x12, value: Value::OneShot(Mods::ALT), },
