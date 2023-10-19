@@ -5,9 +5,7 @@ use core::fmt::Debug;
 use cortex_m::delay::Delay;
 use embedded_hal::digital::v2::{OutputPin, InputPin};
 
-use crate::{EventQueue, Event, Side};
-
-use bbq_keyboard::KeyEvent;
+use bbq_keyboard::{EventQueue, Event, KeyEvent, Side};
 
 pub struct Matrix<'r, 'c, E, const NKEYS: usize> {
     cols: &'c mut [&'c mut dyn OutputPin<Error = E>],

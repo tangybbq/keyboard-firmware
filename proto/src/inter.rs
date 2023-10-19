@@ -11,9 +11,7 @@ use smart_leds::RGB8;
 use sparkfun_pro_micro_rp2040::hal;
 use sparkfun_pro_micro_rp2040::hal::uart::UartPeripheral;
 
-use crate::{Side, InterState, EventQueue, Event};
-
-use bbq_keyboard::KeyEvent;
+use bbq_keyboard::{EventQueue, InterState, KeyEvent, Event, Side};
 
 use bbq_keyboard::serialize::{PacketBuffer, Decoder, Packet, EventVec};
 

@@ -6,9 +6,7 @@
 
 extern crate alloc;
 
-use arraydeque::ArrayDeque;
 use arrayvec::ArrayString;
-use steno::Stroke;
 use ws2812_pio::Ws2812Direct;
 use usb::typer::enqueue_action;
 
@@ -26,7 +24,7 @@ use usb_device::{class_prelude::UsbBusAllocator, prelude::UsbDeviceState};
 
 use embedded_alloc::Heap;
 
-use bbq_keyboard::{KeyAction, KeyEvent, Side};
+use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event};
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
@@ -309,53 +307,4 @@ fn main() -> ! {
             next_1ms = now + 1_000;
         }
     }
-}
-
-/// An event is something that happens in a handler to indicate some action
-/// likely needs to be performed on it.
-pub(crate) enum Event {
-    /// Events from the Matrix layer indicating changes in key actions.
-    Matrix(KeyEvent),
-
-    /// Events from the inner layer indicating changes in key actions.
-    InterKey(KeyEvent),
-
-    /// Indication of a "raw" steno stroke from the steno layer.  This is
-    /// untranslated and should just be typed.
-    RawSteno(Stroke),
-
-    /// Change in USB status.
-    UsbState(UsbDeviceState),
-
-    /// Indicates that the inner channel has determined we are secondary.
-    BecomeState(InterState),
-
-    /// Got heartbeat from secondary
-    Heartbeat,
-}
-
-pub(crate) struct EventQueue(ArrayDeque<Event, 256>);
-
-impl EventQueue {
-    pub fn new() -> Self {
-        EventQueue(ArrayDeque::new())
-    }
-
-    pub fn push(&mut self, event: Event) {
-        if let Err(_) = self.0.push_back(event) {
-            warn!("Internal event queue overflow");
-        }
-    }
-
-    pub fn pop(&mut self) -> Option<Event> {
-        self.0.pop_front()
-    }
-}
-
-/// State of inter communication.
-#[derive(Eq, PartialEq, Clone, Copy)]
-pub enum InterState {
-    Idle,
-    Primary,
-    Secondary,
 }

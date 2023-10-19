@@ -1,8 +1,6 @@
 //! Steno key handling.
 
-use crate::{EventQueue, Event};
-
-use bbq_keyboard::KeyEvent;
+use bbq_keyboard::{EventQueue, Event, KeyEvent};
 use bbq_keyboard::modifiers::Modifiers;
 
 pub use bbq_steno::Stroke;
