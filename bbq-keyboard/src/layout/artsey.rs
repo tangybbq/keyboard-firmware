@@ -2,7 +2,7 @@
 
 use usbd_human_interface_device::page::Keyboard;
 
-use crate::log::info;
+// use crate::log::info;
 
 use crate::{KeyEvent, EventQueue, KeyAction, Event, Mods};
 
@@ -18,6 +18,12 @@ pub struct ArtseyManager {
 
     // Keys that have been pressed.
     seen: u8,
+
+    // The modifiers that apply to the next actual to-send keystroke.
+    oneshot: Mods,
+
+    // Modifiers that are locked down.
+    locked: Mods,
 }
 
 // The Artsey keyboard consists of a full keyboard layout implemented on 8 keys.
@@ -83,8 +89,8 @@ static KEY_TO_ARTSEY: [u8; 28] = [
 enum Value {
     Simple(Keyboard),
     Shifted(Keyboard),
-    OneShot(u8),
-    Lock(u8),
+    OneShot(Mods),
+    Lock(Mods),
     None,
 }
 
@@ -127,15 +133,15 @@ static NORMAL: [Entry; 44] = [
     Entry { code: 0x86, value: Value::Simple(Keyboard::Grave), },
     Entry { code: 0xe1, value: Value::Simple(Keyboard::Tab), },
     Entry { code: 0x84, value: Value::Simple(Keyboard::Dot), },
-    Entry { code: 0x18, value: Value::OneShot(2), },
+    Entry { code: 0x18, value: Value::OneShot(Mods::CONTROL), },
     Entry { code: 0x82, value: Value::Simple(Keyboard::Apostrophe), },
-    Entry { code: 0x14, value: Value::OneShot(8), },
+    Entry { code: 0x14, value: Value::OneShot(Mods::GUI), },
     Entry { code: 0x81, value: Value::Simple(Keyboard::ForwardSlash), },
-    Entry { code: 0x12, value: Value::OneShot(4), },
+    Entry { code: 0x12, value: Value::OneShot(Mods::ALT), },
     Entry { code: 0x22, value: Value::Shifted(Keyboard::Keyboard1), },
-    Entry { code: 0x78, value: Value::OneShot(1), },
+    Entry { code: 0x78, value: Value::OneShot(Mods::SHIFT), },
     Entry { code: 0x0f, value: Value::Simple(Keyboard::Space), },
-    Entry { code: 0x22, value: Value::Lock(1), },
+    Entry { code: 0x44, value: Value::Lock(Mods::SHIFT), },
     Entry { code: 0x48, value: Value::Simple(Keyboard::DeleteBackspace), },
     Entry { code: 0x87, value: Value::Simple(Keyboard::CapsLock), },
     Entry { code: 0x42, value: Value::Simple(Keyboard::DeleteForward), },
@@ -150,6 +156,8 @@ impl Default for ArtseyManager {
             age: 0,
             down: false,
             pressed: 0,
+            oneshot: Mods::empty(),
+            locked: Mods::empty(),
         }
     }
 }
@@ -174,23 +182,31 @@ impl ArtseyManager {
     }
 
     fn handle_down(&mut self, events: &mut EventQueue) {
-        let base_mods = Mods::None;
+        let base_mods = self.locked | self.oneshot;
 
         match NORMAL.iter().find(|e| e.code == self.seen) {
             Some(Entry { value: Value::Simple(k), .. }) => {
                 self.down = true;
-                events.push(Event::Key(KeyAction::KeyPress(*k, base_mods)))
+                events.push(Event::Key(KeyAction::KeyPress(*k, base_mods)));
+                self.oneshot = Mods::empty();
                 // info!("Simple: {}", *k as u8);
             }
             Some(Entry { value: Value::Shifted(k), .. }) => {
                 self.down = true;
-                events.push(Event::Key(KeyAction::KeyPress(*k, base_mods | Mods::SHIFT)))
+                events.push(Event::Key(KeyAction::KeyPress(*k, base_mods | Mods::SHIFT)));
+                self.oneshot = Mods::empty();
                 // info!("Shifted: {}", *k as u8);
             }
-            Some(Entry { value: Value::OneShot(k), .. }) =>
-                info!("One Shot: {}", *k),
-            Some(Entry { value: Value::Lock(k), .. }) =>
-                info!("Lock: {}", *k),
+            Some(Entry { value: Value::OneShot(k), .. }) => {
+                // Oneshot modifiers are kept until the next keypress goes
+                // through.
+                self.oneshot |= *k;
+            }
+            Some(Entry { value: Value::Lock(k), .. }) => {
+                // Locked modifiers are a toggle of modifiers sent with
+                // everything form now on.
+                self.locked ^= *k;
+            }
             Some(Entry { value: Value::None, .. }) => (),
             None => (),
         }

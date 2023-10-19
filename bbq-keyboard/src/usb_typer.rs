@@ -171,7 +171,7 @@ pub fn enqueue_action<H: ActionHandler>(usb: &mut H, text: &str) {
             }
             let shifted = (code & SHIFT) != 0;
             let code: Keyboard = ((code & 0xFF) as u8).into();
-            let action = KeyAction::KeyPress(code, if shifted {Mods::SHIFT} else {Mods::None});
+            let action = KeyAction::KeyPress(code, if shifted {Mods::SHIFT} else {Mods::empty()});
             usb.enqueue_actions([action].iter().cloned());
         }
     }

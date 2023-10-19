@@ -100,8 +100,6 @@ bitflags! {
         const CONTROL = 0b0000_0010;
         const ALT = 0b0000_0100;
         const GUI = 0b0000_1000;
-
-        const None = 0;
     }
 }
 
