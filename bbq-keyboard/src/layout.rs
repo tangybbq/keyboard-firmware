@@ -10,6 +10,7 @@ use crate::{KeyEvent, EventQueue};
 
 use self::steno::RawStenoHandler;
 
+mod artsey;
 mod steno;
 
 // Keyboards are complicated things, and small keyboards are even more
@@ -57,6 +58,7 @@ mod steno;
 /// The layout manager.
 pub struct LayoutManager {
     raw: steno::RawStenoHandler,
+    artsey: artsey::ArtseyManager,
 
     // Global mode.  This indicates what mode we are in.
     mode: ModeSelector,
@@ -66,24 +68,29 @@ impl LayoutManager {
     pub fn new() -> Self {
         LayoutManager {
             raw: RawStenoHandler::new(),
+            artsey: artsey::ArtseyManager::default(),
             mode: ModeSelector::default(),
         }
     }
 
     // For now, just pass everything through.
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self, events: &mut EventQueue) {
         self.raw.tick();
+        self.artsey.tick(events);
     }
 
     pub fn poll(&mut self) {
         self.raw.poll();
+        self.artsey.poll();
     }
 
     /// Handle a single key event.
     pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
         if self.mode.event(event, events) {
             match self.mode.get() {
-                LayoutMode::Artsey => info!("TODO: Artsey"),
+                LayoutMode::Artsey => {
+                    self.artsey.handle_event(event, events);
+                }
                 LayoutMode::Steno => {
                     self.raw.handle_event(event, events);
                 }

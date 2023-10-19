@@ -37,7 +37,7 @@ pub static OFF_INDICATOR: Indication = Indication(&[
 
 /// Steno mode
 pub static STENO_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(0, 0, 16), count: 10000 },
+    Step { color: RGB8::new(0, 0, 32), count: 10000 },
 ]);
 
 /// Artsey mode

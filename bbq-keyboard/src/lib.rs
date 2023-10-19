@@ -58,6 +58,15 @@ pub enum KeyEvent {
     Release(u8),
 }
 
+impl defmt::Format for KeyEvent {
+    fn format(&self, fmt: defmt::Formatter) {
+        match self {
+            KeyEvent::Press(k) => defmt::write!(fmt, "KeyEvent::Press({})", k),
+            KeyEvent::Release(k) => defmt::write!(fmt, "KeyEvent::Release({})", k),
+        }
+    }
+}
+
 impl KeyEvent {
     pub fn key(&self) -> u8 {
         match self {
@@ -106,6 +115,9 @@ pub enum Event {
 
     /// Major mode indication change.
     Mode(LayoutMode),
+
+    /// A keypress (from a typical keyboard mode)
+    Key(KeyAction),
 }
 
 pub struct EventQueue(ArrayDeque<Event, 256>);

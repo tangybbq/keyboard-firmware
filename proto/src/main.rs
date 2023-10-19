@@ -231,7 +231,7 @@ fn main() -> ! {
         if now > next_1ms {
             usb_handler.tick();
             matrix_handler.tick(&mut delay, &mut events);
-            layout_manager.tick();
+            layout_manager.tick(&mut events);
 
             // Handle the event queue.
             while let Some(event) = events.pop() {
@@ -248,6 +248,9 @@ fn main() -> ! {
                         if state == InterState::Primary {
                             layout_manager.handle_event(key, &mut events)
                         }
+                    }
+                    Event::Key(action) => {
+                        usb_handler.enqueue(once(action));
                     }
                     Event::RawSteno(stroke) => {
                         let mut buffer = ArrayString::<24>::new();
