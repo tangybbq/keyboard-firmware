@@ -37,6 +37,9 @@ pub struct ArtseyManager {
     // Was the last key seen on the left or right side. The hold maps differ
     // between sides, so we need this to decide which map to use.
     is_right: bool,
+
+    // Are we in nav mode?
+    nav: bool,
 }
 
 // The Artsey keyboard consists of a full keyboard layout implemented on 8 keys.
@@ -132,6 +135,7 @@ enum Value {
     Shifted(Keyboard),
     OneShot(Mods),
     Lock(Mods),
+    Nav,
     None,
 }
 
@@ -141,7 +145,7 @@ struct Entry {
 }
 
 // Normal Artsey mode map.
-static NORMAL: [Entry; 44] = [
+static NORMAL: [Entry; 45] = [
     Entry { code: 0x80, value: Value::Simple(Keyboard::A), },
     Entry { code: 0x40, value: Value::Simple(Keyboard::R), },
     Entry { code: 0x20, value: Value::Simple(Keyboard::T), },
@@ -187,7 +191,7 @@ static NORMAL: [Entry; 44] = [
     Entry { code: 0x87, value: Value::Simple(Keyboard::CapsLock), },
     Entry { code: 0x42, value: Value::Simple(Keyboard::DeleteForward), },
     Entry { code: 0x66, value: Value::None, },
-
+    Entry { code: 0x4a, value: Value::Nav, },
 ];
 
 // The number Artsey mapping.
@@ -236,6 +240,46 @@ static PUNCT_MAP: [Entry; 7] = [
     Entry { code: 0x01, value: Value::Simple(Keyboard::Equal), },
 ];
 
+// Nav is the 8 nav buttons, the 4 one shot modifiers, and the one nav toggle
+// key.
+static RIGHT_NAV_MAP: [Entry; 13] = [
+    Entry { code: 0x80, value: Value::Simple(Keyboard::Home), },
+    Entry { code: 0x40, value: Value::Simple(Keyboard::UpArrow), },
+    Entry { code: 0x20, value: Value::Simple(Keyboard::End), },
+    Entry { code: 0x10, value: Value::Simple(Keyboard::PageUp), },
+    Entry { code: 0x08, value: Value::Simple(Keyboard::LeftArrow), },
+    Entry { code: 0x04, value: Value::Simple(Keyboard::DownArrow), },
+    Entry { code: 0x02, value: Value::Simple(Keyboard::RightArrow), },
+    Entry { code: 0x01, value: Value::Simple(Keyboard::PageDown), },
+
+    Entry { code: 0x18, value: Value::OneShot(Mods::CONTROL), },
+    Entry { code: 0x14, value: Value::OneShot(Mods::GUI), },
+    Entry { code: 0x12, value: Value::OneShot(Mods::ALT), },
+    Entry { code: 0x78, value: Value::OneShot(Mods::SHIFT), },
+
+    Entry { code: 0x4a, value: Value::Nav, },
+];
+
+// Nav is the 8 nav buttons, the 4 one shot modifiers, and the one nav toggle
+// key.
+static LEFT_NAV_MAP: [Entry; 13] = [
+    Entry { code: 0x80, value: Value::Simple(Keyboard::End), },
+    Entry { code: 0x40, value: Value::Simple(Keyboard::UpArrow), },
+    Entry { code: 0x20, value: Value::Simple(Keyboard::Home), },
+    Entry { code: 0x10, value: Value::Simple(Keyboard::PageUp), },
+    Entry { code: 0x08, value: Value::Simple(Keyboard::RightArrow), },
+    Entry { code: 0x04, value: Value::Simple(Keyboard::DownArrow), },
+    Entry { code: 0x02, value: Value::Simple(Keyboard::LeftArrow), },
+    Entry { code: 0x01, value: Value::Simple(Keyboard::PageDown), },
+
+    Entry { code: 0x18, value: Value::OneShot(Mods::CONTROL), },
+    Entry { code: 0x14, value: Value::OneShot(Mods::GUI), },
+    Entry { code: 0x12, value: Value::OneShot(Mods::ALT), },
+    Entry { code: 0x78, value: Value::OneShot(Mods::SHIFT), },
+
+    Entry { code: 0x4a, value: Value::Nav, },
+];
+
 impl Default for ArtseyManager {
     fn default() -> Self {
         ArtseyManager {
@@ -249,6 +293,7 @@ impl Default for ArtseyManager {
             hold_sent: false,
             mapping: &NORMAL,
             is_right: false,
+            nav: false,
         }
     }
 }
@@ -317,6 +362,11 @@ impl ArtseyManager {
                 // everything form now on.
                 self.locked ^= *k;
             }
+            Some(Entry { value: Value::Nav, .. }) => {
+                // Toggle nav mode.
+                self.nav = !self.nav;
+                self.set_normal();
+            }
             Some(Entry { value: Value::None, .. }) => (),
             None => (),
         }
@@ -351,7 +401,7 @@ impl ArtseyManager {
                     }
 
                     self.hold_mode = 0x00;
-                    self.mapping = &NORMAL;
+                    self.set_normal();
                 }
 
                 // When we actually released one of our keys, and the result has
@@ -371,6 +421,18 @@ impl ArtseyManager {
                     }
                 }
             }
+        }
+    }
+
+    fn set_normal(&mut self) {
+        if self.nav {
+            if self.is_right {
+                self.mapping = &RIGHT_NAV_MAP;
+            } else {
+                self.mapping = &LEFT_NAV_MAP;
+            }
+        } else {
+            self.mapping = &NORMAL;
         }
     }
 }
