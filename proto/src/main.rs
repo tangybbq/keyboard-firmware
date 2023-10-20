@@ -50,6 +50,11 @@ mod usb;
 mod inter;
 mod leds;
 
+// Bring in the bootloader.
+#[link_section = ".boot_loader"]
+#[used]
+pub static BOOT_LOADER: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
+
 // use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
 // use usbd_hid::hid_class::HIDClass;
 
