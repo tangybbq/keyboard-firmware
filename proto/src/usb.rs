@@ -32,6 +32,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             .serial_number("development")
             .device_class(0)
             .max_power(500)
+            .supports_remote_wakeup(true)
             .build();
         UsbHandler {
             hid: keyboard,
@@ -130,6 +131,17 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             }
             self.state = Some(new_state);
             events.push(Event::UsbState(new_state));
+        }
+    }
+}
+
+/// The remote wakeup is only available for this specific hal.
+impl<'a> UsbHandler<'a, sparkfun_pro_micro_rp2040::hal::usb::UsbBus> {
+    /// Inform the host that we'd like to request they wake up.  This should be
+    /// called only from suspend state.
+    pub fn wakeup(&mut self) {
+        if self.dev.remote_wakeup_enabled() {
+            self.dev.bus().remote_wakeup();
         }
     }
 }

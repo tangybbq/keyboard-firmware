@@ -213,6 +213,7 @@ fn main() -> ! {
     let mut events = EventQueue::new();
     let mut state = InterState::Idle;
     let mut flashing = true;
+    let mut usb_suspended = true;
     loop {
         let now = timer.get_counter().ticks();
 
@@ -243,6 +244,11 @@ fn main() -> ! {
                             InterState::Secondary =>
                                 inter_handler.add_key(key),
                         }
+                        if usb_suspended {
+                            // This is specific to our implementation.
+                            // TODO: Only do this if remote wakeup enabled.
+                            usb_handler.wakeup();
+                        }
                     }
                     Event::InterKey(key) => {
                         if state == InterState::Primary {
@@ -270,6 +276,14 @@ fn main() -> ! {
 
                         // Indicate to the inter channel that we are now primary.
                         inter_handler.set_state(InterState::Primary, &mut events);
+
+                        usb_suspended = false;
+                    }
+                    Event::UsbState(UsbDeviceState::Suspend) => {
+                        // This indicates the host has gone to sleep.
+                        led_manager.set_global(&leds::SLEEP_INDICATOR);
+                        // flashing = true;
+                        usb_suspended = true;
                     }
                     Event::UsbState(_) => (),
                     Event::BecomeState(new_state) => {

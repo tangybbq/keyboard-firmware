@@ -35,6 +35,12 @@ pub static OFF_INDICATOR: Indication = Indication(&[
     Step { color: OFF,                count: 10000 },
 ]);
 
+/// Show we are sleeping.
+pub static SLEEP_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(0, 0, 8), count: 3000 },
+    Step { color: RGB8::new(0, 0, 16), count: 3000 },
+]);
+
 /// Steno mode
 pub static STENO_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(0, 0, 32), count: 10000 },
