@@ -240,9 +240,9 @@ static PUNCT_MAP: [Entry; 7] = [
     Entry { code: 0x01, value: Value::Simple(Keyboard::Equal), },
 ];
 
-// Nav is the 8 nav buttons, the 4 one shot modifiers, and the one nav toggle
-// key.
-static RIGHT_NAV_MAP: [Entry; 13] = [
+// Nav is the 8 nav buttons, the 4 one shot modifiers, shift lock, and the one
+// nav toggle key.
+static RIGHT_NAV_MAP: [Entry; 14] = [
     Entry { code: 0x80, value: Value::Simple(Keyboard::Home), },
     Entry { code: 0x40, value: Value::Simple(Keyboard::UpArrow), },
     Entry { code: 0x20, value: Value::Simple(Keyboard::End), },
@@ -256,13 +256,14 @@ static RIGHT_NAV_MAP: [Entry; 13] = [
     Entry { code: 0x14, value: Value::OneShot(Mods::GUI), },
     Entry { code: 0x12, value: Value::OneShot(Mods::ALT), },
     Entry { code: 0x78, value: Value::OneShot(Mods::SHIFT), },
+    Entry { code: 0x44, value: Value::Lock(Mods::SHIFT), },
 
     Entry { code: 0x4a, value: Value::Nav, },
 ];
 
-// Nav is the 8 nav buttons, the 4 one shot modifiers, and the one nav toggle
-// key.
-static LEFT_NAV_MAP: [Entry; 13] = [
+// Nav is the 8 nav buttons, the 4 one shot modifiers, shift lock, and the one
+// nav toggle key.
+static LEFT_NAV_MAP: [Entry; 14] = [
     Entry { code: 0x80, value: Value::Simple(Keyboard::End), },
     Entry { code: 0x40, value: Value::Simple(Keyboard::UpArrow), },
     Entry { code: 0x20, value: Value::Simple(Keyboard::Home), },
@@ -276,6 +277,7 @@ static LEFT_NAV_MAP: [Entry; 13] = [
     Entry { code: 0x14, value: Value::OneShot(Mods::GUI), },
     Entry { code: 0x12, value: Value::OneShot(Mods::ALT), },
     Entry { code: 0x78, value: Value::OneShot(Mods::SHIFT), },
+    Entry { code: 0x44, value: Value::Lock(Mods::SHIFT), },
 
     Entry { code: 0x4a, value: Value::Nav, },
 ];
