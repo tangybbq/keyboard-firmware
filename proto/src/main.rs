@@ -291,10 +291,10 @@ fn main() -> ! {
                             if new_state == InterState::Secondary  {
                                 info!("Secondary");
                                 // We've gone into secondary state, stop blinking the LEDs.
-                                led_manager.set_global(&leds::OFF_INDICATOR);
+                                led_manager.clear_global();
                             } else if new_state == InterState::Idle {
                                 info!("Idle");
-                                led_manager.set_global(&leds::INIT_INDICATOR);
+                                led_manager.clear_global();
                             } else {
                                 info!("Primary");
                             }
@@ -305,7 +305,7 @@ fn main() -> ! {
                             // programming firmware, or waking from sleep).
                             // Detect that we are flashing the lights, and turn
                             // them off.
-                            led_manager.set_global(&leds::OFF_INDICATOR);
+                            led_manager.clear_global();
                             flashing = false;
                         }
                     }
@@ -314,11 +314,11 @@ fn main() -> ! {
                             LayoutMode::Steno => &leds::STENO_INDICATOR,
                             LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
                         };
-                        led_manager.set_global(visible);
+                        led_manager.set_base(visible);
                     }
                     Event::Heartbeat => {
                         if flashing {
-                            led_manager.set_global(&leds::OFF_INDICATOR);
+                            led_manager.clear_global();
                             flashing = false;
                         }
                     }
