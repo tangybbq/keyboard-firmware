@@ -4,7 +4,7 @@ use usbd_human_interface_device::page::Keyboard;
 
 // use crate::log::info;
 
-use crate::{KeyEvent, EventQueue, KeyAction, Event, Mods};
+use crate::{KeyEvent, EventQueue, KeyAction, Event, Mods, MinorMode};
 
 pub struct ArtseyManager {
     // Keys that are currently down.
@@ -368,6 +368,12 @@ impl ArtseyManager {
                 // Toggle nav mode.
                 self.nav = !self.nav;
                 self.set_normal();
+                let ind = if self.nav {
+                    MinorMode::ArtseyNav
+                } else {
+                    MinorMode::ArtseyMain
+                };
+                events.push(Event::Indicator(ind));
             }
             Some(Entry { value: Value::None, .. }) => (),
             None => (),

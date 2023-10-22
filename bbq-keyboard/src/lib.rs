@@ -130,6 +130,9 @@ pub enum Event {
 
     /// A keypress (from a typical keyboard mode)
     Key(KeyAction),
+
+    /// Set indicator to given mode.
+    Indicator(MinorMode),
 }
 
 pub struct EventQueue(ArrayDeque<Event, 256>);
@@ -156,4 +159,10 @@ pub enum InterState {
     Idle,
     Primary,
     Secondary,
+}
+
+pub enum MinorMode {
+    // To start with, just distinguish artsy main from artsy nav mode.
+    ArtseyMain,
+    ArtseyNav,
 }

@@ -23,7 +23,7 @@ use usb_device::{class_prelude::UsbBusAllocator, prelude::UsbDeviceState};
 
 use embedded_alloc::Heap;
 
-use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event, LayoutMode};
+use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event, LayoutMode, MinorMode};
 use bbq_keyboard::usb_typer::enqueue_action;
 use bbq_keyboard::layout::LayoutManager;
 
@@ -318,6 +318,13 @@ fn main() -> ! {
                         let visible = match mode {
                             LayoutMode::Steno => &leds::STENO_INDICATOR,
                             LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
+                        };
+                        led_manager.set_base(visible);
+                    }
+                    Event::Indicator(mode) => {
+                        let visible = match mode {
+                            MinorMode::ArtseyMain => &leds::ARTSEY_INDICATOR,
+                            MinorMode::ArtseyNav => &leds::ARTSEY_NAV_INDICATOR,
                         };
                         led_manager.set_base(visible);
                     }

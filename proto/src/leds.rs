@@ -53,6 +53,11 @@ pub static ARTSEY_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(0, 16, 0), count: 10000 },
 ]);
 
+/// Artsey Nav mode
+pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(20, 20, 0), count: 10000 },
+]);
+
 pub struct LedManager<'a, L: SmartLedsWrite<Color = RGB8>> {
     leds: &'a mut L,
 
