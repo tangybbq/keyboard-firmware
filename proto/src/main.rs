@@ -7,13 +7,16 @@
 extern crate alloc;
 
 use arrayvec::ArrayString;
+use cortex_m::delay::Delay;
+use smart_leds::{SmartLedsWrite, RGB8};
+use usb::UsbHandler;
 use ws2812_pio::Ws2812Direct;
 
 use core::convert::Infallible;
 use core::iter::once;
 
 // use alloc::collections::BTreeSet;
-use bsp::{entry, XOSC_CRYSTAL_FREQ, hal::{uart::{UartConfig, StopBits, DataBits}, Timer}};
+use bsp::{entry, XOSC_CRYSTAL_FREQ, hal::{uart::{UartConfig, StopBits, DataBits, UartDevice, ValidUartPinout}, Timer}};
 use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::{digital::v2::{InputPin, OutputPin, PinState}, timer::CountDown};
@@ -86,7 +89,7 @@ fn main() -> ! {
     .ok()
     .unwrap();
 
-    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    let delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
     let pins = bsp::Pins::new(
         pac.IO_BANK0,
@@ -106,24 +109,6 @@ fn main() -> ! {
         info!("Left side");
         Side::Left
     };
-    // let idle_color = if side_select.is_high().unwrap() {
-    //     RGB8::new(0, 15, 0)
-    // } else {
-    //     RGB8::new(0, 0, 15)
-    // };
-
-    // let defmt_uart_pins = (
-    //     pins.tx0.into_mode::<hal::gpio::FunctionUart>(),
-    //     pins.rx0.into_mode::<hal::gpio::FunctionUart>(),
-    // );
-    // let defmt_uart = hal::uart::UartPeripheral::new(pac.UART0, defmt_uart_pins, &mut pac.RESETS)
-    //     .enable(
-    //         UartConfig::new(115200.Hz(), DataBits::Eight, None, StopBits::One),
-    //         clocks.peripheral_clock.freq(),
-    //     )
-    //     .unwrap();
-    // defmt_uart.write_full_blocking(b"Test hello\r\n");
-    // defmt_serial::defmt_serial(defmt_uart);
     info!("Defmt working");
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
@@ -138,7 +123,7 @@ fn main() -> ! {
         sm0,
         clocks.peripheral_clock.freq(),
         );
-    let mut led_manager = leds::LedManager::new(&mut ws);
+    let led_manager = leds::LedManager::new(&mut ws);
 
     let usb_bus = UsbBusAllocator::new(hal::usb::UsbBus::new(
         pac.USBCTRL_REGS,
@@ -147,16 +132,13 @@ fn main() -> ! {
         true,
         &mut pac.RESETS,
     ));
-    let mut usb_handler = usb::UsbHandler::new(&usb_bus);
-
-    // ws.write(once(RGB8::new(4, 16, 4))).unwrap();
+    let usb_handler = usb::UsbHandler::new(&usb_bus);
 
     // Let's see if we can use the UART1.
     let uart_pins = (
         pins.tx1.into_function::<hal::gpio::FunctionUart>(),
         pins.rx1.into_function::<hal::gpio::FunctionUart>(),
     );
-    // info!("Uart clk: {}", clocks.peripheral_clock.freq().raw());
     let uart = hal::uart::UartPeripheral::new(pac.UART1, uart_pins, &mut pac.RESETS)
         .enable(
             // Ideally, being above 320k will allow full frames to be sent each
@@ -166,20 +148,7 @@ fn main() -> ! {
         )
         .unwrap();
 
-    let mut inter_handler = inter::InterHandler::new(uart, side);
-
-    // let mut gotten = false;
-    // while !gotten {
-    //     let mut buf = [0u8];
-    //     if let Ok(count) = uart.read_raw(&mut buf) {
-    //         info!("count = {}", count);
-    //         info!("Read byte: {}", buf[0]);
-    //         if buf[0] == b'\n' {
-    //             gotten = true;
-    //         }
-    //     }
-    //     delay.delay_ms(1);
-    // }
+    let inter_handler = inter::InterHandler::new(uart, side);
 
     let mut col_a = pins.gpio2.into_push_pull_output_in_state(PinState::Low);
     let mut col_b = pins.gpio3.into_push_pull_output_in_state(PinState::Low);
@@ -203,14 +172,40 @@ fn main() -> ! {
         &row_3 as &dyn InputPin<Error = Infallible>,
     ];
 
-    let mut matrix_handler: matrix::Matrix<'_, '_, Infallible, 15> = matrix::Matrix::new(
+    let matrix_handler: matrix::Matrix<'_, '_, Infallible, 15> = matrix::Matrix::new(
         cols,
         rows,
         side,
     );
 
-    let mut layout_manager = LayoutManager::new();
+    let layout_manager = LayoutManager::new();
+    main_loop(
+        timer,
+        delay,
+        usb_handler,
+        matrix_handler,
+        layout_manager,
+        inter_handler,
+        led_manager,
+    );
+}
 
+fn main_loop<
+    'r, 'c, 'a,
+    E: core::fmt::Debug,
+    D: UartDevice,
+    P: ValidUartPinout<D>,
+    L: SmartLedsWrite<Color = RGB8>,
+    const NKEYS: usize
+>(
+    timer: Timer,
+    mut delay: Delay,
+    mut usb_handler: UsbHandler<hal::usb::UsbBus>,
+    mut matrix_handler: matrix::Matrix<'r, 'c, E, NKEYS>,
+    mut layout_manager: LayoutManager,
+    mut inter_handler: inter::InterHandler<D, P>,
+    mut led_manager: leds::LedManager<'a, L>,
+) -> ! {
     // TODO: Use the fugit values, and actual intervals.
     let mut next_1ms = timer.get_counter().ticks() + 1_000;
     let mut next_10us = timer.get_counter().ticks() + 10;
