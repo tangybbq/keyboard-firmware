@@ -431,8 +431,11 @@ impl ArtseyManager {
                 events.push(Event::Key(KeyAction::ModOnly(self.sticky)));
             }
             Some(Entry { value: Value::Unstick, .. }) => {
+                // Release, if any are pressed.
+                if !self.sticky.is_empty() {
+                    events.push(Event::Key(KeyAction::KeyRelease));
+                }
                 self.sticky = Mods::empty();
-                events.push(Event::Key(KeyAction::KeyRelease));
             }
             Some(Entry { value: Value::Nav, .. }) => {
                 // Toggle nav mode.
