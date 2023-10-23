@@ -82,14 +82,14 @@ pub struct ArtseyManager {
 static LEFT_HOLD_KEYS: [HoldEntry; 4] = [
     HoldEntry { code: 0x80, mapping: &LEFT_BRACKET_MAP },
     HoldEntry { code: 0x10, mapping: &NUMBER_MAP },
-    HoldEntry { code: 0x08, mapping: &PUNCT_MAP },
+    HoldEntry { code: 0x08, mapping: &LEFT_PUNCT_MAP },
     HoldEntry { code: 0x01, mapping: &NORMAL },
 ];
 
 static RIGHT_HOLD_KEYS: [HoldEntry; 4] = [
     HoldEntry { code: 0x80, mapping: &RIGHT_BRACKET_MAP },
     HoldEntry { code: 0x10, mapping: &NUMBER_MAP },
-    HoldEntry { code: 0x08, mapping: &PUNCT_MAP },
+    HoldEntry { code: 0x08, mapping: &RIGHT_PUNCT_MAP },
     HoldEntry { code: 0x01, mapping: &NORMAL },
 ];
 
@@ -230,7 +230,7 @@ static LEFT_BRACKET_MAP: [Entry; 6] = [
     Entry { code: 0x01, value: Value::Shifted(Keyboard::RightBrace), },
 ];
 
-static PUNCT_MAP: [Entry; 7] = [
+static LEFT_PUNCT_MAP: [Entry; 11] = [
     Entry { code: 0x80, value: Value::Shifted(Keyboard::Keyboard1), },
     Entry { code: 0x40, value: Value::Simple(Keyboard::Backslash), },
     Entry { code: 0x20, value: Value::Simple(Keyboard::Semicolon), },
@@ -238,6 +238,28 @@ static PUNCT_MAP: [Entry; 7] = [
     Entry { code: 0x04, value: Value::Shifted(Keyboard::ForwardSlash), },
     Entry { code: 0x02, value: Value::Simple(Keyboard::Minus), },
     Entry { code: 0x01, value: Value::Simple(Keyboard::Equal), },
+
+    // My additions. These the top ones should probably distinguish left/right
+    Entry { code: 0x60, value: Value::Shifted(Keyboard::Dot), },
+    Entry { code: 0x30, value: Value::Shifted(Keyboard::Comma), },
+    Entry { code: 0x06, value: Value::Shifted(Keyboard::Semicolon), },
+    Entry { code: 0x03, value: Value::Shifted(Keyboard::Keyboard3), },
+];
+
+static RIGHT_PUNCT_MAP: [Entry; 11] = [
+    Entry { code: 0x80, value: Value::Shifted(Keyboard::Keyboard1), },
+    Entry { code: 0x40, value: Value::Simple(Keyboard::Backslash), },
+    Entry { code: 0x20, value: Value::Simple(Keyboard::Semicolon), },
+    Entry { code: 0x10, value: Value::Simple(Keyboard::Grave), },
+    Entry { code: 0x04, value: Value::Shifted(Keyboard::ForwardSlash), },
+    Entry { code: 0x02, value: Value::Simple(Keyboard::Minus), },
+    Entry { code: 0x01, value: Value::Simple(Keyboard::Equal), },
+
+    // My additions.
+    Entry { code: 0x60, value: Value::Shifted(Keyboard::Comma), },
+    Entry { code: 0x30, value: Value::Shifted(Keyboard::Dot), },
+    Entry { code: 0x06, value: Value::Shifted(Keyboard::Semicolon), },
+    Entry { code: 0x03, value: Value::Shifted(Keyboard::Keyboard3), },
 ];
 
 // Nav is the 8 nav buttons, the 4 one shot modifiers, shift lock, and the one
@@ -314,7 +336,7 @@ impl ArtseyManager {
             self.age = self.age.saturating_add(1);
         }
 
-        if self.seen != 0 && self.age >= 100 {
+        if self.seen != 0 && self.age >= 50 {
             // If we have a 'seen' value, and suffient age, and we aren't in a
             // special mode, then activate the special mode.
             if self.hold_mode == 0 {
