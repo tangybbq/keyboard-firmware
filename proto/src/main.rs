@@ -61,6 +61,9 @@ pub static BOOT_LOADER: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
 // use usbd_hid::descriptor::{generator_prelude::*, KeyboardReport};
 // use usbd_hid::hid_class::HIDClass;
 
+// Convenience to get a sane error message if no board is selected.
+
+#[cfg(feature = "proto2")]
 #[entry]
 fn main() -> ! {
     {
@@ -173,6 +176,140 @@ fn main() -> ! {
     ];
 
     let matrix_handler: matrix::Matrix<'_, '_, Infallible, 15> = matrix::Matrix::new(
+        cols,
+        rows,
+        side,
+    );
+
+    let layout_manager = LayoutManager::new();
+    main_loop(
+        timer,
+        delay,
+        usb_handler,
+        matrix_handler,
+        layout_manager,
+        inter_handler,
+        led_manager,
+    );
+}
+
+#[cfg(feature = "proto3")]
+#[entry]
+fn main() -> ! {
+    {
+        use core::mem::MaybeUninit;
+        const HEAP_SIZE: usize = 4096;
+        static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+        unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
+    }
+
+    let mut pac = pac::Peripherals::take().unwrap();
+    let core = pac::CorePeripherals::take().unwrap();
+    let mut watchdog = Watchdog::new(pac.WATCHDOG);
+    let sio = Sio::new(pac.SIO);
+
+    info!("Program start");
+    // External high-speed crystal on the pico board is 12Mhz
+    let clocks = init_clocks_and_plls(
+        XOSC_CRYSTAL_FREQ,
+        pac.XOSC,
+        pac.CLOCKS,
+        pac.PLL_SYS,
+        pac.PLL_USB,
+        &mut pac.RESETS,
+        &mut watchdog,
+    )
+    .ok()
+    .unwrap();
+
+    let delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+
+    let pins = bsp::Pins::new(
+        pac.IO_BANK0,
+        pac.PADS_BANK0,
+        sio.gpio_bank0,
+        &mut pac.RESETS,
+    );
+
+    // The ACD1/GPIO27 gpio pin will be pulled up or down to indicate if this is
+    // the left or right half of the keyboard. High indicates the right side,
+    // and low is the left side.
+    let side_select = pins.sck.into_pull_down_input();
+    let side = if side_select.is_high().unwrap() {
+        info!("Right side");
+        Side::Right
+    } else {
+        info!("Left side");
+        Side::Left
+    };
+    info!("Defmt working");
+
+    let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+    let mut ticker = timer.count_down();
+    ticker.start(1.millis());
+    // ticker.start(250.micros());
+
+    let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
+    let mut ws = Ws2812Direct::new(
+        pins.led.into_function(),
+        &mut pio,
+        sm0,
+        clocks.peripheral_clock.freq(),
+        );
+    let led_manager = leds::LedManager::new(&mut ws);
+
+    let usb_bus = UsbBusAllocator::new(hal::usb::UsbBus::new(
+        pac.USBCTRL_REGS,
+        pac.USBCTRL_DPRAM,
+        clocks.usb_clock,
+        true,
+        &mut pac.RESETS,
+    ));
+    let usb_handler = usb::UsbHandler::new(&usb_bus);
+
+    // Let's see if we can use the UART1.
+    let uart_pins = (
+        pins.tx1.into_function::<hal::gpio::FunctionUart>(),
+        pins.rx1.into_function::<hal::gpio::FunctionUart>(),
+    );
+    let uart = hal::uart::UartPeripheral::new(pac.UART1, uart_pins, &mut pac.RESETS)
+        .enable(
+            // Ideally, being above 320k will allow full frames to be sent each
+            // tick.  This number is chosen to be an exact divisor of the clock rate.
+            UartConfig::new(390625.Hz(), DataBits::Eight, None, StopBits::One),
+            clocks.peripheral_clock.freq(),
+        )
+        .unwrap();
+
+    let inter_handler = inter::InterHandler::new(uart, side);
+
+    let mut col_a = pins.gpio2.into_push_pull_output_in_state(PinState::Low);
+    let mut col_b = pins.gpio3.into_push_pull_output_in_state(PinState::Low);
+    let mut col_c = pins.gpio4.into_push_pull_output_in_state(PinState::Low);
+    let mut col_d = pins.gpio5.into_push_pull_output_in_state(PinState::Low);
+    let mut col_e = pins.gpio6.into_push_pull_output_in_state(PinState::Low);
+    let mut col_f = pins.gpio7.into_push_pull_output_in_state(PinState::Low);
+    let cols = &mut [
+        &mut col_a as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_b as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_c as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_d as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_e as &mut dyn OutputPin<Error = Infallible>,
+        &mut col_f as &mut dyn OutputPin<Error = Infallible>,
+    ];
+
+    let row_1 = pins.adc3.into_pull_down_input();
+    let row_2 = pins.adc2.into_pull_down_input();
+    let row_3 = pins.adc1.into_pull_down_input();
+    let row_4 = pins.adc0.into_pull_down_input();
+    let rows = &[
+        &row_1 as &dyn InputPin<Error = Infallible>,
+        &row_2 as &dyn InputPin<Error = Infallible>,
+        &row_3 as &dyn InputPin<Error = Infallible>,
+        &row_4 as &dyn InputPin<Error = Infallible>,
+    ];
+
+    let matrix_handler: matrix::Matrix<'_, '_, Infallible, 24> = matrix::Matrix::new(
         cols,
         rows,
         side,

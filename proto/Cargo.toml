@@ -45,6 +45,16 @@ bbq-steno = { version = "0.1.0", default-features = false, path = "../bbq-steno"
 bbq-steno-macros = { version = "0.1.0", default-features = false, path = "../bbq-steno-macros" }
 rp2040-boot2 = "0.3.0"
 
+[features]
+# The proto2 keyboard
+proto2 = ["bbq-keyboard/proto2"]
+
+# The proto3 keyboard
+proto3 = ["bbq-keyboard/proto3"]
+
+# For convenience, default to the board I use the most.
+default = ["proto3"]
+
 # cargo build/run
 [profile.dev]
 codegen-units = 1

@@ -13,6 +13,14 @@ use self::steno::RawStenoHandler;
 mod artsey;
 mod steno;
 
+// TODO: Generalize this a bit better.
+#[cfg(feature = "proto2")]
+const MODE_KEY: u8 = 13;
+
+// TODO: Generalize this a bit better.
+#[cfg(feature = "proto3")]
+const MODE_KEY: u8 = 1;
+
 // Keyboards are complicated things, and small keyboards are even more
 // complicated. We support numerous different ways of seeing the keyboard, ways
 // that are traditionally called "layers" in keyboard firmware. That term isn't
@@ -154,10 +162,10 @@ impl ModeSelector {
         }
 
         // If we've pressed the mode selector, enter the funny mode.
-        if let KeyEvent::Press(13) = event {
+        if let KeyEvent::Press(MODE_KEY) = event {
             // Only do something here if either we are selecting, or no other
             // keys have been pressed.
-            if self.selecting || (self.pressed & !(1 << 13)) == 0 {
+            if self.selecting || (self.pressed & !(1 << (MODE_KEY as usize))) == 0 {
                 // Toggle the mode.
                 self.mode = self.mode.next();
                 self.selecting = true;
