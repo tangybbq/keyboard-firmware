@@ -1,5 +1,29 @@
 //! Artsey keyboard support.
 
+// I have made some additions to Artsey. I had added additional chord
+// punctuation to the lower-inner key. I have also added a sticky-modifier mode,
+// with alternate versions of the modifier keys that are intended for the case
+// where they are held down and then there is a mouse click. These are pressed
+// immediately, and released _before_ the next other type of key stroke, or
+// after the explicit release is sent.
+//
+// Left view:  Right is symmetrical.
+//
+// XXXX - Sticky Shift.
+// ---X
+//
+// X--X - Sticky Control.
+// ---X
+//
+// X-X- - Sticky Gui.
+// --X-
+//
+// XX-- - Sticky Alt.
+// -X--
+//
+// --XX - Sticky Release.
+// --XX
+
 use usbd_human_interface_device::page::Keyboard;
 
 // use crate::log::info;
@@ -40,6 +64,9 @@ pub struct ArtseyManager {
 
     // Are we in nav mode?
     nav: bool,
+
+    // Any stick modifiers that have been sent.
+    sticky: Mods,
 }
 
 // The Artsey keyboard consists of a full keyboard layout implemented on 8 keys.
@@ -136,6 +163,8 @@ enum Value {
     OneShot(Mods),
     Lock(Mods),
     Nav,
+    Sticky(Mods),
+    Unstick,
     None,
 }
 
@@ -145,7 +174,7 @@ struct Entry {
 }
 
 // Normal Artsey mode map.
-static NORMAL: [Entry; 45] = [
+static NORMAL: [Entry; 51] = [
     Entry { code: 0x80, value: Value::Simple(Keyboard::A), },
     Entry { code: 0x40, value: Value::Simple(Keyboard::R), },
     Entry { code: 0x20, value: Value::Simple(Keyboard::T), },
@@ -192,6 +221,14 @@ static NORMAL: [Entry; 45] = [
     Entry { code: 0x42, value: Value::Simple(Keyboard::DeleteForward), },
     Entry { code: 0x66, value: Value::None, },
     Entry { code: 0x4a, value: Value::Nav, },
+
+    // My additions.
+    Entry { code: 0x8f, value: Value::Shifted(Keyboard::Minus), },
+    Entry { code: 0x98, value: Value::Sticky(Mods::CONTROL), },
+    Entry { code: 0x54, value: Value::Sticky(Mods::GUI), },
+    Entry { code: 0x32, value: Value::Sticky(Mods::ALT), },
+    Entry { code: 0xf8, value: Value::Sticky(Mods::SHIFT), },
+    Entry { code: 0xcc, value: Value::Unstick, },
 ];
 
 // The number Artsey mapping.
@@ -318,6 +355,7 @@ impl Default for ArtseyManager {
             mapping: &NORMAL,
             is_right: false,
             nav: false,
+            sticky: Mods::empty(),
         }
     }
 }
@@ -363,6 +401,7 @@ impl ArtseyManager {
 
         match self.mapping.iter().find(|e| e.code == self.seen) {
             Some(Entry { value: Value::Simple(k), .. }) => {
+                self.sticky = Mods::empty();
                 self.down = true;
                 events.push(Event::Key(KeyAction::KeyPress(*k, base_mods)));
                 self.oneshot = Mods::empty();
@@ -370,6 +409,7 @@ impl ArtseyManager {
                 // info!("Simple: {}", *k as u8);
             }
             Some(Entry { value: Value::Shifted(k), .. }) => {
+                self.sticky = Mods::empty();
                 self.down = true;
                 events.push(Event::Key(KeyAction::KeyPress(*k, base_mods | Mods::SHIFT)));
                 self.oneshot = Mods::empty();
@@ -385,6 +425,14 @@ impl ArtseyManager {
                 // Locked modifiers are a toggle of modifiers sent with
                 // everything form now on.
                 self.locked ^= *k;
+            }
+            Some(Entry { value: Value::Sticky(k), .. }) => {
+                self.sticky |= *k;
+                events.push(Event::Key(KeyAction::ModOnly(self.sticky)));
+            }
+            Some(Entry { value: Value::Unstick, .. }) => {
+                self.sticky = Mods::empty();
+                events.push(Event::Key(KeyAction::KeyRelease));
             }
             Some(Entry { value: Value::Nav, .. }) => {
                 // Toggle nav mode.

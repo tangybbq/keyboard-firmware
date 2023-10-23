@@ -88,6 +88,7 @@ impl KeyEvent {
 #[derive(Clone)]
 pub enum KeyAction {
     KeyPress(Keyboard, Mods),
+    ModOnly(Mods),
     KeyRelease,
 }
 

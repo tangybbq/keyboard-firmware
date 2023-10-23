@@ -82,6 +82,22 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                     }
                     keys.push(*k);
                 }
+                KeyAction::ModOnly(m) => {
+                    // TODO: This doesn't need to be redundant like this.
+                    if m.contains(Mods::SHIFT) {
+                        keys.push(Keyboard::LeftShift);
+                    }
+                    if m.contains(Mods::CONTROL) {
+                        keys.push(Keyboard::LeftControl);
+                    }
+                    if m.contains(Mods::ALT) {
+                        keys.push(Keyboard::LeftAlt);
+                    }
+                    if m.contains(Mods::GUI) {
+                        keys.push(Keyboard::LeftGUI);
+                    }
+                    keys.push(Keyboard::NoEventIndicated);
+                }
                 KeyAction::KeyRelease => {
                     // Unclear if this is needed, or just empty is fine.
                     keys.push(Keyboard::NoEventIndicated);
