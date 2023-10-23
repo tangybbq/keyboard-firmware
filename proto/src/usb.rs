@@ -111,7 +111,12 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                     let _ = self.keys.pop_front();
                 }
                 Err(UsbHidError::WouldBlock) => (),
-                Err(UsbHidError::Duplicate) => warn!("Duplicate key seen"),
+                Err(UsbHidError::Duplicate) => {
+                    warn!("Duplicate key seen");
+                    // Duplicate keys should also unqueue.  This shouldn't
+                    // happen, but don't get stuck in a queue loop if it does.
+                    let _ = self.keys.pop_front();
+                }
                 Err(UsbHidError::UsbError(_)) => warn!("USB error"),
                 Err(UsbHidError::SerializationError) => warn!("SerializationError"),
             }
