@@ -126,6 +126,7 @@ struct HoldEntry {
 }
 
 // Mapping of proto2 keys to artsey bits.  Codes past this will result in zero.
+#[cfg(feature = "proto2")]
 static KEY_TO_ARTSEY: [u8; 28] = [
     0x00, //  0
     0x00, //  1
@@ -155,6 +156,53 @@ static KEY_TO_ARTSEY: [u8; 28] = [
     0x02, // 25 - right I
     0x10, // 26 - right S
     0x01, // 27 - right O
+];
+
+#[cfg(feature = "proto3")]
+static KEY_TO_ARTSEY: [u8; 43] = [
+    0x00, //  0
+    0x00, //  1
+    0x00, //  2
+    0x00, //  3
+    0x00, //  4
+    0x10, //  5 - left S
+    0x01, //  6 - left O
+    0x00,
+    0x00,
+    0x20, //  9 - left T
+    0x02, // 10 - left I
+    0x00,
+    0x00,
+    0x04, // 13 - left R
+    0x40, // 14 - left Y
+    0x00,
+    0x00,
+    0x80, // 17 - left E
+    0x08, // 18 - left A
+    0x00, // 19
+    0x00, // 20
+    0x00, // 21
+    0x00, // 22
+    0x00, // 23
+    0x00, // 24
+    0x00, // 25
+    0x00, // 26
+    0x00, // 27
+    0x00, // 28
+    0x10, // 29 - right S
+    0x01, // 30 - right O
+    0x00, // 31
+    0x00, // 32
+    0x20, // 33 - right T
+    0x02, // 34 - right I
+    0x00, // 35
+    0x00, // 36
+    0x40, // 37 - right R
+    0x04, // 38 - right Y
+    0x00, // 39
+    0x00, // 40
+    0x80, // 41 - right A
+    0x08, // 42 - right E
 ];
 
 enum Value {
