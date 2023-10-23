@@ -35,10 +35,10 @@ impl RawStenoHandler {
     // Handle a single event.
     pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
         let key = event.key();
-        if key as usize >= LEFT_KEYS.len() {
+        if key as usize >= STENO_KEYS.len() {
             return;
         }
-        if let Some(st) = LEFT_KEYS[key as usize] {
+        if let Some(st) = STENO_KEYS[key as usize] {
             if event.is_press() {
                 self.seen = self.seen.merge(st);
                 self.down = self.down.merge(st);
@@ -68,7 +68,8 @@ impl RawStenoHandler {
     }
 }
 
-static LEFT_KEYS: &[Option<Stroke>] = &[
+#[cfg(feature = "proto2")]
+static STENO_KEYS: &[Option<Stroke>] = &[
     // Left side
     Some(stroke!("O")),
     Some(stroke!("A")),
@@ -102,4 +103,70 @@ static LEFT_KEYS: &[Option<Stroke>] = &[
     Some(stroke!("-S")),
     Some(stroke!("-D")),
     Some(stroke!("-Z")),
+];
+
+#[cfg(feature = "proto3")]
+static STENO_KEYS: &[Option<Stroke>] = &[
+    // Left
+    Some(Stroke::empty()),
+    Some(Stroke::empty()),
+    Some(Stroke::empty()),
+    Some(Stroke::empty()),
+
+    Some(stroke!("#")),
+    Some(stroke!("*")),
+    Some(stroke!("S")),
+    Some(Stroke::empty()),
+
+    Some(stroke!("#")),
+    Some(stroke!("T")),
+    Some(stroke!("K")),
+    Some(Stroke::empty()),
+
+    Some(stroke!("#")),
+    Some(stroke!("P")),
+    Some(stroke!("W")),
+    Some(stroke!("#")),
+
+    Some(stroke!("#")),
+    Some(stroke!("H")),
+    Some(stroke!("R")),
+    Some(stroke!("A")),
+
+    Some(stroke!("#")),
+    Some(stroke!("^")),
+    Some(stroke!("^")),
+    Some(stroke!("O")),
+
+    // Right
+    Some(stroke!("#")), // What should this be?
+    Some(stroke!("-D")),
+    Some(stroke!("-Z")),
+    Some(Stroke::empty()),
+
+    Some(stroke!("#")),
+    Some(stroke!("-T")),
+    Some(stroke!("-S")),
+    Some(Stroke::empty()),
+
+    Some(stroke!("#")),
+    Some(stroke!("-L")),
+    Some(stroke!("-G")),
+    Some(Stroke::empty()),
+
+    Some(stroke!("#")),
+    Some(stroke!("-P")),
+    Some(stroke!("-B")),
+    Some(stroke!("#")),
+
+    Some(stroke!("#")),
+    Some(stroke!("-F")),
+    Some(stroke!("-R")),
+    Some(stroke!("U")),
+
+    Some(stroke!("#")),
+    Some(stroke!("+")),
+    Some(stroke!("+")),
+    Some(stroke!("E")),
+
 ];
