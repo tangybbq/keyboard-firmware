@@ -173,8 +173,8 @@ static KEY_TO_ARTSEY: [u8; 43] = [
     0x02, // 10 - left I
     0x00,
     0x00,
-    0x04, // 13 - left R
-    0x40, // 14 - left Y
+    0x40, // 13 - left R
+    0x04, // 14 - left Y
     0x00,
     0x00,
     0x80, // 17 - left E
