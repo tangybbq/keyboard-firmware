@@ -35,6 +35,9 @@ impl RawStenoHandler {
     // Handle a single event.
     pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
         let key = event.key();
+        if key as usize >= LEFT_KEYS.len() {
+            return;
+        }
         if let Some(st) = LEFT_KEYS[key as usize] {
             if event.is_press() {
                 self.seen = self.seen.merge(st);
