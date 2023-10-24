@@ -265,6 +265,19 @@ impl QwertyManager {
                 continue;
             }
 
+            // Handle layer changes.
+            match code {
+                Mapping::LayerShift(nlayer) => {
+                    if event.is_press() {
+                        self.layer = nlayer;
+                    } else {
+                        self.layer = &ROOT_MAP;
+                    }
+                    continue;
+                }
+                _ => (),
+            }
+
             // info!("Event: {}", event);
             if event.is_press() {
                 self.down.insert(code);
@@ -291,22 +304,26 @@ impl QwertyManager {
 
         // Go through every key, and add modifiers that are just modifier presses.
         for m in &self.down {
-            if m.is_mod() {
-                if !sent.contains(m.mods) {
-                    push_mods(&mut sent, &mut keys, m.mods);
+            if let Mapping::Key(m) = m {
+                if m.is_mod() {
+                    if !sent.contains(m.mods) {
+                        push_mods(&mut sent, &mut keys, m.mods);
+                    }
                 }
             }
         }
 
         // Always add the modifiers from the latest key, if we pressed something.
-        if let Some(code) = code {
+        if let Some(Mapping::Key(code)) = code {
             push_mods(&mut sent, &mut keys, code.mods);
         }
 
         // Now push the rest of the non-modifier keys.
         for m in &self.down {
-            if m.has_nonmmod() {
-                keys.push(m.key);
+            if let Mapping::Key(m) = m {
+                if m.has_nonmmod() {
+                    keys.push(m.key);
+                }
             }
         }
 
@@ -335,16 +352,32 @@ fn push_mods(sent: &mut Mods, keys: &mut Vec<Keyboard>, mods: Mods) {
 const NKEYS: usize = 48;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct Mapping {
-    key: Keyboard,
-    mods: Mods,
+enum Mapping {
+    // This key doesn't do anything.
+    Dead,
+    // A regular keypress.
+    Key(KeyMapping),
+    // A layer change that works like a shift key, keys while this is held are
+    // interpreted in the new layer.
+    LayerShift(Layout),
 }
 
 impl Mapping {
     fn is_empty(&self) -> bool {
-        self.key == Keyboard::NoEventIndicated && self.mods.is_empty()
+        match self {
+            Mapping::Dead => true,
+            _ => false,
+        }
     }
+}
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct KeyMapping {
+    key: Keyboard,
+    mods: Mods,
+}
+
+impl KeyMapping {
     // A modifier is indicate by the no key key, but with modifiers.
     fn is_mod(&self) -> bool {
         self.key == Keyboard::NoEventIndicated && !self.mods.is_empty()
@@ -357,112 +390,228 @@ impl Mapping {
 }
 
 // Basic qwerty map for the proto3
-static ROOT_MAP: [Mapping; NKEYS + 19] = [
+static ROOT_MAP: [Mapping; NKEYS + 23] = [
     // 0
-    Mapping { key: Keyboard::Grave, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
-    Mapping { key: Keyboard::Escape, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::Grave, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Escape, mods: Mods::empty() }),
+    Mapping::Dead,
 
     // 4
-    Mapping { key: Keyboard::Q, mods: Mods::empty() },
-    Mapping { key: Keyboard::A, mods: Mods::empty() },
-    Mapping { key: Keyboard::Z, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::Q, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::A, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Z, mods: Mods::empty() }),
+    Mapping::Dead,
 
     // 8
-    Mapping { key: Keyboard::W, mods: Mods::empty() },
-    Mapping { key: Keyboard::S, mods: Mods::empty() },
-    Mapping { key: Keyboard::X, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::W, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::S, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::X, mods: Mods::empty() }),
+    Mapping::Dead,
 
     // 12
-    Mapping { key: Keyboard::E, mods: Mods::empty() },
-    Mapping { key: Keyboard::D, mods: Mods::empty() },
-    Mapping { key: Keyboard::C, mods: Mods::empty() },
-    Mapping { key: Keyboard::LeftBrace, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::E, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::D, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::C, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::LeftBrace, mods: Mods::empty() }),
 
     // 16
-    Mapping { key: Keyboard::R, mods: Mods::empty() },
-    Mapping { key: Keyboard::F, mods: Mods::empty() },
-    Mapping { key: Keyboard::V, mods: Mods::empty() },
-    Mapping { key: Keyboard::Tab, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::R, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::F, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::V, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Tab, mods: Mods::empty() }),
 
     // 20
-    Mapping { key: Keyboard::T, mods: Mods::empty() },
-    Mapping { key: Keyboard::G, mods: Mods::empty() },
-    Mapping { key: Keyboard::B, mods: Mods::empty() },
-    Mapping { key: Keyboard::DeleteBackspace, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::T, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::G, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::B, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::DeleteBackspace, mods: Mods::empty() }),
 
     // 24
-    Mapping { key: Keyboard::Minus, mods: Mods::empty() },
-    Mapping { key: Keyboard::Apostrophe, mods: Mods::empty() },
-    Mapping { key: Keyboard::Equal, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::Minus, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Apostrophe, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Equal, mods: Mods::empty() }),
+    Mapping::Dead,
 
     // 28
-    Mapping { key: Keyboard::P, mods: Mods::empty() },
-    Mapping { key: Keyboard::Semicolon, mods: Mods::empty() },
-    Mapping { key: Keyboard::ForwardSlash, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::P, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Semicolon, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::ForwardSlash, mods: Mods::empty() }),
+    Mapping::Dead,
 
     // 32
-    Mapping { key: Keyboard::O, mods: Mods::empty() },
-    Mapping { key: Keyboard::L, mods: Mods::empty() },
-    Mapping { key: Keyboard::Dot, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::O, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::L, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Dot, mods: Mods::empty() }),
+    Mapping::Dead,
 
     // 36
-    Mapping { key: Keyboard::I, mods: Mods::empty() },
-    Mapping { key: Keyboard::K, mods: Mods::empty() },
-    Mapping { key: Keyboard::Comma, mods: Mods::empty() },
-    Mapping { key: Keyboard::RightBrace, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::I, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::K, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Comma, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::RightBrace, mods: Mods::empty() }),
 
     // 40
-    Mapping { key: Keyboard::U, mods: Mods::empty() },
-    Mapping { key: Keyboard::J, mods: Mods::empty() },
-    Mapping { key: Keyboard::M, mods: Mods::empty() },
-    Mapping { key: Keyboard::ReturnEnter, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::U, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::J, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::M, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::ReturnEnter, mods: Mods::empty() }),
 
     // 44
-    Mapping { key: Keyboard::Y, mods: Mods::empty() },
-    Mapping { key: Keyboard::H, mods: Mods::empty() },
-    Mapping { key: Keyboard::N, mods: Mods::empty() },
-    Mapping { key: Keyboard::Space, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::Y, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::H, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::N, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Space, mods: Mods::empty() }),
 
     // Left hand upper combos
     // 48
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::CONTROL },
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::CONTROL }),
 
     // Right hand upper combos
     // 52
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::CONTROL },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI },
-    Mapping { key: Keyboard::Backslash, mods: Mods::empty() },
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::CONTROL }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI }),
+    Mapping::Key(KeyMapping { key: Keyboard::Backslash, mods: Mods::empty() }),
 
     // Left hand lower combos
     // 57
-    Mapping { key: Keyboard::Keyboard1, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::Keyboard2, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::Keyboard3, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::Keyboard4, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::Keyboard5, mods: Mods::SHIFT },
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard1, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard2, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard3, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard4, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard5, mods: Mods::SHIFT }),
 
     // Right hand lower combos
     // 62
-    Mapping { key: Keyboard::Keyboard6, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::Keyboard7, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::Keyboard8, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::Keyboard9, mods: Mods::SHIFT },
-    Mapping { key: Keyboard::Keyboard0, mods: Mods::SHIFT },
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard6, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard7, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard8, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard9, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard0, mods: Mods::SHIFT }),
 
     // Thumb pairs "#A", "AO", "#U", "EU"
     // TODO: These are all layer shifts, wait for that to be implemented.
+    Mapping::Dead,
+    Mapping::LayerShift(&NUM_MAP),
+    Mapping::Dead,
+    Mapping::Dead,
+];
+
+static NUM_MAP: [Mapping; NKEYS + 23] = [
+    // 0
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 4
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard1, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 8
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard2, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 12
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard3, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 16
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard4, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 20
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard5, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 24
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 28
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard0, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 32
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard9, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 36
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard8, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 40
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard7, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 44
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard6, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // Left hand upper combos
+    // 48
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::CONTROL }),
+
+    // Right hand upper combos
+    // 52
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::CONTROL }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI }),
+    Mapping::Dead,
+
+    // Left hand lower combos
+    // 57
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // Right hand lower combos
+    // 62
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // Thumb pairs "#A", "AO", "#U", "EU"
+    // TODO: These are all layer shifts, wait for that to be implemented.
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
 ];
 
 // Combination keys. Each of these pairs will register as the entry for its
