@@ -8,10 +8,12 @@ use crate::log::info;
 
 use crate::{KeyEvent, EventQueue};
 
+use self::qwerty::QwertyManager;
 use self::steno::RawStenoHandler;
 
 mod artsey;
 mod steno;
+mod qwerty;
 
 // TODO: Generalize this a bit better.
 #[cfg(feature = "proto2")]
@@ -67,6 +69,7 @@ const MODE_KEY: u8 = 1;
 pub struct LayoutManager {
     raw: steno::RawStenoHandler,
     artsey: artsey::ArtseyManager,
+    qwerty: qwerty::QwertyManager,
 
     // Global mode.  This indicates what mode we are in.
     mode: ModeSelector,
@@ -78,6 +81,7 @@ impl LayoutManager {
             raw: RawStenoHandler::new(),
             artsey: artsey::ArtseyManager::default(),
             mode: ModeSelector::default(),
+            qwerty: QwertyManager::default(),
         }
     }
 
@@ -102,6 +106,9 @@ impl LayoutManager {
                 LayoutMode::Steno => {
                     self.raw.handle_event(event, events);
                 }
+                LayoutMode::Qwerty => {
+                    self.qwerty.handle_event(event, events);
+                }
             }
         }
     }
@@ -112,6 +119,7 @@ impl LayoutManager {
 pub enum LayoutMode {
     Steno,
     Artsey,
+    Qwerty,
 }
 
 impl Default for LayoutMode {
@@ -199,7 +207,8 @@ impl LayoutMode {
     fn next(self) -> Self {
         match self {
             LayoutMode::Steno => LayoutMode::Artsey,
-            LayoutMode::Artsey => LayoutMode::Steno,
+            LayoutMode::Artsey => LayoutMode::Qwerty,
+            LayoutMode::Qwerty => LayoutMode::Steno,
         }
     }
 }
@@ -209,6 +218,7 @@ impl defmt::Format for LayoutMode {
         match self {
             LayoutMode::Steno => defmt::write!(fmt, "steno"),
             LayoutMode::Artsey => defmt::write!(fmt, "artsey"),
+            LayoutMode::Qwerty => defmt::write!(fmt, "qwerty"),
         }
     }
 }

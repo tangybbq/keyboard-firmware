@@ -66,7 +66,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             let mut keys = ArrayVec::<_, 5>::new();
 
             // Capture all of the keys that should be down for this press.
-            match key {
+            let iter = match key {
                 KeyAction::KeyPress(k, m) => {
                     if m.contains(Mods::SHIFT) {
                         keys.push(Keyboard::LeftShift);
@@ -81,6 +81,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                         keys.push(Keyboard::LeftGUI);
                     }
                     keys.push(*k);
+                    None
                 }
                 KeyAction::ModOnly(m) => {
                     // TODO: This doesn't need to be redundant like this.
@@ -97,14 +98,22 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                         keys.push(Keyboard::LeftGUI);
                     }
                     keys.push(Keyboard::NoEventIndicated);
+                    None
                 }
                 KeyAction::KeyRelease => {
                     // Unclear if this is needed, or just empty is fine.
                     keys.push(Keyboard::NoEventIndicated);
+                    None
                 }
-            }
+                KeyAction::KeySet(keys) => {
+                    Some(keys.iter().cloned())
+                }
+            };
 
-            let status = self.hid.device().write_report(keys.iter().cloned());
+            let status = match iter {
+                None => self.hid.device().write_report(keys.iter().cloned()),
+                Some(iter) => self.hid.device().write_report(iter),
+            };
             match status {
                 Ok(()) => {
                     // Successful queue, so remove.

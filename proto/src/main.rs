@@ -450,6 +450,7 @@ fn main_loop<
                         let visible = match mode {
                             LayoutMode::Steno => &leds::STENO_INDICATOR,
                             LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
+                            LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
                         };
                         led_manager.set_base(visible);
                     }

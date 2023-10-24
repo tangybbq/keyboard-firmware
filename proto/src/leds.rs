@@ -50,6 +50,11 @@ pub static STENO_INDICATOR: Indication = Indication(&[
 
 /// Artsey mode
 pub static ARTSEY_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(16, 0, 0), count: 10000 },
+]);
+
+/// Artsey mode
+pub static QWERTY_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(0, 16, 0), count: 10000 },
 ]);
 

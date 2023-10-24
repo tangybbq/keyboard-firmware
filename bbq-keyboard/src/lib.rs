@@ -6,6 +6,10 @@
 #[cfg(not(any(feature = "std", test)))]
 extern crate core as std;
 
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use arraydeque::ArrayDeque;
 use bbq_steno::Stroke;
 use usbd_human_interface_device::page::Keyboard;
@@ -90,6 +94,7 @@ pub enum KeyAction {
     KeyPress(Keyboard, Mods),
     ModOnly(Mods),
     KeyRelease,
+    KeySet(Vec<Keyboard>),
 }
 
 bitflags! {
