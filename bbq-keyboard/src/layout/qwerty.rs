@@ -339,9 +339,9 @@ impl Mapping {
 // Basic qwerty map for the proto3
 static ROOT_MAP: [Mapping; NKEYS + 19] = [
     // 0
+    Mapping { key: Keyboard::Grave, mods: Mods::empty() },
     Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
-    Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
+    Mapping { key: Keyboard::Escape, mods: Mods::empty() },
     Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
 
     // 4
@@ -375,7 +375,7 @@ static ROOT_MAP: [Mapping; NKEYS + 19] = [
     Mapping { key: Keyboard::DeleteBackspace, mods: Mods::empty() },
 
     // 24
-    Mapping { key: Keyboard::Grave, mods: Mods::empty() },
+    Mapping { key: Keyboard::Minus, mods: Mods::empty() },
     Mapping { key: Keyboard::Apostrophe, mods: Mods::empty() },
     Mapping { key: Keyboard::Equal, mods: Mods::empty() },
     Mapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() },
