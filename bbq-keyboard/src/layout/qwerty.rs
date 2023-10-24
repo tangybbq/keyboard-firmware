@@ -86,7 +86,7 @@ impl ComboHandler {
     /// with the sanitized view of the events there.
     pub fn handle(&mut self, event: KeyEvent) {
         // A release event also will cause anything pending to be removed.
-        if event.is_release() && self.pending.is_some() {
+        if event.is_release() {
             self.push_pending();
         }
 
