@@ -29,7 +29,12 @@ pub struct QwertyManager {
 
     // The combo mapper.
     combo: ComboHandler,
+
+    // Current layer.
+    layer: Layout,
 }
+
+type Layout = &'static [Mapping];
 
 struct ComboHandler {
     // Cached bitmap of keys that are parts of combos. Avoids a longer search
@@ -43,7 +48,7 @@ struct ComboHandler {
 
     // Potentially pending key event. A down even will be placed here if it
     // might participate in a combo.
-    pending: Option<u8>,
+    pending: Option<(u8, Layout)>,
 
     // When there is a pending key event, how long has it been since we've seen
     // it?
@@ -52,12 +57,17 @@ struct ComboHandler {
     // For each combo that is pressed down, record the keys contained in it, and
     // some information about what layer it was in to be able to process the
     // release properly.
-    down: BTreeMap<[u8; 2], u8>,
+    down: BTreeMap<[u8; 2], ComboInfo>,
 
     // Key events ready to be handled. This will hide keys that are parts of
     // combos, giving the non-combo events, as well as the synthesized events
     // from the combos.
-    ready: VecDeque<KeyEvent>,
+    ready: VecDeque<LayeredEvent>,
+}
+
+struct LayeredEvent {
+    key: KeyEvent,
+    layer: Layout,
 }
 
 impl Default for ComboHandler {
@@ -84,16 +94,17 @@ impl Default for ComboHandler {
 impl ComboHandler {
     /// Deal with a single incoming key event. Events will be queued to 'ready',
     /// with the sanitized view of the events there.
-    pub fn handle(&mut self, event: KeyEvent) {
+    pub fn handle(&mut self, event: KeyEvent, layer: Layout) {
         // A release event also will cause anything pending to be removed.
         if event.is_release() {
+            // TODO: Better track the release layers.
             self.push_pending();
         }
 
         match event {
             KeyEvent::Press(key) => {
                 if self.possible_combo(key) {
-                    if let Some(prior_key) = self.pending {
+                    if let Some((prior_key, layer)) = self.pending {
                         // There is a key, see if both of these make for a combo.
                         let keys = if prior_key < key {
                             [prior_key, key]
@@ -104,8 +115,11 @@ impl ComboHandler {
                             let combo = (combo + NKEYS) as u8;
                             // We have a combo. Enqueue that up, and neither of
                             // the pending keys.
-                            self.ready.push_back(KeyEvent::Press(combo));
-                            self.down.insert(keys, combo);
+                            self.ready.push_back(LayeredEvent { key: KeyEvent::Press(combo), layer });
+                            self.down.insert(keys, ComboInfo {
+                                code: combo,
+                                layer,
+                            });
 
                             // Set the flags indicating both of these keys are down,
                             // and part of a combo.
@@ -113,21 +127,21 @@ impl ComboHandler {
                         } else {
                             // Not a valid combo, press both keys, in the order
                             // we saw them in.
-                            self.ready.push_back(KeyEvent::Press(prior_key));
-                            self.ready.push_back(KeyEvent::Press(key));
+                            self.ready.push_back(LayeredEvent { key: KeyEvent::Press(prior_key), layer });
+                            self.ready.push_back(LayeredEvent { key:  KeyEvent::Press(key), layer });
                         }
                         // In either case, we've exhausted the pending key.
                         self.pending = None;
                     } else {
                         // We have a possible key from a combo. Hold it for a
                         // little bit, and see if we get the other key.
-                        self.pending = Some(key);
+                        self.pending = Some((key, layer));
                         self.pending_age = 0;
                     }
                 } else {
                     // This key can't be part of a combo, so just queue it up.
                     self.push_pending();
-                    self.ready.push_back(event);
+                    self.ready.push_back(LayeredEvent { key: event, layer });
                 }
             }
             KeyEvent::Release(key) => {
@@ -143,7 +157,10 @@ impl ComboHandler {
                         } else {
                             if let Some(combo) = self.down.remove(&[*a, *b]) {
                                 // Both have been released, so release the combo.
-                                self.ready.push_back(KeyEvent::Release(combo));
+                                self.ready.push_back(LayeredEvent {
+                                    key: KeyEvent::Release(combo.code),
+                                    layer: combo.layer,
+                                });
                             } else {
                                 // This is really an assertion failure.
                                 warn!("Combo vanished from map");
@@ -155,7 +172,8 @@ impl ComboHandler {
                     }
                 } else {
                     // Not part of a pressed combo, just send a normal release.
-                    self.ready.push_back(event);
+                    // TODO: We probably need to handle layer changes here.
+                    self.ready.push_back(LayeredEvent { key: event, layer });
                 }
             }
         }
@@ -177,14 +195,14 @@ impl ComboHandler {
     }
 
     /// Potentially retrieve the next event.
-    pub fn next(&mut self) -> Option<KeyEvent> {
+    pub fn next(&mut self) -> Option<LayeredEvent> {
         self.ready.pop_front()
     }
 
     // Move the pending event into the ready as just a press.
     fn push_pending(&mut self) {
-        if let Some(key) = self.pending {
-            self.ready.push_back(KeyEvent::Press(key));
+        if let Some((key, layer)) = self.pending {
+            self.ready.push_back(LayeredEvent { key: KeyEvent::Press(key), layer });
             self.pending = None;
         }
     }
@@ -200,17 +218,19 @@ impl ComboHandler {
     }
 }
 
-/*
 struct ComboInfo {
-    keys: [u8; 2],
+    // The combo keycode relevant here.
+    code: u8,
+    // What layer map to use to interpret the key release.
+    layer: Layout,
 }
-*/
 
 impl Default for QwertyManager {
     fn default() -> Self {
         QwertyManager {
             down: BTreeSet::new(),
             combo: ComboHandler::default(),
+            layer: &ROOT_MAP,
         }
     }
 }
@@ -222,7 +242,7 @@ impl QwertyManager {
             return;
         }
 
-        self.combo.handle(event);
+        self.combo.handle(event, self.layer);
         self.process_keys(events);
     }
 
@@ -232,14 +252,14 @@ impl QwertyManager {
     }
 
     fn process_keys(&mut self, events: &mut EventQueue) {
-        while let Some(event) = self.combo.next() {
+        while let Some(LayeredEvent { key: event, layer }) = self.combo.next() {
             // Skip out of bound events.
-            if event.key() as usize >= ROOT_MAP.len() {
+            if event.key() as usize >= layer.len() {
                 // info!("Extra event: {}", event);
                 continue;
             }
 
-            let code = ROOT_MAP[event.key() as usize];
+            let code = layer[event.key() as usize];
             if code.is_empty() {
                 // Skip dead keys.
                 continue;
