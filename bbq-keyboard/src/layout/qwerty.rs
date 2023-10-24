@@ -106,6 +106,10 @@ impl ComboHandler {
                             // the pending keys.
                             self.ready.push_back(KeyEvent::Press(combo));
                             self.down.insert(keys, combo);
+
+                            // Set the flags indicating both of these keys are down,
+                            // and part of a combo.
+                            self.comboed |= (1 << prior_key) | (1 << key);
                         } else {
                             // Not a valid combo, press both keys, in the order
                             // we saw them in.
@@ -114,10 +118,6 @@ impl ComboHandler {
                         }
                         // In either case, we've exhausted the pending key.
                         self.pending = None;
-
-                        // Set the flags indicating both of these keys are down,
-                        // and part of a combo.
-                        self.comboed |= (1 << prior_key) | (1 << key);
                     } else {
                         // We have a possible key from a combo. Hold it for a
                         // little bit, and see if we get the other key.
