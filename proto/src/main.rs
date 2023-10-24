@@ -66,12 +66,10 @@ pub static BOOT_LOADER: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
 #[cfg(feature = "proto2")]
 #[entry]
 fn main() -> ! {
-    {
-        use core::mem::MaybeUninit;
-        const HEAP_SIZE: usize = 4096;
-        static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-        unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
-    }
+    use core::mem::MaybeUninit;
+    const HEAP_SIZE: usize = 4096;
+    static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+    unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
 
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
@@ -190,18 +188,17 @@ fn main() -> ! {
         layout_manager,
         inter_handler,
         led_manager,
+        &heap,
     );
 }
 
 #[cfg(feature = "proto3")]
 #[entry]
 fn main() -> ! {
-    {
-        use core::mem::MaybeUninit;
-        const HEAP_SIZE: usize = 4096;
-        static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-        unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
-    }
+    use core::mem::MaybeUninit;
+    const HEAP_SIZE: usize = 4096;
+    static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+    unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
 
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
@@ -324,6 +321,7 @@ fn main() -> ! {
         layout_manager,
         inter_handler,
         led_manager,
+        &HEAP,
     );
 }
 
@@ -342,6 +340,7 @@ fn main_loop<
     mut layout_manager: LayoutManager,
     mut inter_handler: inter::InterHandler<D, P>,
     mut led_manager: leds::LedManager<'a, L>,
+    heap: &Heap,
 ) -> ! {
     // TODO: Use the fugit values, and actual intervals.
     let mut next_1ms = timer.get_counter().ticks() + 1_000;
@@ -351,6 +350,7 @@ fn main_loop<
     let mut state = InterState::Idle;
     let mut flashing = true;
     let mut usb_suspended = true;
+    let mut last_size = 0;
     loop {
         let now = timer.get_counter().ticks();
 
@@ -473,6 +473,13 @@ fn main_loop<
             led_manager.tick();
 
             next_1ms = now + 1_000;
+        }
+
+        let new_used = heap.used();
+        if new_used != last_size {
+            // let free = heap.free();
+            // info!("Heap: {} used, {} free", new_used, free);
+            last_size = new_used;
         }
     }
 }
