@@ -86,6 +86,13 @@ impl KeyEvent {
             KeyEvent::Release(_) => false,
         }
     }
+
+    pub fn is_release(&self) -> bool {
+        match self {
+            KeyEvent::Press(_) => false,
+            KeyEvent::Release(_) => true,
+        }
+    }
 }
 
 /// Indicates keypress that should be sent to the host.
@@ -100,7 +107,7 @@ pub enum KeyAction {
 bitflags! {
     /// A modifier map. This indicates what modifiers should be held down when
     /// this keypress is sent.
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub struct Mods: u8 {
         const SHIFT = 0b0000_0001;
         const CONTROL = 0b0000_0010;

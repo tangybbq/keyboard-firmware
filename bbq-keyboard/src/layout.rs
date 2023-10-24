@@ -89,6 +89,7 @@ impl LayoutManager {
     pub fn tick(&mut self, events: &mut EventQueue) {
         self.raw.tick();
         self.artsey.tick(events);
+        self.qwerty.tick(events);
     }
 
     pub fn poll(&mut self) {
