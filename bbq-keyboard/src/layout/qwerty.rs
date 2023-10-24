@@ -29,16 +29,21 @@ impl Default for QwertyManager {
 
 impl QwertyManager {
     pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
-        match event {
-            KeyEvent::Press(4) => {
-                self.down.insert(Keyboard::Q);
-                self.show(events);
-            }
-            KeyEvent::Release(4) => {
-                self.down.remove(&Keyboard::Q);
-                self.show(events);
-            }
-            _ => (),
+        // Skip out of bound events, or those that are dead.
+        if event.key() as usize >= ROOT_MAP.len() {
+            return;
+        }
+        let code = ROOT_MAP[event.key() as usize];
+        if code == Keyboard::NoEventIndicated {
+            return;
+        }
+
+        if event.is_press() {
+            self.down.insert(code);
+            self.show(events);
+        } else {
+            self.down.remove(&code);
+            self.show(events);
         }
     }
 
@@ -47,3 +52,78 @@ impl QwertyManager {
         events.push(Event::Key(KeyAction::KeySet(keys)));
     }
 }
+
+// Basic qwerty map for the proto3
+static ROOT_MAP: [Keyboard; 48] = [
+    // 0
+    Keyboard::NoEventIndicated,
+    Keyboard::NoEventIndicated,
+    Keyboard::NoEventIndicated,
+    Keyboard::NoEventIndicated,
+
+    // 4
+    Keyboard::Q,
+    Keyboard::A,
+    Keyboard::Z,
+    Keyboard::NoEventIndicated,
+
+    // 8
+    Keyboard::W,
+    Keyboard::S,
+    Keyboard::X,
+    Keyboard::NoEventIndicated,
+
+    // 12
+    Keyboard::E,
+    Keyboard::D,
+    Keyboard::C,
+    Keyboard::LeftBrace,
+
+    // 16
+    Keyboard::R,
+    Keyboard::F,
+    Keyboard::V,
+    Keyboard::Tab,
+
+    // 20
+    Keyboard::T,
+    Keyboard::G,
+    Keyboard::B,
+    Keyboard::DeleteBackspace,
+
+    // 24
+    Keyboard::Grave,
+    Keyboard::Apostrophe,
+    Keyboard::Equal,
+    Keyboard::NoEventIndicated,
+
+    // 28
+    Keyboard::P,
+    Keyboard::Semicolon,
+    Keyboard::ForwardSlash,
+    Keyboard::NoEventIndicated,
+
+    // 32
+    Keyboard::O,
+    Keyboard::L,
+    Keyboard::Dot,
+    Keyboard::NoEventIndicated,
+
+    // 36
+    Keyboard::I,
+    Keyboard::K,
+    Keyboard::Comma,
+    Keyboard::RightBrace,
+
+    // 40
+    Keyboard::U,
+    Keyboard::J,
+    Keyboard::M,
+    Keyboard::ReturnEnter,
+
+    // 44
+    Keyboard::Y,
+    Keyboard::H,
+    Keyboard::N,
+    Keyboard::Space,
+];
