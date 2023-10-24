@@ -106,6 +106,14 @@ pub struct ArtseyManager {
 // that there wasn't actually anything done with the hold key, we'll then send
 // what that key would send, otherwise these keys won't actually be useful.
 
+/// The first key that is on the right side of the keyboard. TODO: Can this come
+/// from the upper layers?
+#[cfg(feature = "proto2")]
+const FIRST_RIGHT_KEY: u8 = 16;
+
+#[cfg(feature = "proto3")]
+const FIRST_RIGHT_KEY: u8 = 24;
+
 static LEFT_HOLD_KEYS: [HoldEntry; 4] = [
     HoldEntry { code: 0x80, mapping: &LEFT_BRACKET_MAP },
     HoldEntry { code: 0x10, mapping: &NUMBER_MAP },
@@ -508,7 +516,7 @@ impl ArtseyManager {
         match event {
             KeyEvent::Press(k) => {
                 // The right side for the proto2.  This will be board specific.
-                self.is_right = k >= 16;
+                self.is_right = k >= FIRST_RIGHT_KEY;
 
                 let code = to_artsey(k);
                 self.pressed |= code;
