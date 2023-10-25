@@ -7,18 +7,14 @@ use arraydeque::ArrayDeque;
 use defmt::{info, warn};
 use frunk::{HNil, HCons};
 use usb_device::{class_prelude::{UsbBusAllocator, UsbClass, UsbBus}, prelude::{UsbDeviceBuilder, UsbVidPid, UsbDevice, UsbDeviceState}};
-use usbd_human_interface_device::device::keyboard::{BootKeyboardConfig, BootKeyboard};
 use usbd_human_interface_device::{usb_class::{UsbHidClassBuilder, UsbHidClass}, device::{keyboard::{NKROBootKeyboardConfig, NKROBootKeyboard}, DeviceClass}, page::Keyboard, UsbHidError};
-use usbd_serial::SerialPort;
 
 // Type of the device list, which is internal to usbd_human_interface_device.
-// type InterfaceList<'a, Bus> = HCons<NKROBootKeyboard<'a, Bus>, HNil>;
-type InterfaceList<'a, Bus> = HCons<BootKeyboard<'a, Bus>, HNil>;
+type InterfaceList<'a, Bus> = HCons<NKROBootKeyboard<'a, Bus>, HNil>;
 
 pub struct UsbHandler<'a, Bus: UsbBus> {
     dev: UsbDevice<'a, Bus>,
     hid: UsbHidClass<'a, Bus, InterfaceList<'a, Bus>>,
-    serial: SerialPort<'a, Bus>,
     state: Option<UsbDeviceState>,
     keys: ArrayDeque<KeyAction, 128>,
 }
@@ -27,26 +23,19 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
     pub fn new(usb_bus : &'a UsbBusAllocator<Bus>) -> Self {
         let keyboard = UsbHidClassBuilder::new()
             .add_device(
-                // NKROBootKeyboardConfig::default(),
-                BootKeyboardConfig::default(),
+                NKROBootKeyboardConfig::default(),
             )
             .build(usb_bus);
-        let serial = SerialPort::new(usb_bus);
         let usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x1209, 0x003))
             .manufacturer("https://github.com/tangybbq/")
             .product("Proto 2")
-            .serial_number("development-dev")
-            //.device_class(0)
-            //.device_sub_class(0)
-            //.device_protocol(0)
-            //.max_packet_size_0(64)
+            .serial_number("development")
+            .device_class(0)
             .max_power(500)
             .supports_remote_wakeup(true)
-            .composite_with_iads()
             .build();
         UsbHandler {
             hid: keyboard,
-            serial,
             dev: usb_dev,
             state: None,
             keys: ArrayDeque::new(),
@@ -154,7 +143,6 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                 Ok(l) => info!("Report: {}", l.caps_lock),
                 _ => (),
             }
-            self.serial.poll();
         }
 
         // Check for state changes.
