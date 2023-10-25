@@ -16,7 +16,7 @@
 //! code, this should avoid keys getting stuck with weird combinations of combo
 //! keys and layers.
 
-use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
+use alloc::collections::{BTreeMap, VecDeque};
 use alloc::vec::Vec;
 use crate::Mods;
 use crate::log::warn;
@@ -25,7 +25,7 @@ use usbd_human_interface_device::page::Keyboard;
 use crate::{KeyEvent, EventQueue, Event, KeyAction};
 
 pub struct QwertyManager {
-    down: BTreeSet<Mapping>,
+    down: BTreeMap<u8, (Mapping, Layout)>,
 
     // The combo mapper.
     combo: ComboHandler,
@@ -228,7 +228,7 @@ struct ComboInfo {
 impl Default for QwertyManager {
     fn default() -> Self {
         QwertyManager {
-            down: BTreeSet::new(),
+            down: BTreeMap::new(),
             combo: ComboHandler::default(),
             layer: &ROOT_MAP,
         }
@@ -259,6 +259,14 @@ impl QwertyManager {
                 continue;
             }
 
+            // Handle this event's use of layer.
+            let layer = if event.is_press() {
+                layer
+            } else {
+                // Try to retrieve this key, and interpret using the same layer.
+                self.down.remove(&event.key()).map(|(_, l)| l).unwrap_or(layer)
+            };
+
             let code = layer[event.key() as usize];
             if code.is_empty() {
                 // Skip dead keys.
@@ -280,10 +288,9 @@ impl QwertyManager {
 
             // info!("Event: {}", event);
             if event.is_press() {
-                self.down.insert(code);
+                self.down.insert(event.key(), (code, layer));
                 self.show(events, Some(code));
             } else {
-                self.down.remove(&code);
                 self.show(events, None);
             }
         }
@@ -303,7 +310,7 @@ impl QwertyManager {
         let mut sent = Mods::empty();
 
         // Go through every key, and add modifiers that are just modifier presses.
-        for m in &self.down {
+        for (m, _) in self.down.values() {
             if let Mapping::Key(m) = m {
                 if m.is_mod() {
                     if !sent.contains(m.mods) {
@@ -319,7 +326,7 @@ impl QwertyManager {
         }
 
         // Now push the rest of the non-modifier keys.
-        for m in &self.down {
+        for (m, _) in self.down.values() {
             if let Mapping::Key(m) = m {
                 if m.has_nonmmod() {
                     keys.push(m.key);
