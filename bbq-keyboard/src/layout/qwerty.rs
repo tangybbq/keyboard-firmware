@@ -511,36 +511,38 @@ static NUM_MAP: [Mapping; NKEYS + 23] = [
 
     // 4
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard1, mods: Mods::empty() }),
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::A, mods: Mods::empty() }),
     Mapping::Dead,
     Mapping::Dead,
 
     // 8
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard2, mods: Mods::empty() }),
-    Mapping::Dead,
-    Mapping::Dead,
+    // This is the wrong place for 'E', but if you can get used to it, it avoids
+    // the conflict due to '3' being where the 'e' i.
+    Mapping::Key(KeyMapping { key: Keyboard::E, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::X, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 12
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard3, mods: Mods::empty() }),
-    Mapping::Dead,
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::D, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::C, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 16
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard4, mods: Mods::empty() }),
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::F, mods: Mods::empty() }),
     Mapping::Dead,
     Mapping::Dead,
 
     // 20
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard5, mods: Mods::empty() }),
     Mapping::Dead,
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::B, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 24
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::Minus, mods: Mods::empty() }),
     Mapping::Dead,
     Mapping::Dead,
     Mapping::Dead,
@@ -554,7 +556,7 @@ static NUM_MAP: [Mapping; NKEYS + 23] = [
     // 32
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard9, mods: Mods::empty() }),
     Mapping::Dead,
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::Dot, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 36
