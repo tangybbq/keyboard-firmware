@@ -25,7 +25,7 @@ use usbd_human_interface_device::page::Keyboard;
 use crate::{KeyEvent, EventQueue, Event, KeyAction};
 
 pub struct QwertyManager {
-    down: BTreeMap<u8, (Mapping, Layout)>,
+    down: BTreeMap<u8, Mapping>,
 
     // The combo mapper.
     combo: ComboHandler,
@@ -259,15 +259,15 @@ impl QwertyManager {
                 continue;
             }
 
-            // Handle this event's use of layer.
-            let layer = if event.is_press() {
-                layer
+            // Get the mapping of a release event from the 'down' information, in case we have it.
+            let code = if event.is_release() {
+                self.down.remove(&event.key())
             } else {
-                // Try to retrieve this key, and interpret using the same layer.
-                self.down.remove(&event.key()).map(|(_, l)| l).unwrap_or(layer)
+                None
             };
 
-            let code = layer[event.key() as usize];
+            // If we don't have a mapping, look it up in the current layer.
+            let code = code.unwrap_or_else(|| layer[event.key() as usize]);
             if code.is_empty() {
                 // Skip dead keys.
                 continue;
@@ -288,7 +288,7 @@ impl QwertyManager {
 
             // info!("Event: {}", event);
             if event.is_press() {
-                self.down.insert(event.key(), (code, layer));
+                self.down.insert(event.key(), code);
                 self.show(events, Some(code));
             } else {
                 self.show(events, None);
@@ -310,7 +310,7 @@ impl QwertyManager {
         let mut sent = Mods::empty();
 
         // Go through every key, and add modifiers that are just modifier presses.
-        for (m, _) in self.down.values() {
+        for m in self.down.values() {
             if let Mapping::Key(m) = m {
                 if m.is_mod() {
                     if !sent.contains(m.mods) {
@@ -326,7 +326,7 @@ impl QwertyManager {
         }
 
         // Now push the rest of the non-modifier keys.
-        for (m, _) in self.down.values() {
+        for m in self.down.values() {
             if let Mapping::Key(m) = m {
                 if m.has_nonmmod() {
                     keys.push(m.key);
