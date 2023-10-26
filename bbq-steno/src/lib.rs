@@ -8,6 +8,7 @@ extern crate core as std;
 
 pub mod stroke;
 pub mod memdict;
+pub mod dict;
 
 pub use stroke::Stroke;
 
