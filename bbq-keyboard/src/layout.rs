@@ -192,6 +192,17 @@ impl ModeSelector {
 
             // When evertything is released, pick our next mode.
             if self.pressed == 0 {
+                // Select a specific mode instead of the next one, based on other keys that have been pressed.
+                match self.seen & !(1 << (MODE_KEY as usize)) {
+                    // qwerty 'f' or 'j' select qwerty.
+                    m if m == (1 << 17) || m == (1 << 41) => self.mode = LayoutMode::Qwerty,
+                    // qwerty 'd' or 'k' select NKRO.
+                    m if m == (1 << 13) || m == (1 << 37) => self.mode = LayoutMode::NKRO,
+                    // qwerty 's' or 'l' select steno raw.
+                    m if m == (1 << 9) || m == (1 << 33) => self.mode = LayoutMode::Steno,
+                    _ => (),
+                }
+
                 // TODO: Look at 'seen' to determine fixed mode changes. For
                 // now, just do toggle.
                 self.seen = 0;
