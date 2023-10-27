@@ -451,6 +451,7 @@ fn main_loop<
                             LayoutMode::Steno => &leds::STENO_INDICATOR,
                             LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
                             LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
+                            LayoutMode::NKRO => &leds::NKRO_INDICATOR,
                         };
                         led_manager.set_base(visible);
                     }

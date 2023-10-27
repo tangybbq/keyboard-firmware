@@ -48,6 +48,11 @@ pub static STENO_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(0, 0, 32), count: 10000 },
 ]);
 
+/// NKRO steno mode
+pub static NKRO_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(32, 0, 32), count: 10000 },
+]);
+
 /// Artsey mode
 pub static ARTSEY_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(16, 0, 0), count: 10000 },

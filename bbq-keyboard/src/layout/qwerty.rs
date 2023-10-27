@@ -179,6 +179,12 @@ impl ComboHandler {
         }
     }
 
+    /// Handle a keypress in NKRO mode.  This is just a simple layer with no
+    /// switching or combo keys.
+    pub fn handle_nkro(&mut self, event: KeyEvent) {
+        self.ready.push_back(LayeredEvent { key: event, layer: &NKRO_MAP });
+    }
+
     /// Called as part of the tick handler. Ages potentially pressed keys, so
     /// they will be sent in a timely manner if not accompanied by their
     /// companion.  May cause an event to be queue.
@@ -236,13 +242,18 @@ impl Default for QwertyManager {
 }
 
 impl QwertyManager {
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
+    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue, nkro: bool) {
         // Skip out of bound events.
         if event.key() as usize >= NKEYS {
             return;
         }
 
-        self.combo.handle(event, self.layer);
+        if nkro {
+            // For nkro, just push the event in the nkro layer.
+            self.combo.handle_nkro(event);
+        } else {
+            self.combo.handle(event, self.layer);
+        }
         self.process_keys(events);
     }
 
@@ -733,6 +744,80 @@ static NAV_MAP: [Mapping; NKEYS + 23] = [
     Mapping::Dead,
     Mapping::Dead,
     Mapping::Dead,
+];
+
+static NKRO_MAP: [Mapping; NKEYS] = [
+    // 0
+    Mapping::Key(KeyMapping { key: Keyboard::Grave, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::Escape, mods: Mods::empty() }),
+    Mapping::Dead,
+
+    // 4
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard1, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Q, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::A, mods: Mods::empty() }),
+    Mapping::Dead,
+
+    // 8
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard2, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::W, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::S, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Z, mods: Mods::empty() }),
+
+    // 12
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard3, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::E, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::D, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::X, mods: Mods::empty() }),
+
+    // 16
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard4, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::R, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::F, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::C, mods: Mods::empty() }),
+
+    // 20
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard5, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::T, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::G, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::V, mods: Mods::empty() }),
+
+    // 24
+    Mapping::Key(KeyMapping { key: Keyboard::Minus, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::LeftBrace, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Apostrophe, mods: Mods::empty() }),
+    Mapping::Dead,
+
+    // 28
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard0, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::P, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Semicolon, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::ForwardSlash, mods: Mods::empty() }),
+
+    // 32
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard9, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::O, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::L, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Dot, mods: Mods::empty() }),
+
+    // 36
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard8, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::I, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::K, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Comma, mods: Mods::empty() }),
+
+    // 40
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard7, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::U, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::J, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::M, mods: Mods::empty() }),
+
+    // 44
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard6, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Y, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::H, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::N, mods: Mods::empty() }),
 ];
 
 // Combination keys. Each of these pairs will register as the entry for its

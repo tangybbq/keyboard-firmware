@@ -108,7 +108,10 @@ impl LayoutManager {
                     self.raw.handle_event(event, events);
                 }
                 LayoutMode::Qwerty => {
-                    self.qwerty.handle_event(event, events);
+                    self.qwerty.handle_event(event, events, false);
+                }
+                LayoutMode::NKRO => {
+                    self.qwerty.handle_event(event, events, true);
                 }
             }
         }
@@ -121,6 +124,7 @@ pub enum LayoutMode {
     Steno,
     Artsey,
     Qwerty,
+    NKRO,
 }
 
 impl Default for LayoutMode {
@@ -209,7 +213,8 @@ impl LayoutMode {
         match self {
             LayoutMode::Steno => LayoutMode::Artsey,
             LayoutMode::Artsey => LayoutMode::Qwerty,
-            LayoutMode::Qwerty => LayoutMode::Steno,
+            LayoutMode::Qwerty => LayoutMode::NKRO,
+            LayoutMode::NKRO => LayoutMode::Steno,
         }
     }
 }
@@ -220,6 +225,7 @@ impl defmt::Format for LayoutMode {
             LayoutMode::Steno => defmt::write!(fmt, "steno"),
             LayoutMode::Artsey => defmt::write!(fmt, "artsey"),
             LayoutMode::Qwerty => defmt::write!(fmt, "qwerty"),
+            LayoutMode::NKRO => defmt::write!(fmt, "nkro"),
         }
     }
 }
