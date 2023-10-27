@@ -95,3 +95,61 @@ impl MapDictBuilder {
         MapDict { map: self.map, longest }
     }
 }
+
+/// Track a series of translations captured in real-time as they are input.
+pub struct Translator<'a, D: Dict> {
+    // The strokes we have seen.
+    seen: Vec<Stroke>,
+    // Parallel to 'seen', the lengths of definitions we have seen. When a
+    // definition has multiple strokes, the subsequent strokes will have a value
+    // here of zero. Note that this isn't distinguished from words that don't
+    // translate, as either will have to be undone.
+    lens: Vec<usize>,
+    // The dictionary to use.
+    dict: &'a D,
+    // Cache of the longest key.
+    longest: usize,
+}
+
+impl<'a, D: Dict> Translator<'a, D> {
+    pub fn new(dict: &'a D) -> Self {
+        Translator {
+            seen: Vec::new(),
+            lens: Vec::new(),
+            dict,
+            longest: dict.longest_key(),
+        }
+    }
+
+    /// Add a new stroke to the Translator.  Returns what we know about the translation so far.
+    pub fn add(&mut self, stroke: Stroke) {
+        if self.seen.len() >= self.longest {
+            self.seen.remove(0);
+            self.lens.remove(0);
+        }
+        self.seen.push(stroke);
+        // self.lens.push(0);
+
+        let mut new_lens = Vec::with_capacity(self.seen.len());
+
+        let mut pos = 0;
+        while pos < self.seen.len() {
+            if let Some((len, _defn)) = self.dict.prefix_lookup(&self.seen[pos..]) {
+                new_lens.push(len);
+                for _ in 1..len {
+                    new_lens.push(0);
+                }
+                pos += len;
+            } else {
+                new_lens.push(0);
+                pos += 1;
+            }
+        }
+        #[cfg(feature = "std")]
+        println!("Lookup, old {:?}", self.lens);
+        #[cfg(feature = "std")]
+        println!("        new {:?}", new_lens);
+
+        self.lens = new_lens;
+    }
+}

@@ -3,7 +3,7 @@
 use std::{collections::BTreeMap, fs::File};
 
 use anyhow::Result;
-use bbq_steno::{dict::{MapDictBuilder, Dict, MapDict}, stroke::StenoWord};
+use bbq_steno::{dict::{MapDictBuilder, Dict, MapDict, Translator}, stroke::StenoWord};
 use bbq_steno_macros::stroke;
 
 #[test]
@@ -33,6 +33,21 @@ fn main_dict() {
     let dict = load_dict().expect("Unable to load main dict");
     assert_eq!(dict.prefix_lookup(&[stroke!("STAPB"), stroke!("HREU"), stroke!("PHAPB")]),
                Some((2, "Stanley")));
+}
+
+#[test]
+fn test_translator() {
+    let dict = load_dict().expect("Load main dict");
+    let mut xlat = Translator::new(&dict);
+
+    xlat.add(stroke!("A"));
+    xlat.add(stroke!("ABT"));
+    xlat.add(stroke!("-G"));
+    xlat.add(stroke!("A"));
+    xlat.add(stroke!("ABT"));
+    xlat.add(stroke!("AG"));
+
+    todo!();
 }
 
 /// Load the main dictionary.
