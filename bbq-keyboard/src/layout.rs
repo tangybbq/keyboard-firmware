@@ -6,7 +6,7 @@
 
 use crate::log::info;
 
-use crate::{KeyEvent, EventQueue, Event};
+use crate::{KeyEvent, EventQueue, Event, Timable};
 
 use self::qwerty::QwertyManager;
 use self::steno::RawStenoHandler;
@@ -98,14 +98,14 @@ impl LayoutManager {
     }
 
     /// Handle a single key event.
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
+    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue, timer: &dyn Timable) {
         if self.mode.event(event, events) {
             match self.mode.get() {
                 LayoutMode::Artsey => {
                     self.artsey.handle_event(event, events);
                 }
                 LayoutMode::Steno => {
-                    self.raw.handle_event(event, events);
+                    self.raw.handle_event(event, events, timer);
                 }
                 LayoutMode::Qwerty => {
                     self.qwerty.handle_event(event, events, false);

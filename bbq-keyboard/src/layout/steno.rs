@@ -1,9 +1,11 @@
 //! Steno key handling.
 
-use crate::{EventQueue, Event, KeyEvent};
+use crate::{EventQueue, Event, KeyEvent, Timable};
 use crate::modifiers::Modifiers;
 
 pub use bbq_steno::Stroke;
+use bbq_steno::dict::Translator;
+use bbq_steno::memdict::MemDict;
 use bbq_steno::stroke::EMPTY_STROKE;
 use bbq_steno_macros::stroke;
 use defmt::info;
@@ -16,14 +18,23 @@ pub struct RawStenoHandler {
 
     // Modifier.
     modifier: Modifiers,
+
+    // The translation dictionary.
+    xlat: Option<Translator<MemDict>>,
 }
 
 impl RawStenoHandler {
     pub fn new() -> Self {
+        // For experimenting, setup a translation.
+        let xlat = unsafe {
+            MemDict::from_raw_ptr(0x10200000 as *const u8)
+        };
+        let xlat = xlat.map(|d| Translator::new(d));
         RawStenoHandler {
             seen: Stroke::empty(),
             down: Stroke::empty(),
             modifier: Modifiers::new(),
+            xlat,
         }
     }
 
@@ -33,7 +44,7 @@ impl RawStenoHandler {
     pub fn poll(&mut self) {}
 
     // Handle a single event.
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
+    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue, timer: &dyn Timable) {
         let key = event.key();
         if key as usize >= STENO_KEYS.len() {
             return;
@@ -53,6 +64,17 @@ impl RawStenoHandler {
                 info!("Mod: {}", text.as_str());
             }
             events.push(Event::RawSteno(stroke));
+
+            // Run the translator.
+            if let Some(xlat) = self.xlat.as_mut() {
+                let start = timer.get_ticks();
+                xlat.add(stroke);
+                let stop = timer.get_ticks();
+                info!("translator timing: {}", stop - start);
+                while let Some(action) = xlat.next_action() {
+                    info!("Key: delete {}, type {}", action.remove, action.text.len());
+                }
+            }
         }
     }
 

@@ -377,7 +377,7 @@ fn main_loop<
                     Event::Matrix(key) => {
                         match state {
                             InterState::Primary | InterState::Idle =>
-                                layout_manager.handle_event(key, &mut events),
+                                layout_manager.handle_event(key, &mut events, &WrapTimer(&timer)),
                             InterState::Secondary =>
                                 inter_handler.add_key(key),
                         }
@@ -389,7 +389,7 @@ fn main_loop<
                     }
                     Event::InterKey(key) => {
                         if state == InterState::Primary {
-                            layout_manager.handle_event(key, &mut events)
+                            layout_manager.handle_event(key, &mut events, &WrapTimer(&timer))
                         }
                     }
                     Event::Key(action) => {
