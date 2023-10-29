@@ -6,7 +6,7 @@
 
 use crate::log::info;
 
-use crate::{KeyEvent, EventQueue};
+use crate::{KeyEvent, EventQueue, Event};
 
 use self::qwerty::QwertyManager;
 use self::steno::RawStenoHandler;
@@ -119,7 +119,7 @@ impl LayoutManager {
 }
 
 /// The global keyboard mode.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LayoutMode {
     Steno,
     Artsey,
@@ -182,6 +182,7 @@ impl ModeSelector {
                 // Toggle the mode.
                 self.mode = self.mode.next();
                 self.selecting = true;
+                events.push(crate::Event::ModeSelect(self.mode));
             }
         }
 
@@ -192,28 +193,42 @@ impl ModeSelector {
 
             // When evertything is released, pick our next mode.
             if self.pressed == 0 {
-                // Select a specific mode instead of the next one, based on other keys that have been pressed.
-                match self.seen & !(1 << (MODE_KEY as usize)) {
-                    // qwerty 'f' or 'j' select qwerty.
-                    m if m == (1 << 17) || m == (1 << 41) => self.mode = LayoutMode::Qwerty,
-                    // qwerty 'd' or 'k' select NKRO.
-                    m if m == (1 << 13) || m == (1 << 37) => self.mode = LayoutMode::NKRO,
-                    // qwerty 's' or 'l' select steno raw.
-                    m if m == (1 << 9) || m == (1 << 33) => self.mode = LayoutMode::Steno,
-                    _ => (),
+                if let Some(new_mode) = self.new_mode() {
+                    self.mode = new_mode;
                 }
 
                 // TODO: Look at 'seen' to determine fixed mode changes. For
                 // now, just do toggle.
                 self.seen = 0;
                 self.selecting = false;
-                events.push(crate::Event::Mode(self.mode));
+                events.push(Event::Mode(self.mode));
                 info!("Mode change: {:?}", self.mode);
+            } else {
+                // Check for a specific selection to possibly change the
+                // indicator.
+                if let Some(new_mode) = self.new_mode() {
+                    if self.mode != new_mode {
+                        events.push(Event::ModeSelect(new_mode));
+                    }
+                }
             }
             false
         } else {
             // If not selecting, just handle in layer below.
             true
+        }
+    }
+
+    /// Determine if there is a mode update based on pressed keys while selecting.
+    fn new_mode(&self) -> Option<LayoutMode> {
+        match self.seen & !(1 << (MODE_KEY)) {
+            // qwerty 'f' or 'j' select qwerty.
+            m if m == (1 << 17) || m == (1 << 41) => Some(LayoutMode::Qwerty),
+            // qwerty 'd' or 'k' select NKRO.
+            m if m == (1 << 13) || m == (1 << 37) => Some(LayoutMode::NKRO),
+            // qwerty 's' or 'l' select steno raw.
+            m if m == (1 << 9) || m == (1 << 33) => Some(LayoutMode::Steno),
+            _ => None,
         }
     }
 }

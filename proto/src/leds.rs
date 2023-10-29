@@ -48,9 +48,21 @@ pub static STENO_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(0, 0, 32), count: 10000 },
 ]);
 
+/// Steno mode select
+pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(0, 0, 32), count: 100 },
+    Step { color: RGB8::new(0, 0,  0), count: 100 },
+]);
+
 /// NKRO steno mode
 pub static NKRO_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(32, 0, 32), count: 10000 },
+]);
+
+/// NKRO steno select mode
+pub static NKRO_SELECT_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(32, 0, 32), count: 100 },
+    Step { color: RGB8::new( 0, 0,  0), count: 100 },
 ]);
 
 /// Artsey mode
@@ -58,9 +70,21 @@ pub static ARTSEY_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(16, 0, 0), count: 10000 },
 ]);
 
-/// Artsey mode
+/// Artsey select mode
+pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(16, 0, 0), count: 100 },
+    Step { color: RGB8::new( 0, 0, 0), count: 100 },
+]);
+
+/// Qwerty mode
 pub static QWERTY_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(0, 16, 0), count: 10000 },
+]);
+
+/// Qwerty select mode
+pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
+    Step { color: RGB8::new(0, 16, 0), count: 100 },
+    Step { color: RGB8::new( 0, 0, 0), count: 100 },
 ]);
 
 /// Artsey Nav mode

@@ -455,6 +455,15 @@ fn main_loop<
                         };
                         led_manager.set_base(visible);
                     }
+                    Event::ModeSelect(mode) => {
+                        let visible = match mode {
+                            LayoutMode::Steno => &leds::STENO_SELECT_INDICATOR,
+                            LayoutMode::Artsey => &leds::ARTSEY_SELECT_INDICATOR,
+                            LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
+                            LayoutMode::NKRO => &leds::NKRO_SELECT_INDICATOR,
+                        };
+                        led_manager.set_base(visible);
+                    }
                     Event::Indicator(mode) => {
                         let visible = match mode {
                             MinorMode::ArtseyMain => &leds::ARTSEY_INDICATOR,

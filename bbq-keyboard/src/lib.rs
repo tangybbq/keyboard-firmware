@@ -141,6 +141,9 @@ pub enum Event {
     /// Major mode indication change.
     Mode(LayoutMode),
 
+    /// We are doing a mode select, with the given mode being the next mode.
+    ModeSelect(LayoutMode),
+
     /// A keypress (from a typical keyboard mode)
     Key(KeyAction),
 
