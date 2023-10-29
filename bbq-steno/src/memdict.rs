@@ -6,7 +6,7 @@
 //! Note that we will treat these as static lifetime. Testing might use
 //! temporary arrays, and it is important to make sure they aren't moved.
 
-use crate::stroke::Stroke;
+use crate::{stroke::Stroke, dict::Dict};
 
 pub const MAGIC1: &[u8] = b"stenodct";
 
@@ -97,11 +97,13 @@ impl MemDict {
         let raw = &self.text[offset..offset + length];
         unsafe { core::str::from_utf8_unchecked(raw) }
     }
+}
 
+impl Dict for MemDict {
     /// Lookup a sequence of steno in the dictionary.
     /// TODO: This is only an exact lookup, and doesn't really handle the case
     /// of extra strokes. I think this is fine for the Plover algorithm, though.
-    pub fn lookup(&self, key: &[Stroke]) -> Option<&'static str> {
+    fn lookup(&self, key: &[Stroke]) -> Option<&'static str> {
         match self.key_offsets.binary_search_by_key(&key, |k| {
             let code = *k as usize;
             let offset = code & ((1 << 24) - 1);
@@ -117,7 +119,7 @@ impl MemDict {
     /// will return success if the matched string only returns a prefix of the
     /// input.  As such, the return result is a bit richer, as it returns the
     /// number of strokes in the match.
-    pub fn prefix_lookup(&self, query: &[Stroke]) -> Option<(usize, &'static str)> {
+    fn prefix_lookup(&self, query: &[Stroke]) -> Option<(usize, &'static str)> {
         // The best result we've seen so far, as an offset.
         let mut best = None;
 
@@ -196,5 +198,9 @@ impl MemDict {
             let text = self.get_text(pos);
             (key.len(), text)
         })
+    }
+
+    fn longest_key(&self) -> usize {
+        (0..self.key_offsets.len()).map(|i| self.get_key(i).len()).max().unwrap_or(0)
     }
 }
