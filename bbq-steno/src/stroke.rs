@@ -237,9 +237,7 @@ impl Stroke {
     /// Is this stroke the star?  We also allow the caret or plus keys, alone, to delete, presuming
     /// this will also be in the user's dictionary.
     pub fn is_star(self) -> bool {
-        self == STAR ||
-            self == CARET ||
-            self == PLUS
+        self == STAR || self == CARET || self == PLUS
     }
 
     /// Merge the two strokes.
@@ -406,9 +404,9 @@ fn stroke_roundtrip() {
 
 #[cfg(feature = "std")]
 mod std_features {
+    use super::Error;
     use super::Stroke;
     use std::fmt;
-    use super::Error;
 
     impl std::fmt::Display for Error {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -416,8 +414,7 @@ mod std_features {
         }
     }
 
-    impl std::error::Error for Error {
-    }
+    impl std::error::Error for Error {}
 
     type Result<T> = std::result::Result<T, Error>;
 

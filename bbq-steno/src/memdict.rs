@@ -54,20 +54,30 @@ impl MemDict {
             return None;
         }
 
-        let keys =
-            core::slice::from_raw_parts(ptr.add(raw.keys_offset as usize) as *const Stroke,
-                                        raw.keys_length as usize);
-        let key_offsets =
-            core::slice::from_raw_parts(ptr.add(raw.key_pos_offset as usize) as *const u32,
-                                        raw.size as usize);
-        let text =
-            core::slice::from_raw_parts(ptr.add(raw.text_offset as usize) as *const u8,
-                                        raw.text_length as usize);
-        let text_offsets =
-            core::slice::from_raw_parts(ptr.add(raw.text_table_offset as usize) as *const u32,
-                                        raw.size as usize);
+        let keys = core::slice::from_raw_parts(
+            ptr.add(raw.keys_offset as usize) as *const Stroke,
+            raw.keys_length as usize,
+        );
+        let key_offsets = core::slice::from_raw_parts(
+            ptr.add(raw.key_pos_offset as usize) as *const u32,
+            raw.size as usize,
+        );
+        let text = core::slice::from_raw_parts(
+            ptr.add(raw.text_offset as usize) as *const u8,
+            raw.text_length as usize,
+        );
+        let text_offsets = core::slice::from_raw_parts(
+            ptr.add(raw.text_table_offset as usize) as *const u32,
+            raw.size as usize,
+        );
 
-        Some(MemDict { raw, keys, key_offsets, text, text_offsets })
+        Some(MemDict {
+            raw,
+            keys,
+            key_offsets,
+            text,
+            text_offsets,
+        })
     }
 
     /// Get a given key by index.  Panics if the key is out of range.
@@ -75,7 +85,7 @@ impl MemDict {
         let code = self.key_offsets[n] as usize;
         let offset = code & ((1 << 24) - 1);
         let length = code >> 24;
-        &self.keys[offset .. offset + length]
+        &self.keys[offset..offset + length]
     }
 
     /// Get the text. Panics if the key is out of range.
@@ -84,7 +94,7 @@ impl MemDict {
         let offset = code & ((1 << 24) - 1);
         let length = code >> 24;
         // println!("get text:{} (raw:{:x}) offset:{:x} len:{}", n, code, offset, length);
-        let raw = &self.text[offset .. offset + length];
+        let raw = &self.text[offset..offset + length];
         unsafe { core::str::from_utf8_unchecked(raw) }
     }
 
@@ -96,7 +106,7 @@ impl MemDict {
             let code = *k as usize;
             let offset = code & ((1 << 24) - 1);
             let length = code >> 24;
-            &self.keys[offset .. offset + length]
+            &self.keys[offset..offset + length]
         }) {
             Ok(pos) => Some(self.get_text(pos)),
             Err(_) => None,
@@ -127,7 +137,7 @@ impl MemDict {
                 let code = *k as usize;
                 let offset = code & ((1 << 24) - 1);
                 let length = code >> 24;
-                &self.keys[offset .. offset + length]
+                &self.keys[offset..offset + length]
             }) {
                 Ok(pos) => {
                     let pos = start + pos;

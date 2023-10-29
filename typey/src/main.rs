@@ -1,8 +1,16 @@
-use std::{io::{stdin, stdout, Write}, fs::File, collections::BTreeMap};
+use std::{
+    collections::BTreeMap,
+    fs::File,
+    io::{stdin, stdout, Write},
+};
 
 use anyhow::Result;
-use bbq_steno::{Stroke, dict::{MapDict, MapDictBuilder, Translator}, stroke::StenoWord};
-use termion::{raw::IntoRawMode, input::TermRead, event::Key};
+use bbq_steno::{
+    dict::{MapDict, MapDictBuilder, Translator},
+    stroke::StenoWord,
+    Stroke,
+};
+use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
 fn main() -> Result<()> {
     let dict = load_dict().expect("Load main dict");
@@ -40,9 +48,8 @@ fn main() -> Result<()> {
 }
 
 fn load_dict() -> Result<MapDict> {
-    let data: BTreeMap<String, String> = serde_json::from_reader(
-        File::open("../dict-convert/main.json")?
-    )?;
+    let data: BTreeMap<String, String> =
+        serde_json::from_reader(File::open("../dict-convert/main.json")?)?;
     let mut builder = MapDictBuilder::new();
     for (k, v) in data {
         let k = StenoWord::parse(&k)?;

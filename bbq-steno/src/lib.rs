@@ -6,9 +6,9 @@
 #[cfg(not(any(feature = "std", test)))]
 extern crate core as std;
 
-pub mod stroke;
-pub mod memdict;
 pub mod dict;
+pub mod memdict;
+pub mod stroke;
 
 pub use stroke::Stroke;
 
