@@ -182,3 +182,8 @@ pub enum MinorMode {
     ArtseyMain,
     ArtseyNav,
 }
+
+/// Something we can use to get time.
+pub trait Timable {
+    fn get_ticks(&self) -> u64;
+}

@@ -26,7 +26,7 @@ use usb_device::{class_prelude::UsbBusAllocator, prelude::UsbDeviceState};
 
 use embedded_alloc::Heap;
 
-use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event, LayoutMode, MinorMode};
+use bbq_keyboard::{KeyAction, Side, EventQueue, InterState, Event, LayoutMode, MinorMode, Timable};
 use bbq_keyboard::usb_typer::enqueue_action;
 use bbq_keyboard::layout::LayoutManager;
 
@@ -491,5 +491,14 @@ fn main_loop<
             // info!("Heap: {} used, {} free", new_used, free);
             last_size = new_used;
         }
+    }
+}
+
+/// Wrap the timer, for a hal to get the time.
+struct WrapTimer<'a>(&'a Timer);
+
+impl<'a> Timable for WrapTimer<'a> {
+    fn get_ticks(&self) -> u64 {
+        self.0.get_counter().ticks()
     }
 }
