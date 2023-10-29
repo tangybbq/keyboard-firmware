@@ -39,6 +39,7 @@ fn main() -> Result<()> {
     let mdict = unsafe { MemDict::from_raw_ptr(memory.as_ptr()).unwrap() };
     println!("Header:\n{:#?}", mdict.raw);
     println!("Keys: {}", mdict.keys.len());
+    println!("Longest: {}", mdict.longest_key());
 
     // Print out the first some number of keys.
     for k in 0 .. 12 {
