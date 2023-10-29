@@ -1,0 +1,12 @@
+[package]
+name = "typey"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+termion = "2.0.1"
+bbq-steno = { version = "0.1", path = "../bbq-steno" }
+serde_json = "1.0.107"
