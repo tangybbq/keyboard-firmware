@@ -14,7 +14,7 @@ use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
 fn main() -> Result<()> {
     let dict = load_dict().expect("Load main dict");
-    let mut xlat = Translator::new(&dict);
+    let mut xlat = Translator::new(dict);
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode()?;
 

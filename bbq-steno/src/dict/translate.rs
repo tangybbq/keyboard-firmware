@@ -15,11 +15,11 @@ use crate::Stroke;
 use crate::println;
 
 /// Track a series of translations captured in real-time as they are input.
-pub struct Translator<'a, D: Dict> {
+pub struct Translator<D: Dict> {
     // The translations we've seen, most recent at the end.
-    entries: Vec<Entry<'a>>,
+    entries: Vec<Entry>,
     // The dictionary to use.
-    dict: &'a D,
+    dict: D,
     // Cache of the longest key.
     longest: usize,
     // Tracker of what was typed.
@@ -28,17 +28,17 @@ pub struct Translator<'a, D: Dict> {
 
 /// Each stroke that is captured has with it some possible data.
 #[derive(Debug)]
-struct Entry<'a> {
+struct Entry {
     /// The strokes that make up this translation.
     strokes: Vec<Stroke>,
     /// What this translates to, if anything.
-    translation: Option<Translation<'a>>,
+    translation: Option<Translation>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
-struct Translation<'a> {
+struct Translation {
     /// The actual definition.
-    definition: &'a str,
+    definition: String,
 }
 
 // Maxinum number of entries to keep for undo history. Note that if this is made
@@ -46,12 +46,13 @@ struct Translation<'a> {
 // const HIST_MAX: usize = 100;
 const HIST_MAX: usize = 20;
 
-impl<'a, D: Dict> Translator<'a, D> {
-    pub fn new(dict: &'a D) -> Self {
+impl<D: Dict> Translator<D> {
+    pub fn new(dict: D) -> Self {
+        let longest = dict.longest_key();
         Translator {
             entries: Vec::new(),
             dict,
-            longest: dict.longest_key(),
+            longest,
             typer: Typer::new(),
         }
     }
@@ -111,7 +112,7 @@ impl<'a, D: Dict> Translator<'a, D> {
             if old_elt.is_none() {
                 let new_elt = new_elt.unwrap();
                 // New translation, just type this.
-                self.typer.add(0, true, new_elt.text());
+                self.typer.add(0, true, &new_elt.text());
                 continue;
             }
             if new_elt.is_none() {
@@ -137,9 +138,9 @@ impl<'a, D: Dict> Translator<'a, D> {
                     self.typer.remove();
                 }
 
-                self.typer.add(0, true, new_elt.text());
+                self.typer.add(0, true, &new_elt.text());
                 while let Some(new_elt) = new_iter.next() {
-                    self.typer.add(0, true, new_elt.text());
+                    self.typer.add(0, true, &new_elt.text());
                 }
                 break;
             }
@@ -185,7 +186,7 @@ impl<'a, D: Dict> Translator<'a, D> {
     }
 
     /// Compute a translation set from the given strokes.
-    fn translate(&self, strokes: &[Stroke]) -> Vec<Entry<'a>> {
+    fn translate(&self, strokes: &[Stroke]) -> Vec<Entry> {
         let mut result = Vec::new();
 
         let mut pos = 0;
@@ -193,7 +194,7 @@ impl<'a, D: Dict> Translator<'a, D> {
             if let Some((len, defn)) = self.dict.prefix_lookup(&strokes[pos..]) {
                 result.push(Entry {
                     strokes: strokes[pos..pos + len].to_vec(),
-                    translation: Some(Translation { definition: defn }),
+                    translation: Some(Translation { definition: defn.to_string() }),
                 });
                 pos += len;
             } else {
@@ -242,12 +243,12 @@ impl<'a, D: Dict> Translator<'a, D> {
     */
 }
 
-impl<'a> Entry<'a> {
-    fn text(&self) -> &str {
+impl Entry {
+    fn text(&self) -> String {
         if let Some(tr) = &self.translation {
-            tr.definition
+            tr.definition.clone()
         } else {
-            "TODO:RAW"
+            "TODO:RAW".to_string()
         }
     }
     /*
