@@ -8,6 +8,7 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::collections::VecDeque;
 
 #[cfg(not(feature = "std"))]
 use crate::println;
@@ -15,6 +16,9 @@ use crate::println;
 /// The typing tracker.  LIMIT is the limit of the history.
 pub struct Typer<const LIMIT: usize> {
     words: Vec<Word>,
+
+    /// Things to be typed.
+    to_type: VecDeque<TypeAction>,
 }
 
 /// A single thing that has been typed.
@@ -26,9 +30,20 @@ struct Word {
     typed: String,
 }
 
+/// The action that results from text being typed.
+pub struct TypeAction {
+    /// How many characters to remove before typing this text.
+    pub remove: usize,
+    /// The text to type.
+    pub text: String,
+}
+
 impl<const LIMIT: usize> Typer<LIMIT> {
     pub fn new() -> Self {
-        Typer { words: Vec::new() }
+        Typer {
+            words: Vec::new(),
+            to_type: VecDeque::new(),
+        }
     }
 
     /// Add a track of words that we have typed.  The space will be inserted
@@ -47,7 +62,8 @@ impl<const LIMIT: usize> Typer<LIMIT> {
         }
         word.push_str(typed);
 
-        println!("*** remove: {}, type: {:?}", 0, word);
+        self.to_type.push_back(TypeAction { remove: 0, text: word.clone() });
+        // println!("*** remove: {}, type: {:?}", 0, word);
 
         self.words.push(Word {
             remove: String::new(),
@@ -61,6 +77,12 @@ impl<const LIMIT: usize> Typer<LIMIT> {
             let _ = word.typed;
             let _ = word.remove;
             println!("*** remove: {}, type: {:?}", word.typed.len(), word.remove);
+            self.to_type.push_back(TypeAction { remove: word.typed.len(), text: word.remove });
         }
+    }
+
+    /// Retrieve the actions that have resulted from translation.
+    pub fn next_action(&mut self) -> Option<TypeAction> {
+        self.to_type.pop_front()
     }
 }

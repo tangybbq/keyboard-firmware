@@ -31,6 +31,9 @@ fn main() -> Result<()> {
                 stdout.suspend_raw_mode()?;
                 xlat.add(stroke);
                 xlat.show();
+                while let Some(action) = xlat.next_action() {
+                    writeln!(stdout, ">>> Delete {} type: {:?}", action.remove, action.text)?;
+                }
                 stdout.activate_raw_mode()?;
             } else {
                 writeln!(stdout, "Invalid: {:?}\r", word)?;

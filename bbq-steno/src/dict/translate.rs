@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use super::typer::Typer;
+use super::typer::{Typer, TypeAction};
 use super::Dict;
 #[cfg(feature = "std")]
 use crate::stroke::StenoWord;
@@ -166,7 +166,13 @@ impl<'a, D: Dict> Translator<'a, D> {
     }
     */
 
+    /// Retrieve the next action from the typer.
+    pub fn next_action(&mut self) -> Option<TypeAction> {
+        self.typer.next_action()
+    }
+
     /// Print out the state of the translator.
+    #[cfg(feature = "std")]
     pub fn show(&self) {
         for e in &self.entries {
             let _ = e;
