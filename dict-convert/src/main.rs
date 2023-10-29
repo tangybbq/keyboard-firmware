@@ -6,6 +6,7 @@ use anyhow::Result;
 
 use bbq_steno::Stroke;
 use bbq_steno::stroke::StenoWord;
+use bbq_steno::dict::Dict;
 use bbq_steno::memdict::{MAGIC1, MemDict};
 use bbq_steno_macros::stroke;
 use byteorder::{LittleEndian, WriteBytesExt};
