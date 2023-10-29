@@ -45,7 +45,10 @@ impl<const LIMIT: usize> Typer<LIMIT> {
 
         println!("*** remove: {}, type: {:?}", 0, word);
 
-        self.words.push(Word { remove: String::new(), typed: word });
+        self.words.push(Word {
+            remove: String::new(),
+            typed: word,
+        });
     }
 
     /// Remove the latest thing we typed.

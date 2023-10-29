@@ -48,7 +48,7 @@ pub trait Dict {
 
         // Because we don't have insight into the dictionary, there isn't really
         // much more to do than to lookup all possible prefixes.
-        for len in 1..(longest+1) {
+        for len in 1..(longest + 1) {
             let key = &query[..len];
             if let Some(result) = self.lookup(key) {
                 best = Some((len, result));
@@ -58,4 +58,3 @@ pub trait Dict {
         best
     }
 }
-

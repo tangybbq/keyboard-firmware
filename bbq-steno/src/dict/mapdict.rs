@@ -3,8 +3,8 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-use crate::Stroke;
 use super::Dict;
+use crate::Stroke;
 
 extern crate alloc;
 
@@ -32,7 +32,9 @@ impl Dict for MapDict {
 
 impl MapDictBuilder {
     pub fn new() -> MapDictBuilder {
-        MapDictBuilder { map: BTreeMap::new() }
+        MapDictBuilder {
+            map: BTreeMap::new(),
+        }
     }
 
     /// Insert a definition.
@@ -43,6 +45,9 @@ impl MapDictBuilder {
     /// Freeze the dictionary.
     pub fn into_map_dict(self) -> MapDict {
         let longest = self.map.keys().map(|k| k.len()).max().unwrap_or(0);
-        MapDict { map: self.map, longest }
+        MapDict {
+            map: self.map,
+            longest,
+        }
     }
 }

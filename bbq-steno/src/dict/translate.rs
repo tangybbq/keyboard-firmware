@@ -1,9 +1,9 @@
 //! Live translation
 
-use crate::Stroke;
-use crate::stroke::StenoWord;
-use super::Dict;
 use super::typer::Typer;
+use super::Dict;
+use crate::stroke::StenoWord;
+use crate::Stroke;
 
 /// Track a series of translations captured in real-time as they are input.
 pub struct Translator<'a, D: Dict> {
@@ -160,7 +160,11 @@ impl<'a, D: Dict> Translator<'a, D> {
     /// Print out the state of the translator.
     pub fn show(&self) {
         for e in &self.entries {
-            println!("{:>10} {:?}", StenoWord(e.strokes.clone()).to_string(), e.translation);
+            println!(
+                "{:>10} {:?}",
+                StenoWord(e.strokes.clone()).to_string(),
+                e.translation
+            );
         }
     }
 
@@ -172,7 +176,7 @@ impl<'a, D: Dict> Translator<'a, D> {
         while pos < strokes.len() {
             if let Some((len, defn)) = self.dict.prefix_lookup(&strokes[pos..]) {
                 result.push(Entry {
-                    strokes: strokes[pos..pos+len].to_vec(),
+                    strokes: strokes[pos..pos + len].to_vec(),
                     translation: Some(Translation { definition: defn }),
                 });
                 pos += len;
@@ -230,12 +234,12 @@ impl<'a> Entry<'a> {
             "TODO:RAW"
         }
     }
-/*
-    fn new_empty(stroke: Stroke) -> Self {
-        Entry {
-            strokes: vec![stroke],
-            translation: None,
+    /*
+        fn new_empty(stroke: Stroke) -> Self {
+            Entry {
+                strokes: vec![stroke],
+                translation: None,
+            }
         }
-    }
-*/
+    */
 }
