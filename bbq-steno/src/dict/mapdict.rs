@@ -1,6 +1,7 @@
 //! Simple dictionary implemented with maps.
 
 use alloc::collections::BTreeMap;
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use super::Dict;

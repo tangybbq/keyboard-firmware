@@ -1,9 +1,18 @@
 //! Live translation
 
+extern crate alloc;
+
+use alloc::vec;
+use alloc::vec::Vec;
+
 use super::typer::Typer;
 use super::Dict;
+#[cfg(feature = "std")]
 use crate::stroke::StenoWord;
 use crate::Stroke;
+
+#[cfg(not(feature = "std"))]
+use crate::println;
 
 /// Track a series of translations captured in real-time as they are input.
 pub struct Translator<'a, D: Dict> {
@@ -160,6 +169,7 @@ impl<'a, D: Dict> Translator<'a, D> {
     /// Print out the state of the translator.
     pub fn show(&self) {
         for e in &self.entries {
+            let _ = e;
             println!(
                 "{:>10} {:?}",
                 StenoWord(e.strokes.clone()).to_string(),

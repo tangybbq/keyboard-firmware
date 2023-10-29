@@ -24,3 +24,10 @@ mod log {
 mod log {
     pub use defmt::warn;
 }
+
+#[cfg(not(feature = "std"))]
+#[macro_export]
+macro_rules! println {
+    ($msg:expr) => { {} };
+    ($msg:expr, $($_arg:expr),+) => { {} };
+}

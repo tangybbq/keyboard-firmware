@@ -6,7 +6,11 @@
 
 extern crate alloc;
 
+use alloc::string::String;
 use alloc::vec::Vec;
+
+#[cfg(not(feature = "std"))]
+use crate::println;
 
 /// The typing tracker.  LIMIT is the limit of the history.
 pub struct Typer<const LIMIT: usize> {
@@ -54,6 +58,8 @@ impl<const LIMIT: usize> Typer<LIMIT> {
     /// Remove the latest thing we typed.
     pub fn remove(&mut self) {
         if let Some(word) = self.words.pop() {
+            let _ = word.typed;
+            let _ = word.remove;
             println!("*** remove: {}, type: {:?}", word.typed.len(), word.remove);
         }
     }
