@@ -40,12 +40,22 @@ fn test_translator() {
     let dict = load_dict().expect("Load main dict");
     let mut xlat = Translator::new(&dict);
 
-    xlat.add(stroke!("A"));
-    xlat.add(stroke!("ABT"));
-    xlat.add(stroke!("-G"));
-    xlat.add(stroke!("A"));
-    xlat.add(stroke!("ABT"));
-    xlat.add(stroke!("AG"));
+    for st in [
+        stroke!("A"),
+        stroke!("ABT"),
+        stroke!("-G"),
+        stroke!("A"),
+        stroke!("ABT"),
+        stroke!("AG"),
+
+        // Asia, first stroke doesn't translate.
+        stroke!("AEURB"),
+        stroke!("SHA"),
+    ] {
+        println!("Add: {}", st);
+        xlat.add(st);
+        xlat.show();
+    }
 
     todo!();
 }
