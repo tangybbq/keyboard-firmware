@@ -2,6 +2,7 @@
 
 extern crate alloc;
 
+use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
