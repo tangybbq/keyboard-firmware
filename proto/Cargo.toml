@@ -3,6 +3,14 @@ edition = "2021"
 name = "proto"
 version = "0.1.0"
 
+[dependencies.rtic]
+version = "2.0.1"
+features = ["thumbv6-backend"]
+
+[dependencies.rtic-monotonics]
+version = "1.0.0"
+features = ["rp2040"]
+
 [dependencies]
 cortex-m = "0.7"
 cortex-m-rt = "0.7"
@@ -44,7 +52,6 @@ bbq-keyboard = { version = "0.1.0", default-features = false, path = "../bbq-key
 bbq-steno = { version = "0.1.0", default-features = false, path = "../bbq-steno" }
 bbq-steno-macros = { version = "0.1.0", default-features = false, path = "../bbq-steno-macros" }
 rp2040-boot2 = "0.3.0"
-cortex-m-rtic = "1.1.4"
 
 [features]
 # The proto2 keyboard

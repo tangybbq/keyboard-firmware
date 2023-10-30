@@ -1,61 +1,123 @@
 //! Blinks the LED on a Pico board
 //!
 //! This will blink an LED attached to GP25, which is the pin the Pico uses for the on-board LED.
+
+#![feature(type_alias_impl_trait)]
+
 #![no_std]
 #![no_main]
 
-use panic_probe as _;
 use defmt_rtt as _;
+use panic_probe as _;
 
 use sparkfun_pro_micro_rp2040 as bsp;
 
-#[rtic::app(device = crate::bsp::pac)]
+mod leds;
+
+#[rtic::app(
+    device = crate::bsp::pac,
+    dispatchers = [TIMER_IRQ_1])]
 mod app {
-    use bsp::hal::clocks::init_clocks_and_plls;
-    use defmt::info;
     use crate::bsp;
+    use crate::leds;
+    use crate::leds::QWERTY_SELECT_INDICATOR;
+    use crate::leds::STENO_SELECT_INDICATOR;
+    use bsp::hal::Clock;
+    use bsp::hal::Sio;
+    use bsp::hal::gpio::FunctionPio0;
+    use bsp::hal::gpio::Pin;
+    use bsp::hal::gpio::PullDown;
+    use bsp::hal::gpio::bank0::Gpio25;
+    use bsp::hal::pio::{SM0, PIOExt};
+    use bsp::hal::pac::PIO0;
+    use bsp::hal::clocks::init_clocks_and_plls;
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
-    use bsp::hal::pac;
+    use defmt::info;
+    use rtic_monotonics::rp2040::Timer;
+    // use fugit::RateExtU32;
+    use rtic_monotonics::rp2040::ExtU64;
+    use ws2812_pio::Ws2812Direct;
 
     #[shared]
     struct Shared {
+        led_manager: leds::LedManager<Ws2812Direct<PIO0, SM0, Pin<Gpio25, FunctionPio0, PullDown>>>,
     }
 
     #[local]
     struct Local {
-        foo: usize,
     }
 
     #[init]
-    fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
+    fn init(mut ctx: init::Context) -> (Shared, Local) {
         info!("Init running");
-        let mut pac = cx.device;
-        let core = pac::CorePeripherals::take().unwrap();
-        let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
+
+        let rp2040_timer_token = rtic_monotonics::create_rp2040_monotonic_token!();
+        Timer::start(ctx.device.TIMER, &mut ctx.device.RESETS, rp2040_timer_token);
+
+        let mut watchdog = hal::Watchdog::new(ctx.device.WATCHDOG);
 
         // External high-speed crystal on the pico board is 12Mhz
         let clocks = init_clocks_and_plls(
             XOSC_CRYSTAL_FREQ,
-            pac.XOSC,
-            pac.CLOCKS,
-            pac.PLL_SYS,
-            pac.PLL_USB,
-            &mut pac.RESETS,
+            ctx.device.XOSC,
+            ctx.device.CLOCKS,
+            ctx.device.PLL_SYS,
+            ctx.device.PLL_USB,
+            &mut ctx.device.RESETS,
             &mut watchdog,
         )
-            .ok()
-            .unwrap();
+        .ok()
+        .unwrap();
 
-        let _ = core;
-        let _ = clocks;
+        let sio = Sio::new(ctx.device.SIO);
 
-        (
-            Shared {},
-            Local {
-                foo: 0,
-            },
-            init::Monotonics(),
-        )
+        let pins = bsp::Pins::new(
+            ctx.device.IO_BANK0,
+            ctx.device.PADS_BANK0,
+            sio.gpio_bank0,
+            &mut ctx.device.RESETS,
+        );
+
+        let (mut pio, sm0, _, _, _) = ctx.device.PIO0.split(&mut ctx.device.RESETS);
+        let ws = Ws2812Direct::new(
+            pins.led.into_function(),
+            &mut pio,
+            sm0,
+            clocks.peripheral_clock.freq(),
+        );
+        let led_manager = leds::LedManager::new(ws);
+
+        heartbeat::spawn().unwrap();
+        // led_task::spawn().unwrap();
+
+        // let _timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS, &clocks);
+
+        (Shared { led_manager }, Local {})
+    }
+
+    #[task(local = [], shared = [led_manager])]
+    async fn heartbeat(mut ctx: heartbeat::Context) {
+        loop {
+            info!("Qwerty");
+            ctx.shared.led_manager.lock(|led_manager| {
+                led_manager.set_base(&QWERTY_SELECT_INDICATOR);
+            });
+            Timer::delay(1000.millis()).await;
+            ctx.shared.led_manager.lock(|led_manager| {
+                led_manager.set_base(&STENO_SELECT_INDICATOR);
+            });
+        }
+    }
+
+    #[task(shared = [led_manager])]
+    async fn led_task(mut ctx: led_task::Context) {
+        loop {
+            info!("led poll");
+            ctx.shared.led_manager.lock(|led_manager| {
+                led_manager.tick();
+            });
+            Timer::delay(250.millis()).await;
+        }
     }
 }
 

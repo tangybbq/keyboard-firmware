@@ -1,5 +1,8 @@
 //! Control of the LEDs.
 
+#![allow(unused_variables)]
+#![allow(dead_code)]
+
 use core::iter::once;
 
 use smart_leds::{SmartLedsWrite, RGB8};
@@ -92,8 +95,8 @@ pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[
     Step { color: RGB8::new(20, 20, 0), count: 10000 },
 ]);
 
-pub struct LedManager<'a, L: SmartLedsWrite<Color = RGB8>> {
-    leds: &'a mut L,
+pub struct LedManager<L: SmartLedsWrite<Color = RGB8>> {
+    leds: L,
 
     /// The base display. Shown when there is nothing else. Will repeat
     /// indefinitely.
@@ -110,8 +113,8 @@ pub struct LedManager<'a, L: SmartLedsWrite<Color = RGB8>> {
     phase: usize,
 }
 
-impl<'a, L: SmartLedsWrite<Color = RGB8>> LedManager<'a, L> {
-    pub fn new(leds: &'a mut L) -> Self {
+impl<L: SmartLedsWrite<Color = RGB8>> LedManager<L> {
+    pub fn new(leds: L) -> Self {
         LedManager {
             leds,
             // Assumes that we are in this state.
