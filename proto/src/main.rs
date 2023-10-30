@@ -7,17 +7,28 @@
 #![no_std]
 #![no_main]
 
+use core::{sync::atomic::{Ordering, AtomicU8}, mem::MaybeUninit};
+
 use defmt_rtt as _;
+use embedded_alloc::Heap;
 use panic_probe as _;
 
 use sparkfun_pro_micro_rp2040 as bsp;
 
 mod leds;
 
+#[global_allocator]
+static HEAP: Heap = Heap::empty();
+static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+const HEAP_SIZE: usize = 8192;
+
 #[rtic::app(
     device = crate::bsp::pac,
     dispatchers = [TIMER_IRQ_1])]
 mod app {
+    use crate::HEAP;
+    use crate::HEAP_SIZE;
+    use crate::HEAP_MEM;
     use crate::bsp;
     use crate::leds;
     use crate::leds::QWERTY_SELECT_INDICATOR;
@@ -49,6 +60,14 @@ mod app {
 
     #[init]
     fn init(mut ctx: init::Context) -> (Shared, Local) {
+        // This works around a problem with the hardware spinlocks not being released.
+        unsafe {
+            bsp::hal::sio::spinlock_reset();
+        }
+        unsafe {
+            HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE);
+        }
+
         info!("Init running");
 
         let rp2040_timer_token = rtic_monotonics::create_rp2040_monotonic_token!();
