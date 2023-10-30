@@ -33,6 +33,7 @@ mod app {
     use crate::bsp;
     use crate::leds;
     use crate::leds::QWERTY_SELECT_INDICATOR;
+    use crate::leds::STENO_INDICATOR;
     use crate::leds::STENO_SELECT_INDICATOR;
     use bsp::hal::Clock;
     use bsp::hal::Sio;
@@ -131,7 +132,7 @@ mod app {
             led_manager.clear_global();
         });
         let mut now = Timer::now();
-        loop {
+        for _ in 0..10 {
             info!("Qwerty");
             ctx.shared.led_manager.lock(|led_manager| {
                 led_manager.set_base(&QWERTY_SELECT_INDICATOR);
@@ -145,6 +146,10 @@ mod app {
             now += 1000.millis();
             Timer::delay_until(now).await;
         }
+        // Change to a settled mode.
+        ctx.shared.led_manager.lock(|led_manager| {
+                led_manager.set_base(&STENO_INDICATOR);
+            });
     }
 
     #[task(shared = [led_manager])]
