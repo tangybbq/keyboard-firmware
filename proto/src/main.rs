@@ -141,6 +141,18 @@ mod app {
     }
 }
 
+// This starts as zero, and can be set to various gate values to allow execution to continue.
+#[used]
+static GATE: AtomicU8 = AtomicU8::new(255);
+
+// For the debugger.  Still until the debugger sets the GATE to at least this value.
+#[inline(never)]
+#[allow(dead_code)]
+fn stall(gate: u8) {
+    while GATE.load(Ordering::Acquire) < gate {
+    }
+}
+
 /*
 extern crate alloc;
 
