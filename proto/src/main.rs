@@ -24,7 +24,8 @@ const HEAP_SIZE: usize = 8192;
 
 #[rtic::app(
     device = crate::bsp::pac,
-    dispatchers = [TIMER_IRQ_1])]
+    // dispatchers = [TIMER_IRQ_1],
+)]
 mod app {
     use crate::HEAP;
     use crate::HEAP_SIZE;
