@@ -4,6 +4,62 @@
 #![no_std]
 #![no_main]
 
+use panic_probe as _;
+use defmt_rtt as _;
+
+use sparkfun_pro_micro_rp2040 as bsp;
+
+#[rtic::app(device = crate::bsp::pac)]
+mod app {
+    use bsp::hal::clocks::init_clocks_and_plls;
+    use defmt::info;
+    use crate::bsp;
+    use bsp::{hal, XOSC_CRYSTAL_FREQ};
+    use bsp::hal::pac;
+
+    #[shared]
+    struct Shared {
+    }
+
+    #[local]
+    struct Local {
+        foo: usize,
+    }
+
+    #[init]
+    fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
+        info!("Init running");
+        let mut pac = cx.device;
+        let core = pac::CorePeripherals::take().unwrap();
+        let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
+
+        // External high-speed crystal on the pico board is 12Mhz
+        let clocks = init_clocks_and_plls(
+            XOSC_CRYSTAL_FREQ,
+            pac.XOSC,
+            pac.CLOCKS,
+            pac.PLL_SYS,
+            pac.PLL_USB,
+            &mut pac.RESETS,
+            &mut watchdog,
+        )
+            .ok()
+            .unwrap();
+
+        let _ = core;
+        let _ = clocks;
+
+        (
+            Shared {},
+            Local {
+                foo: 0,
+            },
+            init::Monotonics(),
+        )
+    }
+}
+
+/*
 extern crate alloc;
 
 use arrayvec::ArrayString;
@@ -502,3 +558,4 @@ impl<'a> Timable for WrapTimer<'a> {
         self.0.get_counter().ticks()
     }
 }
+*/
