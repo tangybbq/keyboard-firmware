@@ -108,7 +108,7 @@ mod app {
         let led_manager = leds::LedManager::new(ws);
 
         heartbeat::spawn().unwrap();
-        // led_task::spawn().unwrap();
+        led_task::spawn().unwrap();
 
         // let _timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS, &clocks);
 
