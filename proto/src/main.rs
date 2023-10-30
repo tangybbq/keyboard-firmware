@@ -62,10 +62,19 @@ mod app {
 
     #[init]
     fn init(mut ctx: init::Context) -> (Shared, Local) {
-        // This works around a problem with the hardware spinlocks not being released.
+        // When using the picoprobe, it only resets the core and not any
+        // peripherals. This causes it sometimes to get into a state where the
+        // hardware spinlock is locked, and the first critical section will
+        // deadlock. Work around this by resetting the spinlock.
+        //
+        // The rp2040 hal has a workaround in its `entry` macro. However, when
+        // going through rtic, the general cortex-m `entry` is used, which
+        // doesn't use the workaround, so we need to do it ourselves.
         unsafe {
             bsp::hal::sio::spinlock_reset();
         }
+
+        // Initialize the heap.
         unsafe {
             HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE);
         }
