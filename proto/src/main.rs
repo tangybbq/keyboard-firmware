@@ -35,10 +35,10 @@ mod app {
     use crate::leds::STENO_SELECT_INDICATOR;
     use bsp::hal::Clock;
     use bsp::hal::Sio;
+    use bsp::hal::gpio::DynPinId;
     use bsp::hal::gpio::FunctionPio0;
     use bsp::hal::gpio::Pin;
     use bsp::hal::gpio::PullDown;
-    use bsp::hal::gpio::bank0::Gpio25;
     use bsp::hal::pio::{SM0, PIOExt};
     use bsp::hal::pac::PIO0;
     use bsp::hal::clocks::init_clocks_and_plls;
@@ -51,7 +51,7 @@ mod app {
 
     #[shared]
     struct Shared {
-        led_manager: leds::LedManager<Ws2812Direct<PIO0, SM0, Pin<Gpio25, FunctionPio0, PullDown>>>,
+        led_manager: leds::LedManager<Ws2812Direct<PIO0, SM0, Pin<DynPinId, FunctionPio0, PullDown>>>,
     }
 
     #[local]
@@ -99,7 +99,7 @@ mod app {
 
         let (mut pio, sm0, _, _, _) = ctx.device.PIO0.split(&mut ctx.device.RESETS);
         let ws = Ws2812Direct::new(
-            pins.led.into_function(),
+            pins.led.into_function().into_dyn_pin(),
             &mut pio,
             sm0,
             clocks.peripheral_clock.freq(),
