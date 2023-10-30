@@ -163,7 +163,7 @@ mod app {
 
 // This starts as zero, and can be set to various gate values to allow execution to continue.
 #[used]
-static GATE: AtomicU8 = AtomicU8::new(255);
+static GATE: AtomicU8 = AtomicU8::new(0);
 
 // For the debugger.  Still until the debugger sets the GATE to at least this value.
 #[inline(never)]
