@@ -45,6 +45,7 @@ mod app {
     use bsp::hal::clocks::init_clocks_and_plls;
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
     use defmt::info;
+    use rtic_monotonics::Monotonic;
     use rtic_monotonics::rp2040::Timer;
     // use fugit::RateExtU32;
     use rtic_monotonics::rp2040::ExtU64;
@@ -117,26 +118,36 @@ mod app {
 
     #[task(local = [], shared = [led_manager])]
     async fn heartbeat(mut ctx: heartbeat::Context) {
+        ctx.shared.led_manager.lock(|led_manager| {
+            led_manager.clear_global();
+        });
+        let mut now = Timer::now();
         loop {
             info!("Qwerty");
             ctx.shared.led_manager.lock(|led_manager| {
                 led_manager.set_base(&QWERTY_SELECT_INDICATOR);
             });
-            Timer::delay(1000.millis()).await;
+            now += 1000.millis();
+            Timer::delay_until(now).await;
+            info!("STENO");
             ctx.shared.led_manager.lock(|led_manager| {
                 led_manager.set_base(&STENO_SELECT_INDICATOR);
             });
+            now += 1000.millis();
+            Timer::delay_until(now).await;
         }
     }
 
     #[task(shared = [led_manager])]
     async fn led_task(mut ctx: led_task::Context) {
+        let mut next = Timer::now() + 1.millis();
         loop {
-            info!("led poll");
+            // info!("led poll");
             ctx.shared.led_manager.lock(|led_manager| {
                 led_manager.tick();
             });
-            Timer::delay(250.millis()).await;
+            Timer::delay_until(next).await;
+            next += 1.millis();
         }
     }
 }
