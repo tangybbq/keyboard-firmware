@@ -31,7 +31,7 @@ impl Modifiers {
 
     // TODO: Improve this beyond just a linear search. We probably want to be
     // able to build simple dictionaries at compile time.
-    const LETTERS: &[SimpleEntry] = &[
+    const LETTERS: &'static [SimpleEntry] = &[
         SimpleEntry { stroke: stroke!("A"), text: "a" },
         SimpleEntry { stroke: stroke!("PW"), text: "b" },
         SimpleEntry { stroke: stroke!("KR"), text: "c" },
