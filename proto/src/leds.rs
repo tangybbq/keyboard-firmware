@@ -20,17 +20,35 @@ struct Step {
 /// Indicates we are initializing, waiting for either USB configuration, or
 /// successful communication with the primary side, which does have USB.
 pub static INIT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(8, 0, 0), count: 100 },
-    Step { color: RGB8::new(0, 8, 0), count: 100 },
-    Step { color: RGB8::new(0, 0, 8), count: 100 },
-    Step { color: OFF,                count: 300 },
+    Step {
+        color: RGB8::new(8, 0, 0),
+        count: 100,
+    },
+    Step {
+        color: RGB8::new(0, 8, 0),
+        count: 100,
+    },
+    Step {
+        color: RGB8::new(0, 0, 8),
+        count: 100,
+    },
+    Step {
+        color: OFF,
+        count: 300,
+    },
 ]);
 
 /// Indicates we are connected to USB, but haven't established communication
 /// with the other half of the keyboard.
 pub static USB_PRIMARY: Indication = Indication(&[
-    Step { color: RGB8::new(8, 8, 0), count: 300 },
-    Step { color: OFF,                count: 300 },
+    Step {
+        color: RGB8::new(8, 8, 0),
+        count: 300,
+    },
+    Step {
+        color: OFF,
+        count: 300,
+    },
 ]);
 
 /// Just off.
@@ -42,58 +60,93 @@ pub static OFF_INDICATOR: Indication = Indication(&[
 
 /// Show we are sleeping.
 pub static SLEEP_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(0, 0, 8), count: 3000 },
-    Step { color: RGB8::new(0, 0, 16), count: 3000 },
+    Step {
+        color: RGB8::new(0, 0, 8),
+        count: 3000,
+    },
+    Step {
+        color: RGB8::new(0, 0, 16),
+        count: 3000,
+    },
 ]);
 
 /// Steno mode
-pub static STENO_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(0, 0, 32), count: 10000 },
-]);
+pub static STENO_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(0, 0, 32),
+    count: 10000,
+}]);
 
 /// Steno mode select
 pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(0, 0, 32), count: 100 },
-    Step { color: RGB8::new(0, 0,  0), count: 100 },
+    Step {
+        color: RGB8::new(0, 0, 32),
+        count: 100,
+    },
+    Step {
+        color: RGB8::new(0, 0, 0),
+        count: 100,
+    },
 ]);
 
 /// NKRO steno mode
-pub static NKRO_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(32, 0, 32), count: 10000 },
-]);
+pub static NKRO_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(32, 0, 32),
+    count: 10000,
+}]);
 
 /// NKRO steno select mode
 pub static NKRO_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(32, 0, 32), count: 100 },
-    Step { color: RGB8::new( 0, 0,  0), count: 100 },
+    Step {
+        color: RGB8::new(32, 0, 32),
+        count: 100,
+    },
+    Step {
+        color: RGB8::new(0, 0, 0),
+        count: 100,
+    },
 ]);
 
 /// Artsey mode
-pub static ARTSEY_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(16, 0, 0), count: 10000 },
-]);
+pub static ARTSEY_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(16, 0, 0),
+    count: 10000,
+}]);
 
 /// Artsey select mode
 pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(16, 0, 0), count: 100 },
-    Step { color: RGB8::new( 0, 0, 0), count: 100 },
+    Step {
+        color: RGB8::new(16, 0, 0),
+        count: 100,
+    },
+    Step {
+        color: RGB8::new(0, 0, 0),
+        count: 100,
+    },
 ]);
 
 /// Qwerty mode
-pub static QWERTY_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(0, 16, 0), count: 10000 },
-]);
+pub static QWERTY_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(0, 16, 0),
+    count: 10000,
+}]);
 
 /// Qwerty select mode
 pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(0, 16, 0), count: 100 },
-    Step { color: RGB8::new( 0, 0, 0), count: 100 },
+    Step {
+        color: RGB8::new(0, 16, 0),
+        count: 100,
+    },
+    Step {
+        color: RGB8::new(0, 0, 0),
+        count: 100,
+    },
 ]);
 
 /// Artsey Nav mode
-pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(20, 20, 0), count: 10000 },
-]);
+pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(20, 20, 0),
+    count: 10000,
+}]);
 
 pub struct LedManager<L: SmartLedsWrite<Color = RGB8>> {
     leds: L,

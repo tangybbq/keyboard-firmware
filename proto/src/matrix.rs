@@ -3,7 +3,7 @@
 use core::fmt::Debug;
 
 use defmt::warn;
-use embedded_hal::digital::v2::{OutputPin, InputPin};
+use embedded_hal::digital::v2::{InputPin, OutputPin};
 
 use bbq_keyboard::{Event, KeyEvent, Side};
 // use rtic_monotonics::Monotonic;
@@ -12,40 +12,45 @@ use rtic_monotonics::rp2040::Timer;
 use rtic_sync::channel::Sender;
 
 pub struct Matrix<
-        E,
-        I: InputPin<Error = E>,
+    E,
+    I: InputPin<Error = E>,
     O: OutputPin<Error = E>,
     const NCOLS: usize,
     const NROWS: usize,
     const NKEYS: usize,
-    > {
+> {
     cols: [O; NCOLS],
     rows: [I; NROWS],
     keys: [Debouncer; NKEYS],
     side: Side,
 }
 
-impl<E: Debug,
-     I: InputPin<Error = E>,
-     O: OutputPin<Error = E>,
-     const NCOLS: usize,
-     const NROWS: usize,
-     const NKEYS: usize>
-    Matrix<E, I, O, NCOLS, NROWS, NKEYS>
+impl<
+        E: Debug,
+        I: InputPin<Error = E>,
+        O: OutputPin<Error = E>,
+        const NCOLS: usize,
+        const NROWS: usize,
+        const NKEYS: usize,
+    > Matrix<E, I, O, NCOLS, NROWS, NKEYS>
 {
-    pub fn new(
-        cols: [O; NCOLS],
-        rows: [I; NROWS],
-        side: Side,
-    ) -> Self {
+    pub fn new(cols: [O; NCOLS], rows: [I; NROWS], side: Side) -> Self {
         let keys = [Debouncer::new(); NKEYS];
-        Matrix { cols, rows, keys, side }
+        Matrix {
+            cols,
+            rows,
+            keys,
+            side,
+        }
     }
 
     // pub fn poll(&mut self) {
     // }
 
-    pub(crate) async fn tick<'a>(&mut self, events: &mut Sender<'a, Event, {crate::app::EVENT_CAPACITY}>) {
+    pub(crate) async fn tick<'a>(
+        &mut self,
+        events: &mut Sender<'a, Event, { crate::app::EVENT_CAPACITY }>,
+    ) {
         for col in 0..self.cols.len() {
             self.cols[col].set_high().unwrap();
             for row in 0..self.rows.len() {

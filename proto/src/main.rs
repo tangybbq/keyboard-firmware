@@ -4,15 +4,18 @@
 
 // This is needed by RTIC.
 #![feature(type_alias_impl_trait)]
-
 #![no_std]
 #![no_main]
 
 extern crate alloc;
 
-use core::{sync::atomic::{Ordering, AtomicU8}, mem::MaybeUninit, convert::Infallible};
+use core::{
+    convert::Infallible,
+    mem::MaybeUninit,
+    sync::atomic::{AtomicU8, Ordering},
+};
 
-use bsp::hal::gpio::{Pin, DynPinId, FunctionSio, SioInput, PullDown, SioOutput};
+use bsp::hal::gpio::{DynPinId, FunctionSio, Pin, PullDown, SioInput, SioOutput};
 use defmt_rtt as _;
 use embedded_alloc::Heap;
 use matrix::Matrix;
@@ -94,19 +97,20 @@ mod board {
     pub(crate) use rows;
 }
 
-type MatrixType = Matrix<Infallible,
-                         Pin<DynPinId, FunctionSio<SioInput>, PullDown>,
-                         Pin<DynPinId, FunctionSio<SioOutput>, PullDown>,
-                         {board::NCOLS}, {board::NROWS}, {board::NKEYS}>;
+type MatrixType = Matrix<
+    Infallible,
+    Pin<DynPinId, FunctionSio<SioInput>, PullDown>,
+    Pin<DynPinId, FunctionSio<SioOutput>, PullDown>,
+    { board::NCOLS },
+    { board::NROWS },
+    { board::NKEYS },
+>;
 
 #[rtic::app(
     device = crate::bsp::pac,
     // dispatchers = [TIMER_IRQ_1],
 )]
 mod app {
-    use crate::HEAP;
-    use crate::HEAP_SIZE;
-    use crate::HEAP_MEM;
     use crate::bsp;
     use crate::leds;
     use crate::leds::QWERTY_SELECT_INDICATOR;
@@ -114,22 +118,25 @@ mod app {
     use crate::leds::STENO_SELECT_INDICATOR;
     use crate::matrix::Matrix;
     use crate::MatrixType;
+    use crate::HEAP;
+    use crate::HEAP_MEM;
+    use crate::HEAP_SIZE;
     use bbq_keyboard::Event;
     use bbq_keyboard::Side;
-    use bsp::hal::Clock;
-    use bsp::hal::Sio;
+    use bsp::hal::clocks::init_clocks_and_plls;
     use bsp::hal::gpio::DynPinId;
     use bsp::hal::gpio::FunctionPio0;
     use bsp::hal::gpio::Pin;
-    use bsp::hal::gpio::PullDown;
     use bsp::hal::gpio::PinState;
-    use bsp::hal::pio::{SM0, PIOExt};
+    use bsp::hal::gpio::PullDown;
     use bsp::hal::pac::PIO0;
-    use bsp::hal::clocks::init_clocks_and_plls;
+    use bsp::hal::pio::{PIOExt, SM0};
+    use bsp::hal::Clock;
+    use bsp::hal::Sio;
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
     use defmt::info;
-    use rtic_monotonics::Monotonic;
     use rtic_monotonics::rp2040::Timer;
+    use rtic_monotonics::Monotonic;
     // use fugit::RateExtU32;
     use rtic_monotonics::rp2040::ExtU64;
     use rtic_sync::channel::Receiver;
@@ -141,7 +148,8 @@ mod app {
 
     #[shared]
     struct Shared {
-        led_manager: leds::LedManager<Ws2812Direct<PIO0, SM0, Pin<DynPinId, FunctionPio0, PullDown>>>,
+        led_manager:
+            leds::LedManager<Ws2812Direct<PIO0, SM0, Pin<DynPinId, FunctionPio0, PullDown>>>,
     }
 
     #[local]
@@ -248,8 +256,8 @@ mod app {
         }
         // Change to a settled mode.
         ctx.shared.led_manager.lock(|led_manager| {
-                led_manager.set_base(&STENO_INDICATOR);
-            });
+            led_manager.set_base(&STENO_INDICATOR);
+        });
     }
 
     #[task(shared = [led_manager])]
@@ -266,7 +274,10 @@ mod app {
     }
 
     #[task(local = [matrix])]
-    async fn matrix_task(ctx: matrix_task::Context, mut send: Sender<'static, Event, EVENT_CAPACITY>) {
+    async fn matrix_task(
+        ctx: matrix_task::Context,
+        mut send: Sender<'static, Event, EVENT_CAPACITY>,
+    ) {
         let mut now = Timer::now();
         loop {
             ctx.local.matrix.tick(&mut send).await;
@@ -278,7 +289,10 @@ mod app {
     /// The main event processor. This is responsible for receiving events, and
     /// dispatching them to appropriate other parts of the system.
     #[task]
-    async fn event_task(_ctx: event_task::Context, mut recv: Receiver<'static, Event, EVENT_CAPACITY>) {
+    async fn event_task(
+        _ctx: event_task::Context,
+        mut recv: Receiver<'static, Event, EVENT_CAPACITY>,
+    ) {
         loop {
             while let Ok(event) = recv.recv().await {
                 let msg = alloc::format!("Event: {:?}", event);
@@ -296,8 +310,7 @@ static GATE: AtomicU8 = AtomicU8::new(0);
 #[inline(never)]
 #[allow(dead_code)]
 fn stall(gate: u8) {
-    while GATE.load(Ordering::Acquire) < gate {
-    }
+    while GATE.load(Ordering::Acquire) < gate {}
 }
 
 /*
