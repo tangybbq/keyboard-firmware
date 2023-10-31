@@ -23,6 +23,7 @@ use panic_probe as _;
 
 use sparkfun_pro_micro_rp2040 as bsp;
 
+mod board;
 mod leds;
 mod matrix;
 
@@ -30,72 +31,6 @@ mod matrix;
 static HEAP: Heap = Heap::empty();
 static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
 const HEAP_SIZE: usize = 8192;
-
-// TODO: Move all of this board specific stuff into the board crates.
-
-macro_rules! col_pins {
-    ($pins:expr, $($pin:ident),*) => {
-        [
-            $($pins.$pin
-              .into_push_pull_output_in_state(PinState::Low)
-              .into_dyn_pin()),*
-        ]
-    };
-}
-pub(crate) use col_pins;
-
-macro_rules! row_pins {
-    ($pins:expr, $($pin:ident),*) => {
-        [
-            $($pins.$pin
-              .into_pull_down_input()
-              .into_dyn_pin()),*
-        ]
-    };
-}
-pub(crate) use row_pins;
-
-// Define board specific stuff.  TODO: Can we include more here?
-#[cfg(feature = "proto2")]
-mod board {
-    pub const NCOLS: usize = 5;
-    pub const NROWS: usize = 3;
-    pub const NKEYS: usize = NCOLS * NROWS;
-
-    macro_rules! cols {
-        ($pins:expr) => {
-            crate::col_pins!($pins, gpio2, gpio3, gpio4, gpio5, gpio6)
-        };
-    }
-    pub(crate) use cols;
-
-    macro_rules! rows {
-        ($pins:expr) => {
-            crate::row_pins!($pins, gpio7, adc0, sck)
-        };
-    }
-    pub(crate) use rows;
-}
-#[cfg(feature = "proto3")]
-mod board {
-    pub const NCOLS: usize = 6;
-    pub const NROWS: usize = 4;
-    pub const NKEYS: usize = NCOLS * NROWS;
-
-    macro_rules! cols {
-        ($pins:expr) => {
-            crate::col_pins!($pins, gpio2, gpio3, gpio4, gpio5, gpio6, gpio7)
-        };
-    }
-    pub(crate) use cols;
-
-    macro_rules! rows {
-        ($pins:expr) => {
-            crate::row_pins!($pins, adc3, adc2, adc1, adc0)
-        };
-    }
-    pub(crate) use rows;
-}
 
 type MatrixType = Matrix<
     Infallible,
