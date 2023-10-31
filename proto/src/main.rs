@@ -2,25 +2,102 @@
 //!
 //! This will blink an LED attached to GP25, which is the pin the Pico uses for the on-board LED.
 
+// This is needed by RTIC.
 #![feature(type_alias_impl_trait)]
 
 #![no_std]
 #![no_main]
 
-use core::{sync::atomic::{Ordering, AtomicU8}, mem::MaybeUninit};
+extern crate alloc;
 
+use core::{sync::atomic::{Ordering, AtomicU8}, mem::MaybeUninit, convert::Infallible};
+
+use bsp::hal::gpio::{Pin, DynPinId, FunctionSio, SioInput, PullDown, SioOutput};
 use defmt_rtt as _;
 use embedded_alloc::Heap;
+use matrix::Matrix;
 use panic_probe as _;
 
 use sparkfun_pro_micro_rp2040 as bsp;
 
 mod leds;
+mod matrix;
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
 static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
 const HEAP_SIZE: usize = 8192;
+
+// TODO: Move all of this board specific stuff into the board crates.
+
+macro_rules! col_pins {
+    ($pins:expr, $($pin:ident),*) => {
+        [
+            $($pins.$pin
+              .into_push_pull_output_in_state(PinState::Low)
+              .into_dyn_pin()),*
+        ]
+    };
+}
+pub(crate) use col_pins;
+
+macro_rules! row_pins {
+    ($pins:expr, $($pin:ident),*) => {
+        [
+            $($pins.$pin
+              .into_pull_down_input()
+              .into_dyn_pin()),*
+        ]
+    };
+}
+pub(crate) use row_pins;
+
+// Define board specific stuff.  TODO: Can we include more here?
+#[cfg(feature = "proto2")]
+mod board {
+    pub const NCOLS: usize = 5;
+    pub const NROWS: usize = 3;
+    pub const NKEYS: usize = NCOLS * NROWS;
+
+    macro_rules! cols {
+        ($pins:expr) => {
+            crate::col_pins!($pins, gpio2, gpio3, gpio4, gpio5, gpio6)
+        };
+    }
+    pub(crate) use cols;
+
+    macro_rules! rows {
+        ($pins:expr) => {
+            crate::row_pins!($pins, gpio7, adc0, sck)
+        };
+    }
+    pub(crate) use rows;
+}
+#[cfg(feature = "proto3")]
+mod board {
+    pub const NCOLS: usize = 6;
+    pub const NROWS: usize = 4;
+    pub const NKEYS: usize = NCOLS * NROWS;
+
+    macro_rules! cols {
+        ($pins:expr) => {
+            crate::col_pins!($pins, gpio2, gpio3, gpio4, gpio5, gpio6, gpio7)
+        };
+    }
+    pub(crate) use cols;
+
+    macro_rules! rows {
+        ($pins:expr) => {
+            crate::row_pins!($pins, adc3, adc2, adc1, adc0)
+        };
+    }
+    pub(crate) use rows;
+}
+
+type MatrixType = Matrix<Infallible,
+                         Pin<DynPinId, FunctionSio<SioInput>, PullDown>,
+                         Pin<DynPinId, FunctionSio<SioOutput>, PullDown>,
+                         {board::NCOLS}, {board::NROWS}, {board::NKEYS}>;
 
 #[rtic::app(
     device = crate::bsp::pac,
@@ -35,12 +112,17 @@ mod app {
     use crate::leds::QWERTY_SELECT_INDICATOR;
     use crate::leds::STENO_INDICATOR;
     use crate::leds::STENO_SELECT_INDICATOR;
+    use crate::matrix::Matrix;
+    use crate::MatrixType;
+    use bbq_keyboard::Event;
+    use bbq_keyboard::Side;
     use bsp::hal::Clock;
     use bsp::hal::Sio;
     use bsp::hal::gpio::DynPinId;
     use bsp::hal::gpio::FunctionPio0;
     use bsp::hal::gpio::Pin;
     use bsp::hal::gpio::PullDown;
+    use bsp::hal::gpio::PinState;
     use bsp::hal::pio::{SM0, PIOExt};
     use bsp::hal::pac::PIO0;
     use bsp::hal::clocks::init_clocks_and_plls;
@@ -50,7 +132,12 @@ mod app {
     use rtic_monotonics::rp2040::Timer;
     // use fugit::RateExtU32;
     use rtic_monotonics::rp2040::ExtU64;
+    use rtic_sync::channel::Receiver;
+    use rtic_sync::channel::Sender;
+    use rtic_sync::make_channel;
     use ws2812_pio::Ws2812Direct;
+
+    pub const EVENT_CAPACITY: usize = 64;
 
     #[shared]
     struct Shared {
@@ -59,6 +146,7 @@ mod app {
 
     #[local]
     struct Local {
+        matrix: MatrixType,
     }
 
     #[init]
@@ -118,12 +206,24 @@ mod app {
         );
         let led_manager = leds::LedManager::new(ws);
 
+        // Build handler for the matrix handler.
+        let matrix = {
+            let cols = crate::board::cols!(pins);
+            let rows = crate::board::rows!(pins);
+            // TODO: Calculate side.
+            Matrix::new(cols, rows, Side::Left)
+        };
+
+        let (event_send, event_receive) = make_channel!(Event, EVENT_CAPACITY);
+
         heartbeat::spawn().unwrap();
         led_task::spawn().unwrap();
+        matrix_task::spawn(event_send).unwrap();
+        event_task::spawn(event_receive).unwrap();
 
         // let _timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS, &clocks);
 
-        (Shared { led_manager }, Local {})
+        (Shared { led_manager }, Local { matrix })
     }
 
     #[task(local = [], shared = [led_manager])]
@@ -132,7 +232,7 @@ mod app {
             led_manager.clear_global();
         });
         let mut now = Timer::now();
-        for _ in 0..10 {
+        for _ in 0..1 {
             info!("Qwerty");
             ctx.shared.led_manager.lock(|led_manager| {
                 led_manager.set_base(&QWERTY_SELECT_INDICATOR);
@@ -162,6 +262,28 @@ mod app {
             });
             Timer::delay_until(next).await;
             next += 1.millis();
+        }
+    }
+
+    #[task(local = [matrix])]
+    async fn matrix_task(ctx: matrix_task::Context, mut send: Sender<'static, Event, EVENT_CAPACITY>) {
+        let mut now = Timer::now();
+        loop {
+            ctx.local.matrix.tick(&mut send).await;
+            now += 1.millis();
+            Timer::delay_until(now).await;
+        }
+    }
+
+    /// The main event processor. This is responsible for receiving events, and
+    /// dispatching them to appropriate other parts of the system.
+    #[task]
+    async fn event_task(_ctx: event_task::Context, mut recv: Receiver<'static, Event, EVENT_CAPACITY>) {
+        loop {
+            while let Ok(event) = recv.recv().await {
+                let msg = alloc::format!("Event: {:?}", event);
+                info!("Event: {=str}", msg);
+            }
         }
     }
 }
