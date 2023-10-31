@@ -119,7 +119,7 @@ impl LayoutManager {
 }
 
 /// The global keyboard mode.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LayoutMode {
     Steno,
     Artsey,

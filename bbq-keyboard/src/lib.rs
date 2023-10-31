@@ -96,7 +96,7 @@ impl KeyEvent {
 }
 
 /// Indicates keypress that should be sent to the host.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum KeyAction {
     KeyPress(Keyboard, Mods),
     ModOnly(Mods),
@@ -107,7 +107,7 @@ pub enum KeyAction {
 bitflags! {
     /// A modifier map. This indicates what modifiers should be held down when
     /// this keypress is sent.
-    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
     pub struct Mods: u8 {
         const SHIFT = 0b0000_0001;
         const CONTROL = 0b0000_0010;
@@ -118,6 +118,7 @@ bitflags! {
 
 /// An event is something that happens in a handler to indicate some action
 /// likely needs to be performed on it.
+#[derive(Debug)]
 pub enum Event {
     /// Events from the Matrix layer indicating changes in key actions.
     Matrix(KeyEvent),
@@ -170,13 +171,14 @@ impl EventQueue {
 }
 
 /// State of inter communication.
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub enum InterState {
     Idle,
     Primary,
     Secondary,
 }
 
+#[derive(Debug)]
 pub enum MinorMode {
     // To start with, just distinguish artsy main from artsy nav mode.
     ArtseyMain,
