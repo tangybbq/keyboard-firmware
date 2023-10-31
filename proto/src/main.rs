@@ -26,6 +26,7 @@ use sparkfun_pro_micro_rp2040 as bsp;
 mod board;
 mod leds;
 mod matrix;
+mod usb;
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
@@ -43,11 +44,14 @@ type MatrixType = Matrix<
 
 #[rtic::app(
     device = crate::bsp::pac,
+    dispatchers = [SW0_IRQ, SW1_IRQ],
     // dispatchers = [TIMER_IRQ_1],
 )]
 mod app {
+    use core::mem::MaybeUninit;
     use crate::bsp;
     use crate::leds;
+    use crate::usb;
     use crate::leds::QWERTY_SELECT_INDICATOR;
     use crate::leds::STENO_INDICATOR;
     use crate::leds::STENO_SELECT_INDICATOR;
@@ -68,6 +72,7 @@ mod app {
     use bsp::hal::pio::{PIOExt, SM0};
     use bsp::hal::Clock;
     use bsp::hal::Sio;
+    use bsp::hal::usb::UsbBus;
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
     use defmt::info;
     use rtic_monotonics::rp2040::Timer;
@@ -77,6 +82,7 @@ mod app {
     use rtic_sync::channel::Receiver;
     use rtic_sync::channel::Sender;
     use rtic_sync::make_channel;
+    use usb_device::class_prelude::UsbBusAllocator;
     use ws2812_pio::Ws2812Direct;
 
     pub const EVENT_CAPACITY: usize = 64;
@@ -85,14 +91,18 @@ mod app {
     struct Shared {
         led_manager:
             leds::LedManager<Ws2812Direct<PIO0, SM0, Pin<DynPinId, FunctionPio0, PullDown>>>,
+        usb_handler: usb::UsbHandler<'static, UsbBus>,
     }
 
     #[local]
     struct Local {
         matrix: MatrixType,
+        usb_event: Sender<'static, Event, EVENT_CAPACITY>,
     }
 
-    #[init]
+    #[init(local=[
+        usb_bus: MaybeUninit<UsbBusAllocator<UsbBus>> = MaybeUninit::uninit()
+    ])]
     fn init(mut ctx: init::Context) -> (Shared, Local) {
         // When using the picoprobe, it only resets the core and not any
         // peripherals. This causes it sometimes to get into a state where the
@@ -157,16 +167,50 @@ mod app {
             Matrix::new(cols, rows, Side::Left)
         };
 
+        let usb_bus: &'static _ = ctx.local.usb_bus.write(UsbBusAllocator::new(hal::usb::UsbBus::new(
+            ctx.device.USBCTRL_REGS,
+            ctx.device.USBCTRL_DPRAM,
+            clocks.usb_clock,
+            true,
+            &mut ctx.device.RESETS,
+        )));
+        let usb_handler = usb::UsbHandler::new(&usb_bus);
+
         let (event_send, event_receive) = make_channel!(Event, EVENT_CAPACITY);
+
+        let usb_event = event_send.clone();
 
         heartbeat::spawn().unwrap();
         led_task::spawn().unwrap();
         matrix_task::spawn(event_send).unwrap();
         event_task::spawn(event_receive).unwrap();
+        usb_periodic::spawn().unwrap();
 
         // let _timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS, &clocks);
 
-        (Shared { led_manager }, Local { matrix })
+        (Shared { led_manager, usb_handler }, Local { matrix, usb_event })
+    }
+
+    #[task(binds = USBCTRL_IRQ, shared = [usb_handler], local = [usb_event])]
+    fn usbctrl_irq(mut cx: usbctrl_irq::Context) {
+        cx.shared.usb_handler.lock(|usb_handler| {
+            usb_handler.poll(cx.local.usb_event);
+        });
+    }
+
+    /// The USB periodic task. This runs every 1ms to check if there are keys to
+    /// send.
+    #[task(shared = [usb_handler])]
+    async fn usb_periodic(mut ctx: usb_periodic::Context) {
+        let mut now = Timer::now();
+        loop {
+            now += 1000.millis();
+            Timer::delay_until(now).await;
+
+            ctx.shared.usb_handler.lock(|usb_handler| {
+                usb_handler.tick();
+            });
+        }
     }
 
     #[task(local = [], shared = [led_manager])]
