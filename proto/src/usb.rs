@@ -43,6 +43,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             .device_class(0)
             .max_power(500)
             .supports_remote_wakeup(true)
+            .max_packet_size_0(64)
             .build();
         UsbHandler {
             hid: keyboard,
