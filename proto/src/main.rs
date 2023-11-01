@@ -49,21 +49,21 @@ type MatrixType = Matrix<
     // dispatchers = [TIMER_IRQ_1],
 )]
 mod app {
-    use core::iter::once;
-    use core::mem::MaybeUninit;
     use crate::bsp;
     use crate::inter;
     use crate::leds;
-    use crate::usb;
     use crate::leds::QWERTY_SELECT_INDICATOR;
     use crate::leds::STENO_INDICATOR;
     use crate::leds::STENO_SELECT_INDICATOR;
     use crate::matrix::Matrix;
+    use crate::usb;
     use crate::MatrixType;
     use crate::HEAP;
     use crate::HEAP_MEM;
     use crate::HEAP_SIZE;
     use arrayvec::ArrayString;
+    use bbq_keyboard::layout::LayoutManager;
+    use bbq_keyboard::usb_typer::enqueue_action;
     use bbq_keyboard::Event;
     use bbq_keyboard::EventQueue;
     use bbq_keyboard::InterState;
@@ -72,31 +72,31 @@ mod app {
     use bbq_keyboard::MinorMode;
     use bbq_keyboard::Side;
     use bbq_keyboard::Timable;
-    use bbq_keyboard::layout::LayoutManager;
-    use bbq_keyboard::usb_typer::enqueue_action;
     use bsp::hal::clocks::init_clocks_and_plls;
+    use bsp::hal::gpio::bank0::Gpio8;
+    use bsp::hal::gpio::bank0::Gpio9;
     use bsp::hal::gpio::DynPinId;
     use bsp::hal::gpio::FunctionPio0;
     use bsp::hal::gpio::FunctionUart;
     use bsp::hal::gpio::Pin;
     use bsp::hal::gpio::PinState;
     use bsp::hal::gpio::PullDown;
-    use bsp::hal::gpio::bank0::Gpio8;
-    use bsp::hal::gpio::bank0::Gpio9;
     use bsp::hal::pac::PIO0;
     use bsp::hal::pac::UART1;
     use bsp::hal::pio::{PIOExt, SM0};
-    use bsp::hal::Clock;
-    use bsp::hal::Sio;
     use bsp::hal::uart::DataBits;
     use bsp::hal::uart::StopBits;
     use bsp::hal::uart::UartConfig;
     use bsp::hal::usb::UsbBus;
+    use bsp::hal::Clock;
+    use bsp::hal::Sio;
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
-    use embedded_hal::digital::v2::InputPin;
-    use defmt::warn;
-    use fugit::{RateExtU32};
+    use core::iter::once;
+    use core::mem::MaybeUninit;
     use defmt::info;
+    use defmt::warn;
+    use embedded_hal::digital::v2::InputPin;
+    use fugit::RateExtU32;
     use rtic_monotonics::rp2040::Timer;
     use rtic_monotonics::Monotonic;
     // use fugit::RateExtU32;
@@ -110,14 +110,14 @@ mod app {
 
     pub const EVENT_CAPACITY: usize = 200;
 
-    type UartPinout = (Pin<Gpio8, FunctionUart, PullDown>,
-                       Pin<Gpio9, FunctionUart, PullDown>);
+    type UartPinout = (
+        Pin<Gpio8, FunctionUart, PullDown>,
+        Pin<Gpio9, FunctionUart, PullDown>,
+    );
 
     #[shared]
     struct Shared {
-        inter_handler:
-            inter::InterHandler<
-                    UART1, UartPinout>,
+        inter_handler: inter::InterHandler<UART1, UartPinout>,
         layout_manager: LayoutManager,
         led_manager:
             leds::LedManager<Ws2812Direct<PIO0, SM0, Pin<DynPinId, FunctionPio0, PullDown>>>,
@@ -212,27 +212,31 @@ mod app {
             pins.tx1.into_function::<hal::gpio::FunctionUart>(),
             pins.rx1.into_function::<hal::gpio::FunctionUart>(),
         );
-        let uart = hal::uart::UartPeripheral::new(ctx.device.UART1, uart_pins, &mut ctx.device.RESETS)
-            .enable(
-                // Ideally, being above 320k will allow full frames to be sent
-                // each tick. This number is chosen to be an exact divisor of
-                // the clock rate.
-                UartConfig::new(390625.Hz(), DataBits::Eight, None, StopBits::One),
-                clocks.peripheral_clock.freq(),
-            )
-            .unwrap();
+        let uart =
+            hal::uart::UartPeripheral::new(ctx.device.UART1, uart_pins, &mut ctx.device.RESETS)
+                .enable(
+                    // Ideally, being above 320k will allow full frames to be sent
+                    // each tick. This number is chosen to be an exact divisor of
+                    // the clock rate.
+                    UartConfig::new(390625.Hz(), DataBits::Eight, None, StopBits::One),
+                    clocks.peripheral_clock.freq(),
+                )
+                .unwrap();
 
         let inter_handler = inter::InterHandler::new(uart, side);
 
         let layout_manager = LayoutManager::new();
 
-        let usb_bus: &'static _ = ctx.local.usb_bus.write(UsbBusAllocator::new(hal::usb::UsbBus::new(
-            ctx.device.USBCTRL_REGS,
-            ctx.device.USBCTRL_DPRAM,
-            clocks.usb_clock,
-            true,
-            &mut ctx.device.RESETS,
-        )));
+        let usb_bus: &'static _ =
+            ctx.local
+                .usb_bus
+                .write(UsbBusAllocator::new(hal::usb::UsbBus::new(
+                    ctx.device.USBCTRL_REGS,
+                    ctx.device.USBCTRL_DPRAM,
+                    clocks.usb_clock,
+                    true,
+                    &mut ctx.device.RESETS,
+                )));
         let usb_handler = usb::UsbHandler::new(&usb_bus);
 
         let (event_send, event_receive) = make_channel!(Event, EVENT_CAPACITY);
@@ -252,8 +256,21 @@ mod app {
 
         // let _timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS, &clocks);
 
-        (Shared { inter_handler, layout_manager, led_manager, usb_handler },
-         Local { matrix, layout_event, usb_event, inter_event, event_event })
+        (
+            Shared {
+                inter_handler,
+                layout_manager,
+                led_manager,
+                usb_handler,
+            },
+            Local {
+                matrix,
+                layout_event,
+                usb_event,
+                inter_event,
+                event_event,
+            },
+        )
     }
 
     #[task(binds = USBCTRL_IRQ, shared = [usb_handler], local = [usb_event])]
@@ -373,9 +390,7 @@ mod app {
         //     });
         // };
         ($ctx: ident, $var:ident, $body:expr) => {
-            $ctx.shared.$var.lock(|$var| {
-                $body
-            });
+            $ctx.shared.$var.lock(|$var| $body);
         };
     }
 
@@ -399,7 +414,8 @@ mod app {
                                 layout_manager.handle_event(
                                     key,
                                     &mut EventWrapper(ctx.local.event_event),
-                                    &WrapTimer);
+                                    &WrapTimer,
+                                );
                             });
                         }
                         InterState::Secondary => {
@@ -422,7 +438,8 @@ mod app {
                             layout_manager.handle_event(
                                 key,
                                 &mut EventWrapper(ctx.local.event_event),
-                                &WrapTimer);
+                                &WrapTimer,
+                            );
                         });
                     }
                 }
@@ -455,7 +472,11 @@ mod app {
                 }
                 Event::UsbState(UsbDeviceState::Suspend) => {
                     // This indicates the host has gone to sleep.
-                    lock!(ctx, led_manager, led_manager.set_global(&leds::SLEEP_INDICATOR));
+                    lock!(
+                        ctx,
+                        led_manager,
+                        led_manager.set_global(&leds::SLEEP_INDICATOR)
+                    );
                     // flashing = true;
                     usb_suspended = true;
                 }
