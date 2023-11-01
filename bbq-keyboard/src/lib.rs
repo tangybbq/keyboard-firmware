@@ -10,7 +10,6 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use arraydeque::ArrayDeque;
 use bbq_steno::Stroke;
 use usbd_human_interface_device::page::Keyboard;
 use usb_device::prelude::UsbDeviceState;
@@ -37,8 +36,6 @@ mod log {
     pub use defmt::info;
     pub use defmt::warn;
 }
-
-use log::*;
 
 /// Which side of the keyboard are we.
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -152,22 +149,13 @@ pub enum Event {
     Indicator(MinorMode),
 }
 
-pub struct EventQueue(ArrayDeque<Event, 256>);
-
-impl EventQueue {
-    pub fn new() -> Self {
-        EventQueue(ArrayDeque::new())
-    }
-
-    pub fn push(&mut self, event: Event) {
-        if let Err(_) = self.0.push_back(event) {
-            warn!("Internal event queue overflow");
-        }
-    }
-
-    pub fn pop(&mut self) -> Option<Event> {
-        self.0.pop_front()
-    }
+/// A generalized event queue.  TODO: Handle the error better.  For now, we
+/// don't do anything with the error, so might as well.
+pub trait EventQueue {
+    // Attempt to push to the queue.  Events will be discarded if the queue is full.
+    fn push(&mut self, val: Event);
+    // This is not currently supported, but could be with async-trait.
+    // async fn send(&mut self, val: Event) -> Result<(), ()>;
 }
 
 /// State of inter communication.
@@ -176,6 +164,16 @@ pub enum InterState {
     Idle,
     Primary,
     Secondary,
+}
+
+impl defmt::Format for InterState {
+    fn format(&self, fmt: defmt::Formatter) {
+        match self {
+            InterState::Idle => defmt::write!(fmt, "idle"),
+            InterState::Primary => defmt::write!(fmt, "primary"),
+            InterState::Secondary => defmt::write!(fmt, "secondary"),
+        }
+    }
 }
 
 #[derive(Debug)]

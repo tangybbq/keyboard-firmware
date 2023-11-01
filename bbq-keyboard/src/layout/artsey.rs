@@ -422,7 +422,7 @@ impl ArtseyManager {
     }
 
     /// Tick is needed to track time for determining time.
-    pub fn tick(&mut self, events: &mut EventQueue) {
+    pub fn tick(&mut self, events: &mut dyn EventQueue) {
         // If we've seen keys, bump the age, and then when they have been down
         // sufficiently long to be considered together, process them as a send
         // event.
@@ -452,7 +452,7 @@ impl ArtseyManager {
         }
     }
 
-    fn handle_down(&mut self, events: &mut EventQueue) {
+    fn handle_down(&mut self, events: &mut dyn EventQueue) {
         let base_mods = self.locked | self.oneshot;
 
         match self.mapping.iter().find(|e| e.code == self.seen) {
@@ -511,7 +511,7 @@ impl ArtseyManager {
     }
 
     /// Handle a single key event.
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue) {
+    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) {
         // info!("Artsey {}", event);
         match event {
             KeyEvent::Press(k) => {

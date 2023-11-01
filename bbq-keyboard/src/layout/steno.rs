@@ -44,7 +44,7 @@ impl RawStenoHandler {
     pub fn poll(&mut self) {}
 
     // Handle a single event.
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue, timer: &dyn Timable) {
+    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue, timer: &dyn Timable) {
         let key = event.key();
         if key as usize >= STENO_KEYS.len() {
             return;
