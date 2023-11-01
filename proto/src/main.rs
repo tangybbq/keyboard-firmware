@@ -127,7 +127,7 @@ mod app {
         usb_event: Sender<'static, Event, EVENT_CAPACITY>,
         inter_event: Sender<'static, Event, EVENT_CAPACITY>,
         event_event: Sender<'static, Event, EVENT_CAPACITY>,
-        layout_event: Sender<'static, Event, EVENT_CAPACITY>,
+        periodic_event: Sender<'static, Event, EVENT_CAPACITY>,
     }
 
     #[init(local=[
@@ -241,14 +241,10 @@ mod app {
         let usb_event = event_send.clone();
         let inter_event = event_send.clone();
         let event_event = event_send.clone();
-        let layout_event = event_send.clone();
+        let periodic_event = event_send.clone();
 
-        layout_task::spawn().unwrap();
-        led_task::spawn().unwrap();
-        matrix_task::spawn(event_send).unwrap();
+        periodic_task::spawn().unwrap();
         event_task::spawn(event_receive).unwrap();
-        usb_periodic::spawn().unwrap();
-        inter_periodic::spawn().unwrap();
 
         // let _timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS, &clocks);
 
@@ -261,10 +257,10 @@ mod app {
             },
             Local {
                 matrix,
-                layout_event,
                 usb_event,
                 inter_event,
                 event_event,
+                periodic_event,
             },
         )
     }
@@ -283,74 +279,6 @@ mod app {
         });
     }
 
-    /// The USB periodic task. This runs every 1ms to check if there are keys to
-    /// send.
-    #[task(shared = [usb_handler])]
-    async fn usb_periodic(mut ctx: usb_periodic::Context) {
-        let mut now = Timer::now();
-        loop {
-            now += 1.millis();
-            Timer::delay_until(now).await;
-
-            ctx.shared.usb_handler.lock(|usb_handler| {
-                usb_handler.tick();
-            });
-        }
-    }
-
-    /// The inter periodic task, tries sending data.
-    #[task(shared = [inter_handler])]
-    async fn inter_periodic(mut ctx: inter_periodic::Context) {
-        let mut now = Timer::now();
-        loop {
-            now += 1.millis();
-            Timer::delay_until(now).await;
-
-            ctx.shared.inter_handler.lock(|inter_handler| {
-                inter_handler.tick();
-            });
-        }
-    }
-
-    #[task(shared = [layout_manager], local = [layout_event])]
-    async fn layout_task(mut ctx: layout_task::Context) {
-        let mut next = Timer::now();
-        loop {
-            next += 1.millis();
-            Timer::delay_until(next).await;
-
-            ctx.shared.layout_manager.lock(|layout_manager| {
-                layout_manager.tick(&mut EventWrapper(ctx.local.layout_event));
-            });
-        }
-    }
-
-    #[task(shared = [led_manager])]
-    async fn led_task(mut ctx: led_task::Context) {
-        let mut next = Timer::now() + 1.millis();
-        loop {
-            // info!("led poll");
-            ctx.shared.led_manager.lock(|led_manager| {
-                led_manager.tick();
-            });
-            Timer::delay_until(next).await;
-            next += 1.millis();
-        }
-    }
-
-    #[task(local = [matrix])]
-    async fn matrix_task(
-        ctx: matrix_task::Context,
-        mut send: Sender<'static, Event, EVENT_CAPACITY>,
-    ) {
-        let mut now = Timer::now();
-        loop {
-            ctx.local.matrix.tick(&mut send).await;
-            now += 1.millis();
-            Timer::delay_until(now).await;
-        }
-    }
-
     /// Macro to assist with locking.
     macro_rules! lock {
         // Match the simple case.  Doesn't work.
@@ -362,6 +290,30 @@ mod app {
         ($ctx: ident, $var:ident, $body:expr) => {
             $ctx.shared.$var.lock(|$var| $body);
         };
+    }
+
+    /// The periodic task. This calls 'tick' on various manager subsystems, once
+    /// every ms.
+    #[task(shared = [
+        usb_handler,
+        inter_handler,
+        layout_manager,
+        led_manager,
+        ],
+           local = [periodic_event, matrix]
+    )]
+    async fn periodic_task(mut ctx: periodic_task::Context) {
+        let mut next = Timer::now();
+        loop {
+            next += 1.millis();
+            Timer::delay_until(next).await;
+
+            lock!(ctx, usb_handler, usb_handler.tick());
+            lock!(ctx, inter_handler, inter_handler.tick());
+            lock!(ctx, layout_manager, layout_manager.tick(&mut EventWrapper(ctx.local.periodic_event)));
+            lock!(ctx, led_manager, led_manager.tick());
+            ctx.local.matrix.tick(ctx.local.periodic_event).await;
+        }
     }
 
     /// The main event processor. This is responsible for receiving events, and
