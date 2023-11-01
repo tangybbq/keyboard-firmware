@@ -17,3 +17,11 @@ macro_rules! rows {
     };
 }
 pub(crate) use rows;
+
+/// Side select GPIO pin.
+macro_rules! side_pin {
+    ($pins:expr) => {
+        $pins.adc1.into_pull_down_input()
+    };
+}
+pub(crate) use side_pin;

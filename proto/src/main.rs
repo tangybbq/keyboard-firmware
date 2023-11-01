@@ -93,6 +93,7 @@ mod app {
     use bsp::hal::uart::UartConfig;
     use bsp::hal::usb::UsbBus;
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
+    use embedded_hal::digital::v2::InputPin;
     use defmt::warn;
     use fugit::{RateExtU32};
     use defmt::info;
@@ -182,6 +183,14 @@ mod app {
             &mut ctx.device.RESETS,
         );
 
+        // Determine which side of the keyboard we are, based on a GPIO.
+        let side_select = crate::board::side_pin!(pins);
+        let side = if side_select.is_high().unwrap() {
+            Side::Right
+        } else {
+            Side::Left
+        };
+
         let (mut pio, sm0, _, _, _) = ctx.device.PIO0.split(&mut ctx.device.RESETS);
         let ws = Ws2812Direct::new(
             pins.led.into_function().into_dyn_pin(),
@@ -196,7 +205,7 @@ mod app {
             let cols = crate::board::cols!(pins);
             let rows = crate::board::rows!(pins);
             // TODO: Calculate side.
-            Matrix::new(cols, rows, Side::Left)
+            Matrix::new(cols, rows, side)
         };
 
         let uart_pins = (
@@ -213,7 +222,7 @@ mod app {
             )
             .unwrap();
 
-        let inter_handler = inter::InterHandler::new(uart, Side::Left);
+        let inter_handler = inter::InterHandler::new(uart, side);
 
         let layout_manager = LayoutManager::new();
 
