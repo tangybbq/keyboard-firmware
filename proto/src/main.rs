@@ -52,9 +52,6 @@ mod app {
     use crate::bsp;
     use crate::inter;
     use crate::leds;
-    use crate::leds::QWERTY_SELECT_INDICATOR;
-    use crate::leds::STENO_INDICATOR;
-    use crate::leds::STENO_SELECT_INDICATOR;
     use crate::matrix::Matrix;
     use crate::usb;
     use crate::MatrixType;
@@ -246,7 +243,6 @@ mod app {
         let event_event = event_send.clone();
         let layout_event = event_send.clone();
 
-        heartbeat::spawn().unwrap();
         layout_task::spawn().unwrap();
         led_task::spawn().unwrap();
         matrix_task::spawn(event_send).unwrap();
@@ -314,32 +310,6 @@ mod app {
                 inter_handler.tick();
             });
         }
-    }
-
-    #[task(local = [], shared = [led_manager])]
-    async fn heartbeat(mut ctx: heartbeat::Context) {
-        ctx.shared.led_manager.lock(|led_manager| {
-            led_manager.clear_global();
-        });
-        let mut now = Timer::now();
-        for _ in 0..1 {
-            info!("Qwerty");
-            ctx.shared.led_manager.lock(|led_manager| {
-                led_manager.set_base(&QWERTY_SELECT_INDICATOR);
-            });
-            now += 1000.millis();
-            Timer::delay_until(now).await;
-            info!("STENO");
-            ctx.shared.led_manager.lock(|led_manager| {
-                led_manager.set_base(&STENO_SELECT_INDICATOR);
-            });
-            now += 1000.millis();
-            Timer::delay_until(now).await;
-        }
-        // Change to a settled mode.
-        ctx.shared.led_manager.lock(|led_manager| {
-            led_manager.set_base(&STENO_INDICATOR);
-        });
     }
 
     #[task(shared = [layout_manager], local = [layout_event])]
