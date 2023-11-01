@@ -265,14 +265,14 @@ mod app {
         )
     }
 
-    #[task(binds = USBCTRL_IRQ, shared = [usb_handler], local = [usb_event])]
+    #[task(binds = USBCTRL_IRQ, shared = [usb_handler], local = [usb_event], priority = 4)]
     fn usbctrl_irq(mut cx: usbctrl_irq::Context) {
         cx.shared.usb_handler.lock(|usb_handler| {
             usb_handler.poll(cx.local.usb_event);
         });
     }
 
-    #[task(binds = UART1_IRQ, shared = [inter_handler], local = [inter_event])]
+    #[task(binds = UART1_IRQ, shared = [inter_handler], local = [inter_event], priority = 3)]
     fn uart1_irq(mut cx: uart1_irq::Context) {
         cx.shared.inter_handler.lock(|inter_handler| {
             inter_handler.poll(cx.local.inter_event);
