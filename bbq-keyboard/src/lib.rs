@@ -10,7 +10,6 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use arraydeque::ArrayDeque;
 use bbq_steno::Stroke;
 use usbd_human_interface_device::page::Keyboard;
 use usb_device::prelude::UsbDeviceState;
@@ -37,8 +36,6 @@ mod log {
     pub use defmt::info;
     pub use defmt::warn;
 }
-
-use log::*;
 
 /// Which side of the keyboard are we.
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -96,7 +93,7 @@ impl KeyEvent {
 }
 
 /// Indicates keypress that should be sent to the host.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum KeyAction {
     KeyPress(Keyboard, Mods),
     ModOnly(Mods),
@@ -107,7 +104,7 @@ pub enum KeyAction {
 bitflags! {
     /// A modifier map. This indicates what modifiers should be held down when
     /// this keypress is sent.
-    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
     pub struct Mods: u8 {
         const SHIFT = 0b0000_0001;
         const CONTROL = 0b0000_0010;
@@ -118,6 +115,7 @@ bitflags! {
 
 /// An event is something that happens in a handler to indicate some action
 /// likely needs to be performed on it.
+#[derive(Debug)]
 pub enum Event {
     /// Events from the Matrix layer indicating changes in key actions.
     Matrix(KeyEvent),
@@ -151,32 +149,34 @@ pub enum Event {
     Indicator(MinorMode),
 }
 
-pub struct EventQueue(ArrayDeque<Event, 256>);
-
-impl EventQueue {
-    pub fn new() -> Self {
-        EventQueue(ArrayDeque::new())
-    }
-
-    pub fn push(&mut self, event: Event) {
-        if let Err(_) = self.0.push_back(event) {
-            warn!("Internal event queue overflow");
-        }
-    }
-
-    pub fn pop(&mut self) -> Option<Event> {
-        self.0.pop_front()
-    }
+/// A generalized event queue.  TODO: Handle the error better.  For now, we
+/// don't do anything with the error, so might as well.
+pub trait EventQueue {
+    // Attempt to push to the queue.  Events will be discarded if the queue is full.
+    fn push(&mut self, val: Event);
+    // This is not currently supported, but could be with async-trait.
+    // async fn send(&mut self, val: Event) -> Result<(), ()>;
 }
 
 /// State of inter communication.
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub enum InterState {
     Idle,
     Primary,
     Secondary,
 }
 
+impl defmt::Format for InterState {
+    fn format(&self, fmt: defmt::Formatter) {
+        match self {
+            InterState::Idle => defmt::write!(fmt, "idle"),
+            InterState::Primary => defmt::write!(fmt, "primary"),
+            InterState::Secondary => defmt::write!(fmt, "secondary"),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum MinorMode {
     // To start with, just distinguish artsy main from artsy nav mode.
     ArtseyMain,

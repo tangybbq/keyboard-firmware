@@ -86,7 +86,7 @@ impl LayoutManager {
     }
 
     // For now, just pass everything through.
-    pub fn tick(&mut self, events: &mut EventQueue) {
+    pub fn tick(&mut self, events: &mut dyn EventQueue) {
         self.raw.tick();
         self.artsey.tick(events);
         self.qwerty.tick(events);
@@ -98,7 +98,7 @@ impl LayoutManager {
     }
 
     /// Handle a single key event.
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue, timer: &dyn Timable) {
+    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue, timer: &dyn Timable) {
         if self.mode.event(event, events) {
             match self.mode.get() {
                 LayoutMode::Artsey => {
@@ -119,7 +119,7 @@ impl LayoutManager {
 }
 
 /// The global keyboard mode.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LayoutMode {
     Steno,
     Artsey,
@@ -167,7 +167,7 @@ impl ModeSelector {
     }
 
     /// Handle a keyevent, and return 'true' if the key even should be passed down to lower layers.
-    fn event(&mut self, event: KeyEvent, events: &mut EventQueue) -> bool {
+    fn event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) -> bool {
         // Update the mask of keys that have been pressed.
         match event {
             KeyEvent::Press(k) => self.pressed |= 1 << k,

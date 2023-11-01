@@ -22,7 +22,7 @@ mod log {
 
 #[cfg(not(test))]
 mod log {
-    pub use defmt::warn;
+    // pub use defmt::warn;
 }
 
 #[cfg(not(feature = "std"))]

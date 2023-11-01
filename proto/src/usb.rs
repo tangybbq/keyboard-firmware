@@ -1,13 +1,25 @@
 // Usb HID management.
 
-use arrayvec::ArrayVec;
-use bbq_keyboard::{EventQueue, Event, KeyAction, Mods};
-use bbq_keyboard::usb_typer::ActionHandler;
 use arraydeque::ArrayDeque;
+use arrayvec::ArrayVec;
+use bbq_keyboard::usb_typer::ActionHandler;
+use bbq_keyboard::{Event, KeyAction, Mods};
 use defmt::{info, warn};
-use frunk::{HNil, HCons};
-use usb_device::{class_prelude::{UsbBusAllocator, UsbClass, UsbBus}, prelude::{UsbDeviceBuilder, UsbVidPid, UsbDevice, UsbDeviceState}};
-use usbd_human_interface_device::{usb_class::{UsbHidClassBuilder, UsbHidClass}, device::{keyboard::{NKROBootKeyboardConfig, NKROBootKeyboard}, DeviceClass}, page::Keyboard, UsbHidError};
+use frunk::{HCons, HNil};
+use rtic_sync::channel::Sender;
+use usb_device::{
+    class_prelude::{UsbBus, UsbBusAllocator, UsbClass},
+    prelude::{UsbDevice, UsbDeviceBuilder, UsbDeviceState, UsbVidPid},
+};
+use usbd_human_interface_device::{
+    device::{
+        keyboard::{NKROBootKeyboard, NKROBootKeyboardConfig},
+        DeviceClass,
+    },
+    page::Keyboard,
+    usb_class::{UsbHidClass, UsbHidClassBuilder},
+    UsbHidError,
+};
 
 // Type of the device list, which is internal to usbd_human_interface_device.
 type InterfaceList<'a, Bus> = HCons<NKROBootKeyboard<'a, Bus>, HNil>;
@@ -20,11 +32,9 @@ pub struct UsbHandler<'a, Bus: UsbBus> {
 }
 
 impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
-    pub fn new(usb_bus : &'a UsbBusAllocator<Bus>) -> Self {
+    pub fn new(usb_bus: &'a UsbBusAllocator<Bus>) -> Self {
         let keyboard = UsbHidClassBuilder::new()
-            .add_device(
-                NKROBootKeyboardConfig::default(),
-            )
+            .add_device(NKROBootKeyboardConfig::default())
             .build(usb_bus);
         let usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x1209, 0x003))
             .manufacturer("https://github.com/tangybbq/")
@@ -105,9 +115,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                     keys.push(Keyboard::NoEventIndicated);
                     None
                 }
-                KeyAction::KeySet(keys) => {
-                    Some(keys.iter().cloned())
-                }
+                KeyAction::KeySet(keys) => Some(keys.iter().cloned()),
             };
 
             let status = match iter {
@@ -136,7 +144,10 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
     /// calling sufficiently fast should also work.
     /// The docs suggest this can be called on say a 1ms tick, but this seems to
     /// break device identification.
-    pub(crate) fn poll(&mut self, events: &mut EventQueue) {
+    pub(crate) fn poll(
+        &mut self,
+        events: &mut Sender<'static, Event, { crate::app::EVENT_CAPACITY }>,
+    ) {
         if self.dev.poll(&mut [&mut self.hid]) {
             self.hid.poll();
             match self.hid.device().read_report() {
@@ -160,7 +171,9 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                 UsbDeviceState::Suspend => info!("State: Suspend"),
             }
             self.state = Some(new_state);
-            events.push(Event::UsbState(new_state));
+            if events.try_send(Event::UsbState(new_state)).is_err() {
+                warn!("USB IRQ: Event queue full");
+            }
         }
     }
 }

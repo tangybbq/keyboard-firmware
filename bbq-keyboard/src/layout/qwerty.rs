@@ -242,7 +242,7 @@ impl Default for QwertyManager {
 }
 
 impl QwertyManager {
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut EventQueue, nkro: bool) {
+    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue, nkro: bool) {
         // Skip out of bound events.
         if event.key() as usize >= NKEYS {
             return;
@@ -257,12 +257,12 @@ impl QwertyManager {
         self.process_keys(events);
     }
 
-    pub fn tick(&mut self, events: &mut EventQueue) {
+    pub fn tick(&mut self, events: &mut dyn EventQueue) {
         self.combo.tick();
         self.process_keys(events);
     }
 
-    fn process_keys(&mut self, events: &mut EventQueue) {
+    fn process_keys(&mut self, events: &mut dyn EventQueue) {
         while let Some(LayeredEvent { key: event, layer }) = self.combo.next() {
             // Skip out of bound events.
             if event.key() as usize >= layer.len() {
@@ -307,7 +307,7 @@ impl QwertyManager {
         }
     }
 
-    fn show(&self, events: &mut EventQueue, code: Option<Mapping>) {
+    fn show(&self, events: &mut dyn EventQueue, code: Option<Mapping>) {
         let mut keys: Vec<Keyboard> = Vec::new();
 
         // We first need to collect the modifiers from any keys that are

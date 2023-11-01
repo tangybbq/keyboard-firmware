@@ -2,38 +2,59 @@
 
 use core::fmt::Debug;
 
-use cortex_m::delay::Delay;
-use embedded_hal::digital::v2::{OutputPin, InputPin};
+use defmt::warn;
+use embedded_hal::digital::v2::{InputPin, OutputPin};
 
-use bbq_keyboard::{EventQueue, Event, KeyEvent, Side};
+use bbq_keyboard::{Event, KeyEvent, Side};
+// use rtic_monotonics::Monotonic;
+use rtic_monotonics::rp2040::ExtU64;
+use rtic_monotonics::rp2040::Timer;
+use rtic_sync::channel::Sender;
 
-pub struct Matrix<'r, 'c, E, const NKEYS: usize> {
-    cols: &'c mut [&'c mut dyn OutputPin<Error = E>],
-    rows: &'r [&'r dyn InputPin<Error = E>],
-    nrows: usize,
+pub struct Matrix<
+    E,
+    I: InputPin<Error = E>,
+    O: OutputPin<Error = E>,
+    const NCOLS: usize,
+    const NROWS: usize,
+    const NKEYS: usize,
+> {
+    cols: [O; NCOLS],
+    rows: [I; NROWS],
     keys: [Debouncer; NKEYS],
     side: Side,
 }
 
-impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
-    pub fn new(
-        cols: &'c mut [&'c mut dyn OutputPin<Error = E>],
-        rows: &'r [&'r dyn InputPin<Error = E>],
-        side: Side,
-    ) -> Self {
-        let nrows = rows.len();
+impl<
+        E: Debug,
+        I: InputPin<Error = E>,
+        O: OutputPin<Error = E>,
+        const NCOLS: usize,
+        const NROWS: usize,
+        const NKEYS: usize,
+    > Matrix<E, I, O, NCOLS, NROWS, NKEYS>
+{
+    pub fn new(cols: [O; NCOLS], rows: [I; NROWS], side: Side) -> Self {
         let keys = [Debouncer::new(); NKEYS];
-        Matrix { cols, rows, nrows, keys, side }
+        Matrix {
+            cols,
+            rows,
+            keys,
+            side,
+        }
     }
 
-    pub fn poll(&mut self) {
-    }
+    // pub fn poll(&mut self) {
+    // }
 
-    pub(crate) fn tick(&mut self, delay: &mut Delay, events: &mut EventQueue) {
+    pub(crate) async fn tick<'a>(
+        &mut self,
+        events: &mut Sender<'a, Event, { crate::app::EVENT_CAPACITY }>,
+    ) {
         for col in 0..self.cols.len() {
             self.cols[col].set_high().unwrap();
             for row in 0..self.rows.len() {
-                let key = col * self.nrows + row;
+                let key = col * NROWS + row;
                 let action = self.keys[key].react(self.rows[row].is_high().unwrap());
 
                 let bias = if self.side.is_left() { 0 } else { NKEYS };
@@ -49,11 +70,13 @@ impl<'r, 'c, E: Debug, const NKEYS: usize> Matrix<'r, 'c, E, NKEYS> {
                     _ => None,
                 };
                 if let Some(act) = act {
-                    events.push(Event::Matrix(act));
+                    if events.send(Event::Matrix(act)).await.is_err() {
+                        warn!("Unable to send key event");
+                    }
                 }
             }
             self.cols[col].set_low().unwrap();
-            delay.delay_us(5);
+            Timer::delay(5.micros()).await;
         }
     }
 }
