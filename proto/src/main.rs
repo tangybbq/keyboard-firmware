@@ -390,7 +390,7 @@ mod app {
                                     layout_manager.handle_event(
                                         key,
                                         &mut EventWrapper(ctx.local.event_event),
-                                        &BogusTimer);
+                                        &WrapTimer);
                                 });
                             }
                             InterState::Secondary => {
@@ -413,7 +413,7 @@ mod app {
                                 layout_manager.handle_event(
                                     key,
                                     &mut EventWrapper(ctx.local.event_event),
-                                    &BogusTimer);
+                                    &WrapTimer);
                             });
                         }
                     }
@@ -525,11 +525,11 @@ mod app {
     }
 
     /// Placeholder for the timer, until we implement a real one.
-    struct BogusTimer;
+    struct WrapTimer;
 
-    impl Timable for BogusTimer {
+    impl Timable for WrapTimer {
         fn get_ticks(&self) -> u64 {
-            0
+            Timer::now().ticks()
         }
     }
 }
