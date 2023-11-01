@@ -390,35 +390,11 @@ mod app {
         let mut state = InterState::Idle;
         let mut flashing = true;
         let mut usb_suspended = true;
-        loop {
-            while let Ok(event) = recv.recv().await {
-                match event {
-                    Event::Matrix(key) => {
-                        match state {
-                            InterState::Primary | InterState::Idle => {
-                                lock!(ctx, layout_manager, {
-                                    layout_manager.handle_event(
-                                        key,
-                                        &mut EventWrapper(ctx.local.event_event),
-                                        &WrapTimer);
-                                });
-                            }
-                            InterState::Secondary => {
-                                lock!(ctx, inter_handler, {
-                                    inter_handler.add_key(key);
-                                });
-                            }
-                        }
-                        if usb_suspended {
-                            // This is specific to our implementation.
-                            // TODO: Only do this if remote wakeup enabled.
-                            lock!(ctx, usb_handler, {
-                                usb_handler.wakeup();
-                            });
-                        }
-                    }
-                    Event::InterKey(key) => {
-                        if state == InterState::Primary {
+        while let Ok(event) = recv.recv().await {
+            match event {
+                Event::Matrix(key) => {
+                    match state {
+                        InterState::Primary | InterState::Idle => {
                             lock!(ctx, layout_manager, {
                                 layout_manager.handle_event(
                                     key,
@@ -426,106 +402,128 @@ mod app {
                                     &WrapTimer);
                             });
                         }
-                    }
-                    Event::Key(action) => {
-                        lock!(ctx, usb_handler, usb_handler.enqueue(once(action)));
-                    }
-                    Event::RawSteno(stroke) => {
-                        let mut buffer = ArrayString::<24>::new();
-                        stroke.to_arraystring(&mut buffer);
-
-                        // Enqueue with USB to send.
-                        lock!(ctx, usb_handler, {
-                            enqueue_action(usb_handler, buffer.as_str());
-                            enqueue_action(usb_handler, " ");
-                            usb_handler.enqueue(once(KeyAction::KeyRelease));
-                        });
-                    }
-                    Event::UsbState(UsbDeviceState::Configured) => {
-                        // TODO: Unclear how to handle suspend, but once we are
-                        // configured, we need to start figuring out which side
-                        // we are so we can communicate between the halves.
-                        lock!(ctx, led_manager, {
-                            led_manager.set_global(&leds::USB_PRIMARY);
-                        });
-                        flashing = true;
-                        lock!(ctx, inter_handler, {
-                            inter_handler.set_state(InterState::Primary, ctx.local.event_event);
-                        });
-                        usb_suspended = false;
-                    }
-                    Event::UsbState(UsbDeviceState::Suspend) => {
-                        // This indicates the host has gone to sleep.
-                        lock!(ctx, led_manager, led_manager.set_global(&leds::SLEEP_INDICATOR));
-                        // flashing = true;
-                        usb_suspended = true;
-                    }
-                    Event::UsbState(_) => (),
-                    Event::BecomeState(new_state) => {
-                        if state != new_state {
-                            if new_state == InterState::Secondary {
-                                info!("Secondary");
-                                // We've gone into secondary state, stop blinking the LEDs.
-                                lock!(ctx, led_manager, led_manager.clear_global());
-                            } else if new_state == InterState::Idle {
-                                info!("Idle");
-                                lock!(ctx, led_manager, led_manager.clear_global());
-                            } else {
-                                info!("Primary");
-                            }
-                            state = new_state;
-                        } else if new_state == InterState::Secondary && flashing {
-                            // This happens if the secondary side is running,
-                            // and the primary side is reset (common when
-                            // programming firmware, or waking from sleep).
-                            // Detect that we are flashing the lights, and turn
-                            // them off.
-                            lock!(ctx, led_manager, led_manager.clear_global());
-                            flashing = false;
-                        }
-                    }
-                    Event::Mode(mode) => {
-                        let visible = match mode {
-                            LayoutMode::Steno => &leds::STENO_INDICATOR,
-                            LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
-                            LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
-                            LayoutMode::NKRO => &leds::NKRO_INDICATOR,
-                        };
-                        lock!(ctx, led_manager, led_manager.set_base(visible));
-                    }
-                    Event::ModeSelect(mode) => {
-                        let visible = match mode {
-                            LayoutMode::Steno => &leds::STENO_SELECT_INDICATOR,
-                            LayoutMode::Artsey => &leds::ARTSEY_SELECT_INDICATOR,
-                            LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
-                            LayoutMode::NKRO => &leds::NKRO_SELECT_INDICATOR,
-                        };
-                        lock!(ctx, led_manager, led_manager.set_base(visible));
-                    }
-                    Event::Indicator(mode) => {
-                        let visible = match mode {
-                            MinorMode::ArtseyMain => &leds::ARTSEY_INDICATOR,
-                            MinorMode::ArtseyNav => &leds::ARTSEY_NAV_INDICATOR,
-                        };
-                        lock!(ctx, led_manager, led_manager.set_base(visible));
-                    }
-                    Event::Heartbeat => {
-                        if flashing {
-                            lock!(ctx, led_manager, {
-                                led_manager.clear_global();
+                        InterState::Secondary => {
+                            lock!(ctx, inter_handler, {
+                                inter_handler.add_key(key);
                             });
-                            flashing = false;
                         }
                     }
+                    if usb_suspended {
+                        // This is specific to our implementation.
+                        // TODO: Only do this if remote wakeup enabled.
+                        lock!(ctx, usb_handler, {
+                            usb_handler.wakeup();
+                        });
+                    }
                 }
+                Event::InterKey(key) => {
+                    if state == InterState::Primary {
+                        lock!(ctx, layout_manager, {
+                            layout_manager.handle_event(
+                                key,
+                                &mut EventWrapper(ctx.local.event_event),
+                                &WrapTimer);
+                        });
+                    }
+                }
+                Event::Key(action) => {
+                    lock!(ctx, usb_handler, usb_handler.enqueue(once(action)));
+                }
+                Event::RawSteno(stroke) => {
+                    let mut buffer = ArrayString::<24>::new();
+                    stroke.to_arraystring(&mut buffer);
 
-                // Heap debugging is useful.
-                let new_used = HEAP.used();
-                if new_used > last_size {
-                    let free = HEAP.free();
-                    info!("Heap: {} used, {} free", new_used, free);
-                    last_size = new_used;
+                    // Enqueue with USB to send.
+                    lock!(ctx, usb_handler, {
+                        enqueue_action(usb_handler, buffer.as_str());
+                        enqueue_action(usb_handler, " ");
+                        usb_handler.enqueue(once(KeyAction::KeyRelease));
+                    });
                 }
+                Event::UsbState(UsbDeviceState::Configured) => {
+                    // TODO: Unclear how to handle suspend, but once we are
+                    // configured, we need to start figuring out which side
+                    // we are so we can communicate between the halves.
+                    lock!(ctx, led_manager, {
+                        led_manager.set_global(&leds::USB_PRIMARY);
+                    });
+                    flashing = true;
+                    lock!(ctx, inter_handler, {
+                        inter_handler.set_state(InterState::Primary, ctx.local.event_event);
+                    });
+                    usb_suspended = false;
+                }
+                Event::UsbState(UsbDeviceState::Suspend) => {
+                    // This indicates the host has gone to sleep.
+                    lock!(ctx, led_manager, led_manager.set_global(&leds::SLEEP_INDICATOR));
+                    // flashing = true;
+                    usb_suspended = true;
+                }
+                Event::UsbState(_) => (),
+                Event::BecomeState(new_state) => {
+                    if state != new_state {
+                        if new_state == InterState::Secondary {
+                            info!("Secondary");
+                            // We've gone into secondary state, stop blinking the LEDs.
+                            lock!(ctx, led_manager, led_manager.clear_global());
+                        } else if new_state == InterState::Idle {
+                            info!("Idle");
+                            lock!(ctx, led_manager, led_manager.clear_global());
+                        } else {
+                            info!("Primary");
+                        }
+                        state = new_state;
+                    } else if new_state == InterState::Secondary && flashing {
+                        // This happens if the secondary side is running,
+                        // and the primary side is reset (common when
+                        // programming firmware, or waking from sleep).
+                        // Detect that we are flashing the lights, and turn
+                        // them off.
+                        lock!(ctx, led_manager, led_manager.clear_global());
+                        flashing = false;
+                    }
+                }
+                Event::Mode(mode) => {
+                    let visible = match mode {
+                        LayoutMode::Steno => &leds::STENO_INDICATOR,
+                        LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
+                        LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
+                        LayoutMode::NKRO => &leds::NKRO_INDICATOR,
+                    };
+                    lock!(ctx, led_manager, led_manager.set_base(visible));
+                }
+                Event::ModeSelect(mode) => {
+                    let visible = match mode {
+                        LayoutMode::Steno => &leds::STENO_SELECT_INDICATOR,
+                        LayoutMode::Artsey => &leds::ARTSEY_SELECT_INDICATOR,
+                        LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
+                        LayoutMode::NKRO => &leds::NKRO_SELECT_INDICATOR,
+                    };
+                    lock!(ctx, led_manager, led_manager.set_base(visible));
+                }
+                Event::Indicator(mode) => {
+                    let visible = match mode {
+                        MinorMode::ArtseyMain => &leds::ARTSEY_INDICATOR,
+                        MinorMode::ArtseyNav => &leds::ARTSEY_NAV_INDICATOR,
+                    };
+                    lock!(ctx, led_manager, led_manager.set_base(visible));
+                }
+                Event::Heartbeat => {
+                    if flashing {
+                        lock!(ctx, led_manager, {
+                            led_manager.clear_global();
+                        });
+                        flashing = false;
+                    }
+                }
+            }
+
+            // Heap debugging is useful.
+            let new_used = HEAP.used();
+            if new_used > last_size {
+                let free = HEAP.free();
+                info!("Heap: {} used, {} free", new_used, free);
+                last_size = new_used;
             }
         }
     }
