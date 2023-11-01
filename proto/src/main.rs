@@ -386,6 +386,7 @@ mod app {
         mut ctx: event_task::Context,
         mut recv: Receiver<'static, Event, EVENT_CAPACITY>,
     ) {
+        let mut last_size = 0;
         let mut state = InterState::Idle;
         let mut flashing = true;
         let mut usb_suspended = true;
@@ -516,6 +517,14 @@ mod app {
                             flashing = false;
                         }
                     }
+                }
+
+                // Heap debugging is useful.
+                let new_used = HEAP.used();
+                if new_used > last_size {
+                    let free = HEAP.free();
+                    info!("Heap: {} used, {} free", new_used, free);
+                    last_size = new_used;
                 }
             }
         }
