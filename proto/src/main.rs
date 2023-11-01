@@ -265,6 +265,14 @@ mod app {
         )
     }
 
+    // USB normally doesn't have significant deadlines, as the controller will
+    // happily NAK for us, and the deadlines to respond with data are on the
+    // order of 100s of ms. However, the hal docs at
+    // https://docs.rs/rp2040-hal/0.9.0/rp2040_hal/usb/index.html suggest that
+    // there might be a race with enumeration on Windows. It says we _should_ be
+    // able to avoid the issue by increasing the maximum endpoint-0 packet size.
+    // Regardless, give the USB IRQ the highest priority to be able soon for the
+    // initial packet.
     #[task(binds = USBCTRL_IRQ, shared = [usb_handler], local = [usb_event], priority = 4)]
     fn usbctrl_irq(mut cx: usbctrl_irq::Context) {
         cx.shared.usb_handler.lock(|usb_handler| {
@@ -272,6 +280,8 @@ mod app {
         });
     }
 
+    // The UART task needs to be able to drain the FIFO before it fills at
+    // 32-bytes. At 400-kbps, that gives us around 800us.
     #[task(binds = UART1_IRQ, shared = [inter_handler], local = [inter_event], priority = 3)]
     fn uart1_irq(mut cx: uart1_irq::Context) {
         cx.shared.inter_handler.lock(|inter_handler| {
