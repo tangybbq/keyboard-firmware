@@ -13,6 +13,7 @@ use crate::Stroke;
 
 pub use self::mapdict::{MapDict, MapDictBuilder};
 pub use self::translate::Translator;
+pub use self::typer::TypeAction;
 
 mod mapdict;
 mod translate;

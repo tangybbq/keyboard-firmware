@@ -499,7 +499,9 @@ mod app {
         mut steno: Receiver<'static, Stroke, STENO_CAPACITY>
     ) {
         while let Ok(stroke) = steno.recv().await {
-            ctx.local.dict.handle_stroke(stroke, &WrapTimer);
+            for action in ctx.local.dict.handle_stroke(stroke, &WrapTimer) {
+                info!("type action: {} del, {} add", action.remove, action.text.len());
+            }
         }
     }
 

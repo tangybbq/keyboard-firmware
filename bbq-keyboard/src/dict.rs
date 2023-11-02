@@ -1,6 +1,10 @@
 //! Dictionary operations.
 
-use bbq_steno::{memdict::MemDict, dict::Translator, Stroke};
+extern crate alloc;
+
+use alloc::vec::Vec;
+
+use bbq_steno::{memdict::MemDict, dict::{Translator, TypeAction}, Stroke};
 use defmt::info;
 
 use crate::Timable;
@@ -21,7 +25,8 @@ impl Dict {
         }
     }
 
-    pub fn handle_stroke(&mut self, stroke: Stroke, timer: &dyn Timable) {
+    pub fn handle_stroke(&mut self, stroke: Stroke, timer: &dyn Timable) -> Vec<TypeAction> {
+        let mut result = Vec::new();
         if let Some(xlat) = self.xlat.as_mut() {
             let start = timer.get_ticks();
             xlat.add(stroke);
@@ -29,7 +34,9 @@ impl Dict {
             while let Some(action) = xlat.next_action() {
                 info!("Key: delete {}, type {} {}us", action.remove, action.text.len(),
                 stop - start);
+                result.push(action);
             }
         }
+        result
     }
 }
