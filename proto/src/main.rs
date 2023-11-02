@@ -304,13 +304,9 @@ mod app {
 
     /// The periodic task. This calls 'tick' on various manager subsystems, once
     /// every ms.
-    #[task(shared = [
-        usb_handler,
-        inter_handler,
-        layout_manager,
-        led_manager,
-        ],
-           local = [periodic_event, matrix]
+    #[task(shared = [usb_handler, inter_handler, layout_manager, led_manager],
+           local = [periodic_event, matrix],
+           priority = 2
     )]
     async fn periodic_task(mut ctx: periodic_task::Context) {
         let mut next = Timer::now();
@@ -328,7 +324,9 @@ mod app {
 
     /// The main event processor. This is responsible for receiving events, and
     /// dispatching them to appropriate other parts of the system.
-    #[task(shared = [layout_manager, led_manager, inter_handler, usb_handler], local = [event_event])]
+    #[task(shared = [layout_manager, led_manager, inter_handler, usb_handler],
+           local = [event_event],
+           priority = 2)]
     async fn event_task(
         mut ctx: event_task::Context,
         mut recv: Receiver<'static, Event, EVENT_CAPACITY>,
