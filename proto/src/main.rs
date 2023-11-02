@@ -59,6 +59,7 @@ mod app {
     use crate::HEAP_MEM;
     use crate::HEAP_SIZE;
     use arrayvec::ArrayString;
+    use bbq_keyboard::Mods;
     use bbq_keyboard::layout::LayoutManager;
     use bbq_keyboard::usb_typer::enqueue_action;
     use bbq_keyboard::dict::Dict;
@@ -90,6 +91,7 @@ mod app {
     use bsp::hal::Clock;
     use bsp::hal::Sio;
     use bsp::{hal, XOSC_CRYSTAL_FREQ};
+    use usbd_human_interface_device::page::Keyboard;
     use core::iter::once;
     use core::mem::MaybeUninit;
     use defmt::info;
@@ -391,12 +393,15 @@ mod app {
                     stroke.to_arraystring(&mut buffer);
                     let _ = steno.try_send(stroke);
 
-                    // Enqueue with USB to send.
-                    lock!(ctx, usb_handler, {
-                        enqueue_action(usb_handler, buffer.as_str());
-                        enqueue_action(usb_handler, " ");
-                        usb_handler.enqueue(once(KeyAction::KeyRelease));
-                    });
+                    // TODO: Use a mode selection for this.
+                    if false {
+                        // Enqueue with USB to send.
+                        lock!(ctx, usb_handler, {
+                            enqueue_action(usb_handler, buffer.as_str());
+                            enqueue_action(usb_handler, " ");
+                            usb_handler.enqueue(once(KeyAction::KeyRelease));
+                        });
+                    }
                 }
                 Event::UsbState(UsbDeviceState::Configured) => {
                     // TODO: Unclear how to handle suspend, but once we are
@@ -492,15 +497,28 @@ mod app {
 
     #[task(
         local = [dict],
+        shared = [usb_handler],
         priority = 1,
     )]
     async fn steno_task(
-        ctx: steno_task::Context,
+        mut ctx: steno_task::Context,
         mut steno: Receiver<'static, Stroke, STENO_CAPACITY>
     ) {
         while let Ok(stroke) = steno.recv().await {
             for action in ctx.local.dict.handle_stroke(stroke, &WrapTimer) {
                 info!("type action: {} del, {} add", action.remove, action.text.len());
+
+                lock!(ctx, usb_handler, {
+                    // Press backspace for each remove.
+                    for _ in 0..action.remove {
+                        usb_handler.enqueue([
+                            KeyAction::KeyPress(Keyboard::DeleteBackspace, Mods::empty()),
+                            KeyAction::KeyRelease,
+                        ].iter().cloned());
+                    }
+                    enqueue_action(usb_handler, &action.text);
+                    usb_handler.enqueue(once(KeyAction::KeyRelease));
+                });
             }
         }
     }
