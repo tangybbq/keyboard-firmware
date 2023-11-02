@@ -349,6 +349,7 @@ mod app {
         let mut state = InterState::Idle;
         let mut flashing = true;
         let mut usb_suspended = true;
+        let mut current_mode = LayoutMode::Steno;
         while let Ok(event) = recv.recv().await {
             match event {
                 Event::Matrix(key) => {
@@ -391,11 +392,12 @@ mod app {
                 Event::RawSteno(stroke) => {
                     let mut buffer = ArrayString::<24>::new();
                     stroke.to_arraystring(&mut buffer);
-                    let _ = steno.try_send(stroke);
 
                     // TODO: Use a mode selection for this.
-                    if false {
-                        // Enqueue with USB to send.
+                    if current_mode == LayoutMode::Steno {
+                        let _ = steno.try_send(stroke);
+                    } else {
+                        // Enqueue with USB to send raw.
                         lock!(ctx, usb_handler, {
                             enqueue_action(usb_handler, buffer.as_str());
                             enqueue_action(usb_handler, " ");
@@ -453,15 +455,18 @@ mod app {
                 Event::Mode(mode) => {
                     let visible = match mode {
                         LayoutMode::Steno => &leds::STENO_INDICATOR,
+                        LayoutMode::StenoRaw => &leds::STENO_RAW_INDICATOR,
                         LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
                         LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
                         LayoutMode::NKRO => &leds::NKRO_INDICATOR,
                     };
                     lock!(ctx, led_manager, led_manager.set_base(visible));
+                    current_mode = mode;
                 }
                 Event::ModeSelect(mode) => {
                     let visible = match mode {
                         LayoutMode::Steno => &leds::STENO_SELECT_INDICATOR,
+                        LayoutMode::StenoRaw => &leds::STENO_RAW_SELECT_INDICATOR,
                         LayoutMode::Artsey => &leds::ARTSEY_SELECT_INDICATOR,
                         LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
                         LayoutMode::NKRO => &leds::NKRO_SELECT_INDICATOR,

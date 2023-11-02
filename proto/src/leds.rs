@@ -88,6 +88,24 @@ pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+/// Steno raw mode
+pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(32, 32, 0),
+    count: 10000,
+}]);
+
+/// Steno raw mode select
+pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
+    Step {
+        color: RGB8::new(32, 32, 0),
+        count: 100,
+    },
+    Step {
+        color: RGB8::new(0, 0, 0),
+        count: 100,
+    },
+]);
+
 /// NKRO steno mode
 pub static NKRO_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(32, 0, 32),

@@ -104,7 +104,7 @@ impl LayoutManager {
                 LayoutMode::Artsey => {
                     self.artsey.handle_event(event, events);
                 }
-                LayoutMode::Steno => {
+                LayoutMode::Steno | LayoutMode::StenoRaw => {
                     self.raw.handle_event(event, events);
                 }
                 LayoutMode::Qwerty => {
@@ -121,6 +121,7 @@ impl LayoutManager {
 /// The global keyboard mode.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LayoutMode {
+    StenoRaw,
     Steno,
     Artsey,
     Qwerty,
@@ -237,7 +238,8 @@ impl LayoutMode {
     /// Move to the next mode.
     fn next(self) -> Self {
         match self {
-            LayoutMode::Steno => LayoutMode::Artsey,
+            LayoutMode::Steno => LayoutMode::StenoRaw,
+            LayoutMode::StenoRaw => LayoutMode::Artsey,
             LayoutMode::Artsey => LayoutMode::Qwerty,
             LayoutMode::Qwerty => LayoutMode::NKRO,
             LayoutMode::NKRO => LayoutMode::Steno,
@@ -249,6 +251,7 @@ impl defmt::Format for LayoutMode {
     fn format(&self, fmt: defmt::Formatter) {
         match self {
             LayoutMode::Steno => defmt::write!(fmt, "steno"),
+            LayoutMode::StenoRaw => defmt::write!(fmt, "stenoraw"),
             LayoutMode::Artsey => defmt::write!(fmt, "artsey"),
             LayoutMode::Qwerty => defmt::write!(fmt, "qwerty"),
             LayoutMode::NKRO => defmt::write!(fmt, "nkro"),
