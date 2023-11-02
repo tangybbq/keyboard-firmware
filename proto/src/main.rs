@@ -316,7 +316,9 @@ mod app {
 
             lock!(ctx, usb_handler, usb_handler.tick());
             lock!(ctx, inter_handler, inter_handler.tick());
-            lock!(ctx, layout_manager, layout_manager.tick(&mut EventWrapper(ctx.local.periodic_event)));
+            lock!(ctx, layout_manager, {
+                layout_manager.tick(&mut EventWrapper(ctx.local.periodic_event));
+            });
             lock!(ctx, led_manager, led_manager.tick());
             ctx.local.matrix.tick(ctx.local.periodic_event).await;
         }
