@@ -61,6 +61,7 @@ mod app {
     use arrayvec::ArrayString;
     use bbq_keyboard::layout::LayoutManager;
     use bbq_keyboard::usb_typer::enqueue_action;
+    use bbq_keyboard::dict::Dict;
     use bbq_keyboard::Event;
     use bbq_keyboard::EventQueue;
     use bbq_keyboard::InterState;
@@ -69,6 +70,7 @@ mod app {
     use bbq_keyboard::MinorMode;
     use bbq_keyboard::Side;
     use bbq_keyboard::Timable;
+    use bbq_steno::Stroke;
     use bsp::hal::clocks::init_clocks_and_plls;
     use bsp::hal::gpio::bank0::Gpio8;
     use bsp::hal::gpio::bank0::Gpio9;
@@ -106,6 +108,7 @@ mod app {
     use ws2812_pio::Ws2812Direct;
 
     pub const EVENT_CAPACITY: usize = 200;
+    pub const STENO_CAPACITY: usize = 8;
 
     type UartPinout = (
         Pin<Gpio8, FunctionUart, PullDown>,
@@ -128,6 +131,7 @@ mod app {
         inter_event: Sender<'static, Event, EVENT_CAPACITY>,
         event_event: Sender<'static, Event, EVENT_CAPACITY>,
         periodic_event: Sender<'static, Event, EVENT_CAPACITY>,
+        dict: Dict,
     }
 
     #[init(local=[
@@ -224,6 +228,8 @@ mod app {
 
         let layout_manager = LayoutManager::new();
 
+        let dict = Dict::new();
+
         let usb_bus: &'static _ =
             ctx.local
                 .usb_bus
@@ -237,6 +243,7 @@ mod app {
         let usb_handler = usb::UsbHandler::new(&usb_bus);
 
         let (event_send, event_receive) = make_channel!(Event, EVENT_CAPACITY);
+        let (steno_send, steno_receive) = make_channel!(Stroke, STENO_CAPACITY);
 
         let usb_event = event_send.clone();
         let inter_event = event_send.clone();
@@ -244,7 +251,8 @@ mod app {
         let periodic_event = event_send.clone();
 
         periodic_task::spawn().unwrap();
-        event_task::spawn(event_receive).unwrap();
+        event_task::spawn(event_receive, steno_send).unwrap();
+        steno_task::spawn(steno_receive).unwrap();
 
         // let _timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS, &clocks);
 
@@ -261,6 +269,7 @@ mod app {
                 inter_event,
                 event_event,
                 periodic_event,
+                dict,
             },
         )
     }
@@ -332,6 +341,7 @@ mod app {
     async fn event_task(
         mut ctx: event_task::Context,
         mut recv: Receiver<'static, Event, EVENT_CAPACITY>,
+        mut steno: Sender<'static, Stroke, STENO_CAPACITY>,
     ) {
         let mut last_size = 0;
         let mut state = InterState::Idle;
@@ -346,7 +356,6 @@ mod app {
                                 layout_manager.handle_event(
                                     key,
                                     &mut EventWrapper(ctx.local.event_event),
-                                    &WrapTimer,
                                 );
                             });
                         }
@@ -370,7 +379,6 @@ mod app {
                             layout_manager.handle_event(
                                 key,
                                 &mut EventWrapper(ctx.local.event_event),
-                                &WrapTimer,
                             );
                         });
                     }
@@ -381,6 +389,7 @@ mod app {
                 Event::RawSteno(stroke) => {
                     let mut buffer = ArrayString::<24>::new();
                     stroke.to_arraystring(&mut buffer);
+                    let _ = steno.try_send(stroke);
 
                     // Enqueue with USB to send.
                     lock!(ctx, usb_handler, {
@@ -478,6 +487,19 @@ mod app {
                 info!("Heap: {} used, {} free", new_used, free);
                 last_size = new_used;
             }
+        }
+    }
+
+    #[task(
+        local = [dict],
+        priority = 1,
+    )]
+    async fn steno_task(
+        ctx: steno_task::Context,
+        mut steno: Receiver<'static, Stroke, STENO_CAPACITY>
+    ) {
+        while let Ok(stroke) = steno.recv().await {
+            ctx.local.dict.handle_stroke(stroke, &WrapTimer);
         }
     }
 

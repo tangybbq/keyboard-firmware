@@ -17,6 +17,7 @@ use bitflags::bitflags;
 
 pub use layout::LayoutMode;
 
+pub mod dict;
 pub mod serialize;
 pub mod modifiers;
 pub mod usb_typer;
