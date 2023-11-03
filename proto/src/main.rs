@@ -401,7 +401,6 @@ mod app {
                         lock!(ctx, usb_handler, {
                             enqueue_action(usb_handler, buffer.as_str());
                             enqueue_action(usb_handler, " ");
-                            usb_handler.enqueue(once(KeyAction::KeyRelease));
                         });
                     }
                 }
@@ -522,7 +521,6 @@ mod app {
                         ].iter().cloned());
                     }
                     enqueue_action(usb_handler, &action.text);
-                    usb_handler.enqueue(once(KeyAction::KeyRelease));
                 });
             }
         }
