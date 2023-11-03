@@ -13,12 +13,17 @@ use alloc::collections::VecDeque;
 #[cfg(not(feature = "std"))]
 use crate::println;
 
+// use super::ortho::Ortho;
+
 /// The typing tracker.  LIMIT is the limit of the history.
 pub struct Typer<const LIMIT: usize> {
     words: Vec<Word>,
 
     /// Things to be typed.
     to_type: VecDeque<TypeAction>,
+
+    // /// Ortho rules.
+    // ortho: Ortho,
 }
 
 /// A single thing that has been typed.
@@ -40,9 +45,11 @@ pub struct TypeAction {
 
 impl<const LIMIT: usize> Typer<LIMIT> {
     pub fn new() -> Self {
+        // let ortho = Ortho::new().unwrap();
         Typer {
             words: Vec::new(),
             to_type: VecDeque::new(),
+            // ortho,
         }
     }
 
@@ -77,6 +84,9 @@ impl<const LIMIT: usize> Typer<LIMIT> {
             let _ = word.typed;
             let _ = word.remove;
             println!("*** remove: {}, type: {:?}", word.typed.len(), word.remove);
+            // TODO: Use the ortho rules.
+            // Search something that won't match to excercise all of the patterns.
+            // let _combined = self.ortho.combine("run", "zzz");
             self.to_type.push_back(TypeAction { remove: word.typed.len(), text: word.remove });
         }
     }

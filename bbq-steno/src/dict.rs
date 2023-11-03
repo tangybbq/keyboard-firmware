@@ -16,6 +16,7 @@ pub use self::translate::Translator;
 pub use self::typer::TypeAction;
 
 mod mapdict;
+mod ortho;
 mod translate;
 mod typer;
 
