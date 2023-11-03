@@ -1,0 +1,16 @@
+[package]
+name = "dict-cleanup"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+serde_json = "1.0.107"
+
+bbq-keyboard = { version = "0.1.0", path = "../bbq-keyboard" }
+bbq-steno = { version = "0.1.0", path = "../bbq-steno" }
+bbq-steno-macros = { version = "0.1.0", path = "../bbq-steno-macros" }
+regex-lite = "0.1.5"
+regex = "1.10.2"

@@ -31,6 +31,13 @@ impl Dict for MapDict {
     }
 }
 
+impl MapDict {
+    /// Iterate over the keys in the dictionary.
+    pub fn keys(&self) -> impl Iterator<Item = &[Stroke]> {
+        self.map.keys().map(|k| k.as_slice())
+    }
+}
+
 impl MapDictBuilder {
     pub fn new() -> MapDictBuilder {
         MapDictBuilder {
