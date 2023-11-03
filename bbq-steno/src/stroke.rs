@@ -15,7 +15,7 @@
 // Until everything is used.
 #![allow(dead_code)]
 
-use core::ops::BitAnd;
+use core::ops::{BitAnd, BitOr, BitOrAssign, BitAndAssign, Not};
 
 use arrayvec::ArrayString;
 
@@ -261,6 +261,34 @@ impl BitAnd<Self> for Stroke {
 
     fn bitand(self, rhs: Self) -> Self::Output {
         Stroke(self.0 & rhs.0)
+    }
+}
+
+impl BitAndAssign<Self> for Stroke {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+
+impl BitOr<Self> for Stroke {
+    type Output = Stroke;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Stroke(self.0 | rhs.0)
+    }
+}
+
+impl BitOrAssign<Self> for Stroke {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+impl Not for Stroke {
+    type Output = Stroke;
+
+    fn not(self) -> Self::Output {
+        Stroke(!self.0)
     }
 }
 
