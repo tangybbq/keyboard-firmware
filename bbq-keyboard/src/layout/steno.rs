@@ -1,29 +1,42 @@
 //! Steno key handling.
 
 use crate::{EventQueue, Event, KeyEvent};
-use crate::modifiers::Modifiers;
 
 pub use bbq_steno::Stroke;
-use bbq_steno::stroke::EMPTY_STROKE;
 use bbq_steno_macros::stroke;
-use defmt::info;
+
+// Normal steno mode operates in what is known as "last up", where when all keys
+// have finally been released, we send a stroke containing all of the keys that
+// were pressed since the first press.
+//
+// "First up" works differently. As soon as a key is released, we send the
+// stroke of everything that was pressed. If an additional key is pressed, we
+// start recording new keys for possible additional strokes. This relies on good
+// debouncing to avoid seeing sprious interleaved events.
 
 pub struct RawStenoHandler {
-    // Keys that have been currently seen.
-    seen: Stroke,
     // Keys that are still pressed.
     down: Stroke,
 
-    // Modifier.
-    modifier: Modifiers,
+    // Have we enabled first-up mode.
+    // first_up: bool,
+
+    // Toggle between pressing, and releasing.
+    pressing: bool,
 }
+
+// The steno handler goes through these states. In Up indicates nothing is
+// pressed. Down indicates we are pressing keys. Releasing indicates keys are
+// coming up. Additional releases will be removed from the 'pressed' mask. If
+// down events come in while in Releasing, we will use the current pressed keys
+// as the 'seen' and re-enter Down mode. Once everything is released, we will
+// return to Up state.
 
 impl RawStenoHandler {
     pub fn new() -> Self {
         RawStenoHandler {
-            seen: Stroke::empty(),
             down: Stroke::empty(),
-            modifier: Modifiers::new(),
+            pressing: true,
         }
     }
 
@@ -39,31 +52,28 @@ impl RawStenoHandler {
             return;
         }
         if let Some(st) = STENO_KEYS[key as usize] {
-            if event.is_press() {
-                self.seen = self.seen.merge(st);
-                self.down = self.down.merge(st);
-            } else {
-                self.down = self.down.mask(st);
+            match (event.is_press(), self.pressing) {
+                // We are expecting keys to be pressed.  Add to those seen.
+                (true, true) => {
+                    self.down |= st;
+                }
+                // Expecting press, and got a release. This is our first
+                // release, so send what is seen.
+                (false, true) => {
+                    events.push(Event::RawSteno(self.down));
+                    self.down &= !st;
+                    self.pressing = false;
+                }
+                // Expecting releases, if we see a down here, switch back to pressing mode.
+                (true, false) => {
+                    self.down |= st;
+                    self.pressing = true;
+                }
+                // Expecting release, and got one, just use the release.
+                (false, false) => {
+                    self.down &= !st;
+                }
             }
-        }
-
-        if let Some(stroke) = self.get_stroke() {
-            // For testing, Show emily's conversion.
-            if let Some(text) = self.modifier.lookup(stroke) {
-                info!("Mod: {}", text.as_str());
-            }
-            events.push(Event::RawSteno(stroke));
-        }
-    }
-
-    // Handle the case of all keys up, and a steno stroke being available.
-    fn get_stroke(&mut self) -> Option<Stroke> {
-        if !self.seen.is_empty() && self.down.is_empty() {
-            let result = self.seen;
-            self.seen = EMPTY_STROKE;
-            Some(result)
-        } else {
-            None
         }
     }
 }
