@@ -17,7 +17,7 @@ type Target = LittleEndian;
 
 fn main() -> Result<()> {
     let data: BTreeMap<String, String>  = serde_json::from_reader(
-        File::open("main.json")?
+        File::open("lapwing-base.json")?
     )?;
 
     let mut dict: BTreeMap<StenoWord, String> = BTreeMap::new();
@@ -33,7 +33,7 @@ fn main() -> Result<()> {
 
     let memory = encode_dict(&dict)?;
 
-    File::create("main.bindict")?.write_all(&memory)?;
+    File::create("lapwing-base.bin")?.write_all(&memory)?;
 
     // Let's map this (somewhat unsafely) and see what we get out of it.
     let mdict = unsafe { MemDict::from_raw_ptr(memory.as_ptr()).unwrap() };
