@@ -330,7 +330,9 @@ mod app {
             lock!(ctx, layout_manager, {
                 layout_manager.tick(&mut EventWrapper(ctx.local.periodic_event));
             });
-            lock!(ctx, led_manager, led_manager.tick());
+            lock!(ctx, led_manager, {
+                led_manager.tick(ctx.local.periodic_event);
+            });
             ctx.local.matrix.tick(ctx.local.periodic_event).await;
         }
     }
@@ -486,6 +488,12 @@ mod app {
                         });
                         flashing = false;
                     }
+                }
+                Event::RecvLed(rgb) => {
+                    lock!(ctx, led_manager, led_manager.set_other_side(rgb));
+                }
+                Event::SendLed(rgb) => {
+                    lock!(ctx, inter_handler, inter_handler.set_other_led(rgb));
                 }
             }
 

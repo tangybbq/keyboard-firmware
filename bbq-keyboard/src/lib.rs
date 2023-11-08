@@ -11,6 +11,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use bbq_steno::Stroke;
+use smart_leds::RGB8;
 use usbd_human_interface_device::page::Keyboard;
 use usb_device::prelude::UsbDeviceState;
 use bitflags::bitflags;
@@ -148,6 +149,12 @@ pub enum Event {
 
     /// Set indicator to given mode.
     Indicator(MinorMode),
+
+    /// Message received from the primary side to set out LEDs.
+    RecvLed(RGB8),
+
+    /// Led value to be sent to the other side.
+    SendLed(RGB8),
 }
 
 /// A generalized event queue.  TODO: Handle the error better.  For now, we

@@ -29,6 +29,9 @@ where
     seq: u8,
     state: InterState,
     keys: EventVec,
+
+    /// RGB values to send to other side.
+    leds: RGB8,
 }
 
 impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>> InterHandler<D, P> {
@@ -48,6 +51,7 @@ impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>> InterHandler<D,
             side,
             state: InterState::Idle,
             keys: EventVec::new(),
+            leds: RGB8::new(4, 4, 4),
         }
     }
 
@@ -76,7 +80,7 @@ impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>> InterHandler<D,
                 // info!("Send primary");
                 Packet::Primary {
                     side: self.side,
-                    led: RGB8::new(8, 8, 8),
+                    led: self.leds,
                 }
                 .encode(&mut self.xmit_buffer, &mut self.seq);
             }
@@ -141,11 +145,12 @@ impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>> InterHandler<D,
                         // now just ignore it.
                         // self.set_state(InterState::Idle, events);
                     }
-                    Packet::Primary { side: _, led: _ } => {
+                    Packet::Primary { side: _, led } => {
                         // Upon receiving a primary message, this tells us we
                         // are secondary.
                         // info!("Got primary");
                         self.set_state(InterState::Secondary, events);
+                        let _ = events.try_send(Event::RecvLed(led));
                     }
                     Packet::Secondary { side: _, keys } => {
                         // info!("Secondary");
@@ -185,5 +190,9 @@ impl<D: hal::uart::UartDevice, P: hal::uart::ValidUartPinout<D>> InterHandler<D,
 
     pub fn add_key(&mut self, key: KeyEvent) {
         self.keys.push(key);
+    }
+
+    pub fn set_other_led(&mut self, leds: RGB8) {
+        self.leds = leds;
     }
 }

@@ -5,6 +5,8 @@
 
 use core::iter::once;
 
+use bbq_keyboard::Event;
+use rtic_sync::channel::Sender;
 use smart_leds::{SmartLedsWrite, RGB8};
 
 const OFF: RGB8 = RGB8::new(0, 0, 0);
@@ -182,6 +184,9 @@ pub struct LedManager<L: SmartLedsWrite<Color = RGB8>> {
     /// Information on the current display.
     count: usize,
     phase: usize,
+
+    /// Override the indicator by LEDs sent from the other side.
+    other_side: bool,
 }
 
 impl<L: SmartLedsWrite<Color = RGB8>> LedManager<L> {
@@ -194,10 +199,19 @@ impl<L: SmartLedsWrite<Color = RGB8>> LedManager<L> {
             oneshot: None,
             count: 0,
             phase: 0,
+            other_side: false,
         }
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick(
+        &mut self,
+        events: &mut Sender<'static, Event, { crate::app::EVENT_CAPACITY }>,
+    ) {
+        // If the other side is active, just leave the LED alone.
+        if self.other_side {
+            return;
+        }
+
         if self.count == 0 {
             let mut steps = self.base;
             if let Some(gl) = self.global {
@@ -224,7 +238,10 @@ impl<L: SmartLedsWrite<Color = RGB8>> LedManager<L> {
                 }
             }
 
-            let _ = self.leds.write(once(steps[self.phase].color));
+            let rgb = steps[self.phase].color;
+            let _ = events.try_send(Event::SendLed(rgb));
+
+            let _ = self.leds.write(once(rgb));
             // let _ = self.leds.write(once(if self.phase { INIT } else { OFF }));
             self.count = steps[self.phase].count;
             self.phase += 1;
@@ -257,6 +274,12 @@ impl<L: SmartLedsWrite<Color = RGB8>> LedManager<L> {
             self.count = 0;
             self.phase = 0;
         }
+    }
+
+    /// Override the LEDs, setting to just a value sent by the other side.
+    pub fn set_other_side(&mut self, leds: RGB8) {
+        self.other_side = true;
+        let _ = self.leds.write(once(leds));
     }
 
     /*
