@@ -5,7 +5,8 @@
 # - "probe-rs run" is similar to probe-run but it uses the latest probe-rs lib crate
 # runner = "probe-run --chip RP2040"
 # runner = "elf2uf2-rs -d"
-runner = "probe-rs run --chip RP2040 --protocol swd"
+# runner = "probe-rs run --chip RP2040 --protocol swd"
+runner = "arm-none-eabi-gdb -q -x debug.gdb"
 
 rustflags = [
   # "-C", "linker=flip-link",
