@@ -750,7 +750,7 @@ static NKRO_MAP: [Mapping; NKEYS] = [
     // 0
     Mapping::Key(KeyMapping { key: Keyboard::Grave, mods: Mods::empty() }),
     Mapping::Dead,
-    Mapping::Key(KeyMapping { key: Keyboard::Escape, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Z, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 4
