@@ -120,7 +120,7 @@ static STENO_KEYS: &[Option<Stroke>] = &[
     // Left
     Some(Stroke::empty()),
     Some(Stroke::empty()),
-    Some(Stroke::empty()),
+    Some(stroke!("#")),
     Some(Stroke::empty()),
 
     Some(stroke!("#")),
