@@ -95,7 +95,7 @@ static STENO_KEYS: &[Option<Stroke>] = &[
     Some(stroke!("*")),
     Some(stroke!("S")),
     Some(Stroke::empty()),
-    Some(Stroke::empty()),
+    Some(stroke!("#")),
 
     // Right side
     Some(stroke!("E")),
