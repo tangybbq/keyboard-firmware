@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{vec::Vec, rc::Rc};
 
 use bbq_steno::{memdict::MemDict, dict::{Translator, TypeAction}, Stroke};
 use defmt::info;
@@ -11,7 +11,7 @@ use crate::Timable;
 
 pub struct Dict {
     // The translation dictionary.
-    xlat: Option<Translator<MemDict>>,
+    xlat: Option<Translator>,
 }
 
 impl Dict {
@@ -19,7 +19,7 @@ impl Dict {
         let xlat = unsafe {
             MemDict::from_raw_ptr(0x10200000 as *const u8)
         };
-        let xlat = xlat.map(|d| Translator::new(d));
+        let xlat = xlat.map(|d| Translator::new(Rc::new(d)));
         Dict {
             xlat,
         }
