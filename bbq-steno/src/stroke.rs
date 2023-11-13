@@ -254,6 +254,12 @@ impl Stroke {
     pub fn is_empty(self) -> bool {
         self.0 == 0
     }
+
+    /// For some operations, it can be useful to know what the next stroke value
+    /// is.
+    pub fn succ(self) -> Stroke {
+        Stroke(self.0 + 1)
+    }
 }
 
 impl BitAnd<Self> for Stroke {
