@@ -16,6 +16,11 @@ use byteorder::{LittleEndian, WriteBytesExt};
 type Target = LittleEndian;
 
 fn main() -> Result<()> {
+    let commit = env!("GIT_COMMIT");
+    let dirty = env!("GIT_DIRTY");
+    let stamp = env!("SOURCE_TIMESTAMP");
+    println!("commit: {:?}, dirty: {:?}, stamp: {:?}", commit, dirty, stamp);
+
     let data: BTreeMap<String, String>  = serde_json::from_reader(
         File::open("lapwing-base.json")?
     )?;
@@ -111,7 +116,7 @@ fn encode_dict(dict: &BTreeMap<StenoWord, String>) -> Result<Vec<u8>> {
     let mut result = Vec::new();
 
     // The header gets a placeholder for now.
-    for _ in 0..48 {
+    for _ in 0..128 {
         result.push(0);
     }
     let mut header = Vec::new();
@@ -173,6 +178,12 @@ fn encode_dict(dict: &BTreeMap<StenoWord, String>) -> Result<Vec<u8>> {
 
     // Stamp the header in place.
     result[0..header.len()].copy_from_slice(&header);
+    let mut wr = &mut result[header.len()..128];
+    write!(&mut wr, "({:?}, {:?}, {:?})",
+           env!("GIT_COMMIT"),
+           env!("GIT_DIRTY"),
+           env!("SOURCE_TIMESTAMP"),
+    )?;
 
     Ok(result)
 }
