@@ -18,7 +18,7 @@ type Target = LittleEndian;
 fn main() -> Result<()> {
     let commit = env!("GIT_COMMIT");
     let dirty = env!("GIT_DIRTY");
-    let stamp = env!("SOURCE_TIMESTAMP");
+    let stamp = env!("BUILD_TIMESTAMP");
     println!("commit: {:?}, dirty: {:?}, stamp: {:?}", commit, dirty, stamp);
 
     let data: BTreeMap<String, String>  = serde_json::from_reader(
@@ -182,7 +182,7 @@ fn encode_dict(dict: &BTreeMap<StenoWord, String>) -> Result<Vec<u8>> {
     write!(&mut wr, "({:?}, {:?}, {:?})",
            env!("GIT_COMMIT"),
            env!("GIT_DIRTY"),
-           env!("SOURCE_TIMESTAMP"),
+           env!("BUILD_TIMESTAMP"),
     )?;
 
     Ok(result)
