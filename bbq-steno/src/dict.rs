@@ -9,6 +9,8 @@
 
 extern crate alloc;
 
+use alloc::rc::Rc;
+
 use crate::Stroke;
 
 pub use self::mapdict::{RamDict, MapDict, MapDictBuilder};
@@ -63,8 +65,10 @@ pub trait Dict {
 
 /// A Selector over a dictionary tracks a range of the dictionary that specifies
 /// a range of entries in the dictionary that cover a given prefix.
-#[derive(Debug)]
 pub struct Selector {
+    /// The dictionary this entry applies to.
+    dict: Rc<dyn DictImpl>,
+
     /// The number of strokes that have been matched so far.
     pub count: usize,
 
@@ -77,10 +81,11 @@ pub struct Selector {
 
 impl Selector {
     /// Create the empty selector, that selects no strokes entered.
-    pub fn new<T: DictImpl>(dict: &T) -> Selector {
+    pub fn new(dict: Rc<dyn DictImpl>) -> Selector {
         let left = 0;
         let right = dict.len();
         Selector {
+            dict,
             left,
             right,
             count: 0,
@@ -90,19 +95,20 @@ impl Selector {
     /// Perform a single lookup step.  Returns a new cursor that matches the
     /// given token.  If there are zero entries in the dictionary that match,
     /// this will return None.
-    pub fn lookup_step<'b, T: DictImpl>(&self, dict: &'b T, key: Stroke) -> Option<(Selector, Option<&'b str>)> {
-        let left = dict.scan(self.left, self.right, self.count, key);
+    pub fn lookup_step(&self, key: Stroke) -> Option<(Selector, Option<String>)> {
+        let left = self.dict.scan(self.left, self.right, self.count, key);
         // println!("left = {}", left);
-        let right = dict.scan(self.left, self.right, self.count, key.succ());
+        let right = self.dict.scan(self.left, self.right, self.count, key.succ());
         // println!("right = {}", right);
         if right > left {
-            let key = dict.key(left);
+            let key = self.dict.key(left);
             let text = if key.len() == self.count + 1 {
-                Some(dict.value(left))
+                Some(self.dict.value(left).to_string())
             } else {
                 None
             };
             Some((Selector {
+                dict: self.dict.clone(),
                 count: self.count + 1,
                 left,
                 right,

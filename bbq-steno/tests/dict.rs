@@ -1,6 +1,6 @@
 // Test dictionaries.
 
-use std::{collections::BTreeMap, fs::File};
+use std::{collections::BTreeMap, fs::File, rc::Rc};
 
 use anyhow::Result;
 use bbq_steno::{
@@ -20,15 +20,15 @@ fn ramdict() {
         "ST/OP/-G".to_string(),
     );
     // b.insert(vec![stroke!("ST-Z")], "S".to_string());
-    let dict = b.into_ram_dict();
+    let dict = Rc::new(b.into_ram_dict());
 
-    let pos = Selector::new(&dict);
+    let pos = Selector::new(dict);
     // println!("full: {:?}", pos);
-    let (posb, text) = pos.lookup_step(&dict, stroke!("ST")).unwrap();
+    let (posb, text) = pos.lookup_step(stroke!("ST")).unwrap();
     // println!("ST: {:?}", posb);
-    assert_eq!(text, Some("ST"));
-    let (_posc, text) = posb.lookup_step(&dict, stroke!("OP")).unwrap();
-    assert_eq!(text, Some("ST/OP"));
+    assert_eq!(text, Some("ST".to_string()));
+    let (_posc, text) = posb.lookup_step(stroke!("OP")).unwrap();
+    assert_eq!(text, Some("ST/OP".to_string()));
     // println!("ST/OP: {:?}", posc);
 }
 
@@ -73,11 +73,11 @@ vec![stroke!("ST"), stroke!("OP"), stroke!("-G")],
 #[test]
 fn main_dict() {
     let dict = load_dict().expect("Unable to load main dict");
-    let pos = Selector::new(&dict);
-    let (pos, text) = pos.lookup_step(&dict, stroke!("1257B")).unwrap();
+    let pos = Selector::new(dict);
+    let (pos, text) = pos.lookup_step(stroke!("1257B")).unwrap();
     assert!(text.is_none());
-    let (pos, text) = pos.lookup_step(&dict, stroke!("HREU")).unwrap();
-    assert_eq!(text, Some("Stanley"));
+    let (pos, text) = pos.lookup_step(stroke!("HREU")).unwrap();
+    assert_eq!(text, Some("Stanley".to_string()));
     assert!(!pos.unique());
 }
 
@@ -108,7 +108,7 @@ fn test_translator() {
 */
 
 /// Load the main dictionary.
-fn load_dict() -> Result<RamDict> {
+fn load_dict() -> Result<Rc<RamDict>> {
     let data: BTreeMap<String, String> =
         serde_json::from_reader(File::open("../dict-convert/lapwing-base.json")?)?;
     let mut builder = MapDictBuilder::new();
@@ -116,5 +116,5 @@ fn load_dict() -> Result<RamDict> {
         let k = StenoWord::parse(&k)?;
         builder.insert(k.0, v);
     }
-    Ok(builder.into_ram_dict())
+    Ok(Rc::new(builder.into_ram_dict()))
 }
