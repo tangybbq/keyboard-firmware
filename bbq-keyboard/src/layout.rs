@@ -235,7 +235,22 @@ impl ModeSelector {
 }
 
 impl LayoutMode {
+    /// Move to the next mode.  For Proto2, we have the two steno modes, and
+    /// artsey, and don't bother with either nkro or qwerty.  nkro for proto2 is
+    /// a todo.
+    #[cfg(feature = "proto2")]
+    fn next(self) -> Self {
+        match self {
+            LayoutMode::Steno => LayoutMode::StenoRaw,
+            LayoutMode::StenoRaw => LayoutMode::Artsey,
+            LayoutMode::Artsey => LayoutMode::Steno,
+            LayoutMode::Qwerty => LayoutMode::NKRO,
+            LayoutMode::NKRO => LayoutMode::Steno,
+        }
+    }
+
     /// Move to the next mode.
+    #[cfg(feature = "proto3")]
     fn next(self) -> Self {
         match self {
             LayoutMode::Steno => LayoutMode::StenoRaw,
