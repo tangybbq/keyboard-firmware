@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 
@@ -30,7 +30,7 @@ pub struct Translator {
 #[derive(Debug)]
 struct Entry {
     nodes: Vec<Selector>,
-    text: Option<String>,
+    _text: String,
 
     // How far back in the history have we successfully typed?  0 means we have
     // typed up to the current entry.
@@ -39,7 +39,7 @@ struct Entry {
 
 impl Entry {
     fn new() -> Entry {
-        Entry { nodes: Vec::new(), text: None, last_typed: 0 }
+        Entry { nodes: Vec::new(), _text: String::new(), last_typed: 0 }
     }
 }
 
@@ -101,23 +101,26 @@ impl Translator {
         }
 
         // Determine how much previously typed text needs to be deleted.
-        if let Some(ref best) = best_text {
-            for ent in &self.history[self.history.len() - (best_len - 1) .. self.history.len()] {
-                if ent.text.is_some() {
-                    self.typer.remove();
-                }
+        let text = if let Some(best) = best_text {
+            for _ent in &self.history[self.history.len() - (best_len - 1) .. self.history.len()] {
+                self.typer.remove();
             }
-            self.typer.add(0, true, best);
-        }
+            self.typer.add(0, true, &best);
+            best
+        } else {
+            // There is no translation for the current stroke.  Type out the raw
+            // steno.
+            let text = stroke.to_string();
+            self.typer.add(0, true, &text);
+            text
+        };
 
-        self.history.push(Entry { nodes, text: best_text, last_typed: last.last_typed + 1 });
+        self.history.push(Entry { nodes, _text: text, last_typed: last.last_typed + 1 });
     }
 
     fn undo(&mut self) {
-        if let Some(entry) = self.history.pop() {
-            if entry.text.is_some() {
-                self.typer.remove();
-            }
+        if let Some(_entry) = self.history.pop() {
+            self.typer.remove();
         }
     }
 
@@ -134,7 +137,7 @@ impl Translator {
 
         use crate::stroke::StenoWord;
         let entry = self.history.last().unwrap();
-        println!("Entry: {:?}", entry.text);
+        println!("Entry: {:?}", entry._text);
         for node in &entry.nodes {
             println!("   {:?}", node);
             // Sometimes, it is useful to see all of the entries.

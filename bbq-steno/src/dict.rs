@@ -10,6 +10,7 @@
 extern crate alloc;
 
 use alloc::rc::Rc;
+use alloc::string::{String, ToString};
 
 use crate::Stroke;
 

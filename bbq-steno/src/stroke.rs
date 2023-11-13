@@ -15,6 +15,8 @@
 // Until everything is used.
 #![allow(dead_code)]
 
+extern crate alloc;
+
 use core::ops::{BitAnd, BitOr, BitOrAssign, BitAndAssign, Not};
 
 use arrayvec::ArrayString;
@@ -376,9 +378,8 @@ impl Diagrammer {
 */
 
 // Display is in canoncal order.
-#[cfg(feature = "std")]
-impl std::fmt::Display for Stroke {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl alloc::fmt::Display for Stroke {
+    fn fmt(&self, f: &mut alloc::fmt::Formatter) -> alloc::fmt::Result {
         // The '#' should be printed if the number is present, but none of the digits are present.
         if self.has_any(NUM) && !self.has_any(DIGITS) {
             write!(f, "#")?;
