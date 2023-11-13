@@ -13,7 +13,7 @@ use alloc::rc::Rc;
 
 use crate::Stroke;
 
-pub use self::mapdict::{RamDict, MapDict, MapDictBuilder};
+pub use self::mapdict::{RamDict, MapDictBuilder};
 pub use self::translate::Translator;
 pub use self::typer::TypeAction;
 
@@ -22,52 +22,13 @@ mod ortho;
 mod translate;
 mod typer;
 
-/// A Dictionary is something that strokes can be looked up in.
-pub trait Dict {
-    /// The core lookup, works like a Map lookup, finding exact matches and
-    /// their results.  It is possible that longer sequences of strokes will
-    /// match other definitions, and searches fill fail if the input is longer
-    /// than an entry.
-    fn lookup<'a>(&'a self, strokes: &[Stroke]) -> Option<&'a str>;
-
-    /// Determine the longest stroke sequence used as a key in the dictionary.
-    /// This is needed for the naive implementation of `prefix_lookup`. It is
-    /// recommended that this value be cached, or pre-computed, as it will be
-    /// used for each `prefix_lookup`. If an implementation provides its own
-    /// `prefix_lookup` performance of this routine is not internally important.
-    fn longest_key(&self) -> usize;
-
-    /// Perform a prefix lookup.  Similar to `lookup`, but will return success
-    /// if the matched string only returns a prefix of the input.  The return
-    /// result is a pair of the number strokes in the match, and the result of
-    /// the match.  This is the longest match with the given input strokes, but
-    /// adding more strokes and searching again could result in a different
-    /// result.  If a dictionary implementation is able, this should be
-    /// overridden.
-    fn prefix_lookup<'a>(&'a self, query: &[Stroke]) -> Option<(usize, &'a str)> {
-        // Limit the query the longest key.
-        let longest = self.longest_key().min(query.len());
-
-        let mut best = None;
-
-        // Because we don't have insight into the dictionary, there isn't really
-        // much more to do than to lookup all possible prefixes.
-        for len in 1..(longest + 1) {
-            let key = &query[..len];
-            if let Some(result) = self.lookup(key) {
-                best = Some((len, result));
-            }
-        }
-
-        best
-    }
-}
+pub type Dict = Rc<dyn DictImpl>;
 
 /// A Selector over a dictionary tracks a range of the dictionary that specifies
 /// a range of entries in the dictionary that cover a given prefix.
 pub struct Selector {
     /// The dictionary this entry applies to.
-    dict: Rc<dyn DictImpl>,
+    dict: Dict,
 
     /// The number of strokes that have been matched so far.
     pub count: usize,
@@ -79,9 +40,17 @@ pub struct Selector {
     pub right: usize,
 }
 
+impl alloc::fmt::Debug for Selector {
+    fn fmt(&self, f: &mut alloc::fmt::Formatter) -> Result<(), alloc::fmt::Error> {
+        // Don't print the dict.
+        write!(f, "Selector {{ count: {}, left: {}, right: {}}}",
+               self.count, self.left, self.right)
+    }
+}
+
 impl Selector {
     /// Create the empty selector, that selects no strokes entered.
-    pub fn new(dict: Rc<dyn DictImpl>) -> Selector {
+    pub fn new(dict: Dict) -> Selector {
         let left = 0;
         let right = dict.len();
         Selector {
@@ -151,13 +120,9 @@ pub trait DictImpl {
                 return mid;
             }
 
-            if needle > k[pos] {
-                // If the needls is past this entry, move the right.
-                // println!("search is before find point, move left");
+            if pos >= k.len() || needle > k[pos] {
                 left = mid + 1;
             } else {
-                // Otherwise, we are to the left, advance the left of the search.
-                // println!("search is past find point, move right");
                 right = mid;
             }
         }

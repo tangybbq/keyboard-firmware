@@ -1,12 +1,12 @@
 use std::{
     collections::BTreeMap,
     fs::File,
-    io::{stdin, stdout, Write},
+    io::{stdin, stdout, Write}, rc::Rc,
 };
 
 use anyhow::Result;
 use bbq_steno::{
-    dict::{MapDict, MapDictBuilder, Translator},
+    dict::{RamDict, MapDictBuilder, Translator},
     stroke::StenoWord,
     Stroke,
 };
@@ -19,6 +19,7 @@ fn main() -> Result<()> {
     let mut stdout = stdout().into_raw_mode()?;
 
     let mut word = String::new();
+    writeln!(stdout, "Begin.\r")?;
     for key in stdin.keys() {
         let key = key?;
         if key == Key::Esc {
@@ -50,13 +51,13 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn load_dict() -> Result<MapDict> {
+fn load_dict() -> Result<Rc<RamDict>> {
     let data: BTreeMap<String, String> =
-        serde_json::from_reader(File::open("../dict-convert/main.json")?)?;
+        serde_json::from_reader(File::open("../dict-convert/lapwing-base.json")?)?;
     let mut builder = MapDictBuilder::new();
     for (k, v) in data {
         let k = StenoWord::parse(&k)?;
         builder.insert(k.0, v);
     }
-    Ok(builder.into_map_dict())
+    Ok(Rc::new(builder.into_ram_dict()))
 }

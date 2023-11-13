@@ -4,7 +4,7 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use super::{Dict, DictImpl};
+use super::DictImpl;
 use crate::Stroke;
 
 extern crate alloc;
@@ -43,18 +43,12 @@ impl DictImpl for RamDict {
     }
 }
 
-/// A simple dictionary implementation.  This is implemented by storing Vecs of
-/// the keys, and Strings as the values.
-pub struct MapDict {
-    map: BTreeMap<Vec<Stroke>, String>,
-    longest: usize,
-}
-
 /// A dictionary builder.
 pub struct MapDictBuilder {
     map: BTreeMap<Vec<Stroke>, String>,
 }
 
+/*
 impl Dict for MapDict {
     fn lookup<'a>(&'a self, query: &[Stroke]) -> Option<&'a str> {
         self.map.get(query).map(|s| s.as_ref())
@@ -64,13 +58,16 @@ impl Dict for MapDict {
         self.longest
     }
 }
+*/
 
+/*
 impl MapDict {
     /// Iterate over the keys in the dictionary.
     pub fn keys(&self) -> impl Iterator<Item = &[Stroke]> {
         self.map.keys().map(|k| k.as_slice())
     }
 }
+*/
 
 impl MapDictBuilder {
     pub fn new() -> MapDictBuilder {
@@ -84,6 +81,7 @@ impl MapDictBuilder {
         self.map.insert(key, definition);
     }
 
+    /*
     /// Freeze the dictionary.
     pub fn into_map_dict(self) -> MapDict {
         let longest = self.map.keys().map(|k| k.len()).max().unwrap_or(0);
@@ -92,6 +90,7 @@ impl MapDictBuilder {
             longest,
         }
     }
+    */
 
     /// Freeze into a RamDict.
     pub fn into_ram_dict(self) -> RamDict {

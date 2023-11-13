@@ -6,7 +6,7 @@
 //! Note that we will treat these as static lifetime. Testing might use
 //! temporary arrays, and it is important to make sure they aren't moved.
 
-use crate::{stroke::Stroke, dict::Dict};
+use crate::{stroke::Stroke, dict::DictImpl};
 
 pub const MAGIC1: &[u8] = b"stenodct";
 
@@ -79,9 +79,15 @@ impl MemDict {
             text_offsets,
         })
     }
+}
+
+impl DictImpl for MemDict {
+    fn len(&self) -> usize {
+        self.key_offsets.len()
+    }
 
     /// Get a given key by index.  Panics if the key is out of range.
-    pub fn get_key(&self, n: usize) -> &'static [Stroke] {
+    fn key(&self, n: usize) -> &'static [Stroke] {
         let code = self.key_offsets[n] as usize;
         let offset = code & ((1 << 24) - 1);
         let length = code >> 24;
@@ -89,7 +95,7 @@ impl MemDict {
     }
 
     /// Get the text. Panics if the key is out of range.
-    pub fn get_text(&self, n: usize) -> &'static str {
+    fn value(&self, n: usize) -> &'static str {
         let code = self.text_offsets[n] as usize;
         let offset = code & ((1 << 24) - 1);
         let length = code >> 24;
@@ -99,6 +105,7 @@ impl MemDict {
     }
 }
 
+/*
 impl Dict for MemDict {
     /// Lookup a sequence of steno in the dictionary.
     /// TODO: This is only an exact lookup, and doesn't really handle the case
@@ -204,3 +211,4 @@ impl Dict for MemDict {
         (0..self.key_offsets.len()).map(|i| self.get_key(i).len()).max().unwrap_or(0)
     }
 }
+*/

@@ -15,7 +15,7 @@ use crate::println;
 
 /// The typing tracker.  LIMIT is the limit of the history.
 pub struct Typer<const LIMIT: usize> {
-    words: Vec<Word>,
+    _words: Vec<Word>,
 
     /// Things to be typed.
     to_type: VecDeque<TypeAction>,
@@ -41,16 +41,17 @@ pub struct TypeAction {
 impl<const LIMIT: usize> Typer<LIMIT> {
     pub fn new() -> Self {
         Typer {
-            words: Vec::new(),
+            _words: Vec::new(),
             to_type: VecDeque::new(),
         }
     }
 
     /// Add a track of words that we have typed.  The space will be inserted
     /// before if it is needed.
+    #[allow(dead_code)]
     pub fn add(&mut self, remove: usize, space: bool, typed: &str) {
-        if self.words.len() > LIMIT {
-            self.words.remove(0);
+        if self._words.len() > LIMIT {
+            self._words.remove(0);
         }
 
         // TODO: remove
@@ -67,7 +68,7 @@ impl<const LIMIT: usize> Typer<LIMIT> {
         let _combined = super::ortho::combine("run", "zzz");
         // println!("*** remove: {}, type: {:?}", 0, word);
 
-        self.words.push(Word {
+        self._words.push(Word {
             remove: String::new(),
             typed: word,
         });
@@ -75,7 +76,7 @@ impl<const LIMIT: usize> Typer<LIMIT> {
 
     /// Remove the latest thing we typed.
     pub fn remove(&mut self) {
-        if let Some(word) = self.words.pop() {
+        if let Some(word) = self._words.pop() {
             let _ = word.typed;
             let _ = word.remove;
             println!("*** remove: {}, type: {:?}", word.typed.len(), word.remove);

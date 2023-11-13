@@ -2,38 +2,45 @@
 
 extern crate alloc;
 
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
 use super::typer::{Typer, TypeAction};
-use super::Dict;
-#[cfg(feature = "std")]
-use crate::stroke::StenoWord;
+use super::{Dict, Selector};
 use crate::Stroke;
+#[cfg(feature = "std")]
 
 #[cfg(not(feature = "std"))]
 use crate::println;
 
 /// Track a series of translations captured in real-time as they are input.
-pub struct Translator<D: Dict> {
-    // The translations we've seen, most recent at the end.
-    entries: Vec<Entry>,
-    // The dictionary to use.
-    dict: D,
-    // Cache of the longest key.
-    longest: usize,
+pub struct Translator {
+    /// The dictionaries to use for the lookups.
+    dicts: Vec<Dict>,
+
+    /// The nodes at each state.
+    history: Vec<Entry>,
+
     // Tracker of what was typed.
     typer: Typer<HIST_MAX>,
 }
 
-/// Each stroke that is captured has with it some possible data.
+/// At a given state, these are the possible places we can go.
 #[derive(Debug)]
 struct Entry {
-    /// The strokes that make up this translation.
-    strokes: Vec<Stroke>,
-    /// What this translates to, if anything.
-    translation: Option<Translation>,
+    nodes: Vec<Selector>,
+    text: Option<String>,
+
+    // How far back in the history have we successfully typed?  0 means we have
+    // typed up to the current entry.
+    last_typed: usize,
+}
+
+impl Entry {
+    fn new() -> Entry {
+        Entry { nodes: Vec::new(), text: None, last_typed: 0 }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -47,126 +54,73 @@ struct Translation {
 // const HIST_MAX: usize = 100;
 const HIST_MAX: usize = 20;
 
-impl<D: Dict> Translator<D> {
-    pub fn new(dict: D) -> Self {
-        let longest = dict.longest_key();
+impl Translator {
+    pub fn new(dict: Dict) -> Self {
         Translator {
-            entries: Vec::new(),
-            dict,
-            longest,
+            dicts: vec![dict],
+            history: vec![Entry::new()],
             typer: Typer::new(),
         }
     }
 
     /// Add a new stroke to the Translator.  Updates the internal state.
-
     pub fn add(&mut self, stroke: Stroke) {
         if stroke.is_star() {
-            self.modify(None);
+            self.undo();
         } else {
-            self.modify(Some(stroke));
+            self.add_stroke(stroke);
         }
     }
 
-    fn modify(&mut self, stroke: Option<Stroke>) {
-        // Clean up excessive history.
-        if self.entries.len() >= HIST_MAX {
-            let _ = self.entries.remove(0);
-        }
+    fn add_stroke(&mut self, stroke: Stroke) {
+        let last = self.history.last().unwrap();
 
-        // Track back as far as needed for the longest definition necessary.
-        let mut base = self.entries.len();
-        let mut count = 0;
-        while count < self.longest && base > 0 {
-            base -= 1;
-            count += self.entries[base].strokes.len();
-        }
-        println!("Base: {}", base);
+        let mut nodes = vec!();
+        let mut best_len = 0;
+        let mut best_text = None;
 
-        // Build up a new list of strokes, to build a new translation.
-        let mut strokes = Vec::new();
-        for ent in &self.entries[base..] {
-            strokes.extend_from_slice(&ent.strokes);
-        }
+        // Iterate over all current nodes, along with an additional epislon node
+        // for each dictionary.
+        let fresh: Vec<_> = self.dicts.iter().map(|d| Selector::new(d.clone())).collect();
+        for entry in last.nodes.iter().chain(fresh.iter()) {
+            if let Some((sel, text)) = entry.lookup_step(stroke) {
+                // Dictionaries are in priority order.  Any new entries override
+                // those of the same length.
+                if let Some(text) = text {
+                    if sel.count >= best_len {
+                        best_len = sel.count;
+                        best_text = Some(text);
+                    }
+                }
 
-        if let Some(stroke) = stroke {
-            // Add in the newly received stroke.
-            strokes.push(stroke);
-        } else {
-            // Remove a stroke.
-            let _ = strokes.pop();
-        }
-        println!("Try translate: {}", StenoWord(strokes.clone()));
-
-        let mut xlat = self.translate(&strokes);
-
-        // Determine the delta, and use that to determine what to type.
-        let mut old_iter = self.entries[base..].iter();
-        let mut new_iter = xlat.iter();
-
-        loop {
-            let old_elt = old_iter.next();
-            let new_elt = new_iter.next();
-            if old_elt.is_none() && new_elt.is_none() {
-                break;
+                // Unless this node is unique, push it for additional nodes.
+                if !sel.unique() {
+                    nodes.push(sel);
+                }
             }
-            if old_elt.is_none() {
-                let new_elt = new_elt.unwrap();
-                // New translation, just type this.
-                self.typer.add(0, true, &new_elt.text());
-                continue;
-            }
-            if new_elt.is_none() {
-                // Delete, git rid of things typed.
-                // TODO: use delete_from.
-                self.typer.remove();
-                while let Some(_) = old_iter.next() {
+        }
+
+        // Determine how much previously typed text needs to be deleted.
+        if let Some(ref best) = best_text {
+            for ent in &self.history[self.history.len() - (best_len - 1) .. self.history.len()] {
+                if ent.text.is_some() {
                     self.typer.remove();
                 }
-
-                break;
             }
+            self.typer.add(0, true, best);
+        }
 
-            let old_elt = old_elt.unwrap();
-            let new_elt = new_elt.unwrap();
+        self.history.push(Entry { nodes, text: best_text, last_typed: last.last_typed + 1 });
+    }
 
-            // If the translation differ, here is our undo point.
-            if old_elt.translation != new_elt.translation {
-                // Delete from the new elt on.
-
+    fn undo(&mut self) {
+        if let Some(entry) = self.history.pop() {
+            if entry.text.is_some() {
                 self.typer.remove();
-                while let Some(_) = old_iter.next() {
-                    self.typer.remove();
-                }
-
-                self.typer.add(0, true, &new_elt.text());
-                while let Some(new_elt) = new_iter.next() {
-                    self.typer.add(0, true, &new_elt.text());
-                }
-                break;
             }
-
-            // Otherwise, they are equal, and we continue.
-        }
-
-        // Replace the translation with this one.
-        while self.entries.len() > base {
-            // Is there a better way to pop these?
-            let _ = self.entries.pop();
-        }
-        self.entries.append(&mut xlat);
-    }
-
-    /*
-    fn delete_from<'b: 'a, I: Iterator<Item = &'b Entry<'a>>>(elt: &'b Entry, elt_iter: I) {
-        let mut hold = vec![elt];
-        hold.extend(elt_iter);
-
-        while let Some(elt) = hold.pop() {
-            println!("Delete: {:?}", elt.translation);
         }
     }
-    */
+
 
     /// Retrieve the next action from the typer.
     pub fn next_action(&mut self) -> Option<TypeAction> {
@@ -176,88 +130,22 @@ impl<D: Dict> Translator<D> {
     /// Print out the state of the translator.
     #[cfg(feature = "std")]
     pub fn show(&self) {
-        for e in &self.entries {
-            let _ = e;
-            println!(
-                "{:>10} {:?}",
-                StenoWord(e.strokes.clone()).to_string(),
-                e.translation
-            );
-        }
-    }
+        // Just print the latest history, as the history doesn't change.
 
-    /// Compute a translation set from the given strokes.
-    fn translate(&self, strokes: &[Stroke]) -> Vec<Entry> {
-        let mut result = Vec::new();
-
-        let mut pos = 0;
-        while pos < strokes.len() {
-            if let Some((len, defn)) = self.dict.prefix_lookup(&strokes[pos..]) {
-                result.push(Entry {
-                    strokes: strokes[pos..pos + len].to_vec(),
-                    translation: Some(Translation { definition: defn.to_string() }),
-                });
-                pos += len;
-            } else {
-                result.push(Entry {
-                    strokes: vec![strokes[pos]],
-                    translation: None,
-                });
-                pos += 1;
-            }
-        }
-        result
-    }
-
-    /*
-    /// Add a new stroke to the Translator.  Returns what we know about the translation so far.
-    pub fn add(&mut self, stroke: Stroke) {
-        if self.seen.len() >= self.longest {
-            self.seen.remove(0);
-            self.lens.remove(0);
-        }
-        self.seen.push(stroke);
-        // self.lens.push(0);
-
-        let mut new_lens = Vec::with_capacity(self.seen.len());
-
-        let mut pos = 0;
-        while pos < self.seen.len() {
-            if let Some((len, _defn)) = self.dict.prefix_lookup(&self.seen[pos..]) {
-                new_lens.push(len);
-                for _ in 1..len {
-                    new_lens.push(0);
+        use crate::stroke::StenoWord;
+        let entry = self.history.last().unwrap();
+        println!("Entry: {:?}", entry.text);
+        for node in &entry.nodes {
+            println!("   {:?}", node);
+            // Sometimes, it is useful to see all of the entries.
+            if false {
+                for i in node.left..node.right {
+                    println!("      {} {:?}",
+                             StenoWord(node.dict.key(i).to_vec()),
+                             node.dict.value(i));
                 }
-                pos += len;
-            } else {
-                new_lens.push(0);
-                pos += 1;
             }
         }
-        #[cfg(feature = "std")]
-        println!("Lookup, old {:?}", self.lens);
-        #[cfg(feature = "std")]
-        println!("        new {:?}", new_lens);
-
-        self.lens = new_lens;
     }
-    */
-}
 
-impl Entry {
-    fn text(&self) -> String {
-        if let Some(tr) = &self.translation {
-            tr.definition.clone()
-        } else {
-            "TODO:RAW".to_string()
-        }
-    }
-    /*
-        fn new_empty(stroke: Stroke) -> Self {
-            Entry {
-                strokes: vec![stroke],
-                translation: None,
-            }
-        }
-    */
 }
