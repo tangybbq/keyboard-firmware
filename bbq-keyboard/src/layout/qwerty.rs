@@ -514,7 +514,7 @@ static ROOT_MAP: [Mapping; NKEYS + 23] = [
 
     // Thumb pairs "#A", "AO", "#U", "EU"
     // TODO: These are all layer shifts, wait for that to be implemented.
-    Mapping::Dead,
+    Mapping::LayerShift(&FN_MAP),
     Mapping::LayerShift(&NUM_MAP),
     Mapping::Dead,
     Mapping::LayerShift(&NAV_MAP),
@@ -591,6 +591,118 @@ static NUM_MAP: [Mapping; NKEYS + 23] = [
 
     // 44
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard6, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // Left hand upper combos
+    // 48
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::CONTROL }),
+
+    // Right hand upper combos
+    // 52
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::CONTROL }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI }),
+    Mapping::Dead,
+
+    // Left hand lower combos
+    // 57
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // Right hand lower combos
+    // 62
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // Thumb pairs "#A", "AO", "#U", "EU"
+    // TODO: These are all layer shifts, wait for that to be implemented.
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+];
+
+static FN_MAP: [Mapping; NKEYS + 23] = [
+    // 0
+    Mapping::Key(KeyMapping { key: Keyboard::F12, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 4
+    Mapping::Key(KeyMapping { key: Keyboard::F1, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 8
+    Mapping::Key(KeyMapping { key: Keyboard::F2, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 12
+    Mapping::Key(KeyMapping { key: Keyboard::F3, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 16
+    Mapping::Key(KeyMapping { key: Keyboard::F4, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 20
+    Mapping::Key(KeyMapping { key: Keyboard::F5, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 24
+    Mapping::Key(KeyMapping { key: Keyboard::F11, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 28
+    Mapping::Key(KeyMapping { key: Keyboard::F10, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 32
+    Mapping::Key(KeyMapping { key: Keyboard::F9, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 36
+    Mapping::Key(KeyMapping { key: Keyboard::F8, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 40
+    Mapping::Key(KeyMapping { key: Keyboard::F7, mods: Mods::empty() }),
+    Mapping::Dead,
+    Mapping::Dead,
+    Mapping::Dead,
+
+    // 44
+    Mapping::Key(KeyMapping { key: Keyboard::F6, mods: Mods::empty() }),
     Mapping::Dead,
     Mapping::Dead,
     Mapping::Dead,
