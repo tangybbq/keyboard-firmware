@@ -9,6 +9,9 @@
 
 extern crate alloc;
 
+use core::fmt::Debug;
+
+use alloc::boxed::Box;
 use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 
@@ -25,9 +28,25 @@ mod typer;
 
 pub type Dict = Rc<dyn DictImpl>;
 
+/// A selector is something that maintains a selection over a partial range
+/// within a dictionary.
+pub trait Selector: Debug {
+    /// Lookup an additional stroke within this selector.  If this still results
+    /// in entries being present, returns a new selector, as well as a possible
+    /// translation if this stroke is sufficient to give a result.
+    fn lookup_step(&self, key: Stroke) -> Option<(Box<dyn Selector>, Option<String>)>;
+
+    /// Return if this result is unique, meaning that there are no longer
+    /// dictionary entries that could be found by searching for additional strokes.
+    fn unique(&self) -> bool;
+
+    /// Return a count of the number of strokes that have been selected.
+    fn count(&self) -> usize;
+}
+
 /// A Selector over a dictionary tracks a range of the dictionary that specifies
 /// a range of entries in the dictionary that cover a given prefix.
-pub struct Selector {
+pub struct BinarySelector {
     /// The dictionary this entry applies to.
     dict: Dict,
 
@@ -41,7 +60,7 @@ pub struct Selector {
     pub right: usize,
 }
 
-impl alloc::fmt::Debug for Selector {
+impl alloc::fmt::Debug for BinarySelector {
     fn fmt(&self, f: &mut alloc::fmt::Formatter) -> Result<(), alloc::fmt::Error> {
         // Don't print the dict.
         write!(f, "Selector {{ count: {}, left: {}, right: {}}}",
@@ -49,23 +68,25 @@ impl alloc::fmt::Debug for Selector {
     }
 }
 
-impl Selector {
+impl BinarySelector {
     /// Create the empty selector, that selects no strokes entered.
-    pub fn new(dict: Dict) -> Selector {
+    pub fn new(dict: Dict) -> BinarySelector {
         let left = 0;
         let right = dict.len();
-        Selector {
+        BinarySelector {
             dict,
             left,
             right,
             count: 0,
         }
     }
+}
 
+impl Selector for BinarySelector {
     /// Perform a single lookup step.  Returns a new cursor that matches the
     /// given token.  If there are zero entries in the dictionary that match,
     /// this will return None.
-    pub fn lookup_step(&self, key: Stroke) -> Option<(Selector, Option<String>)> {
+    fn lookup_step(&self, key: Stroke) -> Option<(Box<dyn Selector>, Option<String>)> {
         let left = self.dict.scan(self.left, self.right, self.count, key);
         // println!("left = {}", left);
         let right = self.dict.scan(self.left, self.right, self.count, key.succ());
@@ -77,12 +98,12 @@ impl Selector {
             } else {
                 None
             };
-            Some((Selector {
+            Some((Box::new(BinarySelector {
                 dict: self.dict.clone(),
                 count: self.count + 1,
                 left,
                 right,
-            },
+            }),
                   text))
         } else {
             None
@@ -91,8 +112,12 @@ impl Selector {
 
     /// Is this selector uniqueue, meaning will any additional strokes possibly
     /// result in more translations?
-    pub fn unique(&self) -> bool {
+    fn unique(&self) -> bool {
         self.left + 1 == self.right
+    }
+
+    fn count(&self) -> usize {
+        self.count
     }
 }
 
@@ -102,6 +127,7 @@ pub trait DictImpl {
     fn len(&self) -> usize;
     fn key(&self, index: usize) -> &[Stroke];
     fn value(&self, index: usize) -> &str;
+    fn selector(self: Rc<Self>) -> Box<dyn Selector>;
 
     /// For a given range of the dictionary, do a binary search for the given
     /// key as the nth character of a key.

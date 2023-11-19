@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, fs::File, rc::Rc};
 
 use anyhow::Result;
 use bbq_steno::{
-    dict::{RamDict, MapDictBuilder, Selector},
+    dict::{RamDict, MapDictBuilder, DictImpl},
     stroke::StenoWord,
 };
 use bbq_steno_macros::stroke;
@@ -21,8 +21,7 @@ fn ramdict() {
     );
     // b.insert(vec![stroke!("ST-Z")], "S".to_string());
     let dict = Rc::new(b.into_ram_dict());
-
-    let pos = Selector::new(dict);
+    let pos = dict.clone().selector();
     // println!("full: {:?}", pos);
     let (posb, text) = pos.lookup_step(stroke!("ST")).unwrap();
     // println!("ST: {:?}", posb);
@@ -73,7 +72,7 @@ vec![stroke!("ST"), stroke!("OP"), stroke!("-G")],
 #[test]
 fn main_dict() {
     let dict = load_dict().expect("Unable to load main dict");
-    let pos = Selector::new(dict);
+    let pos = dict.clone().selector();
     let (pos, text) = pos.lookup_step(stroke!("1257B")).unwrap();
     assert_eq!(text, Some("Stan".to_string()));
     let (pos, text) = pos.lookup_step(stroke!("HREU")).unwrap();

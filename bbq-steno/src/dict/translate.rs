@@ -2,6 +2,7 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -29,7 +30,7 @@ pub struct Translator {
 /// At a given state, these are the possible places we can go.
 #[derive(Debug)]
 struct Entry {
-    nodes: Vec<Selector>,
+    nodes: Vec<Box<dyn Selector>>,
     _text: String,
 
     // How far back in the history have we successfully typed?  0 means we have
@@ -81,14 +82,14 @@ impl Translator {
 
         // Iterate over all current nodes, along with an additional epislon node
         // for each dictionary.
-        let fresh: Vec<_> = self.dicts.iter().map(|d| Selector::new(d.clone())).collect();
+        let fresh: Vec<_> = self.dicts.iter().map(|d| d.clone().selector()).collect();
         for entry in last.nodes.iter().chain(fresh.iter()) {
             if let Some((sel, text)) = entry.lookup_step(stroke) {
                 // Dictionaries are in priority order.  Any new entries override
                 // those of the same length.
                 if let Some(text) = text {
-                    if sel.count >= best_len {
-                        best_len = sel.count;
+                    if sel.count() >= best_len {
+                        best_len = sel.count();
                         best_text = Some(text);
                     }
                 }
@@ -135,12 +136,12 @@ impl Translator {
     pub fn show(&self) {
         // Just print the latest history, as the history doesn't change.
 
-        use crate::stroke::StenoWord;
         let entry = self.history.last().unwrap();
         println!("Entry: {:?}", entry._text);
         for node in &entry.nodes {
             println!("   {:?}", node);
             // Sometimes, it is useful to see all of the entries.
+            /* TODO: Doesn't work after abstraction
             if false {
                 for i in node.left..node.right {
                     println!("      {} {:?}",
@@ -148,6 +149,7 @@ impl Translator {
                              node.dict.value(i));
                 }
             }
+            */
         }
     }
 

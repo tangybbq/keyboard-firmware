@@ -6,7 +6,12 @@
 //! Note that we will treat these as static lifetime. Testing might use
 //! temporary arrays, and it is important to make sure they aren't moved.
 
-use crate::{stroke::Stroke, dict::DictImpl};
+extern crate alloc;
+
+use alloc::boxed::Box;
+use alloc::rc::Rc;
+
+use crate::{stroke::Stroke, dict::{DictImpl, Selector, BinarySelector}};
 
 pub const MAGIC1: &[u8] = b"stenodct";
 
@@ -102,6 +107,10 @@ impl DictImpl for MemDict {
         // println!("get text:{} (raw:{:x}) offset:{:x} len:{}", n, code, offset, length);
         let raw = &self.text[offset..offset + length];
         unsafe { core::str::from_utf8_unchecked(raw) }
+    }
+
+    fn selector(self: Rc<Self>) -> Box<dyn Selector> {
+        Box::new(BinarySelector::new(self))
     }
 }
 

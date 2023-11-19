@@ -1,10 +1,11 @@
 //! Simple dictionary implemented with maps.
 
+use alloc::{boxed::Box, rc::Rc};
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use super::DictImpl;
+use super::{DictImpl, Selector, BinarySelector};
 use crate::Stroke;
 
 extern crate alloc;
@@ -40,6 +41,10 @@ impl DictImpl for RamDict {
         let a = a as usize;
         let b = b as usize;
         &self.text[a..b]
+    }
+
+    fn selector(self: Rc<Self>) -> Box<dyn Selector> {
+        Box::new(BinarySelector::new(self.clone()))
     }
 }
 
