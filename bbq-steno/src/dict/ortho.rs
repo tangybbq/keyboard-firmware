@@ -203,6 +203,9 @@ mod engine {
 
 #[cfg(all())]
 mod engine {
+    extern crate alloc;
+    use alloc::{string::String, format};
+
     pub fn combine(left: &str, right: &str) -> String {
         format!("{}{}", left, right)
     }
