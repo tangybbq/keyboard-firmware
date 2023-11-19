@@ -411,8 +411,8 @@ impl KeyMapping {
 static ROOT_MAP: [Mapping; NKEYS + 23] = [
     // 0
     Mapping::Key(KeyMapping { key: Keyboard::Grave, mods: Mods::empty() }),
-    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::Escape, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 4
@@ -861,74 +861,74 @@ static NAV_MAP: [Mapping; NKEYS + 23] = [
 static NKRO_MAP: [Mapping; NKEYS] = [
     // 0
     Mapping::Key(KeyMapping { key: Keyboard::Grave, mods: Mods::empty() }),
-    Mapping::Dead,
     Mapping::Key(KeyMapping { key: Keyboard::Z, mods: Mods::empty() }),
+    Mapping::Dead,
     Mapping::Dead,
 
     // 4
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard1, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::Q, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::A, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard1, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 8
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard2, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::W, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::S, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard2, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::Z, mods: Mods::empty() }),
 
     // 12
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard3, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::E, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::D, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard3, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::X, mods: Mods::empty() }),
 
     // 16
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard4, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::R, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::F, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard4, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::C, mods: Mods::empty() }),
 
     // 20
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard5, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::T, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::G, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard5, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::V, mods: Mods::empty() }),
 
     // 24
-    Mapping::Key(KeyMapping { key: Keyboard::Minus, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::LeftBrace, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::Apostrophe, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Minus, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 28
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard0, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::P, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::Semicolon, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard0, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::ForwardSlash, mods: Mods::empty() }),
 
     // 32
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard9, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::O, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::L, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard9, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::Dot, mods: Mods::empty() }),
 
     // 36
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard8, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::I, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::K, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard8, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::Comma, mods: Mods::empty() }),
 
     // 40
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard7, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::U, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::J, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard7, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::M, mods: Mods::empty() }),
 
     // 44
-    Mapping::Key(KeyMapping { key: Keyboard::Keyboard6, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::Y, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::H, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::Keyboard6, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::N, mods: Mods::empty() }),
 ];
 

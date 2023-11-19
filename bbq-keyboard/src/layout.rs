@@ -21,7 +21,7 @@ const MODE_KEY: u8 = 13;
 
 // TODO: Generalize this a bit better.
 #[cfg(feature = "proto3")]
-const MODE_KEY: u8 = 1;
+const MODE_KEY: u8 = 2;
 
 // Keyboards are complicated things, and small keyboards are even more
 // complicated. We support numerous different ways of seeing the keyboard, ways
