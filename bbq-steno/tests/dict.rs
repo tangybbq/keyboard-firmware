@@ -75,7 +75,7 @@ fn main_dict() {
     let dict = load_dict().expect("Unable to load main dict");
     let pos = Selector::new(dict);
     let (pos, text) = pos.lookup_step(stroke!("1257B")).unwrap();
-    assert!(text.is_none());
+    assert_eq!(text, Some("Stan".to_string()));
     let (pos, text) = pos.lookup_step(stroke!("HREU")).unwrap();
     assert_eq!(text, Some("Stanley".to_string()));
     assert!(!pos.unique());
