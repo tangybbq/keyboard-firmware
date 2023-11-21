@@ -119,62 +119,62 @@ static STENO_KEYS: &[Option<Stroke>] = &[
 static STENO_KEYS: &[Option<Stroke>] = &[
     // Left
     Some(Stroke::empty()),
+    Some(Stroke::empty()),
     Some(stroke!("#")),
     Some(Stroke::empty()),
-    Some(Stroke::empty()),
 
+    Some(stroke!("#")),
     Some(stroke!("*")),
     Some(stroke!("S")),
-    Some(stroke!("#")),
     Some(Stroke::empty()),
 
+    Some(stroke!("#")),
     Some(stroke!("T")),
     Some(stroke!("K")),
-    Some(stroke!("#")),
     Some(Stroke::empty()),
 
+    Some(stroke!("#")),
     Some(stroke!("P")),
     Some(stroke!("W")),
     Some(stroke!("#")),
-    Some(stroke!("#")),
 
+    Some(stroke!("#")),
     Some(stroke!("H")),
     Some(stroke!("R")),
-    Some(stroke!("#")),
     Some(stroke!("A")),
 
-    Some(stroke!("^")),
+    Some(stroke!("#")),
     Some(stroke!("^")),
     Some(stroke!("^")),
     Some(stroke!("O")),
 
     // Right
+    Some(stroke!("#")), // What should this be?
     Some(stroke!("-D")),
     Some(stroke!("-Z")),
-    Some(stroke!("#")), // What should this be?
     Some(Stroke::empty()),
 
+    Some(stroke!("#")),
     Some(stroke!("-T")),
     Some(stroke!("-S")),
-    Some(stroke!("#")),
     Some(Stroke::empty()),
 
+    Some(stroke!("#")),
     Some(stroke!("-L")),
     Some(stroke!("-G")),
-    Some(stroke!("#")),
     Some(Stroke::empty()),
 
+    Some(stroke!("#")),
     Some(stroke!("-P")),
     Some(stroke!("-B")),
     Some(stroke!("#")),
-    Some(stroke!("#")),
 
+    Some(stroke!("#")),
     Some(stroke!("-F")),
     Some(stroke!("-R")),
-    Some(stroke!("#")),
     Some(stroke!("U")),
 
-    Some(stroke!("+")),
+    Some(stroke!("#")),
     Some(stroke!("+")),
     Some(stroke!("+")),
     Some(stroke!("E")),
