@@ -408,7 +408,7 @@ impl KeyMapping {
 }
 
 // Basic qwerty map for the proto3
-static ROOT_MAP: [Mapping; NKEYS + 23] = [
+static ROOT_MAP: [Mapping; NKEYS + 24] = [
     // 0
     Mapping::Key(KeyMapping { key: Keyboard::Grave, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::empty() }),
@@ -511,6 +511,7 @@ static ROOT_MAP: [Mapping; NKEYS + 23] = [
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard8, mods: Mods::SHIFT }),
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard9, mods: Mods::SHIFT }),
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard0, mods: Mods::SHIFT }),
+    Mapping::Dead,
 
     // Thumb pairs "#A", "AO", "#U", "EU"
     // TODO: These are all layer shifts, wait for that to be implemented.
@@ -520,7 +521,7 @@ static ROOT_MAP: [Mapping; NKEYS + 23] = [
     Mapping::LayerShift(&NAV_MAP),
 ];
 
-static NUM_MAP: [Mapping; NKEYS + 23] = [
+static NUM_MAP: [Mapping; NKEYS + 24] = [
     // 0
     Mapping::Dead,
     Mapping::Dead,
@@ -625,6 +626,7 @@ static NUM_MAP: [Mapping; NKEYS + 23] = [
     Mapping::Dead,
     Mapping::Dead,
     Mapping::Dead,
+    Mapping::Dead,
 
     // Thumb pairs "#A", "AO", "#U", "EU"
     // TODO: These are all layer shifts, wait for that to be implemented.
@@ -634,7 +636,7 @@ static NUM_MAP: [Mapping; NKEYS + 23] = [
     Mapping::Dead,
 ];
 
-static FN_MAP: [Mapping; NKEYS + 23] = [
+static FN_MAP: [Mapping; NKEYS + 24] = [
     // 0
     Mapping::Key(KeyMapping { key: Keyboard::F12, mods: Mods::empty() }),
     Mapping::Dead,
@@ -737,6 +739,7 @@ static FN_MAP: [Mapping; NKEYS + 23] = [
     Mapping::Dead,
     Mapping::Dead,
     Mapping::Dead,
+    Mapping::Dead,
 
     // Thumb pairs "#A", "AO", "#U", "EU"
     // TODO: These are all layer shifts, wait for that to be implemented.
@@ -746,7 +749,7 @@ static FN_MAP: [Mapping; NKEYS + 23] = [
     Mapping::Dead,
 ];
 
-static NAV_MAP: [Mapping; NKEYS + 23] = [
+static NAV_MAP: [Mapping; NKEYS + 24] = [
     // 0
     Mapping::Dead,
     Mapping::Dead,
@@ -832,6 +835,7 @@ static NAV_MAP: [Mapping; NKEYS + 23] = [
     Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::SHIFT }),
     Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::ALT }),
     Mapping::Key(KeyMapping { key: Keyboard::NoEventIndicated, mods: Mods::GUI }),
+    Mapping::Dead,
     Mapping::Dead,
 
     // Left hand lower combos
@@ -935,7 +939,7 @@ static NKRO_MAP: [Mapping; NKEYS] = [
 // Combination keys. Each of these pairs will register as the entry for its
 // index in this list, starting at NKEY. Each pair should have the lowest
 // scancode first.
-static COMBOS: [[u8; 2]; 23] = [
+static COMBOS: [[u8; 2]; 24] = [
     // Pairs with the top and middle row and the main fingers.
     [4, 5],
     [8, 9],
@@ -958,7 +962,7 @@ static COMBOS: [[u8; 2]; 23] = [
     [37, 38],
     [33, 34],
     [29, 30],
-    // [25, 26], // TODO: Should this map to something?
+    [25, 26],
 
     // Pairs from the thumb keys.
     [15, 19],
