@@ -32,7 +32,7 @@ mod usb;
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
 static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-const HEAP_SIZE: usize = 150000;
+const HEAP_SIZE: usize = 20480;
 
 type MatrixType = Matrix<
     Infallible,
