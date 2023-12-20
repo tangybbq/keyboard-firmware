@@ -511,7 +511,7 @@ static ROOT_MAP: [Mapping; NKEYS + 24] = [
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard8, mods: Mods::SHIFT }),
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard9, mods: Mods::SHIFT }),
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard0, mods: Mods::SHIFT }),
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::CapsLock, mods: Mods::empty() }),
 
     // Thumb pairs "#A", "AO", "#U", "EU"
     // TODO: These are all layer shifts, wait for that to be implemented.
