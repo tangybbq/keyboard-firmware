@@ -300,6 +300,48 @@ impl Not for Stroke {
     }
 }
 
+static TOGEMINI: &[(u8, u8)] = &[
+    (5, 0x01), // -Z
+    (4, 0x01), // -D
+    (4, 0x02), // -S
+    (4, 0x04), // -T
+    (4, 0x08), // -G
+    (4, 0x10), // -L
+    (4, 0x20), // -B
+    (4, 0x40), // -P
+    (3, 0x01), // -R
+    (3, 0x02), // -F
+    (3, 0x04), // U
+    (3, 0x08), // E
+    // (3, 0x10), // *
+    (1, 0x40), // *
+    (2, 0x10), // O
+    (2, 0x20), // A
+    (2, 0x40), // R
+    (1, 0x01), // H
+    (1, 0x02), // W
+    (1, 0x04), // P
+    (1, 0x08), // K
+    (1, 0x10), // T
+    (1, 0x20), // S
+    (2, 0x04), // +
+    (3, 0x20), // ^
+    (0, 0x20), // #
+];
+
+impl Stroke {
+    /// Convert a steno stroke into a Gemini code to send it.
+    pub fn to_gemini(&self) -> [u8; 6] {
+        let mut result = [0x80u8, 0, 0, 0, 0, 0];
+        for (stenobit, (byte, bits)) in TOGEMINI.iter().enumerate() {
+            if (self.0 & (1 << stenobit)) != 0 {
+                result[*byte as usize] |= bits;
+            }
+        }
+        result
+    }
+}
+
 // A builder that can generate stroke diagrams.
 // ___________#_____________
 // │S│T│P│H│ │*│ │F│P│L│T│D│
