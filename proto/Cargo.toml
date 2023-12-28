@@ -53,6 +53,7 @@ bbq-steno = { version = "0.1.0", default-features = false, path = "../bbq-steno"
 bbq-steno-macros = { version = "0.1.0", default-features = false, path = "../bbq-steno-macros" }
 rp2040-boot2 = "0.3.0"
 rtic-sync = "1.0.2"
+usbd-serial = "0.1.0"
 
 [features]
 # The proto2 keyboard

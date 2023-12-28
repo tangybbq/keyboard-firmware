@@ -400,9 +400,15 @@ mod app {
                         let _ = steno.try_send(stroke);
                     } else {
                         // Enqueue with USB to send raw.
+                        // TODO: Add a mode to have raw mode that types the
+                        // steno, vs sending via Gemini.
+                        // lock!(ctx, usb_handler, {
+                        //     enqueue_action(usb_handler, buffer.as_str());
+                        //     enqueue_action(usb_handler, " ");
+                        // });
                         lock!(ctx, usb_handler, {
-                            enqueue_action(usb_handler, buffer.as_str());
-                            enqueue_action(usb_handler, " ");
+                            let packet = stroke.to_gemini();
+                            usb_handler.enqueue_serial(&packet);
                         });
                     }
                 }

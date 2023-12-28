@@ -20,13 +20,19 @@ use usbd_human_interface_device::{
     usb_class::{UsbHidClass, UsbHidClassBuilder},
     UsbHidError,
 };
+use usbd_serial::SerialPort;
 
 // Type of the device list, which is internal to usbd_human_interface_device.
 type InterfaceList<'a, Bus> = HCons<NKROBootKeyboard<'a, Bus>, HNil>;
 
+// Enqueued bytes for the gemini protocol.
+type SerialBytes = ArrayDeque<u8, 24>;
+
 pub struct UsbHandler<'a, Bus: UsbBus> {
     dev: UsbDevice<'a, Bus>,
     hid: UsbHidClass<'a, Bus, InterfaceList<'a, Bus>>,
+    serial: SerialPort<'a, Bus>,
+    serial_to_send: SerialBytes,
     state: Option<UsbDeviceState>,
     keys: ArrayDeque<KeyAction, 128>,
 }
@@ -36,6 +42,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
         let keyboard = UsbHidClassBuilder::new()
             .add_device(NKROBootKeyboardConfig::default())
             .build(usb_bus);
+        let serial = SerialPort::new(usb_bus);
         let usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x1209, 0x003))
             .manufacturer("https://github.com/tangybbq/")
             .product("Proto 2")
@@ -44,9 +51,12 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             .max_power(500)
             .supports_remote_wakeup(true)
             .max_packet_size_0(64)
+            .composite_with_iads()
             .build();
         UsbHandler {
             hid: keyboard,
+            serial: serial,
+            serial_to_send: ArrayDeque::new(),
             dev: usb_dev,
             state: None,
             keys: ArrayDeque::new(),
@@ -60,6 +70,17 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             if self.keys.push_back(key).is_err() {
                 info!("Key event queue full.");
             }
+        }
+    }
+
+    /// Add bytes to be sent over the Gemini protocol.
+    pub(crate) fn enqueue_serial(&mut self, bytes: &[u8]) {
+        if self.serial_to_send.capacity() - self.serial_to_send.len() < bytes.len() {
+            warn!("USB Serial bytes dropped");
+            return;
+        }
+        for b in bytes {
+            self.serial_to_send.push_back(*b).unwrap();
         }
     }
 
@@ -139,6 +160,19 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                 Err(UsbHidError::SerializationError) => warn!("SerializationError"),
             }
         }
+
+        // Try queueing up any bytes for serial.
+        while let Some(byte) = self.serial_to_send.pop_front() {
+            let buf = [byte];
+            match self.serial.write(&buf) {
+                Ok(_) => (),
+                Err(usb_device::UsbError::WouldBlock) => {
+                    let _ = self.serial_to_send.push_front(byte);
+                    break;
+                }
+                Err(_e) => warn!("Error writing to serial device"),
+            }
+        }
     }
 
     /// Perform a periodic poll.  Ideally, this would be interrupt driven, but
@@ -149,8 +183,9 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
         &mut self,
         events: &mut Sender<'static, Event, { crate::app::EVENT_CAPACITY }>,
     ) {
-        if self.dev.poll(&mut [&mut self.hid]) {
+        if self.dev.poll(&mut [&mut self.hid, &mut self.serial]) {
             self.hid.poll();
+            self.serial.poll();
             match self.hid.device().read_report() {
                 Ok(l) => info!("Report: {}", l.caps_lock),
                 _ => (),
