@@ -253,10 +253,13 @@ impl LayoutMode {
     #[cfg(feature = "proto3")]
     fn next(self) -> Self {
         match self {
+            // Direct cycling is between these modes.
             LayoutMode::Steno => LayoutMode::StenoRaw,
-            LayoutMode::StenoRaw => LayoutMode::Artsey,
+            LayoutMode::StenoRaw => LayoutMode::Qwerty,
+            LayoutMode::Qwerty => LayoutMode::Steno,
+
+            // These move to another mode, but can only be entered directly.
             LayoutMode::Artsey => LayoutMode::Qwerty,
-            LayoutMode::Qwerty => LayoutMode::NKRO,
             LayoutMode::NKRO => LayoutMode::Steno,
         }
     }
