@@ -407,9 +407,8 @@ mod app {
                         //     enqueue_action(usb_handler, " ");
                         // });
                         lock!(ctx, usb_handler, {
-                            let packet = stroke.to_gemini();
-                            usb_handler.enqueue_serial(&packet);
-                        });
+                            usb_handler.enqueue_serial(bytes)
+                        })
                     }
                 }
                 Event::UsbState(UsbDeviceState::Configured) => {
