@@ -407,7 +407,8 @@ mod app {
                         //     enqueue_action(usb_handler, " ");
                         // });
                         lock!(ctx, usb_handler, {
-                            usb_handler.enqueue_serial(bytes)
+                            let packet = stroke.to_gemini();
+                            usb_handler.enqueue_serial(&packet);
                         });
                     }
                 }
