@@ -309,7 +309,7 @@ mod app {
         //     });
         // };
         ($ctx: ident, $var:ident, $body:expr) => {
-            $ctx.shared.$var.lock(|$var| $body);
+            $ctx.shared.$var.lock(|$var| $body)
         };
     }
 
@@ -408,7 +408,7 @@ mod app {
                         // });
                         lock!(ctx, usb_handler, {
                             usb_handler.enqueue_serial(bytes)
-                        })
+                        });
                     }
                 }
                 Event::UsbState(UsbDeviceState::Configured) => {
