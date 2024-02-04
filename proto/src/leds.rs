@@ -212,7 +212,7 @@ impl<L: SmartLedsWrite<Color = RGB8>> LedManager<L> {
         LedManager {
             leds,
             // Assumes that we are in this state.
-            base: STENO_INDICATOR.0,
+            base: QWERTY_INDICATOR.0,
             global: Some(INIT_INDICATOR.0),
             oneshot: None,
             count: 0,
