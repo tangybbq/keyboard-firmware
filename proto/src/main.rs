@@ -464,6 +464,7 @@ mod app {
                         LayoutMode::Steno => &leds::STENO_INDICATOR,
                         LayoutMode::StenoRaw => &leds::STENO_RAW_INDICATOR,
                         LayoutMode::Artsey => &leds::ARTSEY_INDICATOR,
+                        LayoutMode::Taipo => &leds::TAIPO_INDICATOR,
                         LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
                         LayoutMode::NKRO => &leds::NKRO_INDICATOR,
                     };
@@ -475,6 +476,7 @@ mod app {
                         LayoutMode::Steno => &leds::STENO_SELECT_INDICATOR,
                         LayoutMode::StenoRaw => &leds::STENO_RAW_SELECT_INDICATOR,
                         LayoutMode::Artsey => &leds::ARTSEY_SELECT_INDICATOR,
+                        LayoutMode::Taipo => &leds::TAIPO_SELECT_INDICATOR,
                         LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
                         LayoutMode::NKRO => &leds::NKRO_SELECT_INDICATOR,
                     };

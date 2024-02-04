@@ -10,10 +10,12 @@ use crate::{KeyEvent, EventQueue, Event};
 
 use self::qwerty::QwertyManager;
 use self::steno::RawStenoHandler;
+use self::taipo::TaipoManager;
 
 mod artsey;
-mod steno;
 mod qwerty;
+mod steno;
+mod taipo;
 
 // TODO: Generalize this a bit better.
 #[cfg(feature = "proto2")]
@@ -70,6 +72,7 @@ pub struct LayoutManager {
     raw: steno::RawStenoHandler,
     artsey: artsey::ArtseyManager,
     qwerty: qwerty::QwertyManager,
+    taipo: taipo::TaipoManager,
 
     // Global mode.  This indicates what mode we are in.
     mode: ModeSelector,
@@ -82,6 +85,7 @@ impl LayoutManager {
             artsey: artsey::ArtseyManager::default(),
             mode: ModeSelector::default(),
             qwerty: QwertyManager::default(),
+            taipo: TaipoManager::default(),
         }
     }
 
@@ -90,11 +94,13 @@ impl LayoutManager {
         self.raw.tick();
         self.artsey.tick(events);
         self.qwerty.tick(events);
+        self.taipo.tick(events);
     }
 
     pub fn poll(&mut self) {
         self.raw.poll();
         self.artsey.poll();
+        self.taipo.poll();
     }
 
     /// Handle a single key event.
@@ -103,6 +109,9 @@ impl LayoutManager {
             match self.mode.get() {
                 LayoutMode::Artsey => {
                     self.artsey.handle_event(event, events);
+                }
+                LayoutMode::Taipo => {
+                    self.taipo.handle_event(event, events);
                 }
                 LayoutMode::Steno | LayoutMode::StenoRaw => {
                     self.raw.handle_event(event, events);
@@ -124,6 +133,7 @@ pub enum LayoutMode {
     StenoRaw,
     Steno,
     Artsey,
+    Taipo,
     Qwerty,
     NKRO,
 }
@@ -131,7 +141,7 @@ pub enum LayoutMode {
 impl Default for LayoutMode {
     /// The initial mode we're starting in.
     fn default() -> Self {
-        LayoutMode::Steno
+        LayoutMode::Qwerty
     }
 }
 
@@ -255,7 +265,8 @@ impl LayoutMode {
         match self {
             // Direct cycling is between these modes.
             LayoutMode::Steno => LayoutMode::StenoRaw,
-            LayoutMode::StenoRaw => LayoutMode::Qwerty,
+            LayoutMode::StenoRaw => LayoutMode::Taipo,
+            LayoutMode::Taipo => LayoutMode::Qwerty,
             LayoutMode::Qwerty => LayoutMode::Steno,
 
             // These move to another mode, but can only be entered directly.
@@ -273,6 +284,7 @@ impl defmt::Format for LayoutMode {
             LayoutMode::Artsey => defmt::write!(fmt, "artsey"),
             LayoutMode::Qwerty => defmt::write!(fmt, "qwerty"),
             LayoutMode::NKRO => defmt::write!(fmt, "nkro"),
+            LayoutMode::Taipo => defmt::write!(fmt, "taipo"),
         }
     }
 }

@@ -144,6 +144,24 @@ pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+/// Taipo mode
+pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(16, 8, 0),
+    count: 10000,
+}]);
+
+/// Taipo select mode
+pub static TAIPO_SELECT_INDICATOR: Indication = Indication(&[
+    Step {
+        color: RGB8::new(16, 8, 0),
+        count: 100,
+    },
+    Step {
+        color: RGB8::new(0, 0, 0),
+        count: 100,
+    },
+]);
+
 /// Qwerty mode
 pub static QWERTY_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(0, 16, 0),

@@ -53,6 +53,14 @@ impl Side {
             Side::Right => false,
         }
     }
+
+    /// Return an index of the side, with "left" being zero.
+    pub fn index(&self) -> usize {
+        match *self {
+            Side::Left => 0,
+            Side::Right => 1,
+        }
+    }
 }
 
 /// Key events indicate keys going up or down.
