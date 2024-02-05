@@ -12,7 +12,7 @@
 use arraydeque::ArrayDeque;
 use usbd_human_interface_device::page::Keyboard;
 
-use crate::log::info;
+// use crate::log::info;
 
 use crate::{EventQueue, KeyEvent, Side, Mods, KeyAction, Event};
 
@@ -270,7 +270,21 @@ struct Entry {
     action: Action,
 }
 
-static TAIPO_ACTIONS: [Entry; 70] = [
+static TAIPO_ACTIONS: [Entry; 102] = [
+    // The thumb keys by themselves.
+    Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
+    Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
+
+    // Tab and variants.
+    Entry { code: 0x0e0, action: Action::Simple(Keyboard::Tab), },
+    Entry { code: 0x1e0, action: Action::Simple(Keyboard::DeleteForward), },
+    // This is the Fn key, which is a TODO
+    // Entry { code: 0x2e0, action: Action::Simple(Keyboard::Tab), },
+
+    // Enter and variants
+    Entry { code: 0x00e, action: Action::Simple(Keyboard::ReturnEnter), },
+    Entry { code: 0x10e, action: Action::Simple(Keyboard::Escape), },
+
     // The single letters, with shift. No outer thumb actions on these
     // (available?)
     Entry { code: 0x001, action: Action::Simple(Keyboard::A), },
@@ -362,4 +376,47 @@ static TAIPO_ACTIONS: [Entry; 70] = [
     Entry { code: 0x018, action: Action::Simple(Keyboard::M), },
     Entry { code: 0x118, action: Action::Shifted(Keyboard::M), },
     Entry { code: 0x218, action: Action::Shifted(Keyboard::Keyboard4), },
+
+    // Punctuation only keys.
+    Entry { code: 0x024, action: Action::Simple(Keyboard::ForwardSlash), },
+    Entry { code: 0x124, action: Action::Simple(Keyboard::Backslash), },
+    Entry { code: 0x224, action: Action::Shifted(Keyboard::Backslash), },
+
+    Entry { code: 0x042, action: Action::Simple(Keyboard::Minus), },
+    Entry { code: 0x142, action: Action::Shifted(Keyboard::Minus), },
+    Entry { code: 0x242, action: Action::Shifted(Keyboard::Keyboard5), },
+
+    Entry { code: 0x012, action: Action::Simple(Keyboard::Semicolon), },
+    Entry { code: 0x112, action: Action::Shifted(Keyboard::Semicolon), },
+
+    Entry { code: 0x084, action: Action::Shifted(Keyboard::ForwardSlash), },
+    Entry { code: 0x184, action: Action::Shifted(Keyboard::Keyboard1), },
+
+    Entry { code: 0x048, action: Action::Simple(Keyboard::Comma), },
+    Entry { code: 0x148, action: Action::Simple(Keyboard::Dot), },
+    // I can't tell what this is supposed to be, maybe tilde?
+    // Entry { code: 0x221, action: Action::Shifted(Keyboard::Keyboard5), },
+
+    // These aren't quite as per the chart, but the chart doesn't appear to be a
+    // US layout.
+    Entry { code: 0x021, action: Action::Simple(Keyboard::Grave), },
+    Entry { code: 0x121, action: Action::Shifted(Keyboard::Grave), },
+    // Entry { code: 0x248, action: Action::Shifted(Keyboard::Keyboard5), },
+
+    // The one shot keys.
+    Entry { code: 0x088, action: Action::OneShot(Mods::SHIFT), },
+    Entry { code: 0x188, action: Action::Simple(Keyboard::LeftArrow), },
+    Entry { code: 0x288, action: Action::Simple(Keyboard::PageDown), },
+
+    Entry { code: 0x011, action: Action::OneShot(Mods::GUI), },
+    Entry { code: 0x111, action: Action::Simple(Keyboard::RightArrow), },
+    Entry { code: 0x211, action: Action::Simple(Keyboard::PageUp), },
+
+    Entry { code: 0x044, action: Action::OneShot(Mods::CONTROL), },
+    Entry { code: 0x144, action: Action::Simple(Keyboard::DownArrow), },
+    Entry { code: 0x244, action: Action::Simple(Keyboard::End), },
+
+    Entry { code: 0x022, action: Action::OneShot(Mods::ALT), },
+    Entry { code: 0x122, action: Action::Simple(Keyboard::UpArrow), },
+    Entry { code: 0x222, action: Action::Simple(Keyboard::Home), },
 ];
