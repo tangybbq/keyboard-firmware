@@ -9,10 +9,6 @@
 //! the halves.  As such, we have to maintain the state of the two halves
 //! separately.
 
-// TODO: key repeat. Instead of sending an immediate key release, send it with
-// the release, or before sending the next key. This means we never send
-// rollover, but avoid issues with rollover between the hands of the same key.
-
 // TODO: Fn key support. The function key causes the next stroke or two, if they
 // are numbers, to send function keys.
 
@@ -31,6 +27,9 @@ pub struct TaipoManager {
 
     /// Modifiers that are down.
     oneshot: Mods,
+
+    /// Does the HID have a non-modifier key down?
+    down: bool,
 }
 
 impl Default for TaipoManager {
@@ -39,6 +38,7 @@ impl Default for TaipoManager {
             sides: [Default::default(), Default::default()],
             keys: TaipoEvents::new(),
             oneshot: Mods::empty(),
+            down: false,
         }
     }
 }
@@ -57,32 +57,41 @@ impl TaipoManager {
         while let Some(tevent) = self.keys.pop_front() {
             // info!("ev: p:{}, code:{:x}", tevent.is_press, tevent.code);
             if !tevent.is_press {
-                // For now, release the keys immediately.  This resolves the
-                // issue with rollover of the same key, and avoids having to
-                // track things.  This may have to change if we require multiple
-                // letters to be pressed (GUI apps might do this, but it is uncommon).
+                // If a key is actually pressed, release it. This shouldn't
+                // really need to be conditional.
+                if self.down {
+                    events.push(Event::Key(KeyAction::KeyRelease));
+                    self.down = false;
+                }
                 continue;
             }
+
             // Look up the code to see if we have an action.
-            let mut sent = false;
             match TAIPO_ACTIONS.iter().find(|e| e.code == tevent.code) {
                 Some(Entry { action: Action::Simple(k), .. }) => {
-                    sent = true;
+                    if self.down {
+                        // Release the previous key. Rollover could make sense,
+                        // but HID wouldn't support rollover of the same key,
+                        // which Taipo does, so just release everything before
+                        // the next key.
+                        events.push(Event::Key(KeyAction::KeyRelease));
+                    }
                     events.push(Event::Key(KeyAction::KeyPress(*k, self.oneshot)));
+                    self.down = true;
                     self.oneshot = Mods::empty();
                 }
                 Some(Entry { action: Action::Shifted(k), .. }) => {
-                    sent = true;
+                    if self.down {
+                        events.push(Event::Key(KeyAction::KeyRelease));
+                    }
                     events.push(Event::Key(KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)));
+                    self.down = true;
                     self.oneshot = Mods::empty();
                 }
                 Some(Entry { action: Action::OneShot(m), .. }) => {
                     self.oneshot |= *m;
                 }
                 None => (),
-            }
-            if sent {
-                events.push(Event::Key(KeyAction::KeyRelease));
             }
         }
         let _ = events;
