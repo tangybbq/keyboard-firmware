@@ -270,7 +270,7 @@ struct Entry {
     action: Action,
 }
 
-static TAIPO_ACTIONS: [Entry; 102] = [
+static TAIPO_ACTIONS: [Entry; 112] = [
     // The thumb keys by themselves.
     Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
@@ -285,24 +285,38 @@ static TAIPO_ACTIONS: [Entry; 102] = [
     Entry { code: 0x00e, action: Action::Simple(Keyboard::ReturnEnter), },
     Entry { code: 0x10e, action: Action::Simple(Keyboard::Escape), },
 
-    // The single letters, with shift. No outer thumb actions on these
-    // (available?)
+    // The single letters, with shift, and the punctuation below these.
     Entry { code: 0x001, action: Action::Simple(Keyboard::A), },
     Entry { code: 0x101, action: Action::Shifted(Keyboard::A), },
+    Entry { code: 0x201, action: Action::Shifted(Keyboard::Comma), },
+
     Entry { code: 0x002, action: Action::Simple(Keyboard::O), },
     Entry { code: 0x102, action: Action::Shifted(Keyboard::O), },
+    Entry { code: 0x202, action: Action::Shifted(Keyboard::LeftBrace), },
+
     Entry { code: 0x004, action: Action::Simple(Keyboard::T), },
     Entry { code: 0x104, action: Action::Shifted(Keyboard::T), },
+    Entry { code: 0x204, action: Action::Simple(Keyboard::LeftBrace), },
+
     Entry { code: 0x008, action: Action::Simple(Keyboard::E), },
     Entry { code: 0x108, action: Action::Shifted(Keyboard::E), },
+    Entry { code: 0x208, action: Action::Shifted(Keyboard::Keyboard9), },
+
     Entry { code: 0x010, action: Action::Simple(Keyboard::R), },
     Entry { code: 0x110, action: Action::Shifted(Keyboard::R), },
+    Entry { code: 0x210, action: Action::Shifted(Keyboard::Dot), },
+
     Entry { code: 0x020, action: Action::Simple(Keyboard::S), },
     Entry { code: 0x120, action: Action::Shifted(Keyboard::S), },
+    Entry { code: 0x220, action: Action::Shifted(Keyboard::RightBrace), },
+
     Entry { code: 0x040, action: Action::Simple(Keyboard::N), },
     Entry { code: 0x140, action: Action::Shifted(Keyboard::N), },
+    Entry { code: 0x240, action: Action::Simple(Keyboard::RightBrace), },
+
     Entry { code: 0x080, action: Action::Simple(Keyboard::I), },
     Entry { code: 0x180, action: Action::Shifted(Keyboard::I), },
+    Entry { code: 0x280, action: Action::Shifted(Keyboard::Keyboard0), },
 
     // Paired letters, shifted, and number/symbol.
     Entry { code: 0x0c0, action: Action::Simple(Keyboard::Y), },
@@ -394,14 +408,13 @@ static TAIPO_ACTIONS: [Entry; 102] = [
 
     Entry { code: 0x048, action: Action::Simple(Keyboard::Comma), },
     Entry { code: 0x148, action: Action::Simple(Keyboard::Dot), },
-    // I can't tell what this is supposed to be, maybe tilde?
-    // Entry { code: 0x221, action: Action::Shifted(Keyboard::Keyboard5), },
+    Entry { code: 0x248, action: Action::Shifted(Keyboard::Grave), },
 
     // These aren't quite as per the chart, but the chart doesn't appear to be a
     // US layout.
-    Entry { code: 0x021, action: Action::Simple(Keyboard::Grave), },
-    Entry { code: 0x121, action: Action::Shifted(Keyboard::Grave), },
-    // Entry { code: 0x248, action: Action::Shifted(Keyboard::Keyboard5), },
+    Entry { code: 0x021, action: Action::Simple(Keyboard::Apostrophe), },
+    Entry { code: 0x121, action: Action::Shifted(Keyboard::Apostrophe), },
+    Entry { code: 0x221, action: Action::Simple(Keyboard::Grave), },
 
     // The one shot keys.
     Entry { code: 0x088, action: Action::OneShot(Mods::SHIFT), },
