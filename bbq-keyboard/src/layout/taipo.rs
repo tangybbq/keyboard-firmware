@@ -9,6 +9,13 @@
 //! the halves.  As such, we have to maintain the state of the two halves
 //! separately.
 
+// TODO: key repeat. Instead of sending an immediate key release, send it with
+// the release, or before sending the next key. This means we never send
+// rollover, but avoid issues with rollover between the hands of the same key.
+
+// TODO: Fn key support. The function key causes the next stroke or two, if they
+// are numbers, to send function keys.
+
 use arraydeque::ArrayDeque;
 use usbd_human_interface_device::page::Keyboard;
 
