@@ -35,6 +35,7 @@ pub struct UsbHandler<'a, Bus: UsbBus> {
     serial_to_send: SerialBytes,
     state: Option<UsbDeviceState>,
     keys: ArrayDeque<KeyAction, 128>,
+    stall: usize,
 }
 
 impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
@@ -60,6 +61,7 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             dev: usb_dev,
             state: None,
             keys: ArrayDeque::new(),
+            stall: 0,
         }
     }
 
@@ -91,6 +93,17 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
             Err(_) => {
                 // info!("tick error");
             }
+        }
+
+        self.key_tick();
+        self.serial_tick();
+    }
+
+    fn key_tick(&mut self) {
+        // If we are stalling, decrement, and return, waiting for the next tick.
+        if self.stall > 0 {
+            self.stall -= 1;
+            return;
         }
 
         // If we have keys to queue up, try to do that here.
@@ -138,6 +151,13 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                     None
                 }
                 KeyAction::KeySet(keys) => Some(keys.iter().cloned()),
+                // When a stall is requested, return immediately, and wait for
+                // the next tick.
+                KeyAction::Stall => {
+                    let _ = self.keys.pop_front();
+                    self.stall = 50;
+                    return;
+                }
             };
 
             let status = match iter {
@@ -160,7 +180,9 @@ impl<'a, Bus: UsbBus> UsbHandler<'a, Bus> {
                 Err(UsbHidError::SerializationError) => warn!("SerializationError"),
             }
         }
+    }
 
+    fn serial_tick(&mut self) {
         // Try queueing up any bytes for serial.
         while let Some(byte) = self.serial_to_send.pop_front() {
             let buf = [byte];

@@ -91,6 +91,7 @@ impl TaipoManager {
                     // keys entirely.  Fake this out by sending the shift key as
                     // a separate event.
                     events.push(Event::Key(KeyAction::ModOnly(self.oneshot | Mods::SHIFT)));
+                    events.push(Event::Key(KeyAction::Stall));
                     events.push(Event::Key(KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)));
                     self.down = true;
                     self.oneshot = Mods::empty();

@@ -109,6 +109,7 @@ pub enum KeyAction {
     ModOnly(Mods),
     KeyRelease,
     KeySet(Vec<Keyboard>),
+    Stall,
 }
 
 bitflags! {
