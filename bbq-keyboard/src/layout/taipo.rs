@@ -84,6 +84,13 @@ impl TaipoManager {
                     if self.down {
                         events.push(Event::Key(KeyAction::KeyRelease));
                     }
+                    // Nearly everything that expects keypresses, is perfectly
+                    // happy with the modifier key being pressed at the same
+                    // time as the key being modified.  However, some typing
+                    // tutorials (typing.com for example) seem to reject these
+                    // keys entirely.  Fake this out by sending the shift key as
+                    // a separate event.
+                    events.push(Event::Key(KeyAction::ModOnly(self.oneshot | Mods::SHIFT)));
                     events.push(Event::Key(KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)));
                     self.down = true;
                     self.oneshot = Mods::empty();
