@@ -11,18 +11,13 @@ set(BUILD_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thumbv6m-none-eabi/debug)
 set(CARGO_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/rust/target-kbbq)
 set(RUST_LIBRARY ${CARGO_TARGET_DIR}/thumbv6m-none-eabi/debug/librust_kbbq.a)
 
-add_custom_command(
-  OUTPUT ${RUST_LIBRARY}
+add_custom_target(
+  librust_kbbq ALL
   COMMAND cargo build
           # --release
           --target thumbv6m-none-eabi
           --target-dir ${CARGO_TARGET_DIR}
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-add_custom_target(
-  librust_kbbq ALL
-  DEPENDS ${RUST_LIBRARY}
 )
 
 add_dependencies(app librust_kbbq)
