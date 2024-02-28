@@ -26,6 +26,12 @@ void msg(const char* msg)
 	LOG_INF("rust: %s", msg);
 }
 
+/// Wrapper for k_panic(), simple way to get past all of the macros.
+void c_k_panic()
+{
+	k_panic();
+}
+
 int main(void)
 {
 	LOG_INF("Hello world, from C main");
