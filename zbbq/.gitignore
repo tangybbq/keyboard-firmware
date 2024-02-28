@@ -1,0 +1,4 @@
+# This shouldn't show up here, but the IDE sometimes likes to try and build in
+# this directory.
+build/
+.cache/

@@ -1,0 +1,17 @@
+build:
+	west build \
+		--board sparkfun_pro_micro_rp2040 \
+		-- \
+		-DBOARD_FLASH_RUNNER=jlink \
+		-DBOARD_DEBUG_RUNNER=jlink \
+		#
+	echo Done
+
+jlink:
+	west debugserver
+
+gdb:
+	TERM=xterm arm-zephyr-eabi-gdb "build/zephyr/zephyr.elf"
+
+rtt:
+	socat - TCP4:localhost:19021
