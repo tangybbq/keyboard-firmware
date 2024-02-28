@@ -26,6 +26,11 @@ void msg(const char* msg)
 	LOG_INF("rust: %s", msg);
 }
 
+void msg_string(const char* msg)
+{
+	LOG_INF("%s", msg);
+}
+
 /// Wrapper for k_panic(), simple way to get past all of the macros.
 void c_k_panic()
 {
