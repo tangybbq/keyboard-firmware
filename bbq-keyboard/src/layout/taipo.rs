@@ -8,6 +8,22 @@
 //! freely type between the two halves, allowing, for example, rollover between
 //! the halves.  As such, we have to maintain the state of the two halves
 //! separately.
+//!
+//! Modifiers:
+//!
+//! The Taipo layout describes four modifier combos for each side, one for each
+//! of the modifiers.  They are described as "one shot".  They way they are
+//! implemented here, is that pressing the modifier sends the modifier
+//! immediately.  When a non-modifier key is pressed, the modifiers will then
+//! all be released.  The two thumb keys together is defined as a "null" key,
+//! which will release any pressed modifiers without pressing any keys.  This
+//! allows for modifiers to be pressed and released.
+//!
+//! In addition, modifiers can be made sticky by pressing them twice (it
+//! actually makes all of the modifiers sticky, there isn't support for
+//! releasing some modifiers).  The modifiers will remain pressed until the two
+//! thumb keys are pressed together.  This is useful for some types of GUI
+//! manipulation, such as holding down alt while pressing tab or arrow keys.
 
 // TODO: Fn key support. The function key causes the next stroke or two, if they
 // are numbers, to send function keys.
@@ -69,32 +85,52 @@ impl TaipoManager {
             // Look up the code to see if we have an action.
             match TAIPO_ACTIONS.iter().find(|e| e.code == tevent.code) {
                 Some(Entry { action: Action::Simple(k), .. }) => {
-                    if self.down {
-                        // Release the previous key. Rollover could make sense,
-                        // but HID wouldn't support rollover of the same key,
-                        // which Taipo does, so just release everything before
-                        // the next key.
-                        events.push(Event::Key(KeyAction::KeyRelease));
-                    }
+                    self.release_nonmod(events);
                     events.push(Event::Key(KeyAction::KeyPress(*k, self.oneshot)));
                     self.down = true;
                     self.oneshot = Mods::empty();
                 }
                 Some(Entry { action: Action::Shifted(k), .. }) => {
-                    if self.down {
-                        events.push(Event::Key(KeyAction::KeyRelease));
-                    }
+                    self.release_nonmod(events);
                     events.push(Event::Key(KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)));
                     self.down = true;
                     self.oneshot = Mods::empty();
                 }
                 Some(Entry { action: Action::OneShot(m), .. }) => {
+                    let new_mods = self.oneshot | *m;
+
+                    // If this modification adds any new modifiers, send a new
+                    // event.
+                    if new_mods != self.oneshot {
+                        self.release_nonmod(events);
+                        events.push(Event::Key(KeyAction::ModOnly(new_mods)))
+                    }
                     self.oneshot |= *m;
+                }
+                Some(Entry { action: Action::Release, .. }) => {
+                    if !self.oneshot.is_empty() {
+                        events.push(Event::Key(KeyAction::KeyRelease));
+                        self.oneshot = Mods::empty();
+                    }
                 }
                 None => (),
             }
         }
         let _ = events;
+    }
+
+    /// Release any non-modifier keys.  Because of the alternation, which could
+    /// be for the same key, we simply don't do any rollover, releasing any
+    /// pressed non-modifier keys when a new key needs to be pressed.
+    fn release_nonmod(&mut self, events: &mut dyn EventQueue) {
+        if self.down {
+            if self.oneshot.is_empty() {
+                events.push(Event::Key(KeyAction::KeyRelease));
+            } else {
+                events.push(Event::Key(KeyAction::ModOnly(self.oneshot)));
+            }
+            self.down = false;
+        }
     }
 
     pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) {
@@ -278,6 +314,7 @@ enum Action {
     Simple(Keyboard),
     Shifted(Keyboard),
     OneShot(Mods),
+    Release,
 }
 
 /// The mapping between each key and its Action.
@@ -286,10 +323,13 @@ struct Entry {
     action: Action,
 }
 
-static TAIPO_ACTIONS: [Entry; 112] = [
+static TAIPO_ACTIONS: [Entry; 113] = [
     // The thumb keys by themselves.
     Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
+
+    // The thumb keys together releases any modifiers.
+    Entry { code: 0x300, action: Action::Release, },
 
     // Tab and variants.
     Entry { code: 0x0e0, action: Action::Simple(Keyboard::Tab), },
