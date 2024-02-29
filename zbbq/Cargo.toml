@@ -7,3 +7,11 @@ license = "Apache-2.0 or MIT"
 
 [lib]
 crate-type = ["staticlib"]
+
+[dependencies.rand]
+version = "0.8"
+default-features = false
+
+[dependencies.rand_xoshiro]
+version = "0.6"
+default-features = false

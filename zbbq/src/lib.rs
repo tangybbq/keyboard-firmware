@@ -5,6 +5,8 @@ extern crate alloc;
 use core::{panic::PanicInfo, slice};
 
 use alloc::format;
+use rand::{SeedableRng, RngCore};
+use rand_xoshiro::Xoroshiro128StarStar;
 use zephyr_sys::{ZephyrAllocator, Device, LedRgb, LedStripDriver};
 
 use crate::zephyr::message;
@@ -35,16 +37,36 @@ fn rust_main() {
 
     let mut strip = unsafe { LedStripDriver::unsafe_from_device(strip) };
 
-    // Program the LED just as an example.
-    let leds = [
-        LedRgb { r: 25, g: 25, b: 0 },
-        LedRgb { r: 0, g: 25, b: 25 },
-        LedRgb { r: 25, g: 0, b: 25 },
-    ];
-    loop {
-        for led in &leds {
-            strip.update_rgb(slice::from_ref(led));
-            zephyr::sleep(500);
+    // Fixed pattern demo.
+    if false {
+        // Program the LED just as an example.
+        let leds = [
+            LedRgb { r: 25, g: 25, b: 0 },
+            LedRgb { r: 0, g: 25, b: 25 },
+            LedRgb { r: 25, g: 0, b: 25 },
+        ];
+        loop {
+            for led in &leds {
+                strip.update_rgb(slice::from_ref(led));
+                zephyr::sleep(500);
+            }
+        }
+    }
+
+    // Random colors.
+    if true {
+        let mut led = LedRgb::default();
+
+        // TODO, we could wrap the Zephyr api, or just use the rust crate.
+        // Depends a bit on what else Zephyr might be using.
+        let mut rng = Xoroshiro128StarStar::seed_from_u64(0);
+
+        loop {
+            led.r = (rng.next_u32() >> 12 & 31) as u8;
+            led.g = (rng.next_u32() >> 12 & 31) as u8;
+            led.b = (rng.next_u32() >> 12 & 31) as u8;
+            strip.update_rgb(slice::from_ref(&led));
+            zephyr::sleep(100);
         }
     }
 
@@ -146,6 +168,7 @@ mod zephyr_sys {
 
     // Simple binding to the rgb scratch API.
     #[repr(C)]
+    #[derive(Default)]
     pub struct LedRgb {
         #[cfg(zephyr = "CONFIG_LED_STRIP_RGB_SCRATCH")]
         scratch: u8,
