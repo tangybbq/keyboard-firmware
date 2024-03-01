@@ -35,6 +35,17 @@ fn rust_main() {
     message(&format!("Device present {}", strip.is_ready()));
     message(&format!("LED device name: {:?}", strip.name()));
 
+    // Query the matrix.
+    let (rows, cols) = zephyr_sys::get_matrix();
+    message(&format!("rows: {}", rows.len()));
+    for row in rows {
+        message(&format!("  pin:{} flag:{}", row.pin, row.flags));
+    }
+    message(&format!("cols: {}", cols.len()));
+    for col in cols {
+        message(&format!("  pin:{} flag:{}", col.pin, col.flags));
+    }
+
     let mut strip = unsafe { LedStripDriver::unsafe_from_device(strip) };
 
     // Fixed pattern demo.
@@ -105,21 +116,47 @@ mod zephyr_sys {
     extern "C" {
         pub fn c_k_panic() -> !;
 
-        pub fn malloc(size: c_size_t) -> *mut u8;
+        fn malloc(size: c_size_t) -> *mut u8;
         // pub fn realloc(ptr: *mut u8, size: c_size_t) -> *mut u8;
-        pub fn free(ptr: *mut u8);
+        fn free(ptr: *mut u8);
 
         // Log this message.
         pub fn msg_string(text: *const c_char);
 
         // Device operations.
-        pub fn sys_device_is_ready(dev: *const ZDevice) -> c_int;
+        fn sys_device_is_ready(dev: *const ZDevice) -> c_int;
 
         // Query for specific device.
         pub fn get_led_strip() -> *mut ZDevice;
 
         // Sleep in ms.
         pub fn c_k_sleep_ms(ms: u32);
+
+        // Get the matrix.
+        fn get_matrix_info() -> MatrixInfo;
+    }
+
+    #[repr(C)]
+    struct MatrixInfo {
+        rows: *const ZGpioDtSpec,
+        nrows: u32,
+        cols: *const ZGpioDtSpec,
+        ncols: u32,
+    }
+
+    pub fn get_matrix() -> (&'static [ZGpioDtSpec], &'static [ZGpioDtSpec]) {
+        unsafe {
+            let info = get_matrix_info();
+            (core::slice::from_raw_parts(info.rows, info.nrows as usize),
+             core::slice::from_raw_parts(info.cols, info.ncols as usize))
+        }
+    }
+
+    #[repr(C)]
+    pub struct ZGpioDtSpec {
+        port: *const ZDevice,
+        pub pin: u8,  // TODO: Keep types
+        pub flags: u16, // TODO: Keep types
     }
 
     // The Underlying Zephyr `struct device`.

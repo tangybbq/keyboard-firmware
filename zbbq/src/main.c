@@ -9,11 +9,50 @@
 LOG_MODULE_REGISTER(main);
 
 #include <zephyr/drivers/led_strip.h>
+#include <zephyr/drivers/gpio.h>
 
 #define STRIP_NODE   DT_ALIAS(led_strip)
 #define STRIP_NUM_PIXELS  DT_PROP(DT_ALIAS(led_strip), chain_length)
 
 static const struct device *const strip = DEVICE_DT_GET(STRIP_NODE);
+
+// Get the GPIOs for the keyboard matrix.  This is a little weird.
+#define MATRIX DT_ALIAS(matrix)
+static const struct gpio_dt_spec row1 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, row_gpios, 0);
+static const struct gpio_dt_spec row2 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, row_gpios, 1);
+static const struct gpio_dt_spec row3 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, row_gpios, 2);
+
+static const struct gpio_dt_spec col1 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 0);
+static const struct gpio_dt_spec col2 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 1);
+static const struct gpio_dt_spec col3 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 2);
+static const struct gpio_dt_spec col4 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 3);
+static const struct gpio_dt_spec col5 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 4);
+
+static const struct gpio_dt_spec *rows[3] = {
+	&row1, &row2, &row3,
+};
+
+static const struct gpio_dt_spec *cols[5] = {
+	&col1, &col2, &col3, &col4, &col5,
+};
+
+struct matrix_info {
+	const struct gpio_dt_spec *const *rows;
+	uint32_t nrows;
+	const struct gpio_dt_spec *const *cols;
+	uint32_t ncols;
+};
+
+struct matrix_info get_matrix_info(void)
+{
+	struct matrix_info result = {
+		.rows = rows,
+		.cols = cols,
+		.nrows = 3,
+		.ncols = 5,
+	};
+	return result;
+}
 
 static void wait_on_log_flushed(void)
 {
@@ -58,6 +97,8 @@ void c_k_sleep_ms(uint32_t ms)
 
 int main(void)
 {
+	rust_main();
+#if 0
 	register uint32_t sp __asm__("sp");
 	extern uint32_t z_main_stack;
 
@@ -83,6 +124,7 @@ int main(void)
         k_thread_stack_space_get(k_current_get(), &left);
         LOG_INF("after rust: %d bytes of stack used",
                 CONFIG_MAIN_STACK_SIZE - left);
+#endif
 
         // Log a periodic message.
         /*
