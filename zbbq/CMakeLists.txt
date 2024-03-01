@@ -6,6 +6,29 @@ project(zbbq)
 FILE(GLOB app_sources src/*.c)
 target_sources(app PRIVATE ${app_sources})
 
+# Build stragety for a Rust 'main' application. There are a few constraints that
+# cargo places on us that require a bit of trickery to get around. First,
+# anything that can affect the compilation, such as config values need to be
+# given to the invocation of cargo. This can be done either through the command
+# line, or through files such as `.cargo/config.toml`, which is first searched
+# for in the source directory. Because there are potential limits on the length
+# of the command line (as well as the environment), we'll need to use the
+# `.cargo/config.toml`. To make this work, we will create a fresh source
+# directory in the build directory, and populate it with some of the files
+# necessary to build. The `Cargo.toml` file will come from the user's app
+# directory. The source files will be populated to match those in the source
+# directory, using the include compiler directive within Rust. This tree will
+# mirror the source tree. Then the `.cargo/config.toml` will be configured for
+# this particular build. Specifically, the target directory, the target itself,
+# and a mapping of Zephyr Kconfig values onto config features to rustc.
+
+# TODO: Make sure RUSTFLAGS is not set.
+# TODO: Create source directory.
+# TODO: Copy source Cargo.toml
+# TODO: Mirror source tree
+# TODO: Synthesize .cargo/config.toml
+# TODO: Convert Kconfig entries from Zephyr into Rust configs.
+
 set(BUILD_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thumbv6m-none-eabi/debug)
 
 set(CARGO_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/rust/target-kbbq)
