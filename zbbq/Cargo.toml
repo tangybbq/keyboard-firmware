@@ -8,6 +8,9 @@ license = "Apache-2.0 or MIT"
 [lib]
 crate-type = ["staticlib"]
 
+[dependencies]
+bitflags = "2.4"
+
 [dependencies.rand]
 version = "0.8"
 default-features = false

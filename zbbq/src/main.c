@@ -28,18 +28,18 @@ static const struct gpio_dt_spec col3 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpio
 static const struct gpio_dt_spec col4 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 3);
 static const struct gpio_dt_spec col5 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 4);
 
-static const struct gpio_dt_spec *rows[3] = {
-	&row1, &row2, &row3,
+static const struct gpio_dt_spec rows[3] = {
+	row1, row2, row3,
 };
 
-static const struct gpio_dt_spec *cols[5] = {
-	&col1, &col2, &col3, &col4, &col5,
+static const struct gpio_dt_spec cols[5] = {
+	col1, col2, col3, col4, col5,
 };
 
 struct matrix_info {
-	const struct gpio_dt_spec *const *rows;
+	const struct gpio_dt_spec *const rows;
 	uint32_t nrows;
-	const struct gpio_dt_spec *const *cols;
+	const struct gpio_dt_spec *const cols;
 	uint32_t ncols;
 };
 
@@ -54,6 +54,7 @@ struct matrix_info get_matrix_info(void)
 	return result;
 }
 
+#if 0
 static void wait_on_log_flushed(void)
 {
 	// Disable this.
@@ -64,6 +65,7 @@ static void wait_on_log_flushed(void)
 		k_sleep(K_MSEC(5));
 	}
 }
+#endif
 
 const struct device *const get_led_strip(void) {
 	return strip;
@@ -81,6 +83,20 @@ void msg_string(const char* msg)
 bool sys_device_is_ready(const struct device *dev)
 {
 	return device_is_ready(dev);
+}
+
+int sys_gpio_pin_configure(const struct device *port, gpio_pin_t pin,
+                           gpio_flags_t flags)
+{
+	return gpio_pin_configure(port, pin, flags);
+}
+
+int sys_gpio_pin_set(const struct device *port, gpio_pin_t pin, int value) {
+  return gpio_pin_set(port, pin, value);
+}
+
+int sys_gpio_pin_get(const struct device *port, gpio_pin_t pin) {
+  return gpio_pin_get(port, pin);
 }
 
 /// Wrapper for k_panic(), simple way to get past all of the macros.

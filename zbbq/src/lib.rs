@@ -4,10 +4,10 @@ extern crate alloc;
 
 use core::{panic::PanicInfo, slice};
 
-use alloc::format;
+use alloc::{format, vec};
 use rand::{SeedableRng, RngCore};
 use rand_xoshiro::Xoroshiro128StarStar;
-use zephyr_sys::{ZephyrAllocator, Device, LedRgb, LedStripDriver};
+use zephyr_sys::{ZephyrAllocator, Device, LedRgb, LedStripDriver, GpioFlags};
 
 use crate::zephyr::message;
 
@@ -25,6 +25,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     Missing,
+    GPIO,
 }
 
 #[no_mangle]
@@ -39,11 +40,49 @@ fn rust_main() {
     let (rows, cols) = zephyr_sys::get_matrix();
     message(&format!("rows: {}", rows.len()));
     for row in rows {
-        message(&format!("  pin:{} flag:{}", row.pin, row.flags));
+        message(&format!("  pin:{} flag:{} ready:{}", row.pin, row.flags,
+                         row.is_ready()));
     }
     message(&format!("cols: {}", cols.len()));
     for col in cols {
-        message(&format!("  pin:{} flag:{}", col.pin, col.flags));
+        message(&format!("  pin:{} flag:{} ready:{}", col.pin, col.flags,
+                         col.is_ready()));
+    }
+
+    // Configure the columns as outputs, driving low/high.
+    for col in cols {
+        col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE).unwrap();
+    }
+
+    // And the rows as inputs.
+    for row in rows {
+        row.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
+    }
+
+    // Throw together a matrix scan.
+    let mut scan_state = vec![Debouncer::new(); cols.len() * rows.len()];
+    loop {
+        for (icol, col) in cols.iter().enumerate() {
+            col.pin_set(true).unwrap();
+            for (irow, row) in rows.iter().enumerate() {
+                let code = icol * rows.len() + irow;
+                match scan_state[code].react(row.pin_get().unwrap()) {
+                    KeyAction::None => (),
+                    KeyAction::Press => {
+                        message(&format!("{} Press", code));
+                    }
+                    KeyAction::Release => {
+                        message(&format!("{} Release", code));
+                    }
+                }
+            }
+            col.pin_set(false).unwrap();
+        }
+        zephyr::sleep(1);
+
+        if false {
+            break;
+        }
     }
 
     let mut strip = unsafe { LedStripDriver::unsafe_from_device(strip) };
@@ -66,18 +105,20 @@ fn rust_main() {
 
     // Random colors.
     if true {
-        let mut led = LedRgb::default();
+        let mut led = [LedRgb::default(); 3];
 
         // TODO, we could wrap the Zephyr api, or just use the rust crate.
         // Depends a bit on what else Zephyr might be using.
         let mut rng = Xoroshiro128StarStar::seed_from_u64(0);
 
         loop {
-            led.r = (rng.next_u32() >> 12 & 31) as u8;
-            led.g = (rng.next_u32() >> 12 & 31) as u8;
-            led.b = (rng.next_u32() >> 12 & 31) as u8;
-            strip.update_rgb(slice::from_ref(&led));
-            zephyr::sleep(100);
+            for i in 0..3 {
+                led[i].r = (rng.next_u32() >> 12 & 7) as u8;
+                led[i].g = (rng.next_u32() >> 12 & 7) as u8;
+                led[i].b = (rng.next_u32() >> 12 & 7) as u8;
+            }
+            strip.update_rgb(&led);
+            zephyr::sleep(500);
         }
     }
 
@@ -110,6 +151,7 @@ mod zephyr_sys {
     use core::{alloc::{GlobalAlloc, Layout}, ffi::{c_char, c_int, CStr}};
 
     use alloc::{string::{String, ToString}, alloc::handle_alloc_error};
+    use bitflags::bitflags;
 
     use crate::{Error, Result};
 
@@ -134,6 +176,37 @@ mod zephyr_sys {
 
         // Get the matrix.
         fn get_matrix_info() -> MatrixInfo;
+
+        // GPIO pin configuration.
+        fn sys_gpio_pin_configure(port: *const ZDevice,
+                                  pin: u8,
+                                  flags: u32) -> c_int;
+
+        fn sys_gpio_pin_get(port: *const ZDevice, pin: u8) -> c_int;
+        fn sys_gpio_pin_set(port: *const ZDevice, pin: u8, value: c_int) -> c_int;
+    }
+
+    bitflags! {
+        pub struct GpioFlags: u32 {
+            const GPIO_INPUT = 1 << 16;
+            const GPIO_OUTPUT = 1 << 17;
+            const GPIO_OUTPUT_INIT_LOW = 1 << 18;
+            const GPIO_OUTPUT_INIT_HIGH = 1 << 19;
+            const GPIO_OUTPUT_INIT_LOGICAL = 1 << 20;
+
+            const GPIO_OUTPUT_LOW = Self::GPIO_OUTPUT.bits() | Self::GPIO_OUTPUT_INIT_LOW.bits();
+            const GPIO_OUTPUT_HIGH = Self::GPIO_OUTPUT.bits() | Self::GPIO_OUTPUT_INIT_HIGH.bits();
+            const GPIO_OUTPUT_INACTIVE =
+                (Self::GPIO_OUTPUT.bits() |
+                 Self::GPIO_OUTPUT_INIT_LOW.bits() |
+                 Self::GPIO_OUTPUT_INIT_LOGICAL.bits());
+            const GPIO_OUTPUT_ACTIVE =
+                (Self::GPIO_OUTPUT.bits() |
+                 Self::GPIO_OUTPUT_INIT_HIGH.bits() |
+                 Self::GPIO_OUTPUT_INIT_LOGICAL.bits());
+
+            // TODO: Add the interrupt signals
+        }
     }
 
     #[repr(C)]
@@ -157,6 +230,37 @@ mod zephyr_sys {
         port: *const ZDevice,
         pub pin: u8,  // TODO: Keep types
         pub flags: u16, // TODO: Keep types
+    }
+
+    impl ZGpioDtSpec {
+        pub fn is_ready(&self) -> bool {
+            (unsafe { sys_device_is_ready(self.port) }) != 0
+        }
+
+        pub fn pin_configure(&self, flags: GpioFlags) -> Result<()> {
+            if unsafe {
+                sys_gpio_pin_configure(self.port, self.pin, self.flags as u32 | flags.bits())
+            } != 0 {
+                return Err(Error::GPIO);
+            }
+            Ok(())
+        }
+
+        pub fn pin_get(&self) -> Result<bool> {
+            match unsafe {sys_gpio_pin_get(self.port, self.pin)} {
+                0 => Ok(false),
+                1 => Ok(true),
+                _ => Err(Error::GPIO),
+            }
+        }
+
+        // TODO: This really should be `mut`, but that isn't how the C API is written.
+        pub fn pin_set(&self, value: bool) -> Result<()> {
+            match unsafe {sys_gpio_pin_set(self.port, self.pin, if value { 1 } else { 0 })} {
+                0 => Ok(()),
+                _ => Err(Error::GPIO),
+            }
+        }
     }
 
     // The Underlying Zephyr `struct device`.
@@ -205,7 +309,7 @@ mod zephyr_sys {
 
     // Simple binding to the rgb scratch API.
     #[repr(C)]
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy)]
     pub struct LedRgb {
         #[cfg(zephyr = "CONFIG_LED_STRIP_RGB_SCRATCH")]
         scratch: u8,
@@ -270,4 +374,99 @@ mod zephyr_sys {
     // Define locally, as this is experimental.
     #[allow(non_camel_case_types)]
     pub type c_size_t = usize;
+}
+
+/// Individual state tracking.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum KeyState {
+    /// Key is in released state.
+    Released,
+    /// Key is in pressed state.
+    Pressed,
+    /// We've seen a release edge, and will consider it released when consistent.
+    DebounceRelease,
+    /// We've seen a press edge, and will consider it pressed when consistent.
+    DebouncePress,
+}
+
+#[derive(Clone, Copy)]
+enum KeyAction {
+    None,
+    Press,
+    Release,
+}
+
+// Don't really want Copy, but needed for init.
+#[derive(Clone, Copy)]
+struct Debouncer {
+    /// State for this key.
+    state: KeyState,
+    /// Count how many times we've seen a given debounce state.
+    counter: usize,
+}
+
+const DEBOUNCE_COUNT: usize = 20;
+
+impl Debouncer {
+    fn new() -> Debouncer {
+        Debouncer {
+            state: KeyState::Released,
+            counter: 0,
+        }
+    }
+
+    fn react(&mut self, pressed: bool) -> KeyAction {
+        match self.state {
+            KeyState::Released => {
+                if pressed {
+                    self.state = KeyState::DebouncePress;
+                    self.counter = 0;
+                }
+                KeyAction::None
+            }
+            KeyState::Pressed => {
+                if !pressed {
+                    self.state = KeyState::DebounceRelease;
+                    self.counter = 0;
+                }
+                KeyAction::None
+            }
+            KeyState::DebounceRelease => {
+                if pressed {
+                    // Reset the counter any time we see a press state.
+                    self.counter = 0;
+                    KeyAction::None
+                } else {
+                    self.counter += 1;
+                    if self.counter == DEBOUNCE_COUNT {
+                        self.state = KeyState::Released;
+                        KeyAction::Release
+                    } else {
+                        KeyAction::None
+                    }
+                }
+            }
+            // TODO: We could probably just do two states, and a press/released flag.
+            KeyState::DebouncePress => {
+                if !pressed {
+                    // Reset the counter any time we see a released state.
+                    self.counter = 0;
+                    KeyAction::None
+                } else {
+                    self.counter += 1;
+                    if self.counter == DEBOUNCE_COUNT {
+                        self.state = KeyState::Pressed;
+                        KeyAction::Press
+                    } else {
+                        KeyAction::None
+                    }
+                }
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    fn is_pressed(&self) -> bool {
+        self.state == KeyState::Pressed || self.state == KeyState::DebounceRelease
+    }
 }
