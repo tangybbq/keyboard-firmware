@@ -1,0 +1,29 @@
+/* Device tree overlay for Proto2 keyboard matrix
+ * This needs to be better specialized to allow multiple boards.
+ * We are using the gpio-kbd-matrix definition, because it works for what we need,
+ * but if it becomes divergent, we can make our own.
+ */
+
+/ {
+	aliases {
+		matrix = &kbd_matrix;
+	};
+
+	chosen {
+		zephyr,matrix = &kbd_matrix;
+	};
+
+	kbd_matrix: kbd-matrix {
+		compatible = "gpio-kbd-matrix";
+		row-gpios = <&gpio0 0 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 1 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 2 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+		col-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 7 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 26 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 27 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 28 GPIO_ACTIVE_HIGH>;
+		col-drive-inactive;
+		idle-mode = "scan";
+	};
+};
