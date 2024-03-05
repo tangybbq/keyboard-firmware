@@ -29,8 +29,10 @@ pub enum Error {
 }
 
 #[no_mangle]
-fn rust_main() {
+extern "C" fn rust_main(_: *const u8, _: *const u8, _: *const u8) {
     message("Beginning of Rust.");
+
+    // message(&format!("User: {}", zephyr_sys::arch_is_user_context()));
 
     let strip = Device::get_led_strip().expect("Getting led strip device");
     message(&format!("Device present {}", strip.is_ready()));
@@ -49,36 +51,68 @@ fn rust_main() {
                          col.is_ready()));
     }
 
-    // Configure the columns as outputs, driving low/high.
-    for col in cols {
-        col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE).unwrap();
-    }
-
-    // And the rows as inputs.
-    for row in rows {
-        row.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
-    }
 
     // Throw together a matrix scan.
-    let mut scan_state = vec![Debouncer::new(); cols.len() * rows.len()];
+    let mut scan_state = vec![Debouncer::new(); 2 * cols.len() * rows.len()];
     loop {
-        for (icol, col) in cols.iter().enumerate() {
+        // And the rows as inputs.
+        for row in rows {
+            row.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
+        }
+
+        // Configure the columns as outputs, driving low/high.
+        for col in cols {
+            col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE).unwrap();
+        }
+        zephyr::sleep(1);
+
+        let mut scanner = scan_state.iter_mut().enumerate();
+        for col in cols {
             col.pin_set(true).unwrap();
-            for (irow, row) in rows.iter().enumerate() {
-                let code = icol * rows.len() + irow;
-                match scan_state[code].react(row.pin_get().unwrap()) {
+            for row in rows {
+                let (key, state) = scanner.next().unwrap();
+                match state.react(row.pin_get().unwrap()) {
                     KeyAction::None => (),
                     KeyAction::Press => {
-                        message(&format!("{} Press", code));
+                        message(&format!("{} Press", key));
                     }
                     KeyAction::Release => {
-                        message(&format!("{} Release", code));
+                        message(&format!("{} Release", key));
                     }
                 }
             }
             col.pin_set(false).unwrap();
         }
+
+        // Flip the driven around, and scan again from rows to columns.
+
+        // Configure the columns as inputs.
+        for col in cols {
+            col.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
+        }
+
+        // And the rows as inputs.
+        for row in rows {
+            row.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE).unwrap();
+        }
         zephyr::sleep(1);
+
+        for row in rows {
+            row.pin_set(true).unwrap();
+            for col in cols {
+                let (key, state) = scanner.next().unwrap();
+                match state.react(col.pin_get().unwrap()) {
+                    KeyAction::None => (),
+                    KeyAction::Press => {
+                        message(&format!("{} Press", key));
+                    }
+                    KeyAction::Release => {
+                        message(&format!("{} Release", key));
+                    }
+                }
+            }
+            row.pin_set(false).unwrap();
+        }
 
         if false {
             break;
@@ -149,6 +183,7 @@ mod zephyr {
 
 mod zephyr_sys {
     use core::{alloc::{GlobalAlloc, Layout}, ffi::{c_char, c_int, CStr}};
+    use core::arch::asm;
 
     use alloc::{string::{String, ToString}, alloc::handle_alloc_error};
     use bitflags::bitflags;
@@ -184,6 +219,30 @@ mod zephyr_sys {
 
         fn sys_gpio_pin_get(port: *const ZDevice, pin: u8) -> c_int;
         fn sys_gpio_pin_set(port: *const ZDevice, pin: u8, value: c_int) -> c_int;
+
+        // Arm Cortex-M syscall interface.
+        fn z_arm_thread_is_in_user_mode() -> c_int;
+    }
+
+    /// Cortex-M syscalls.  Rust implementation of arch_is_user_context().
+    #[allow(dead_code)]
+    pub fn arch_is_user_context() -> bool {
+        // TODO: Cond for CONFIG_CPU_CORTEX_M.
+        let mut value: u32;
+        unsafe {
+            asm!(
+                "mrs {}, IPSR",
+                out(reg) value,
+                options(pure, nomem, nostack),
+            );
+        }
+        if value != 0 {
+            return false;
+        }
+
+        unsafe {
+            z_arm_thread_is_in_user_mode() != 0
+        }
     }
 
     bitflags! {
