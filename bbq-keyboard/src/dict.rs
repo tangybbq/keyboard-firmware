@@ -2,9 +2,10 @@
 
 extern crate alloc;
 
-use alloc::{vec::Vec, rc::Rc};
+use alloc::{vec::Vec, rc::Rc, string::ToString};
 
 use bbq_steno::{memdict::MemDict, dict::{Translator, TypeAction}, Stroke};
+use bbq_steno_macros::stroke;
 use defmt::info;
 
 use crate::Timable;
@@ -12,6 +13,9 @@ use crate::Timable;
 pub struct Dict {
     // The translation dictionary.
     xlat: Option<Translator>,
+
+    // Are we in "raw" mode.
+    raw: bool,
 }
 
 impl Dict {
@@ -22,11 +26,31 @@ impl Dict {
         let xlat = xlat.map(|d| Translator::new(Rc::new(d)));
         Dict {
             xlat,
+            raw: false,
         }
     }
 
     pub fn handle_stroke(&mut self, stroke: Stroke, timer: &dyn Timable) -> Vec<TypeAction> {
         let mut result = Vec::new();
+
+        // Special check for the raw mode stroke.  Use it to toggle raw mode.
+        if stroke == stroke!("RA*U") {
+            self.raw = !self.raw;
+            return result;
+        }
+
+        // If we are in raw mode, just type out the converted stroke.
+        if self.raw {
+            let mut text = stroke.to_string();
+            text.push(' ');
+            result.push(TypeAction {
+                remove: 0,
+                text: text,
+            });
+            return result;
+        }
+
+        // Otherwise, process through the dictionary.
         if let Some(xlat) = self.xlat.as_mut() {
             let start = timer.get_ticks();
             xlat.add(stroke);
