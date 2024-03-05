@@ -1,8 +1,12 @@
 /* My example */
 
 #include "zephyr/sys/mpsc_pbuf.h"
+#include "zephyr/syscall.h"
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log_ctrl.h>
+#include <stdlib.h>
+
+#include <zephyr/app_memory/mem_domain.h>
 
 #define LOG_LEVEL 4
 #include <zephyr/logging/log.h>
@@ -71,7 +75,7 @@ const struct device *const get_led_strip(void) {
 	return strip;
 }
 
-extern void rust_main(void);
+extern void rust_main(void *, void *, void *);
 
 void msg_string(const char* msg)
 {
@@ -111,9 +115,39 @@ void c_k_sleep_ms(uint32_t ms)
 	k_sleep(K_MSEC(ms));
 }
 
+void trampoline(void *a, void *b, void *c) {
+	printk("trampoline\n");
+	char *foo = malloc(32);
+	printk("foo: %p\n", foo);
+	free(foo);
+	rust_main(a, b, c);
+}
+
 int main(void)
 {
-	rust_main();
+	char *foo = malloc(32);
+	printk("foo: %p\n", foo);
+	free(foo);
+
+	// Fix domain.
+#if 0
+	struct z_app_region {
+		void *bss_start;
+		size_t bss_size;
+	};
+	extern struct z_app_region z_malloc_partition_region;
+	struct k_mem_partition ptn;
+	ptn.start = (uintptr_t)z_malloc_partition_region.bss_start;
+	ptn.size = 8192;
+	ptn.attr = K_MEM_PARTITION_P_RW_U_RW;
+	int ret = k_mem_domain_add_partition(&k_mem_domain_default, &ptn);
+	printk("add partition: %d\n", ret);
+#endif
+
+	// Jump to usermode for rust.
+	// k_thread_user_mode_enter(rust_main, 0, 0, 0);
+	k_thread_user_mode_enter(trampoline, 0, 0, 0);
+	// rust_main();
 #if 0
 	register uint32_t sp __asm__("sp");
 	extern uint32_t z_main_stack;
