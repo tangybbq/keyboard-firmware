@@ -59,8 +59,10 @@ add_custom_target(libkbbq ALL
   DEPENDS ${DUMMY_FILE}
 )
 
-# Link
-target_link_libraries(app PRIVATE ${RUST_LIBRARY})
+# Link. The allow multiple definition avoids at least fatal link errors with
+# definitions coming from both libgcc.a and the application built by Rust.
+# See: https://github.com/rust-lang/compiler-builtins/issues/345
+target_link_libraries(app PUBLIC -Wl,--allow-multiple-definition ${RUST_LIBRARY})
 
 # Make sure this is always built.
 add_dependencies(app libkbbq)
