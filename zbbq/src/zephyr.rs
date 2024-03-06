@@ -5,6 +5,11 @@
 
 use core::panic::PanicInfo;
 
+use self::alloc::ZephyrAllocator;
+
+pub mod log;
+mod alloc;
+
 extern "C" {
     fn c_k_panic() -> !;
 }
@@ -18,3 +23,7 @@ fn panic(_: &PanicInfo) -> ! {
         c_k_panic();
     }
 }
+
+// Install the Zephyr libc allocator as the global allocator.
+#[global_allocator]
+static ZEPHYR_ALLOCATOR: ZephyrAllocator = ZephyrAllocator;
