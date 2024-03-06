@@ -1,13 +1,27 @@
 #![no_std]
 
+use crate::matrix::Matrix;
+
 extern crate alloc;
 
+mod devices;
+mod matrix;
 mod zephyr;
 
 #[no_mangle]
 extern "C" fn rust_main () {
-    error!("This is a basic message");
-    warn!("This is warning {}", 42);
-    info!("Informative: {:?}", (42, "Message"));
-    debug!("Debug message");
+    info!("Zephyr keyboard code");
+    let pins = devices::PinMatrix::get();
+    let mut matrix = Matrix::new(pins).unwrap();
+
+    matrix.scan(|code, press| {
+        info!("Key {} {:?}", code, press);
+        Ok(())
+    }).unwrap();
+}
+
+pub type Result<T> = core::result::Result<T, Error>;
+#[derive(Debug)]
+pub enum Error {
+    GPIO,
 }
