@@ -141,7 +141,11 @@ pub enum LayoutMode {
 impl Default for LayoutMode {
     /// The initial mode we're starting in.
     fn default() -> Self {
-        LayoutMode::Qwerty
+        if cfg!(feature = "proto3") {
+            LayoutMode::Qwerty
+        } else {
+            LayoutMode::Taipo
+        }
     }
 }
 
@@ -251,8 +255,12 @@ impl LayoutMode {
     #[cfg(feature = "proto2")]
     fn next(self) -> Self {
         match self {
+            // Direct cycling between these modes.
             LayoutMode::Steno => LayoutMode::StenoRaw,
-            LayoutMode::StenoRaw => LayoutMode::Artsey,
+            LayoutMode::StenoRaw => LayoutMode::Taipo,
+            LayoutMode::Taipo => LayoutMode::Steno,
+
+            // These move to another mode, but cannot be entered directly.
             LayoutMode::Artsey => LayoutMode::Steno,
             LayoutMode::Qwerty => LayoutMode::NKRO,
             LayoutMode::NKRO => LayoutMode::Steno,
