@@ -26,3 +26,7 @@ const struct gpio_dt_spec *matrix_cols[5] = {
 	&col1, &col2, &col3, &col4, &col5,
 };
 const uint32_t n_matrix_cols = 5;
+
+// #define SIDE_SELECT DT_ALIAS(sideselect)
+#define SIDE_SELECT DT_PATH(side_select)
+const struct gpio_dt_spec side_select = GPIO_DT_SPEC_GET(SIDE_SELECT, in_gpios);

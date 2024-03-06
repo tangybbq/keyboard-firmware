@@ -48,6 +48,8 @@ extern "C" {
     static matrix_rows: [*const gpio_dt_spec; 3];
     static matrix_cols: [*const gpio_dt_spec; 5];
 
+    static side_select: gpio_dt_spec;
+
     fn sys_gpio_pin_configure(port: *const struct_device,
                               pin: gpio_pin_t,
                               flags:u32) -> c_int;
@@ -101,6 +103,10 @@ impl PinMatrix {
             .collect();
         PinMatrix {rows, cols}
     }
+}
+
+pub fn get_side_select() -> Pin {
+    Pin { spec: unsafe {&side_select}}
 }
 
 bitflags! {
