@@ -237,6 +237,7 @@ type TaipoEvents = ArrayDeque<TaipoEvent, 8>;
 /// Mapping between scan codes, and Taipo codes.  Taipo codes are a 10 number,
 /// with the top two bits as the two thumb keys, then the top row, and bottom
 /// row, with bit order represented by the view from the right side.
+#[cfg(feature = "proto3")]
 static SCAN_MAP: [Option<(Side, u16)>; 48] = [
     // 0
     None,
@@ -305,6 +306,32 @@ static SCAN_MAP: [Option<(Side, u16)>; 48] = [
     None,
     None,
     Some((Side::Right, 0x200)),
+];
+
+#[cfg(feature = "proto2")]
+static SCAN_MAP: [Option<(Side, u16)>; 15] = [
+    // 0
+    Some((Side::Left, 0x200)),
+    Some((Side::Left, 0x100)),
+    None,
+    None,
+    None,
+
+    // 5
+    Some((Side::Left, 0x008)),
+    Some((Side::Left, 0x080)),
+    Some((Side::Left, 0x004)),
+    Some((Side::Left, 0x040)),
+    Some((Side::Left, 0x020)),
+
+    // 10
+    Some((Side::Left, 0x002)),
+    Some((Side::Left, 0x010)),
+    Some((Side::Left, 0x001)),
+    None,
+    None,
+
+    // TODO: Right side.
 ];
 
 /// An Action is what should happen when particular key or combo is pressed.
