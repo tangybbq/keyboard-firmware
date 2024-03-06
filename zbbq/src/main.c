@@ -42,3 +42,5 @@ void c_log_message(int level, const char *text) {
 		break;
 	}
 }
+
+K_TIMER_DEFINE(heartbeat_timer, NULL, NULL);
