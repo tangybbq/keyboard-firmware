@@ -1,0 +1,4 @@
+name: zbbq
+build:
+  settings:
+    board_root: .

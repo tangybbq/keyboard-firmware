@@ -2,6 +2,8 @@
 # target := "pimoroni_tiny_2040"
 target := "sparkfun_pro_micro_rp2040"
 
+srcdir := `pwd`
+
 build:
 	rm -rf build
 	west build \
@@ -9,6 +11,8 @@ build:
 		-- \
 		-DBOARD_FLASH_RUNNER=jlink \
 		-DBOARD_DEBUG_RUNNER=jlink \
+		-DSHIELD=proto2 \
+		-DEXTRA_ZEPHYR_MODULES={{srcdir}}/bbqboards \
 		#
 	echo Done
 
