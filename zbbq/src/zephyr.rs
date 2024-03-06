@@ -9,6 +9,9 @@ use self::alloc::ZephyrAllocator;
 
 pub mod log;
 mod alloc;
+mod timer;
+
+pub use timer::{Timer, struct_timer};
 
 extern "C" {
     fn c_k_panic() -> !;
