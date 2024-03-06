@@ -1,10 +1,13 @@
 #![no_std]
 
-use zephyr::log::{log_message, Level};
+extern crate alloc;
 
 mod zephyr;
 
 #[no_mangle]
 extern "C" fn rust_main () {
-    log_message(Level::Inf, "This is a basic message");
+    error!("This is a basic message");
+    warn!("This is warning {}", 42);
+    info!("Informative: {:?}", (42, "Message"));
+    debug!("Debug message");
 }
