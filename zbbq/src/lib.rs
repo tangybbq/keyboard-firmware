@@ -7,7 +7,7 @@ use core::{panic::PanicInfo, slice};
 use alloc::{format, vec};
 use rand::{SeedableRng, RngCore};
 use rand_xoshiro::Xoroshiro128StarStar;
-use zephyr_sys::{ZephyrAllocator, Device, LedRgb, LedStripDriver, GpioFlags};
+use zephyr_sys::{ZephyrAllocator, Device, LedRgb, LedStripDriver, GpioFlags, Timer};
 
 use crate::zephyr::message;
 
@@ -53,69 +53,71 @@ extern "C" fn rust_main(_: *const u8, _: *const u8, _: *const u8) {
 
 
     // Throw together a matrix scan.
-    let mut scan_state = vec![Debouncer::new(); 2 * cols.len() * rows.len()];
-    loop {
-        // And the rows as inputs.
-        for row in rows {
-            row.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
-        }
-
-        // Configure the columns as outputs, driving low/high.
-        for col in cols {
-            col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE).unwrap();
-        }
-        zephyr::sleep(1);
-
-        let mut scanner = scan_state.iter_mut().enumerate();
-        for col in cols {
-            col.pin_set(true).unwrap();
+    if false {
+        let mut scan_state = vec![Debouncer::new(); 2 * cols.len() * rows.len()];
+        loop {
+            // And the rows as inputs.
             for row in rows {
-                let (key, state) = scanner.next().unwrap();
-                match state.react(row.pin_get().unwrap()) {
-                    KeyAction::None => (),
-                    KeyAction::Press => {
-                        message(&format!("{} Press", key));
-                    }
-                    KeyAction::Release => {
-                        message(&format!("{} Release", key));
-                    }
-                }
+                row.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
             }
-            col.pin_set(false).unwrap();
-        }
 
-        // Flip the driven around, and scan again from rows to columns.
-
-        // Configure the columns as inputs.
-        for col in cols {
-            col.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
-        }
-
-        // And the rows as inputs.
-        for row in rows {
-            row.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE).unwrap();
-        }
-        zephyr::sleep(1);
-
-        for row in rows {
-            row.pin_set(true).unwrap();
+            // Configure the columns as outputs, driving low/high.
             for col in cols {
-                let (key, state) = scanner.next().unwrap();
-                match state.react(col.pin_get().unwrap()) {
-                    KeyAction::None => (),
-                    KeyAction::Press => {
-                        message(&format!("{} Press", key));
-                    }
-                    KeyAction::Release => {
-                        message(&format!("{} Release", key));
+                col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE).unwrap();
+            }
+            zephyr::sleep(1);
+
+            let mut scanner = scan_state.iter_mut().enumerate();
+            for col in cols {
+                col.pin_set(true).unwrap();
+                for row in rows {
+                    let (key, state) = scanner.next().unwrap();
+                    match state.react(row.pin_get().unwrap()) {
+                        KeyAction::None => (),
+                        KeyAction::Press => {
+                            message(&format!("{} Press", key));
+                        }
+                        KeyAction::Release => {
+                            message(&format!("{} Release", key));
+                        }
                     }
                 }
+                col.pin_set(false).unwrap();
             }
-            row.pin_set(false).unwrap();
-        }
 
-        if false {
-            break;
+            // Flip the driven around, and scan again from rows to columns.
+
+            // Configure the columns as inputs.
+            for col in cols {
+                col.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
+            }
+
+            // And the rows as inputs.
+            for row in rows {
+                row.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE).unwrap();
+            }
+            zephyr::sleep(1);
+
+            for row in rows {
+                row.pin_set(true).unwrap();
+                for col in cols {
+                    let (key, state) = scanner.next().unwrap();
+                    match state.react(col.pin_get().unwrap()) {
+                        KeyAction::None => (),
+                        KeyAction::Press => {
+                            message(&format!("{} Press", key));
+                        }
+                        KeyAction::Release => {
+                            message(&format!("{} Release", key));
+                        }
+                    }
+                }
+                row.pin_set(false).unwrap();
+            }
+
+            if false {
+                break;
+            }
         }
     }
 
@@ -137,24 +139,28 @@ extern "C" fn rust_main(_: *const u8, _: *const u8, _: *const u8) {
         }
     }
 
+    let mut ticker = unsafe { Timer::new(&mut zephyr_sys::ms_timer, 500) };
+
     // Random colors.
     if true {
-        let mut led = [LedRgb::default(); 3];
+        let mut led = [LedRgb::default(); 1];
 
         // TODO, we could wrap the Zephyr api, or just use the rust crate.
         // Depends a bit on what else Zephyr might be using.
         let mut rng = Xoroshiro128StarStar::seed_from_u64(0);
 
         loop {
-            for i in 0..3 {
+            for i in 0..led.len() {
                 led[i].r = (rng.next_u32() >> 12 & 7) as u8;
                 led[i].g = (rng.next_u32() >> 12 & 7) as u8;
                 led[i].b = (rng.next_u32() >> 12 & 7) as u8;
             }
             strip.update_rgb(&led);
-            zephyr::sleep(500);
+            ticker.wait();
+            // zephyr::sleep(500);
         }
     }
+    // ticker.stop();
 
     // loop {}
 }
@@ -162,6 +168,13 @@ extern "C" fn rust_main(_: *const u8, _: *const u8, _: *const u8) {
 mod zephyr {
     use alloc::ffi::CString;
     use crate::zephyr_sys;
+
+    // The passing of flags to rust is somewhat fragile, and things like having
+    // RUST_FLAGS set in the environment will override any flags that are being
+    // set in the cargo config.  To catch this quickly, fail right away if the
+    // CONFIG_RUST flag isn't defined.
+    #[cfg(not(CONFIG_RUST))]
+    compile_error!("CONFIG_RUST not defined.  Crate must be built as part of Zehyr");
 
     // Print a basic message from a Rust string.  This isn't particularly
     // efficient, as the message will be heap allocated (and then immediately
@@ -181,7 +194,7 @@ mod zephyr {
 
 }
 
-mod zephyr_sys {
+pub mod zephyr_sys {
     use core::{alloc::{GlobalAlloc, Layout}, ffi::{c_char, c_int, CStr}};
     use core::arch::asm;
 
@@ -222,7 +235,76 @@ mod zephyr_sys {
 
         // Arm Cortex-M syscall interface.
         fn z_arm_thread_is_in_user_mode() -> c_int;
+
+        // Timer initialization.
+        fn k_timer_init(timer: *mut KTimer,
+                        expiry_fn: Option<KTimerExpiry>,
+                        stop_fn: Option<KTimerStop>);
+
+        // Start the timer (syscall).
+        fn sys_k_timer_start(timer: *mut KTimer,
+                             duration: KTimeout,
+                             period: KTimeout);
+
+        fn sys_k_timer_stop(timer: *mut KTimer);
+
+        // Wait for the timer to have ticked.
+        fn sys_k_timer_status_sync(timer: *mut KTimer);
+
+        pub static mut ms_timer: KTimer;
     }
+
+    /// A higher level periodic timer.  The timer will fire ever n miliseconds.
+    pub struct Timer {
+        timer: *mut KTimer,
+    }
+
+    impl Timer {
+        pub unsafe fn new(timer: *mut KTimer, interval: u64) -> Timer {
+            k_timer_init(timer, None, None);
+            let ticks = KTimeout { ticks: interval * 10 };
+            sys_k_timer_start(timer, ticks, ticks);
+            Timer {timer}
+        }
+
+        pub fn wait(&mut self) {
+            unsafe {
+                sys_k_timer_status_sync(self.timer);
+            }
+        }
+
+        pub fn stop(&mut self) {
+            unsafe {
+                sys_k_timer_stop(self.timer);
+            }
+        }
+    }
+
+    #[cfg(CONFIG_TIMEOUT_64BIT)]
+    pub type KTicks = u64;
+    #[cfg(not(CONFIG_TIMEOUT_64BIT))]
+    pub type KTicks = u32;
+
+    pub const K_TICKS_FOREVER: KTicks = !0;
+
+    #[repr(C)]
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+    pub struct KTimeout {
+        ticks: KTicks,
+    }
+
+    pub const Z_TIMEOUT_NO_WAIT: KTimeout = KTimeout { ticks: 0 };
+    pub const Z_FOREVER: KTimeout = KTimeout { ticks: K_TICKS_FOREVER };
+
+    #[cfg(CONFIG_TRACING)]
+    compile_error!("CONFIG_TRACING not yet supported within Rusr.");
+
+    /// The internal timer structure.  This is really opaque.  In userspace, it
+    /// isn't accessible anyway.
+    type KTimer = u32;
+
+    type KTimerExpiry = extern "C" fn (timer: *mut KTimer);
+    type KTimerStop = extern "C" fn (timer: *mut KTimer);
 
     /// Cortex-M syscalls.  Rust implementation of arch_is_user_context().
     #[allow(dead_code)]

@@ -96,11 +96,23 @@ int sys_gpio_pin_configure(const struct device *port, gpio_pin_t pin,
 }
 
 int sys_gpio_pin_set(const struct device *port, gpio_pin_t pin, int value) {
-  return gpio_pin_set(port, pin, value);
+	return gpio_pin_set(port, pin, value);
 }
 
 int sys_gpio_pin_get(const struct device *port, gpio_pin_t pin) {
-  return gpio_pin_get(port, pin);
+	return gpio_pin_get(port, pin);
+}
+
+void sys_k_timer_start(struct k_timer *timer, k_timeout_t duration, k_timeout_t period) {
+	k_timer_start(timer, duration, period);
+}
+
+void sys_k_timer_stop(struct k_timer *timer) {
+	k_timer_stop(timer);
+}
+
+void sys_k_timer_status_sync(struct k_timer *timer) {
+	k_timer_status_sync(timer);
 }
 
 /// Wrapper for k_panic(), simple way to get past all of the macros.
@@ -123,11 +135,17 @@ void trampoline(void *a, void *b, void *c) {
 	rust_main(a, b, c);
 }
 
+K_TIMER_DEFINE(ms_timer, NULL, NULL);
+
 int main(void)
 {
 	char *foo = malloc(32);
 	printk("foo: %p\n", foo);
 	free(foo);
+	printk("Sizeof k_timer: %d\n", sizeof(struct k_timer));
+
+	// Verify my understanding of time.
+	printk("Ticks: %d\n", (int)K_MSEC(1).ticks);
 
 	// Fix domain.
 #if 0
