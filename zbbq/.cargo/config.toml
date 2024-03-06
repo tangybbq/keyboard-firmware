@@ -1,0 +1,6 @@
+[build]
+rustflags = [
+   # TODO: This should be generated from the current configuration.
+   "--cfg", "CONFIG_RUST",
+   "--cfg", "CONFIG_TIMEOUT_64BIT",
+]
