@@ -27,4 +27,9 @@
 		col-drive-inactive;
 		idle-mode = "scan";
 	};
+
+        side_select {
+                compatible = "gpio-mode-selector";
+                in-gpios = <&gpio0 27 (GPIO_PULL_UP | GPIO_ACTIVE_HIGH)>;
+        };
 };
