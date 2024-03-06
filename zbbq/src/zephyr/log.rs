@@ -42,8 +42,10 @@ pub fn log_message(level: Level, message: &str) {
 #[macro_export]
 macro_rules! log {
     ($lvl:expr, $($arg:tt)+) => {
-        let message = alloc::format!($($arg)+);
-        $crate::zephyr::log::log_message($lvl, &message);
+        {
+            let message = alloc::format!($($arg)+);
+            $crate::zephyr::log::log_message($lvl, &message);
+        }
     };
 }
 
