@@ -1,5 +1,7 @@
 #![no_std]
 
+use alloc::{vec::Vec, string::ToString};
+use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent};
 use zephyr::struct_timer;
 
 use crate::{matrix::Matrix, zephyr::Timer, devices::GpioFlags};
@@ -24,12 +26,29 @@ extern "C" fn rust_main () {
         Timer::new_from_c(&mut heartbeat_timer)
     };
 
+    let mut layout = LayoutManager::new();
+    let mut silly = SillyQueue;
+
     heartbeat.start(1);
     loop {
+        let mut events = Vec::new();
+
         matrix.scan(|code, press| {
-            info!("Key {} {:?}", code, press);
+            // info!("Key {} {:?}", code, press);
+            if press {
+                events.push(KeyEvent::Press(code));
+            } else {
+                events.push(KeyEvent::Release(code));
+            }
             Ok(())
         }).unwrap();
+
+        // Pass the keys off to the layout manager.
+        for event in events {
+            layout.handle_event(event, &mut silly);
+        }
+
+        layout.tick(&mut silly);
 
         heartbeat.wait();
     }
@@ -43,4 +62,20 @@ pub enum Error {
 
 extern "C" {
     static mut heartbeat_timer: struct_timer;
+}
+
+// Silly event queue.
+struct SillyQueue;
+
+impl EventQueue for SillyQueue {
+    fn push(&mut self, val: Event) {
+        match val {
+            Event::RawSteno(stroke) => {
+                // let text = stroke.to_string();
+                // info!("stroke: {}", text);
+                info!("stroke: {}", stroke.to_string());
+            }
+            ev => info!("event: {:?}", ev),
+        }
+    }
 }

@@ -19,6 +19,22 @@ default-features = false
 version = "0.6"
 default-features = false
 
+[dependencies.bbq-keyboard]
+version = "0.1.0"
+default-features = false
+path = "../bbq-keyboard"
+
+[dependencies.bbq-steno]
+version = "0.1.0"
+default-features = false
+path = "../bbq-steno"
+
 # Optimize even for debug builds.
 [profile.dev]
 opt-level = "s"
+
+[features]
+proto2 = ["bbq-keyboard/proto2"]
+
+# TODO: This needs to come from the cmake build.
+default = ["proto2"]
