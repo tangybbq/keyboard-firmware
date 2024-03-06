@@ -1,0 +1,9 @@
+# Build is west's default output directory.
+build/
+
+# The cache used by clangd
+.cache/
+
+# Sometimes tools will attempt a Rust build.  Ignore this output as
+# well
+targer/

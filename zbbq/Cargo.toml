@@ -1,0 +1,24 @@
+[package]
+name = "kbbq"
+version = "0.1.0"
+edition = "2021"
+description = "Keyboard firmware on top of Zephyr"
+license = "Apache-2.0 or MIT"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+bitflags = "2.4"
+
+[dependencies.rand]
+version = "0.8"
+default-features = false
+
+[dependencies.rand_xoshiro]
+version = "0.6"
+default-features = false
+
+# Optimize even for debug builds.
+[profile.dev]
+opt-level = "s"
