@@ -29,6 +29,11 @@ version = "0.1.0"
 default-features = false
 path = "../bbq-steno"
 
+[dependencies.critical-section]
+version = "1.1.2"
+# This is specified by the implementation.
+features = ["restore-state-u32"]
+
 # Optimize even for debug builds.
 [profile.dev]
 opt-level = "s"

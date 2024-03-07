@@ -2,6 +2,7 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/spinlock.h>
 
 int sys_gpio_pin_configure(const struct device *port,
                            gpio_pin_t pin,
@@ -35,4 +36,19 @@ void sys_k_timer_stop(struct k_timer *timer)
 uint32_t sys_k_timer_status_sync(struct k_timer *timer)
 {
 	return k_timer_status_sync(timer);
+}
+
+// Spinlock for critical sections.
+static struct k_spinlock crit_lock;
+
+uint32_t z_crit_acquire(void)
+{
+	return k_spin_lock(&crit_lock).key;
+}
+
+void z_crit_release(uint32_t token)
+{
+	k_spinlock_key_t key;
+	key.key = token;
+	k_spin_unlock(&crit_lock, key);
 }

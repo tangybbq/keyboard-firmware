@@ -14,7 +14,9 @@ mod zephyr;
 
 #[no_mangle]
 extern "C" fn rust_main () {
-    info!("Zephyr keyboard code");
+    critical_section::with(|_cs| {
+        info!("Zephyr keyboard code");
+    });
     let pins = devices::PinMatrix::get();
     let mut matrix = Matrix::new(pins).unwrap();
 
