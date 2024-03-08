@@ -40,6 +40,14 @@ const uint32_t n_matrix_cols = DT_PROP_LEN(MATRIX, col_gpios);
 /// The matrix might have a reverse scan.
 const uint32_t matrix_reverse = DT_PROP(MATRIX, reverse_scan);
 
+const char* matrix_translate =
+#if DT_NODE_HAS_PROP(MATRIX, translate)
+	DT_PROP(MATRIX, translate)
+#else
+	NULL
+#endif
+	;
+
 /// GPIO for the side select detect.
 #define SIDE_SELECT DT_PATH(side_select)
 #if DT_NODE_EXISTS(SIDE_SELECT)

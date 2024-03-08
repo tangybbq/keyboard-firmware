@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use core::ffi::c_int;
+use core::ffi::{c_int, CStr};
 
 use alloc::vec::Vec;
 use bitflags::bitflags;
@@ -51,6 +51,7 @@ extern "C" {
     static matrix_cols: [*const gpio_dt_spec; 16];
 
     static matrix_reverse: u32;
+    static matrix_translate: *const i8;
 
     fn c_get_side_select() -> *const gpio_dt_spec;
 
@@ -111,6 +112,14 @@ impl PinMatrix {
 
 pub fn get_matrix_reverse() -> bool {
     unsafe { matrix_reverse != 0 }
+}
+
+pub fn get_matrix_translate() -> Option<&'static str> {
+    if unsafe { matrix_translate.is_null() } {
+        None
+    } else {
+        Some(unsafe { CStr::from_ptr(matrix_translate).to_str().unwrap() })
+    }
 }
 
 pub fn get_side_select() -> Option<Pin> {

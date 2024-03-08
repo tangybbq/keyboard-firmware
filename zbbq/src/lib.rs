@@ -3,6 +3,7 @@
 use core::{slice, cell::RefCell};
 
 // use alloc::{vec::Vec, string::ToString, collections::VecDeque};
+use alloc::string::ToString;
 use alloc::collections::VecDeque;
 use arraydeque::ArrayDeque;
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
@@ -25,6 +26,10 @@ extern "C" fn rust_main () {
     info!("Reverse scan?: {}", reverse);
     let mut matrix = Matrix::new(pins, reverse).unwrap();
 
+    let translate = devices::get_matrix_translate();
+    info!("Matrix translation: {:?}", translate);
+    let translate = get_translation(translate);
+
     if let Some(side_select) = devices::get_side_select() {
         side_select.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
         info!("Side: {:?}", side_select.pin_get().unwrap());
@@ -43,7 +48,8 @@ extern "C" fn rust_main () {
     loop {
         // Perform a single scan of the matrix.
         matrix.scan(|code, press| {
-            info!("Key {} {:?}", code, press);
+            let code = translate(code);
+            // info!("Key {} {:?}", code, press);
             if press {
                 EVENT_QUEUE.push(Event::Matrix(KeyEvent::Press(code)));
             } else {
@@ -69,6 +75,10 @@ extern "C" fn rust_main () {
                     keys.push_back(key);
                 }
 
+                // For now, just show what steno strokes are.
+                Event::RawSteno(stroke) => {
+                    info!("stroke: {}", stroke.to_string());
+                }
                 // Catch all for the rest.
                 event => info!("event: {:?}", event),
             }
@@ -111,6 +121,45 @@ fn usb_hid_push(keys: &mut VecDeque<KeyAction>) {
                 // Not sure what this means with this interface.  For now, just
                 // go on a 1 ms tick.
             }
+        }
+    }
+}
+
+// Matrix translation simplifies some other parts of the code.
+fn translate_id(code: u8) -> u8 {
+    code
+}
+
+fn translate_proto4(code: u8) -> u8 {
+    match code {
+        25 => 13,
+        44 => 14,
+        33 => 11,
+        26 => 12,
+        18 => 9,
+        19 => 10,
+        14 => 8,
+        13 => 7,
+        12 => 6,
+        8 => 5,
+        6 => 3,
+        7 => 4,
+        42 => 2,
+        37 => 1,
+        32 => 0,
+        code => {
+            info!("Unexpected translation code: {}", code);
+            0
+        }
+    }
+}
+
+fn get_translation(translate: Option<&'static str>) -> fn (u8) -> u8 {
+    match translate {
+        Some("proto4") => translate_proto4,
+        None => translate_id,
+        Some(name) => {
+            panic!("Unexpected translation in DT: {}", name);
         }
     }
 }
