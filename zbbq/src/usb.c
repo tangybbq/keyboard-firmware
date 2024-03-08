@@ -50,8 +50,22 @@ static const struct hid_ops ops = {
 // NKRO, this should be adequate.
 static const uint8_t hid_kbd_report_desc[] = HID_KEYBOARD_REPORT_DESC();
 
+extern void rust_usb_status(uint32_t);
+
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
+	// Currently, we only care about configured and suspend, which we will
+	// pass to the Rust code.
+	switch (status) {
+	case USB_DC_CONFIGURED:
+		rust_usb_status(0);
+		break;
+	case USB_DC_SUSPEND:
+		rust_usb_status(1);
+		break;
+	default:
+		break;
+	}
 	LOG_INF("USB status: %d", status);
 }
 

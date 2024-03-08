@@ -34,6 +34,10 @@ version = "1.1.2"
 # This is specified by the implementation.
 features = ["restore-state-u32"]
 
+[dependencies.arraydeque]
+version = "0.5"
+default-features = false
+
 # Optimize even for debug builds.
 [profile.dev]
 opt-level = "s"

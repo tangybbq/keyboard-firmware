@@ -7,7 +7,9 @@ use core::ffi::c_int;
 use alloc::vec::Vec;
 use bitflags::bitflags;
 
-use crate::{Error, Result};
+use crate::{Error, Result, EVENT_QUEUE};
+
+use bbq_keyboard::{UsbDeviceState, Event};
 
 #[allow(non_camel_case_types)]
 type gpio_pin_t = u8;
@@ -161,4 +163,16 @@ pub fn hid_send_keyboard_report(mods: u8, keys: &[u8]) {
 extern "C" {
     fn is_hid_accepting() -> c_int;
     fn hid_report(report: *const u8);
+}
+
+/// Report on a USB status change.  This is a C callback, possibly from IRQ context.
+#[no_mangle]
+pub extern "C" fn rust_usb_status(state: u32) {
+    let devstate = match state {
+        0 => UsbDeviceState::Configured,
+        1 => UsbDeviceState::Suspend,
+        _ => return,
+    };
+
+    EVENT_QUEUE.push(Event::UsbState(devstate));
 }
