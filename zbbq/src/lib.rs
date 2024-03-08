@@ -1,10 +1,12 @@
 #![no_std]
 
-use core::slice;
+use core::{slice, cell::RefCell};
 
 // use alloc::{vec::Vec, string::ToString, collections::VecDeque};
 use alloc::collections::VecDeque;
+use arraydeque::ArrayDeque;
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
+use critical_section::Mutex;
 use zephyr::struct_timer;
 
 use crate::{matrix::Matrix, zephyr::Timer, devices::GpioFlags};
@@ -32,7 +34,6 @@ extern "C" fn rust_main () {
     };
 
     let mut layout = LayoutManager::new();
-    let mut events = VecDeque::new();
 
     // Keys queued up to send to HID.
     let mut keys = VecDeque::new();
@@ -43,10 +44,9 @@ extern "C" fn rust_main () {
         matrix.scan(|code, press| {
             // info!("Key {} {:?}", code, press);
             if press {
-                events.push_back(Event::Matrix(KeyEvent::Press(code)));
-                // events.push(KeyEvent::Press(code));
+                EVENT_QUEUE.push(Event::Matrix(KeyEvent::Press(code)));
             } else {
-                events.push_back(Event::Matrix(KeyEvent::Release(code)));
+                EVENT_QUEUE.push(Event::Matrix(KeyEvent::Release(code)));
                 // events.push(KeyEvent::Release(code));
             }
             Ok(())
@@ -56,12 +56,12 @@ extern "C" fn rust_main () {
         usb_hid_push(&mut keys);
 
         // Dispatch any events.
-        while let Some(event) = events.pop_front() {
+        while let Some(event) = EVENT_QUEUE.pop() {
             match event {
                 Event::Matrix(key) => {
                     // In the simple single-side case, matrix events are just
                     // passed to the layout manager.
-                    layout.handle_event(key, &mut VecDeqEvents(&mut events));
+                    layout.handle_event(key, &mut MutEventQueue);
                 }
                 Event::Key(key) => {
                     // Keypress are queued up, to be sent to the hid layer.
@@ -78,7 +78,7 @@ extern "C" fn rust_main () {
         //     layout.handle_event(event, &mut silly);
         // }
 
-        layout.tick(&mut VecDeqEvents(&mut events));
+        layout.tick(&mut MutEventQueue);
 
         heartbeat.wait();
     }
@@ -124,13 +124,61 @@ extern "C" {
     static mut heartbeat_timer: struct_timer;
 }
 
-// An even queue built around a VecDeque
-struct VecDeqEvents<'a>(&'a mut VecDeque<Event>);
+/// The global shared event queue.  Access is internally protected with a
+/// critical section, so it is safe to enqueue things from callbacks, and the
+/// likes.
+pub static EVENT_QUEUE: SafeEventQueue = SafeEventQueue::new();
 
-impl<'a> EventQueue for VecDeqEvents<'a> {
+/// An event queue, built around an ArrayDeque that performs operations in a
+/// critical section, so that it is possibly for interrupt handlers and
+/// callbacks to register.
+pub struct SafeEventQueue(Mutex<RefCell<ArrayDeque<Event, EVENT_QUEUE_SIZE>>>);
+
+/// The number of elements that can be queued in the event queue. As long as
+/// there is a generally small correspondence between the sizes of different
+/// events, this shouldn't need to be too large. It is conceivable that all keys
+/// are pressed at the same time, which would enqueue an event for every key
+/// press. As such, we will make this a bit larger than the largest number of
+/// keys we support. Longer strings to be typed will be a small number of
+/// messages, and those will expand directly into the HID queue, and not to
+/// events.
+const EVENT_QUEUE_SIZE: usize = 64;
+
+impl SafeEventQueue {
+    pub const fn new() -> SafeEventQueue {
+        SafeEventQueue(Mutex::new(RefCell::new(ArrayDeque::new())))
+    }
+
+    /// Push an event into the queue.  Even will be discarded if the queue
+    /// overfills.
+    pub fn push(&self, event: Event) {
+        let mut failed = false;
+        critical_section::with(|cs| {
+            if self.0.borrow_ref_mut(cs).push_back(event).is_err() {
+                failed = true;
+            }
+        });
+        if failed {
+            error!("Event queue overflow");
+        }
+    }
+
+    /// Attempt to pop from the queue.
+    pub fn pop(&self) -> Option<Event> {
+        critical_section::with(|cs| {
+            self.0.borrow_ref_mut(cs).pop_front()
+        })
+    }
+}
+
+// The keyboard code is expecting the event queue to be mutable.  To make this
+// work, we just use this placeholder, which can readily be created, to pass
+// around an empty instance.
+struct MutEventQueue;
+
+impl EventQueue for MutEventQueue {
     fn push(&mut self, val: Event) {
-        self.0.push_back(val);
-
+        EVENT_QUEUE.push(val);
         // match val {
         //     Event::RawSteno(stroke) => {
         //         // let text = stroke.to_string();
