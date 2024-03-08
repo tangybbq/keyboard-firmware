@@ -4,6 +4,11 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/spinlock.h>
 
+void sys_k_busy_wait(uint32_t usec_to_wait)
+{
+	k_busy_wait(usec_to_wait);
+}
+
 int sys_gpio_pin_configure(const struct device *port,
                            gpio_pin_t pin,
                            gpio_flags_t flags)

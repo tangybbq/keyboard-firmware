@@ -3,30 +3,26 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::devices::{PinMatrix, GpioFlags};
+use crate::devices::{Pin, PinMatrix, GpioFlags};
 
 use crate::Result;
+use crate::zephyr::busy_wait;
 
 pub struct Matrix {
     pins: PinMatrix,
     state: Vec<Debouncer>,
+
+    /// Should we attempt a reverse scan?
+    reverse: bool,
 }
 
 impl Matrix {
-    pub fn new(pins: PinMatrix) -> Result<Matrix> {
-        // Configure the columns as outputs, driving low/high.
-        for col in &pins.cols {
-            col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE)?;
-        }
+    pub fn new(pins: PinMatrix, reverse: bool) -> Result<Matrix> {
+        let count = pins.cols.len() * pins.rows.len();
+        let count = if reverse { 2 * count } else { count };
+        let state = vec![Debouncer::new(); count];
 
-        // Configure the rows as inputs.
-        for row in &pins.rows {
-            row.pin_configure(GpioFlags::GPIO_INPUT)?;
-        }
-
-        let state = vec![Debouncer::new(); pins.cols.len() * pins.rows.len()];
-
-        Ok(Matrix {pins, state})
+        Ok(Matrix {pins, state, reverse})
     }
 
     /// Perform a single scan of the matrix, calling act for every key that changes.
@@ -34,6 +30,8 @@ impl Matrix {
     where F: FnMut(u8, bool) -> Result<()>,
     {
         let mut states = self.state.iter_mut().enumerate();
+
+        Self::pin_setup(&mut self.pins.cols, &mut self.pins.rows)?;
         for col in &self.pins.cols {
             col.pin_set(true)?;
             for row in &self.pins.rows {
@@ -49,8 +47,52 @@ impl Matrix {
                 }
             }
             col.pin_set(false)?;
-            // TODO: Scan delay.
+            busy_wait(5);
         }
+
+        if !self.reverse {
+            // If we're not doing a reverse scan, just stop here.
+            return Ok(());
+        }
+
+        Self::pin_setup(&mut self.pins.rows, &mut self.pins.cols)?;
+        for row in &self.pins.rows {
+            row.pin_set(true)?;
+            for col in &self.pins.cols {
+                let (code, state) = states.next().unwrap();
+                match state.react(col.pin_get()?) {
+                    KeyAction::Press => {
+                        act(code as u8, true)?;
+                    }
+                    KeyAction::Release => {
+                        act(code as u8, false)?;
+                    }
+                    _ => (),
+                }
+            }
+            row.pin_set(false)?;
+            busy_wait(5);
+        }
+
+        Ok(())
+    }
+
+    // Setup the gpios to drive from push, and read from pull.
+    fn pin_setup(push: &mut [Pin], pull: &mut [Pin]) -> Result<()> {
+        // Configure the columns as outputs, driving low/high.
+        for col in push {
+            // col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE)?;
+            col.pin_configure(GpioFlags::GPIO_OUTPUT |
+                              GpioFlags::GPIO_OPEN_SOURCE |
+                              GpioFlags::GPIO_PULL_DOWN)?;
+        }
+
+        // Configure the rows as inputs.
+        for row in pull {
+            row.pin_configure(GpioFlags::GPIO_INPUT | GpioFlags::GPIO_PULL_DOWN)?;
+        }
+
+        busy_wait(5);
         Ok(())
     }
 }

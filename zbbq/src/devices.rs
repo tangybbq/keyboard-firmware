@@ -47,10 +47,12 @@ pub struct PinMatrix {
 extern "C" {
     static n_matrix_cols: u32;
     static n_matrix_rows: u32;
-    static matrix_rows: [*const gpio_dt_spec; 3];
-    static matrix_cols: [*const gpio_dt_spec; 5];
+    static matrix_rows: [*const gpio_dt_spec; 16];
+    static matrix_cols: [*const gpio_dt_spec; 16];
 
-    static side_select: gpio_dt_spec;
+    static matrix_reverse: u32;
+
+    fn c_get_side_select() -> *const gpio_dt_spec;
 
     fn sys_gpio_pin_configure(port: *const struct_device,
                               pin: gpio_pin_t,
@@ -107,8 +109,19 @@ impl PinMatrix {
     }
 }
 
-pub fn get_side_select() -> Pin {
-    Pin { spec: unsafe {&side_select}}
+pub fn get_matrix_reverse() -> bool {
+    unsafe { matrix_reverse != 0 }
+}
+
+pub fn get_side_select() -> Option<Pin> {
+    let raw = unsafe {c_get_side_select()};
+    if raw.is_null() {
+        None
+    } else {
+        Some(Pin {
+            spec: unsafe {&*raw},
+        })
+    }
 }
 
 bitflags! {
@@ -119,6 +132,18 @@ bitflags! {
         const GPIO_OUTPUT_INIT_LOW = 1 << 18;
         const GPIO_OUTPUT_INIT_HIGH = 1 << 19;
         const GPIO_OUTPUT_INIT_LOGICAL = 1 << 20;
+        const GPIO_PULL_UP = 1 << 4;
+        const GPIO_PULL_DOWN = 1 << 5;
+
+        // Some of these are zero, which the bitflags docs suggests might
+        // confuse it.
+        const GPIO_SINGLE_ENDED = 1 << 1;
+        const GPIO_PUSH_PULL = 0 << 1;
+        const GPIO_LINE_OPEN_DRAIN = 1 << 2;
+        const GPIO_LINE_OPEN_SOURCE = 0 << 2;
+
+        const GPIO_OPEN_DRAIN = Self::GPIO_SINGLE_ENDED.bits() | Self::GPIO_LINE_OPEN_DRAIN.bits();
+        const GPIO_OPEN_SOURCE = Self::GPIO_SINGLE_ENDED.bits() | Self::GPIO_LINE_OPEN_SOURCE.bits();
 
         const GPIO_OUTPUT_LOW = Self::GPIO_OUTPUT.bits() | Self::GPIO_OUTPUT_INIT_LOW.bits();
         const GPIO_OUTPUT_HIGH = Self::GPIO_OUTPUT.bits() | Self::GPIO_OUTPUT_INIT_HIGH.bits();

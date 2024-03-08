@@ -19,15 +19,16 @@ mod zephyr;
 
 #[no_mangle]
 extern "C" fn rust_main () {
-    critical_section::with(|_cs| {
-        info!("Zephyr keyboard code");
-    });
+    info!("Zephyr keyboard code");
     let pins = devices::PinMatrix::get();
-    let mut matrix = Matrix::new(pins).unwrap();
+    let reverse = devices::get_matrix_reverse();
+    info!("Reverse scan?: {}", reverse);
+    let mut matrix = Matrix::new(pins, reverse).unwrap();
 
-    let side_select = devices::get_side_select();
-    side_select.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
-    info!("Side: {:?}", side_select.pin_get().unwrap());
+    if let Some(side_select) = devices::get_side_select() {
+        side_select.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
+        info!("Side: {:?}", side_select.pin_get().unwrap());
+    }
 
     let mut heartbeat = unsafe {
         Timer::new_from_c(&mut heartbeat_timer)
@@ -42,7 +43,7 @@ extern "C" fn rust_main () {
     loop {
         // Perform a single scan of the matrix.
         matrix.scan(|code, press| {
-            // info!("Key {} {:?}", code, press);
+            info!("Key {} {:?}", code, press);
             if press {
                 EVENT_QUEUE.push(Event::Matrix(KeyEvent::Press(code)));
             } else {

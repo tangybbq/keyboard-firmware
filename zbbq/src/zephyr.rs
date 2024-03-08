@@ -16,6 +16,9 @@ pub use timer::{Timer, struct_timer};
 
 extern "C" {
     fn c_k_panic() -> !;
+
+    /// A simple busy wait, in us.
+    fn sys_k_busy_wait(usecs: u32);
 }
 
 // Install a panic handler that just calls the Zephyr one.
@@ -26,6 +29,10 @@ fn panic(_: &PanicInfo) -> ! {
     unsafe {
         c_k_panic();
     }
+}
+
+pub fn busy_wait(usecs: u32) {
+    unsafe { sys_k_busy_wait(usecs) };
 }
 
 // Install the Zephyr libc allocator as the global allocator.

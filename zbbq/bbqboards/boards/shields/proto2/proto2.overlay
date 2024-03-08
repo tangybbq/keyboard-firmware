@@ -15,7 +15,7 @@
 	};
 
 	kbd_matrix: kbd-matrix {
-		compatible = "gpio-kbd-matrix";
+		compatible = "bbq-kbd-matrix";
 		row-gpios = <&gpio0 7 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
 			    <&gpio0 26 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
 			    <&gpio0 22 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
@@ -24,7 +24,7 @@
 			    <&gpio0 4 GPIO_ACTIVE_HIGH>,
 			    <&gpio0 5 GPIO_ACTIVE_HIGH>,
 			    <&gpio0 6 GPIO_ACTIVE_HIGH>;
-		col-drive-inactive;
+		// col-drive-inactive;
 		idle-mode = "scan";
 	};
 

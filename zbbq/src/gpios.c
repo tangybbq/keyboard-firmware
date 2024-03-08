@@ -24,19 +24,34 @@ DT_FOREACH_PROP_ELEM_SEP(MATRIX, col_gpios, COL, (;));
 #undef COL
 
 #define ROW(node, prop, idx) &row ## idx,
-const struct gpio_dt_spec *matrix_rows[3] = {
+const struct gpio_dt_spec *matrix_rows[] = {
 	DT_FOREACH_PROP_ELEM(MATRIX, row_gpios, ROW)
 };
 const uint32_t n_matrix_rows = DT_PROP_LEN(MATRIX, row_gpios);
 #undef ROW
 
 #define COL(node, prop, idx) &col ## idx,
-const struct gpio_dt_spec *matrix_cols[5] = {
+const struct gpio_dt_spec *matrix_cols[] = {
 	DT_FOREACH_PROP_ELEM(MATRIX, col_gpios, COL)
 };
 #undef COL
 const uint32_t n_matrix_cols = DT_PROP_LEN(MATRIX, col_gpios);
 
+/// The matrix might have a reverse scan.
+const uint32_t matrix_reverse = DT_PROP(MATRIX, reverse_scan);
+
 /// GPIO for the side select detect.
 #define SIDE_SELECT DT_PATH(side_select)
-const struct gpio_dt_spec side_select = GPIO_DT_SPEC_GET(SIDE_SELECT, in_gpios);
+#if DT_NODE_EXISTS(SIDE_SELECT)
+static const struct gpio_dt_spec side_select = GPIO_DT_SPEC_GET(SIDE_SELECT, in_gpios);
+
+const struct gpio_dt_spec *c_get_side_select(void)
+{
+	return &side_select;
+}
+#else
+const struct gpio_dt_spec *c_get_side_select(void)
+{
+	return NULL;
+}
+#endif
