@@ -132,3 +132,33 @@ bitflags! {
         // TODO: Add the interrupt signals
     }
 }
+
+/// The USB HID interface is primarily handled with C code, with just a simple
+/// API to report.  Therefore this struct is very simple.
+///
+/// The first entry just queries if there is space in the USB stack for a single
+/// report.
+pub fn hid_is_accepting() -> bool {
+    (unsafe {is_hid_accepting()}) != 0
+}
+
+/// Send a single report via HID.  The modifiers are bits, and there can be up
+/// to 6 scancodes in the report.  If `hid_is_accepting()` didn't return true,
+/// this might block.
+pub fn hid_send_keyboard_report(mods: u8, keys: &[u8]) {
+    if keys.len() > 6 {
+        panic!("USB HID boot keyboard doesn't support more than 6 keys");
+    }
+
+    let mut report = [0u8; 8];
+    report[0] = mods;
+    for (i, key) in keys.iter().enumerate() {
+        report[i+2] = *key;
+    }
+    unsafe {hid_report(report.as_ptr())};
+}
+
+extern "C" {
+    fn is_hid_accepting() -> c_int;
+    fn hid_report(report: *const u8);
+}

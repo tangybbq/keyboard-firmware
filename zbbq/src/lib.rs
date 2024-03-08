@@ -1,8 +1,9 @@
 #![no_std]
 
-use core::ffi::c_int;
+use core::slice;
 
-use alloc::{vec::Vec, string::ToString, collections::VecDeque};
+// use alloc::{vec::Vec, string::ToString, collections::VecDeque};
+use alloc::collections::VecDeque;
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
 use zephyr::struct_timer;
 
@@ -85,30 +86,25 @@ extern "C" fn rust_main () {
 
 /// Push a usb-hid event off to the USB stack, if that makes sense.
 fn usb_hid_push(keys: &mut VecDeque<KeyAction>) {
-    // If a report hasn't been sent, do nothing.
-    if unsafe {is_hid_accepting()} == 0 {
+    // If a report is pending, do nothing.
+    if !devices::hid_is_accepting() {
         return;
     }
 
     if let Some(key) = keys.pop_front() {
         match key {
             KeyAction::KeyPress(code, mods) => {
-                let mut report = [0u8; 8];
-                report[7] = code as u8;
-                report[0] = mods.bits();
-                unsafe {hid_report(report.as_ptr())};
+                let code = code as u8;
+                devices::hid_send_keyboard_report(mods.bits(), slice::from_ref(&code));
             }
             KeyAction::KeyRelease => {
-                let mut report = [0u8; 8];
-                unsafe {hid_report(report.as_ptr())};
+                devices::hid_send_keyboard_report(0, &[]);
             }
-            KeyAction::KeySet(keys) => {
+            KeyAction::KeySet(_keys) => {
                 info!("TODO: KeySet");
             }
             KeyAction::ModOnly(mods) => {
-                let mut report = [0u8; 8];
-                report[0] = mods.bits();
-                unsafe {hid_report(report.as_ptr())};
+                devices::hid_send_keyboard_report(mods.bits(), &[]);
             }
             KeyAction::Stall => {
                 // Not sure what this means with this interface.  For now, just
@@ -116,11 +112,6 @@ fn usb_hid_push(keys: &mut VecDeque<KeyAction>) {
             }
         }
     }
-}
-
-extern "C" {
-    fn is_hid_accepting() -> c_int;
-    fn hid_report(report: *const u8);
 }
 
 pub type Result<T> = core::result::Result<T, Error>;
