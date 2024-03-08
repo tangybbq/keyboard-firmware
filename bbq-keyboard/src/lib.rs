@@ -117,8 +117,8 @@ bitflags! {
     /// this keypress is sent.
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
     pub struct Mods: u8 {
-        const SHIFT = 0b0000_0001;
-        const CONTROL = 0b0000_0010;
+        const CONTROL = 0b0000_0001;
+        const SHIFT = 0b0000_0010;
         const ALT = 0b0000_0100;
         const GUI = 0b0000_1000;
     }
