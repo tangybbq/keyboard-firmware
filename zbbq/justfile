@@ -1,6 +1,9 @@
 
-# target := "pimoroni_tiny_2040"
 target := "sparkfun_pro_micro_rp2040"
+shield := "proto2"
+
+#target := "pimoroni_tiny_2040"
+#shield := "proto4"
 
 srcdir := `pwd`
 
@@ -11,8 +14,9 @@ build:
 		-- \
 		-DBOARD_FLASH_RUNNER=jlink \
 		-DBOARD_DEBUG_RUNNER=jlink \
-		-DSHIELD=proto2 \
+		-DSHIELD={{shield}} \
 		-DEXTRA_ZEPHYR_MODULES={{srcdir}}/bbqboards \
+		-DCONFIG_COMPILER_SAVE_TEMPS=y \
 		#
 	echo Done
 
