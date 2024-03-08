@@ -1,32 +1,42 @@
 // GPIO to devicetree bindings.
 
+#include "zephyr/devicetree.h"
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 
-// TODO: Figure out how to iterate for this with the DT macros.  For now, just
-// differ.
+/// GPIO expansions for the keyboard matrix.
+/// This exports:
+/// - matrix_rows: An array of `gpio_dt_spec *` for each row pin.
+/// - n_matrix_rows: How many row pins.
+/// - matrix_cols: An array of `gpio_dt_spec *` for each col pin.
+/// - n_matrix_cols: How many col pins.
 
 #define MATRIX DT_ALIAS(matrix)
-static const struct gpio_dt_spec row1 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, row_gpios, 0);
-static const struct gpio_dt_spec row2 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, row_gpios, 1);
-static const struct gpio_dt_spec row3 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, row_gpios, 2);
 
-static const struct gpio_dt_spec col1 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 0);
-static const struct gpio_dt_spec col2 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 1);
-static const struct gpio_dt_spec col3 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 2);
-static const struct gpio_dt_spec col4 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 3);
-static const struct gpio_dt_spec col5 = GPIO_DT_SPEC_GET_BY_IDX(MATRIX, col_gpios, 4);
+#define ROW(node, prop, idx) \
+	static const struct gpio_dt_spec row ## idx = GPIO_DT_SPEC_GET_BY_IDX(node, prop, idx);
+DT_FOREACH_PROP_ELEM_SEP(MATRIX, row_gpios, ROW, (;));
+#undef ROW
 
+#define COL(node, prop, idx) \
+	static const struct gpio_dt_spec col ## idx = GPIO_DT_SPEC_GET_BY_IDX(node, prop, idx);
+DT_FOREACH_PROP_ELEM_SEP(MATRIX, col_gpios, COL, (;));
+#undef COL
+
+#define ROW(node, prop, idx) &row ## idx,
 const struct gpio_dt_spec *matrix_rows[3] = {
-    &row1, &row2, &row3,
+	DT_FOREACH_PROP_ELEM(MATRIX, row_gpios, ROW)
 };
-const uint32_t n_matrix_rows = 3;
+const uint32_t n_matrix_rows = DT_PROP_LEN(MATRIX, row_gpios);
+#undef ROW
 
+#define COL(node, prop, idx) &col ## idx,
 const struct gpio_dt_spec *matrix_cols[5] = {
-	&col1, &col2, &col3, &col4, &col5,
+	DT_FOREACH_PROP_ELEM(MATRIX, col_gpios, COL)
 };
-const uint32_t n_matrix_cols = 5;
+#undef COL
+const uint32_t n_matrix_cols = DT_PROP_LEN(MATRIX, col_gpios);
 
-// #define SIDE_SELECT DT_ALIAS(sideselect)
+/// GPIO for the side select detect.
 #define SIDE_SELECT DT_PATH(side_select)
 const struct gpio_dt_spec side_select = GPIO_DT_SPEC_GET(SIDE_SELECT, in_gpios);
