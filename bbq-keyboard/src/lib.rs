@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 
 use bbq_steno::Stroke;
 use smart_leds::RGB8;
-use usbd_human_interface_device::page::Keyboard;
+pub use usbd_human_interface_device::page::Keyboard;
 pub use usb_device::prelude::UsbDeviceState;
 use bitflags::bitflags;
 
