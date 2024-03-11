@@ -44,6 +44,7 @@ opt-level = "s"
 
 [features]
 proto2 = ["bbq-keyboard/proto2"]
+proto3 = ["bbq-keyboard/proto3"]
 
 # TODO: This needs to come from the cmake build.
-default = ["proto2"]
+default = ["proto3"]
