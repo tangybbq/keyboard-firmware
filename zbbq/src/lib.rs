@@ -3,9 +3,10 @@
 use core::{slice, cell::RefCell};
 
 // use alloc::{vec::Vec, string::ToString, collections::VecDeque};
-use alloc::string::ToString;
+use alloc::{string::ToString, vec::Vec};
 use alloc::collections::VecDeque;
 use arraydeque::ArrayDeque;
+use bbq_keyboard::{Keyboard, Mods};
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
 use critical_section::Mutex;
 use zephyr::struct_timer;
@@ -111,8 +112,12 @@ fn usb_hid_push(keys: &mut VecDeque<KeyAction>) {
             KeyAction::KeyRelease => {
                 devices::hid_send_keyboard_report(0, &[]);
             }
-            KeyAction::KeySet(_keys) => {
-                info!("TODO: KeySet");
+            KeyAction::KeySet(keys) => {
+                // TODO: We don't handle more than 6 keys, which qwerty mode can
+                // do.  For now just report if we can.
+                let (mods, keys) = keyset_to_hid(keys);
+                devices::hid_send_keyboard_report(mods.bits(), &keys);
+                info!("TODO: KeySet: {:?}", keys);
             }
             KeyAction::ModOnly(mods) => {
                 devices::hid_send_keyboard_report(mods.bits(), &[]);
@@ -125,9 +130,63 @@ fn usb_hid_push(keys: &mut VecDeque<KeyAction>) {
     }
 }
 
+// Qwerty mode just sends scan codes, but not the mod bits as expected by the
+// HID Layer.  To fix this, convert the codes from QWERTY into a proper
+// formatted data for a report.
+fn keyset_to_hid(keys: Vec<Keyboard>) -> (Mods, Vec<u8>) {
+    let mut result = Vec::new();
+    let mut mods = Mods::empty();
+    for key in keys {
+        match key {
+            Keyboard::LeftControl => mods |= Mods::CONTROL,
+            Keyboard::LeftShift => mods |= Mods::SHIFT,
+            Keyboard::LeftAlt => mods |= Mods::ALT,
+            Keyboard::LeftGUI => mods |= Mods::GUI,
+            key => result.push(key as u8),
+        }
+    }
+    (mods, result)
+}
+
 // Matrix translation simplifies some other parts of the code.
 fn translate_id(code: u8) -> u8 {
     code
+}
+
+static HIGHBOARD: [u8; 24] = [
+    // 0
+    255,
+    255,
+    255,
+    15,
+    19,
+    // 5
+    23,
+    2,
+    6,
+    10,
+    14,
+    // 10
+    18,
+    22,
+    1,
+    5,
+    9,
+    // 15
+    13,
+    17,
+    21,
+    0,
+    4,
+    // 20
+    8,
+    12,
+    16,
+    20,
+];
+
+fn translate_highboard(code: u8) -> u8 {
+    *HIGHBOARD.get(code as usize).unwrap_or(&255)
 }
 
 fn translate_proto4(code: u8) -> u8 {
@@ -157,6 +216,7 @@ fn translate_proto4(code: u8) -> u8 {
 fn get_translation(translate: Option<&'static str>) -> fn (u8) -> u8 {
     match translate {
         Some("proto4") => translate_proto4,
+        Some("highboard") => translate_highboard,
         None => translate_id,
         Some(name) => {
             panic!("Unexpected translation in DT: {}", name);
