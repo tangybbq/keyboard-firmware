@@ -210,3 +210,67 @@ pub extern "C" fn rust_usb_status(state: u32) {
 
     EVENT_QUEUE.push(Event::UsbState(devstate));
 }
+
+pub mod leds {
+    use core::ffi::c_int;
+
+    use super::struct_device;
+    use super::Result;
+    use super::Error;
+
+    // The RGB API is straightforward.
+    #[repr(C)]
+    #[derive(Default, Clone, Copy)]
+    pub struct LedRgb {
+        #[cfg(CONFIG_LED_STRIP_RGB_SCRATCH)]
+        scratch: u8,
+        pub r: u8,
+        pub g: u8,
+        pub b: u8,
+    }
+
+    impl LedRgb {
+        pub const fn new(r: u8, g: u8, b: u8) -> LedRgb {
+            LedRgb { r, g, b }
+        }
+    }
+
+    extern "C" {
+        static strip_length: u32;
+        static strip: *const struct_device;
+
+        fn sys_led_strip_update_rgb(dev: *const struct_device,
+                                    pixels: *const LedRgb,
+                                    num_pixels: usize) -> c_int;
+    }
+
+    pub struct LedStrip {
+        device: *const struct_device,
+        #[allow(dead_code)]
+        pixels: usize,
+    }
+
+    impl LedStrip {
+        pub fn get() -> LedStrip {
+            LedStrip {
+                device: unsafe { strip },
+                pixels: unsafe { strip_length } as usize,
+            }
+        }
+
+        #[allow(dead_code)]
+        pub fn pixel_count(&self) -> usize {
+            self.pixels
+        }
+
+        pub fn update(&self, pixels: &[LedRgb]) -> Result<()> {
+            match unsafe { sys_led_strip_update_rgb(self.device,
+                                                    pixels.as_ptr(),
+                                                    pixels.len()) }
+            {
+                0 => Ok(()),
+                _ => Err(Error::LED),
+            }
+        }
+    }
+}

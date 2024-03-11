@@ -6,16 +6,19 @@ use core::{slice, cell::RefCell};
 use alloc::{string::ToString, vec::Vec};
 use alloc::collections::VecDeque;
 use arraydeque::ArrayDeque;
-use bbq_keyboard::{Keyboard, Mods};
+use bbq_keyboard::{Keyboard, Mods, LayoutMode};
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
 use critical_section::Mutex;
 use zephyr::struct_timer;
 
+use crate::devices::leds::LedStrip;
+use crate::leds::LedManager;
 use crate::{matrix::Matrix, zephyr::Timer, devices::GpioFlags};
 
 extern crate alloc;
 
 mod devices;
+mod leds;
 mod matrix;
 mod zephyr;
 
@@ -26,6 +29,7 @@ extern "C" fn rust_main () {
     let reverse = devices::get_matrix_reverse();
     info!("Reverse scan?: {}", reverse);
     let mut matrix = Matrix::new(pins, reverse).unwrap();
+    let mut leds = LedManager::new(LedStrip::get());
 
     let translate = devices::get_matrix_translate();
     info!("Matrix translation: {:?}", translate);
@@ -46,6 +50,9 @@ extern "C" fn rust_main () {
     let mut keys = VecDeque::new();
 
     heartbeat.start(1);
+    // For now, just clear the global state, as we don't have reliable USB
+    // indication.
+    leds.clear_global();
     loop {
         // Perform a single scan of the matrix.
         matrix.scan(|code, press| {
@@ -80,6 +87,33 @@ extern "C" fn rust_main () {
                 Event::RawSteno(stroke) => {
                     info!("stroke: {}", stroke.to_string());
                 }
+
+                // Mode select and mode affect the LEDs.
+                Event::ModeSelect(mode) => {
+                    info!("modeselect: {:?}", mode);
+                    let next = match mode {
+                        LayoutMode::Steno => &leds::STENO_SELECT_INDICATOR,
+                        LayoutMode::StenoRaw => &leds::STENO_RAW_SELECT_INDICATOR,
+                        LayoutMode::Taipo => &leds::TAIPO_SELECT_INDICATOR,
+                        LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
+                        _ => &leds::QWERTY_SELECT_INDICATOR,
+                    };
+                    leds.set_base(next);
+                }
+
+                // Mode select and mode affect the LEDs.
+                Event::Mode(mode) => {
+                    info!("modeselect: {:?}", mode);
+                    let next = match mode {
+                        LayoutMode::Steno => &leds::STENO_INDICATOR,
+                        LayoutMode::StenoRaw => &leds::STENO_RAW_INDICATOR,
+                        LayoutMode::Taipo => &leds::TAIPO_INDICATOR,
+                        LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
+                        _ => &leds::QWERTY_INDICATOR,
+                    };
+                    leds.set_base(next);
+                }
+
                 // Catch all for the rest.
                 event => info!("event: {:?}", event),
             }
@@ -91,6 +125,7 @@ extern "C" fn rust_main () {
         // }
 
         layout.tick(&mut MutEventQueue);
+        leds.tick();
 
         heartbeat.wait();
     }
@@ -228,6 +263,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     GPIO,
+    LED,
 }
 
 extern "C" {
