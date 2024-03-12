@@ -142,14 +142,14 @@ pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
 
 /// Taipo mode
 pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
-    color: LedRgb::new(16, 8, 0),
+    color: LedRgb::new(4, 8, 8),
     count: 10000,
 }]);
 
 /// Taipo select mode
 pub static TAIPO_SELECT_INDICATOR: Indication = Indication(&[
     Step {
-        color: LedRgb::new(16, 8, 0),
+        color: LedRgb::new(4, 8, 8),
         count: 100,
     },
     Step {
