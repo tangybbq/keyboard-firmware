@@ -28,7 +28,7 @@
 			    <&gpio0 27 GPIO_ACTIVE_HIGH>,
 			    <&gpio0 28 GPIO_ACTIVE_HIGH>;
                 translate = "proto4";
-                reverse-scan;
+                /* reverse-scan; */
 		idle-mode = "scan";
 	};
 

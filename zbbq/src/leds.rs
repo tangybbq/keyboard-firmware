@@ -254,7 +254,7 @@ impl LedManager {
             let rgb = steps[self.phase].color;
             // EVENT_QUEUE.push(Event::SendLed(rgb));
 
-            let _ = self.leds.update(&[rgb]);
+            let _ = self.leds.update(&[rgb; 4]);
             // let _ = self.leds.write(once(if self.phase { INIT } else { OFF }));
             self.count = steps[self.phase].count;
             self.phase += 1;
@@ -292,7 +292,7 @@ impl LedManager {
     /// Override the LEDs, setting to just a value sent by the other side.
     pub fn set_other_side(&mut self, leds: LedRgb) {
         self.other_side = true;
-        let _ = self.leds.update(&[leds]);
+        let _ = self.leds.update(&[leds; 4]);
     }
 
     /*

@@ -52,8 +52,14 @@ extern "C" fn rust_main () {
     heartbeat.start(1);
     // For now, just clear the global state, as we don't have reliable USB
     // indication.
-    leds.clear_global();
+    let mut global_count = 3000;
     loop {
+        if global_count > 0 {
+            global_count -= 1;
+            if global_count == 0 {
+                leds.clear_global();
+            }
+        }
         // Perform a single scan of the matrix.
         matrix.scan(|code, press| {
             let code = translate(code);
@@ -61,8 +67,7 @@ extern "C" fn rust_main () {
             if press {
                 EVENT_QUEUE.push(Event::Matrix(KeyEvent::Press(code)));
             } else {
-                EVENT_QUEUE.push(Event::Matrix(KeyEvent::Release(code)));
-                // events.push(KeyEvent::Release(code));
+                 EVENT_QUEUE.push(Event::Matrix(KeyEvent::Release(code)));
             }
             Ok(())
         }).unwrap();
@@ -112,6 +117,16 @@ extern "C" fn rust_main () {
                         _ => &leds::QWERTY_INDICATOR,
                     };
                     leds.set_base(next);
+                }
+
+                // The USB state isn't meaningful here.
+                Event::UsbState(_) => {
+                    /*
+                    if has_global {
+                        // leds.clear_global();
+                        has_global = false;
+                    }
+                    */
                 }
 
                 // Catch all for the rest.
@@ -224,28 +239,47 @@ fn translate_highboard(code: u8) -> u8 {
     *HIGHBOARD.get(code as usize).unwrap_or(&255)
 }
 
+static PROTO4: [u8; 30] = [
+    // 0
+    13,    // L-F1
+    14,    // L-F2
+    11,    // L-Star
+    11+15, // R-T
+    14+15, // R-Z
+    // 5
+    13+15, // R-D
+    12,    // L-S
+    9,     // L-T
+    10,    // L-K
+    10+15, // R-G
+    // 10
+    9+15,  // R-L
+    12+15, // R-S
+    8,     // L-P
+    7,     // L-W
+    6,     // L-H
+    // 15
+    6+15,  // R-F
+    7+15,  // R-B
+    8+15,  // R-P
+    5,     // L-R
+    3,     // L-S1
+    // 20
+    4,     // L-S2
+    4+15,  // R-S4
+    3+15,  // R-S3
+    5+15,  // R-R
+    2,     // L-num
+    // 25
+    1,     // L-A
+    0,     // L-O
+    0+15,  // R-E
+    1+15,  // R-U
+    2+15,  // R-Num
+];
+
 fn translate_proto4(code: u8) -> u8 {
-    match code {
-        25 => 13,
-        44 => 14,
-        33 => 11,
-        26 => 12,
-        18 => 9,
-        19 => 10,
-        14 => 8,
-        13 => 7,
-        12 => 6,
-        8 => 5,
-        6 => 3,
-        7 => 4,
-        42 => 2,
-        37 => 1,
-        32 => 0,
-        code => {
-            info!("Unexpected translation code: {}", code);
-            0
-        }
-    }
+    *PROTO4.get(code as usize).unwrap_or(&255)
 }
 
 fn get_translation(translate: Option<&'static str>) -> fn (u8) -> u8 {
