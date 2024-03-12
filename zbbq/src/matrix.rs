@@ -81,10 +81,10 @@ impl Matrix {
     fn pin_setup(push: &mut [Pin], pull: &mut [Pin]) -> Result<()> {
         // Configure the columns as outputs, driving low/high.
         for col in push {
-            // col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE)?;
-            col.pin_configure(GpioFlags::GPIO_OUTPUT |
-                              GpioFlags::GPIO_OPEN_SOURCE |
-                              GpioFlags::GPIO_PULL_DOWN)?;
+            col.pin_configure(GpioFlags::GPIO_OUTPUT_INACTIVE)?;
+            // col.pin_configure(GpioFlags::GPIO_OUTPUT |
+            //                   GpioFlags::GPIO_OPEN_SOURCE |
+            //                   GpioFlags::GPIO_PULL_DOWN)?;
         }
 
         // Configure the rows as inputs.
