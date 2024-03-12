@@ -11,6 +11,8 @@
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/usb/class/usb_hid.h>
 
+#include <zephyr/drivers/uart.h>
+
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zbbq);
 
@@ -67,6 +69,22 @@ static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 		break;
 	}
 	LOG_INF("USB status: %d", status);
+}
+
+void acm_write(int index, const uint8_t *buf, int len)
+{
+	const struct device *dev = cdc_dev[index];
+
+	uart_irq_tx_enable(dev);
+	while (len) {
+		int written = uart_fifo_fill(dev, buf, len);
+		if (written != len) {
+			LOG_INF("Not written: %d", written);
+		}
+		break;
+	}
+
+	uart_irq_tx_disable(dev);
 }
 
 int usb_setup(void) {

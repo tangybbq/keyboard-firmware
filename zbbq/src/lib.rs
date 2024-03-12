@@ -11,6 +11,7 @@ use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction
 use critical_section::Mutex;
 use zephyr::struct_timer;
 
+use crate::devices::acm::Uart;
 use crate::devices::leds::LedStrip;
 use crate::leds::LedManager;
 use crate::{matrix::Matrix, zephyr::Timer, devices::GpioFlags};
@@ -30,6 +31,8 @@ extern "C" fn rust_main () {
     info!("Reverse scan?: {}", reverse);
     let mut matrix = Matrix::new(pins, reverse).unwrap();
     let mut leds = LedManager::new(LedStrip::get());
+
+    let mut acm = Uart::get_gemini();
 
     let translate = devices::get_matrix_translate();
     info!("Matrix translation: {:?}", translate);
@@ -53,6 +56,7 @@ extern "C" fn rust_main () {
     // For now, just clear the global state, as we don't have reliable USB
     // indication.
     let mut global_count = 3000;
+    let mut current_mode = LayoutMode::Steno;
     loop {
         if global_count > 0 {
             global_count -= 1;
@@ -90,7 +94,14 @@ extern "C" fn rust_main () {
 
                 // For now, just show what steno strokes are.
                 Event::RawSteno(stroke) => {
-                    info!("stroke: {}", stroke.to_string());
+                    if current_mode == LayoutMode::Steno {
+                        info!("stroke: {}", stroke.to_string());
+                        // TODO: Send stroke to steno processing thread.
+                    } else {
+                        // In the raw steno mode, send via gemini.
+                        let packet = stroke.to_gemini();
+                        acm.write(&packet);
+                    }
                 }
 
                 // Mode select and mode affect the LEDs.
@@ -117,6 +128,7 @@ extern "C" fn rust_main () {
                         _ => &leds::QWERTY_INDICATOR,
                     };
                     leds.set_base(next);
+                    current_mode = mode;
                 }
 
                 // The USB state isn't meaningful here.

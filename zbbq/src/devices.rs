@@ -274,3 +274,31 @@ pub mod leds {
         }
     }
 }
+
+pub mod acm {
+    use core::ffi::c_int;
+
+    extern "C" {
+        fn acm_write(index: c_int,
+                     buf: *const u8,
+                     len: c_int);
+    }
+
+    pub struct Uart {
+        port: c_int,
+    }
+
+    impl Uart {
+        pub fn get_gemini() -> Uart {
+            Uart {
+                port: 0,
+            }
+        }
+
+        pub fn write(&mut self, data: &[u8]) {
+            unsafe {
+                acm_write(self.port, data.as_ptr(), data.len() as c_int);
+            }
+        }
+    }
+}
