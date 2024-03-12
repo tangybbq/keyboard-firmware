@@ -309,7 +309,7 @@ static SCAN_MAP: [Option<(Side, u16)>; 48] = [
 ];
 
 #[cfg(feature = "proto2")]
-static SCAN_MAP: [Option<(Side, u16)>; 15] = [
+static SCAN_MAP: [Option<(Side, u16)>; 30] = [
     // 0
     Some((Side::Left, 0x200)),
     Some((Side::Left, 0x100)),
@@ -331,7 +331,26 @@ static SCAN_MAP: [Option<(Side, u16)>; 15] = [
     None,
     None,
 
-    // TODO: Right side.
+    // 15
+    Some((Side::Right, 0x200)),
+    Some((Side::Right, 0x100)),
+    None,
+    None,
+    None,
+
+    // 20
+    Some((Side::Right, 0x008)),
+    Some((Side::Right, 0x080)),
+    Some((Side::Right, 0x004)),
+    Some((Side::Right, 0x040)),
+    Some((Side::Right, 0x020)),
+
+    // 25
+    Some((Side::Right, 0x002)),
+    Some((Side::Right, 0x010)),
+    Some((Side::Right, 0x001)),
+    None,
+    None,
 ];
 
 /// An Action is what should happen when particular key or combo is pressed.
