@@ -208,7 +208,9 @@ impl LedManager {
         LedManager {
             leds,
             // Assumes that we are in this state.
-            base: QWERTY_INDICATOR.0,
+            // Two row keyboards don't have qwerty, and start in taipo.
+            // base: QWERTY_INDICATOR.0,
+            base: TAIPO_INDICATOR.0,
             global: Some(INIT_INDICATOR.0),
             oneshot: None,
             count: 0,
