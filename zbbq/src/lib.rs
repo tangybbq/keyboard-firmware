@@ -6,7 +6,7 @@ use core::{slice, cell::RefCell};
 use alloc::{string::ToString, vec::Vec};
 use alloc::collections::VecDeque;
 use arraydeque::ArrayDeque;
-use bbq_keyboard::{Keyboard, Mods, LayoutMode};
+use bbq_keyboard::{Keyboard, Mods, LayoutMode, UsbDeviceState};
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
 use critical_section::Mutex;
 use zephyr::struct_timer;
@@ -53,17 +53,11 @@ extern "C" fn rust_main () {
     let mut keys = VecDeque::new();
 
     heartbeat.start(1);
-    // For now, just clear the global state, as we don't have reliable USB
-    // indication.
-    let mut global_count = 3000;
+
+    // Start with a global indicator, showing unconfigured USB.
+    let mut has_global = true;
     let mut current_mode = LayoutMode::Steno;
     loop {
-        if global_count > 0 {
-            global_count -= 1;
-            if global_count == 0 {
-                leds.clear_global();
-            }
-        }
         // Perform a single scan of the matrix.
         matrix.scan(|code, press| {
             let code = translate(code);
@@ -129,6 +123,14 @@ extern "C" fn rust_main () {
                     };
                     leds.set_base(next);
                     current_mode = mode;
+                }
+
+                // When the USB is configured, turn off the global indicator.
+                Event::UsbState(UsbDeviceState::Configured) => {
+                    if has_global {
+                        leds.clear_global();
+                        has_global = false;
+                    }
                 }
 
                 // The USB state isn't meaningful here.
