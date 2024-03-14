@@ -108,7 +108,7 @@ extern "C" fn rust_main () {
                         LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
                         _ => &leds::QWERTY_SELECT_INDICATOR,
                     };
-                    leds.set_base(next);
+                    leds.set_base(0, next);
                 }
 
                 // Mode select and mode affect the LEDs.
@@ -121,14 +121,14 @@ extern "C" fn rust_main () {
                         LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
                         _ => &leds::QWERTY_INDICATOR,
                     };
-                    leds.set_base(next);
+                    leds.set_base(0, next);
                     current_mode = mode;
                 }
 
                 // When the USB is configured, turn off the global indicator.
                 Event::UsbState(UsbDeviceState::Configured) => {
                     if has_global {
-                        leds.clear_global();
+                        leds.clear_global(0);
                         has_global = false;
                     }
                 }

@@ -36,6 +36,19 @@ pub static INIT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+/// An unreferenced indicator.  Indicates the indicator has not been assigned.
+/// Intended to not be intrusive, but obvious.
+pub static UNDEF_INDICATOR: Indication = Indication(&[
+    Step {
+        color: LedRgb::new(1, 1, 1),
+        count: 10,
+    },
+    Step {
+        color: OFF,
+        count: 3000,
+    },
+]);
+
 /// Indicates we are connected to USB, but haven't established communication
 /// with the other half of the keyboard.
 pub static USB_PRIMARY: Indication = Indication(&[
@@ -185,6 +198,13 @@ pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[Step {
 pub struct LedManager {
     leds: LedStrip,
 
+    states: [LedState; 4],
+
+    /// Override the indicator by LEDs sent from the other side.
+    other_side: bool,
+}
+
+struct LedState {
     /// The base display. Shown when there is nothing else. Will repeat
     /// indefinitely.
     base: &'static [Step],
@@ -199,99 +219,62 @@ pub struct LedManager {
     count: usize,
     phase: usize,
 
-    /// Override the indicator by LEDs sent from the other side.
-    other_side: bool,
+    /// Cache of the last color displayed.
+    last_color: LedRgb,
 }
 
 impl LedManager {
     pub fn new(leds: LedStrip) -> Self {
         LedManager {
             leds,
-            // Assumes that we are in this state.
-            // Two row keyboards don't have qwerty, and start in taipo.
-            // base: QWERTY_INDICATOR.0,
-            base: TAIPO_INDICATOR.0,
-            global: Some(INIT_INDICATOR.0),
-            oneshot: None,
-            count: 0,
-            phase: 0,
+            states: [
+                // Assumes that we are in this state.
+                // Two row keyboards don't have qwerty, and start in taipo.
+                // base: QWERTY_INDICATOR.0,
+                LedState::new(TAIPO_INDICATOR.0, Some(INIT_INDICATOR.0)),
+                LedState::new(UNDEF_INDICATOR.0, None),
+                LedState::new(UNDEF_INDICATOR.0, None),
+                LedState::new(UNDEF_INDICATOR.0, None),
+            ],
             other_side: false,
         }
     }
 
-    pub fn tick(
-        &mut self,
-    ) {
+    pub fn tick(&mut self) {
         // If the other side is active, just leave the LED alone.
         if self.other_side {
             return;
         }
 
-        if self.count == 0 {
-            let mut steps = self.base;
-            if let Some(gl) = self.global {
-                steps = gl;
-            }
-            if let Some(one) = self.oneshot {
-                steps = one;
-            }
-
-            if self.phase >= steps.len() {
-                self.phase = 0;
-
-                // If this is the oneshot, back out of that and return to an earlier state.
-                if self.oneshot.is_some() {
-                    self.oneshot = None;
-
-                    // Hack, make the phase past, as the remaining will repeat,
-                    // and this will cause them to restart. Better would be for
-                    // each to maintain its own state.
-                    self.phase = 1000;
-
-                    // Just wait until the next tick.
-                    return;
-                }
-            }
-
-            let rgb = steps[self.phase].color;
-            // EVENT_QUEUE.push(Event::SendLed(rgb));
-
-            let _ = self.leds.update(&[rgb; 4]);
-            // let _ = self.leds.write(once(if self.phase { INIT } else { OFF }));
-            self.count = steps[self.phase].count;
-            self.phase += 1;
-        } else {
-            self.count -= 1;
+        // TODO: Is the double iteration costly? This could use MaybeUninit, but
+        // that seems overkill here.
+        let mut colors = [OFF; 4];
+        for (i, state) in self.states.iter_mut().enumerate() {
+            let color = state.tick();
+            colors[i] = color;
         }
+
+        let _ = self.leds.update(&colors);
     }
 
     /// Set a global indicator. This will override any other status being
     /// displayed, and usually indicates either an error, or an initial
     /// condition. It also usually indicates that the keyboard can't be used
     /// yet.
-    pub fn set_global(&mut self, indicator: &Indication) {
-        self.global = Some(indicator.0);
-        self.count = 0;
-        self.phase = 0;
+    pub fn set_global(&mut self, index: usize, indicator: &Indication) {
+        self.states[index].set_global(indicator);
     }
 
-    pub fn clear_global(&mut self) {
-        self.global = None;
-        if self.oneshot.is_none() {
-            self.count = 0;
-            self.phase = 0;
-        }
+    pub fn clear_global(&mut self, index: usize) {
+        self.states[index].clear_global();
     }
 
-    pub fn set_base(&mut self, indicator: &Indication) {
-        self.base = indicator.0;
-        if self.oneshot.is_none() && self.global.is_none() {
-            self.count = 0;
-            self.phase = 0;
-        }
+    pub fn set_base(&mut self, index: usize, indicator: &Indication) {
+        self.states[index].set_base(indicator);
     }
 
     /// Override the LEDs, setting to just a value sent by the other side.
+    /// TODO: This should allow more than one to be set.
     pub fn set_other_side(&mut self, leds: LedRgb) {
         self.other_side = true;
         let _ = self.leds.update(&[leds; 4]);
@@ -305,4 +288,85 @@ impl LedManager {
         self.phase = 0;
     }
     */
+}
+
+impl LedState {
+    fn new(base: &'static [Step], global: Option<&'static [Step]>) -> LedState {
+        LedState {
+            base,
+            global,
+            oneshot: None,
+            count: 0,
+            phase: 0,
+            last_color: OFF,
+        }
+    }
+
+    /// Perform the tick for this single LED, returning the color this LED shold
+    /// be.
+    fn tick(&mut self) -> LedRgb {
+        let mut steps = self.base;
+        if let Some(gl) = self.global {
+            steps = gl;
+        }
+        if let Some(one) = self.oneshot {
+            steps = one;
+        }
+
+        if self.count == 0 {
+
+            if self.phase >= steps.len() {
+                self.phase = 0;
+
+                // If this is the oneshot, back out of that, and return to an
+                // earlier state.
+                if self.oneshot.is_some() {
+                    self.oneshot = None;
+
+                    // Hack, make the next phase past, as the remaining will
+                    // repeat, and this will cause them to restart. Better would
+                    // be for each to maintain its own state.
+                    self.phase = 1000;
+
+                    // Go to the next step. As long as there isn't a state with
+                    // zero states, this will only recurse one deep.
+                    return self.tick();
+                }
+            }
+
+            if self.phase >= steps.len() {
+                panic!("Stopping");
+            }
+            let color = steps[self.phase].color;
+            self.count = steps[self.phase].count;
+            self.phase += 1;
+            self.last_color = color;
+            color
+        } else {
+            self.count -= 1;
+            self.last_color
+        }
+    }
+
+    fn set_global(&mut self, indicator: &Indication) {
+        self.global = Some(indicator.0);
+        self.count = 0;
+        self.phase = 0;
+    }
+
+    fn clear_global(&mut self) {
+        self.global = None;
+        if self.oneshot.is_none() {
+            self.count = 0;
+            self.phase = 0;
+        }
+    }
+
+   fn set_base(&mut self, indicator: &Indication) {
+        self.base = indicator.0;
+        if self.oneshot.is_none() && self.global.is_none() {
+            self.count = 0;
+            self.phase = 0;
+        }
+    }
 }
