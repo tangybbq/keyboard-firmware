@@ -58,6 +58,13 @@ extern "C" fn rust_main () {
     let mut has_global = true;
     let mut current_mode = LayoutMode::Steno;
     loop {
+        // Update the state of the Gemini indicator.
+        leds.set_base(2, if acm.is_dtr() {
+            &leds::GEMINI_INDICATOR
+        } else {
+            &leds::OFF_INDICATOR
+        });
+
         // Perform a single scan of the matrix.
         matrix.scan(|code, press| {
             let code = translate(code);

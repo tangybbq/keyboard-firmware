@@ -282,6 +282,7 @@ pub mod acm {
         fn acm_write(index: c_int,
                      buf: *const u8,
                      len: c_int);
+        fn acm_has_dtr(index: c_int) -> c_int;
     }
 
     pub struct Uart {
@@ -298,6 +299,12 @@ pub mod acm {
         pub fn write(&mut self, data: &[u8]) {
             unsafe {
                 acm_write(self.port, data.as_ptr(), data.len() as c_int);
+            }
+        }
+
+        pub fn is_dtr(&mut self) -> bool {
+            unsafe {
+                acm_has_dtr(self.port) != 0
             }
         }
     }

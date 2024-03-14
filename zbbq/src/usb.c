@@ -75,6 +75,16 @@ void acm_write(int index, const uint8_t *buf, int len)
 {
 	const struct device *dev = cdc_dev[index];
 
+	uint32_t ctrl;
+	int res = uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &ctrl);
+	// LOG_INF("uart dtr: %d, res=%d", ctrl, res);
+
+	// If DTS is not asserted, it means that nobody is attached to the ACM
+	// endpoint.  Don't try sending, or keys will queue up.
+	if (res != 0 || !ctrl) {
+		return;
+	}
+
 	uart_irq_tx_enable(dev);
 	while (len) {
 		int written = uart_fifo_fill(dev, buf, len);
@@ -85,6 +95,17 @@ void acm_write(int index, const uint8_t *buf, int len)
 	}
 
 	uart_irq_tx_disable(dev);
+}
+
+// Indicates if the given ACM device has DTR asserted.
+int acm_has_dtr(int index)
+{
+	const struct device *dev = cdc_dev[index];
+
+	uint32_t ctrl;
+	int res = uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &ctrl);
+
+	return res == 0 && ctrl;
 }
 
 int usb_setup(void) {

@@ -62,6 +62,22 @@ pub static USB_PRIMARY: Indication = Indication(&[
     },
 ]);
 
+/// An indicator that just stays off.
+pub static OFF_INDICATOR: Indication = Indication(&[
+    Step {
+        color: OFF,
+        count: 1000,
+    },
+]);
+
+/// Indicates that something is connected to the gemini protocol.
+pub static GEMINI_INDICATOR: Indication = Indication(&[
+    Step {
+        color: LedRgb::new(0, 0, 8),
+        count: 1000,
+    },
+]);
+
 /// Just off.
 /*
 pub static OFF_INDICATOR: Indication = Indication(&[
