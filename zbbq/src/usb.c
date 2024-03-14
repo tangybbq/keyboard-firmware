@@ -25,9 +25,19 @@ const struct device *cdc_dev[] = {
 };
 #undef DEVICE_AND_COMMA
 
+// Check that we aren't in an isr context.  To quickly catch problems.
+#define NO_ISR()                                                               \
+  do {                                                                         \
+    if (k_is_in_isr()) {                                                       \
+      k_panic();                                                               \
+    }                                                                          \
+  } while (0)
+
+
 // Callbacks from USB.
 static void in_ready_cb(const struct device *dev)
 {
+	NO_ISR();
 	// LOG_INF("HID in_ready");
 	k_sem_give(&usb_sem);
 }
@@ -56,6 +66,7 @@ extern void rust_usb_status(uint32_t);
 
 static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 {
+	NO_ISR();
 	// Currently, we only care about configured and suspend, which we will
 	// pass to the Rust code.
 	switch (status) {
