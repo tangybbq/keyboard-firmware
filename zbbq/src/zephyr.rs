@@ -9,7 +9,7 @@ use self::alloc::ZephyrAllocator;
 
 pub mod log;
 mod alloc;
-mod channel;
+pub mod channel;
 mod critical;
 pub mod sync;
 mod timer;
