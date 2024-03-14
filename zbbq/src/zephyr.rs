@@ -9,7 +9,9 @@ use self::alloc::ZephyrAllocator;
 
 pub mod log;
 mod alloc;
+mod channel;
 mod critical;
+pub mod sync;
 mod timer;
 
 pub use timer::{Timer, struct_timer};

@@ -23,7 +23,7 @@ pub struct struct_timer {
 
 #[cfg(CONFIG_TIMEOUT_64BIT)]
 #[allow(non_camel_case_types)]
-type k_ticks_t = u64;
+pub(crate) type k_ticks_t = u64;
 #[cfg(not(CONFIG_TIMEOUT_64BIT))]
 #[allow(non_camel_case_types)]
 type k_ticks_t = u32;
@@ -31,10 +31,15 @@ type k_ticks_t = u32;
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone)]
 #[repr(C)]
-struct struct_k_timeout {
+pub(crate) struct struct_k_timeout {
     #[allow(dead_code)]
     ticks: k_ticks_t,
 }
+
+pub(crate) const K_FOREVER: struct_k_timeout = struct_k_timeout {ticks: !0 };
+
+#[allow(dead_code)]
+pub(crate) const K_NO_WAIT: struct_k_timeout = struct_k_timeout { ticks: 0 };
 
 pub struct Timer {
     sys: *mut struct_timer,

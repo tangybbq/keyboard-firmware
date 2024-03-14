@@ -57,3 +57,28 @@ void z_crit_release(uint32_t token)
 	key.key = token;
 	k_spin_unlock(&crit_lock, key);
 }
+
+int sys_mutex_lock(struct k_mutex *mutex, k_timeout_t timeout)
+{
+	return k_mutex_lock(mutex, timeout);
+}
+
+int sys_mutex_unlock(struct k_mutex *mutex)
+{
+	return k_mutex_unlock(mutex);
+}
+
+int sys_condvar_signal(struct k_condvar *condvar)
+{
+	return k_condvar_signal(condvar);
+}
+
+int sys_condvar_broadcast(struct k_condvar *condvar)
+{
+	return k_condvar_broadcast(condvar);
+}
+
+int sys_condvar_wait(struct k_condvar *condvar, struct k_mutex *mutex, k_timeout_t timeout)
+{
+	return k_condvar_wait(condvar, mutex, timeout);
+}
