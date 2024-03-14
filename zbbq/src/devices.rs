@@ -7,7 +7,7 @@ use core::ffi::{c_int, CStr};
 use alloc::vec::Vec;
 use bitflags::bitflags;
 
-use crate::{Error, Result, EVENT_QUEUE};
+use crate::{Error, Result, event_queue};
 
 use bbq_keyboard::{UsbDeviceState, Event};
 
@@ -208,7 +208,7 @@ pub extern "C" fn rust_usb_status(state: u32) {
         _ => return,
     };
 
-    EVENT_QUEUE.push(Event::UsbState(devstate));
+    event_queue().push(Event::UsbState(devstate));
 }
 
 pub mod leds {

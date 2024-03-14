@@ -50,3 +50,5 @@ void c_log_message(int level, const char *text) {
 }
 
 K_TIMER_DEFINE(heartbeat_timer, NULL, NULL);
+K_MUTEX_DEFINE(event_queue_mutex);
+K_CONDVAR_DEFINE(event_queue_condvar);
