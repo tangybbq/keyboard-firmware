@@ -208,7 +208,7 @@ pub extern "C" fn rust_usb_status(state: u32) {
         _ => return,
     };
 
-    event_queue().push(Event::UsbState(devstate));
+    let _ = event_queue().try_send(Event::UsbState(devstate));
 }
 
 pub mod leds {

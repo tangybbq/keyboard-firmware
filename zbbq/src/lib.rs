@@ -1,16 +1,16 @@
 #![no_std]
 
 use core::mem::MaybeUninit;
-use core::{slice, cell::RefCell};
+use core::slice;
 
 // use alloc::{vec::Vec, string::ToString, collections::VecDeque};
 use alloc::{string::ToString, vec::Vec};
 use alloc::collections::VecDeque;
-use arraydeque::ArrayDeque;
 use bbq_keyboard::{Keyboard, Mods, LayoutMode, UsbDeviceState};
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
+use zephyr::channel::Channel;
 use zephyr::struct_timer;
-use zephyr::sync::{Mutex, Condvar, k_mutex, k_condvar};
+use zephyr::sync::{k_mutex, k_condvar};
 
 use crate::devices::acm::Uart;
 use crate::devices::leds::LedStrip;
@@ -27,7 +27,9 @@ mod zephyr;
 #[no_mangle]
 extern "C" fn rust_main () {
     // Initialize the static event queue.
-    unsafe { EVENT_QUEUE.write(SafeEventQueue::new()); }
+    unsafe {
+        EVENT_QUEUE.write(Channel::new(&mut event_queue_mutex, &mut event_queue_condvar));
+    }
 
     info!("Zephyr keyboard code");
     let pins = devices::PinMatrix::get();
@@ -74,9 +76,9 @@ extern "C" fn rust_main () {
             let code = translate(code);
             // info!("Key {} {:?}", code, press);
             if press {
-                event_queue().push(Event::Matrix(KeyEvent::Press(code)));
+                let _ = event_queue().try_send(Event::Matrix(KeyEvent::Press(code)));
             } else {
-                event_queue().push(Event::Matrix(KeyEvent::Release(code)));
+                let _ = event_queue().try_send(Event::Matrix(KeyEvent::Release(code)));
             }
             Ok(())
         }).unwrap();
@@ -85,7 +87,7 @@ extern "C" fn rust_main () {
         usb_hid_push(&mut keys);
 
         // Dispatch any events.
-        while let Some(event) = event_queue().try_pop() {
+        while let Ok(event) = event_queue().try_recv() {
             match event {
                 Event::Matrix(key) => {
                     // In the simple single-side case, matrix events are just
@@ -329,6 +331,8 @@ extern "C" {
     static mut heartbeat_timer: struct_timer;
 }
 
+type SafeEventQueue = Channel<Event, EVENT_QUEUE_SIZE>;
+
 /// The global shared event queue.  This is a mutable static to be initialized (unsafely).
 static mut EVENT_QUEUE: MaybeUninit<SafeEventQueue> = MaybeUninit::uninit();
 
@@ -340,12 +344,6 @@ pub fn event_queue() -> &'static SafeEventQueue {
     }
 }
 
-/// An event queue, built around Mutex and a Condvar and the ArrayDeque.
-pub struct SafeEventQueue {
-    lock: Mutex<RefCell<ArrayDeque<Event, EVENT_QUEUE_SIZE>>>,
-    condvar: Condvar,
-}
-
 /// The number of elements that can be queued in the event queue. As long as
 /// there is a generally small correspondence between the sizes of different
 /// events, this shouldn't need to be too large. It is conceivable that all keys
@@ -355,46 +353,6 @@ pub struct SafeEventQueue {
 /// messages, and those will expand directly into the HID queue, and not to
 /// events.
 const EVENT_QUEUE_SIZE: usize = 64;
-
-impl SafeEventQueue {
-    pub fn new() -> SafeEventQueue {
-        unsafe {
-            SafeEventQueue {
-                lock: Mutex::new_raw(&mut event_queue_mutex, RefCell::new(ArrayDeque::new())),
-                condvar: Condvar::new_raw(&mut event_queue_condvar),
-            }
-        }
-    }
-
-    /// Push an event into the queue.  Even will be discarded if the queue
-    /// overfills.
-    pub fn push(&self, event: Event) {
-        let queue = self.lock.lock();
-        if queue.borrow_mut().push_back(event).is_err() {
-            error!("Event queue overflow");
-        } else {
-            self.condvar.notify_one();
-        }
-    }
-
-    /// Attempt to pop from the queue.  Does not block.
-    pub fn try_pop(&self) -> Option<Event> {
-        let queue = self.lock.lock();
-        let mut queue = queue.borrow_mut();
-        queue.pop_front()
-    }
-
-    /// Pop from the queue, blocking if there are no events.
-    pub fn pop(&self) -> Event {
-        let mut queue = self.lock.lock();
-        loop {
-            if let Some(event) = queue.borrow_mut().pop_front() {
-                return event;
-            }
-            queue = self.condvar.wait(queue);
-        }
-    }
-}
 
 extern "C" {
     static mut event_queue_mutex: k_mutex;
@@ -408,7 +366,7 @@ struct MutEventQueue;
 
 impl EventQueue for MutEventQueue {
     fn push(&mut self, val: Event) {
-        event_queue().push(val);
+        let _ = event_queue().try_send(val);
         // match val {
         //     Event::RawSteno(stroke) => {
         //         // let text = stroke.to_string();
