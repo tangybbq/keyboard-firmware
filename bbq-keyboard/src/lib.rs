@@ -13,7 +13,6 @@ use alloc::vec::Vec;
 use bbq_steno::Stroke;
 use smart_leds::RGB8;
 pub use usbd_human_interface_device::page::Keyboard;
-pub use usb_device::prelude::UsbDeviceState;
 use bitflags::bitflags;
 
 pub use layout::LayoutMode;
@@ -164,6 +163,18 @@ pub enum Event {
 
     /// Led value to be sent to the other side.
     SendLed(RGB8),
+}
+
+/// Instead of the usb-device crate's UsbDeviceState, add our own, as the one in
+/// the crate is missing some important events.
+#[repr(u8)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+pub enum UsbDeviceState {
+    Default,
+    Addressed,
+    Configured,
+    Suspend,
+    Resume,
 }
 
 /// A generalized event queue.  TODO: Handle the error better.  For now, we
