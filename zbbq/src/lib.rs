@@ -62,6 +62,7 @@ extern "C" fn rust_main () {
 
     // Start with a global indicator, showing unconfigured USB.
     let mut has_global = true;
+    let mut suspended = true;
     let mut current_mode = LayoutMode::Steno;
     loop {
         // Update the state of the Gemini indicator.
@@ -70,6 +71,8 @@ extern "C" fn rust_main () {
         } else {
             &leds::OFF_INDICATOR
         });
+
+        let _ = suspended;
 
         // Perform a single scan of the matrix.
         matrix.scan(|code, press| {
@@ -90,6 +93,13 @@ extern "C" fn rust_main () {
         while let Ok(event) = event_queue().try_recv() {
             match event {
                 Event::Matrix(key) => {
+                    // If we get events, but are suspended, request a wakeup.
+                    if suspended {
+                        devices::usb_wakup();
+                        // Ideally, we would discard keys until we wake up.
+                        // But, that isn't really ideal.  Unsure if we need to
+                        // be careful to only call this once per suspend.
+                    }
                     // In the simple single-side case, matrix events are just
                     // passed to the layout manager.
                     layout.handle_event(key, &mut MutEventQueue);
@@ -139,11 +149,18 @@ extern "C" fn rust_main () {
                 }
 
                 // When the USB is configured, turn off the global indicator.
-                Event::UsbState(UsbDeviceState::Configured) => {
+                Event::UsbState(UsbDeviceState::Configured) | Event::UsbState(UsbDeviceState::Resume) => {
                     if has_global {
                         leds.clear_global(0);
                         has_global = false;
+                        suspended = false;
                     }
+                }
+
+                Event::UsbState(UsbDeviceState::Suspend) => {
+                    leds.set_global(0, &leds::SLEEP_INDICATOR);
+                    has_global = true;
+                    suspended = true;
                 }
 
                 // The USB state isn't meaningful here.

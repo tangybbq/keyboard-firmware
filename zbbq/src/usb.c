@@ -76,6 +76,8 @@ static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 	case USB_DC_SUSPEND:
 		rust_usb_status(1);
 		break;
+	case USB_DC_RESUME:
+		rust_usb_status(2);
 	default:
 		break;
 	}

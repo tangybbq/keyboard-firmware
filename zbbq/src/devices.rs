@@ -194,9 +194,14 @@ pub fn hid_send_keyboard_report(mods: u8, keys: &[u8]) {
     unsafe {hid_report(report.as_ptr())};
 }
 
+pub fn usb_wakup() {
+    unsafe { usb_dc_wakeup_request(); }
+}
+
 extern "C" {
     fn is_hid_accepting() -> c_int;
     fn hid_report(report: *const u8);
+    fn usb_dc_wakeup_request();
 }
 
 /// Report on a USB status change.  This is a C callback, possibly from IRQ context.
@@ -205,6 +210,7 @@ pub extern "C" fn rust_usb_status(state: u32) {
     let devstate = match state {
         0 => UsbDeviceState::Configured,
         1 => UsbDeviceState::Suspend,
+        2 => UsbDeviceState::Resume,
         _ => return,
     };
 
