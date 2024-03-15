@@ -82,3 +82,8 @@ int sys_condvar_wait(struct k_condvar *condvar, struct k_mutex *mutex, k_timeout
 {
 	return k_condvar_wait(condvar, mutex, timeout);
 }
+
+uint64_t sys_cycle_get_64(void)
+{
+	return k_cycle_get_64();
+}

@@ -16,11 +16,16 @@ pub struct Channel<T, const N: usize> {
     condvar: Condvar,
 }
 
+#[derive(Debug)]
 pub struct SendError<T>(pub T);
+
+#[derive(Debug)]
 pub enum TryRecvError {
     Empty,
     Disconnected,
 }
+
+#[derive(Debug)]
 pub struct RecvError;
 
 impl<T, const N: usize> Channel<T, N> {

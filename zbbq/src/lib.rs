@@ -3,11 +3,13 @@
 use core::mem::MaybeUninit;
 use core::slice;
 
-// use alloc::{vec::Vec, string::ToString, collections::VecDeque};
-use alloc::{string::ToString, vec::Vec};
+use alloc::vec::Vec;
 use alloc::collections::VecDeque;
-use bbq_keyboard::{Keyboard, Mods, LayoutMode, UsbDeviceState};
+use bbq_keyboard::usb_typer::{enqueue_action, ActionHandler};
+use bbq_keyboard::{Keyboard, Mods, LayoutMode, UsbDeviceState, Timable};
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
+use bbq_keyboard::dict::Dict;
+use bbq_steno::Stroke;
 use zephyr::channel::Channel;
 use zephyr::struct_timer;
 use zephyr::sync::{k_mutex, k_condvar};
@@ -26,11 +28,6 @@ mod zephyr;
 
 #[no_mangle]
 extern "C" fn rust_main () {
-    // Initialize the static event queue.
-    unsafe {
-        EVENT_QUEUE.write(Channel::new(&mut event_queue_mutex, &mut event_queue_condvar));
-    }
-
     info!("Zephyr keyboard code");
     let pins = devices::PinMatrix::get();
     let reverse = devices::get_matrix_reverse();
@@ -112,13 +109,25 @@ extern "C" fn rust_main () {
                 // For now, just show what steno strokes are.
                 Event::RawSteno(stroke) => {
                     if current_mode == LayoutMode::Steno {
-                        info!("stroke: {}", stroke.to_string());
-                        // TODO: Send stroke to steno processing thread.
+                        // Send the stroke off to the steno thread for processing.
+                        let _ = steno_queue().try_send(stroke);
                     } else {
                         // In the raw steno mode, send via gemini.
                         let packet = stroke.to_gemini();
                         acm.write(&packet);
                     }
+                }
+
+                // Once the steno layer has translated the strokes, it gives us
+                // a TypeAction to send of to HID.
+                Event::StenoText(action) => {
+                    // For each remove, press a backspace.
+                    for _ in 0..action.remove {
+                        keys.push_back(KeyAction::KeyPress(Keyboard::DeleteBackspace, Mods::empty()));
+                        keys.push_back(KeyAction::KeyRelease);
+                    }
+                    // Then, just send the text.
+                    enqueue_action(&mut KeyActionWrap(&mut keys), &action.text);
                 }
 
                 // Mode select and mode affect the LEDs.
@@ -188,6 +197,24 @@ extern "C" fn rust_main () {
         leds.tick();
 
         heartbeat.wait();
+    }
+}
+
+/// The lower priority steno lookup thread.
+#[no_mangle]
+extern "C" fn steno_thread_main() -> ! {
+    info!("Steno thread running");
+    let mut dict = Dict::new();
+    loop {
+        let stroke = steno_queue().recv().unwrap();
+        // info!("Stroke: {}", stroke);
+        for action in dict.handle_stroke(stroke, &WrapTimer) {
+            // Enqueue the action, and the actual typing will be queued up by
+            // the main thread.  In this case, it is ok to block.
+            // TODO: implement the blocking send.
+            let _ = event_queue().try_send(Event::StenoText(action));
+            // info!("Action: {:?}", action);
+        }
     }
 }
 
@@ -338,6 +365,16 @@ fn get_translation(translate: Option<&'static str>) -> fn (u8) -> u8 {
     }
 }
 
+struct KeyActionWrap<'a>(&'a mut VecDeque<KeyAction>);
+
+impl<'a> ActionHandler for KeyActionWrap<'a> {
+    fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
+        for act in events {
+            self.0.push_back(act);
+        }
+    }
+}
+
 pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
@@ -372,9 +409,22 @@ pub fn event_queue() -> &'static SafeEventQueue {
 /// events.
 const EVENT_QUEUE_SIZE: usize = 64;
 
+type StenoQueue = Channel<Stroke, STENO_QUEUE_SIZE>;
+const STENO_QUEUE_SIZE: usize = 16;
+
+static mut STENO_QUEUE: MaybeUninit<StenoQueue> = MaybeUninit::uninit();
+
+pub fn steno_queue() -> &'static StenoQueue {
+    unsafe {
+        &*STENO_QUEUE.as_ptr()
+    }
+}
+
 extern "C" {
     static mut event_queue_mutex: k_mutex;
     static mut event_queue_condvar: k_condvar;
+    static mut steno_queue_mutex: k_mutex;
+    static mut steno_queue_condvar: k_condvar;
 }
 
 // The keyboard code is expecting the event queue to be mutable.  To make this
@@ -394,4 +444,26 @@ impl EventQueue for MutEventQueue {
         //     ev => info!("event: {:?}", ev),
         // }
     }
+}
+
+#[no_mangle]
+extern "C" fn init_queues() {
+    // Initialize the static event queue.
+    unsafe {
+        EVENT_QUEUE.write(Channel::new(&mut event_queue_mutex, &mut event_queue_condvar));
+        STENO_QUEUE.write(Channel::new(&mut steno_queue_mutex, &mut steno_queue_condvar));
+    }
+}
+
+// Hack to get time from the os.
+struct WrapTimer;
+
+impl Timable for WrapTimer {
+    fn get_ticks(&self) -> u64 {
+        unsafe { sys_cycle_get_64() }
+    }
+}
+
+extern "C" {
+    fn sys_cycle_get_64() -> u64;
 }
