@@ -63,6 +63,7 @@ extern "C" fn rust_main () {
     // Start with a global indicator, showing unconfigured USB.
     let mut has_global = true;
     let mut suspended = true;
+    let mut woken = false;
     let mut current_mode = LayoutMode::Steno;
     loop {
         // Update the state of the Gemini indicator.
@@ -71,8 +72,6 @@ extern "C" fn rust_main () {
         } else {
             &leds::OFF_INDICATOR
         });
-
-        let _ = suspended;
 
         // Perform a single scan of the matrix.
         matrix.scan(|code, press| {
@@ -94,8 +93,9 @@ extern "C" fn rust_main () {
             match event {
                 Event::Matrix(key) => {
                     // If we get events, but are suspended, request a wakeup.
-                    if suspended {
+                    if suspended && !woken {
                         devices::usb_wakup();
+                        woken = true;
                         // Ideally, we would discard keys until we wake up.
                         // But, that isn't really ideal.  Unsure if we need to
                         // be careful to only call this once per suspend.
@@ -161,6 +161,7 @@ extern "C" fn rust_main () {
                     leds.set_global(0, &leds::SLEEP_INDICATOR);
                     has_global = true;
                     suspended = true;
+                    woken = false;
                 }
 
                 // The USB state isn't meaningful here.
