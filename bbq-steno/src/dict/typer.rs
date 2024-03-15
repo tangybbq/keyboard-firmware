@@ -31,6 +31,7 @@ struct Word {
 }
 
 /// The action that results from text being typed.
+#[derive(Debug)]
 pub struct TypeAction {
     /// How many characters to remove before typing this text.
     pub remove: usize,
