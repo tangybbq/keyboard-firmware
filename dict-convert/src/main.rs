@@ -6,11 +6,13 @@ use anyhow::Result;
 
 use bbq_steno::Stroke;
 use bbq_steno::stroke::StenoWord;
-use bbq_steno::dict::Dict;
+use bbq_steno::dict::DictImpl;
 use bbq_steno::memdict::{MAGIC1, MemDict};
 use bbq_steno_macros::stroke;
 use byteorder::{LittleEndian, WriteBytesExt};
 // use rand::RngCore;
+
+mod rtfcre;
 
 // Must match the endianness of our target.
 type Target = LittleEndian;
@@ -21,16 +23,21 @@ fn main() -> Result<()> {
     let stamp = env!("BUILD_TIMESTAMP");
     println!("commit: {:?}, dirty: {:?}, stamp: {:?}", commit, dirty, stamp);
 
-    let data: BTreeMap<String, String>  = serde_json::from_reader(
-        File::open("lapwing-base.json")?
-    )?;
+    let dict = if false {
+        let data: BTreeMap<String, String>  = serde_json::from_reader(
+            File::open("lapwing-base.json")?
+        )?;
 
-    let mut dict: BTreeMap<StenoWord, String> = BTreeMap::new();
+        let mut dict: BTreeMap<StenoWord, String> = BTreeMap::new();
 
-    for (k, v) in data.iter() {
-        let k = StenoWord::parse(k)?;
-        dict.insert(k, v.clone());
-    }
+        for (k, v) in data.iter() {
+            let k = StenoWord::parse(k)?;
+            dict.insert(k, v.clone());
+        }
+        dict
+    } else {
+        rtfcre::import("../phoenix/phoenix.rtf")?
+    };
 
     // Print out the longest entry.
     let longest = dict.keys().map(|k| k.0.len()).max();
@@ -38,14 +45,15 @@ fn main() -> Result<()> {
 
     let memory = encode_dict(&dict)?;
 
-    File::create("lapwing-base.bin")?.write_all(&memory)?;
+    File::create("phoenix.bin")?.write_all(&memory)?;
 
     // Let's map this (somewhat unsafely) and see what we get out of it.
     let mdict = unsafe { MemDict::from_raw_ptr(memory.as_ptr()).unwrap() };
     println!("Header:\n{:#?}", mdict.raw);
     println!("Keys: {}", mdict.keys.len());
-    println!("Longest: {}", mdict.longest_key());
+    // println!("Longest: {}", mdict.longest_key());
 
+    /*
     // Print out the first some number of keys.
     for k in 0 .. 12 {
         let key = mdict.get_key(k);
@@ -68,6 +76,7 @@ fn main() -> Result<()> {
         let text = mdict.prefix_lookup(stroke);
         println!("  {} -> {:?}", StenoWord(stroke.to_vec()), text);
     }
+    */
     Ok(())
 }
 
@@ -194,6 +203,7 @@ fn pad(buf: &mut Vec<u8>, count: usize) {
     }
 }
 
+#[derive(Debug)]
 struct TablePos {
     offset: usize,
     length: usize,
@@ -202,6 +212,9 @@ struct TablePos {
 impl TablePos {
     fn encoded(&self) -> u32 {
         // Encode by putting the length as the upper 8 bits, and the offset in the lower.
+        if self.length >= 256 {
+            println!("Bogus: {:?}", self);
+        }
         assert!(self.length < (1 << 8));
         assert!(self.offset < (1 << 24));
         ((self.length << 24) as u32) | (self.offset as u32)

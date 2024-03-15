@@ -27,7 +27,7 @@ def create_uf2(binary_filename, uf2_filename, start_address):
             block_header = struct.pack('<IIIIIIII',
                                        UF2_MAGIC_START0,
                                        UF2_MAGIC_START1,
-                                       0x200,
+                                       0x2000,
                                        start_address + block_num * UF2_PAYLOAD_SIZE,
                                        payload_size,
                                        block_num,
@@ -42,3 +42,4 @@ def create_uf2(binary_filename, uf2_filename, start_address):
 
 # Replace 'your_binary.bin', 'your_output.uf2', and 0xADDRESS with your values
 create_uf2('lapwing-base.bin', 'lapwing-base.uf2', 0x10200000)
+# create_uf2('lapwing-base.json', 'lapwing-base.uf2', 0x10200000)
