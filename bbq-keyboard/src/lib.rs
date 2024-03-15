@@ -10,7 +10,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use bbq_steno::Stroke;
+use bbq_steno::{Stroke, dict::TypeAction};
 use smart_leds::RGB8;
 pub use usbd_human_interface_device::page::Keyboard;
 use bitflags::bitflags;
@@ -163,6 +163,9 @@ pub enum Event {
 
     /// Led value to be sent to the other side.
     SendLed(RGB8),
+
+    /// Steno text to be typed.
+    StenoText(TypeAction),
 }
 
 /// Instead of the usb-device crate's UsbDeviceState, add our own, as the one in
