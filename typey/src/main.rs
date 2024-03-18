@@ -1,19 +1,21 @@
 use std::{
-    collections::BTreeMap,
-    fs::File,
     io::{stdin, stdout, Write}, rc::Rc,
 };
 
 use anyhow::Result;
 use bbq_steno::{
-    dict::{RamDict, MapDictBuilder, Translator},
-    stroke::StenoWord,
-    Stroke,
+    dict::{Translator, Dict},
+    Stroke, memdict::MemDict,
 };
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
+// mod rtfcre;
+
 fn main() -> Result<()> {
-    let dict = load_dict().expect("Load main dict");
+    let bindict = std::fs::read("../dict-convert/phoenix.bin")?;
+    let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) }.unwrap();
+    let dict: Dict = Rc::new(mdict);
+    // let dict = load_dict().expect("Load main dict");
     let mut xlat = Translator::new(dict);
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode()?;
@@ -51,13 +53,14 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/*
 fn load_dict() -> Result<Rc<RamDict>> {
-    let data: BTreeMap<String, String> =
-        serde_json::from_reader(File::open("../dict-convert/lapwing-base.json")?)?;
+    let phoenix = rtfcre::import("../phoenix/phoenix.rtf")?;
     let mut builder = MapDictBuilder::new();
-    for (k, v) in data {
-        let k = StenoWord::parse(&k)?;
+    for (k, v) in phoenix {
+        // let k = StenoWord::parse(&k)?;
         builder.insert(k.0, v);
     }
     Ok(Rc::new(builder.into_ram_dict()))
 }
+*/
