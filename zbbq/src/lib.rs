@@ -26,6 +26,12 @@ mod leds;
 mod matrix;
 mod zephyr;
 
+// Ensure that rust has been enabled within the Zephyr build. This validates two
+// things, one that rust support has been enabled, and second that the Kconfig
+// values are properly making it into this crate.
+#[cfg(not(CONFIG_RUST))]
+compile_error!("CONFIG_RUST must be set to build Rust in Zephyr");
+
 #[no_mangle]
 extern "C" fn rust_main () {
     info!("Zephyr keyboard code");

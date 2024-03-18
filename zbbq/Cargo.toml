@@ -38,6 +38,15 @@ features = ["restore-state-u32"]
 version = "0.5"
 default-features = false
 
+[dependencies.zephyr-sys]
+version = "0.1"
+
+[dev-dependencies]
+# zephyr-sys = "0.1"
+
+[build-dependencies]
+regex = "1.10.3"
+
 # Optimize even for debug builds.
 [profile.dev]
 opt-level = "s"

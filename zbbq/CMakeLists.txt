@@ -22,6 +22,12 @@ target_sources(app PRIVATE ${app_sources})
 # this particular build. Specifically, the target directory, the target itself,
 # and a mapping of Zephyr Kconfig values onto config features to rustc.
 
+message(STATUS "RS directory: ${ZEPHYR_RS_MODULE_DIR}")
+if(NOT DEFINED ZEPHYR_RS_MOUDLE_DIR)
+  # TODO: Why does this check not work?
+  # message(FATAL_ERROR "Unable to find zephyr-rs module")
+endif()
+
 # TODO: Make sure RUSTFLAGS is not set.
 # TODO: Create source directory.
 # TODO: Copy source Cargo.toml
@@ -35,6 +41,7 @@ set(BUILD_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thumbv6m-none-eabi/debug)
 
 set(CARGO_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/rust/target-kbbq)
 set(RUST_LIBRARY ${CARGO_TARGET_DIR}/thumbv6m-none-eabi/${RUST_BUILD_TYPE}/libkbbq.a)
+set(SAMPLE_CARGO_CONFIG ${CMAKE_CURRENT_BINARY_DIR}/rust/sample-cargo-config.toml)
 
 # Getting CMake to always run Cargo is a bit of a mess. The trick is to make the
 # custom command's output file be a file that never gets created. This will
@@ -45,13 +52,42 @@ set(RUST_LIBRARY ${CARGO_TARGET_DIR}/thumbv6m-none-eabi/${RUST_BUILD_TYPE}/libkb
 
 set(DUMMY_FILE "${CMAKE_BINARY_DIR}/always-run-cargo.dummy")
 
+# Write out a cargo config file that can be copied into `.cargo/config.toml` in
+# the source directory to allow various IDE tools and such to work. The build we
+# invoke will override these settings, in case they are out of date. Everything
+# set here should match the arguments given to the cargo build command below.
+file(WRITE ${SAMPLE_CARGO_CONFIG} "
+# This is a generated sample .cargo/config.toml file from the Zephyr file
+# At the time of generation, this represented the settings needed to allow
+# a `cargo build` to compile the rust code using the current Zephyr build.
+# If any settings in the Zephyr build change, this could become out of date.
+[build]
+target = \"thumbv6m-none-eabi\"
+target-dir = \"${CARGO_TARGET_DIR}\"
+
+[env]
+BUILD_DIR = \"${CMAKE_CURRENT_BINARY_DIR}\"
+DOTCONFIG = \"${DOTCONFIG}\"
+
+[patch.crates-io]
+zephyr-sys.path = \"${ZEPHYR_RS_MODULE_DIR}/zephyr-sys\"
+")
+
 # The library can be built by just invoking Cargo
 add_custom_command(
   OUTPUT ${DUMMY_FILE}
   BYPRODUCTS ${RUST_LIBRARY}
-  COMMAND cargo build
+  COMMAND
+    ${CMAKE_EXECUTABLE}
+    env BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}
+    DOTCONFIG=${DOTCONFIG}
+    cargo build
     # TODO: release flag if release build
     # --release
+
+    # Set a replacement so that packages can just use `zephyr-sys` as a package
+    # name to find it.
+    --config "patch.crates-io.zephyr-sys.path=\\\"${ZEPHYR_RS_MODULE_DIR}/zephyr-sys\\\""
     --target thumbv6m-none-eabi
     --target-dir ${CARGO_TARGET_DIR}
   COMMENT "Building Rust application"
