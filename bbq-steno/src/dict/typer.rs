@@ -10,8 +10,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::collections::VecDeque;
 
-#[cfg(not(feature = "std"))]
-use crate::println;
+// #[cfg(not(feature = "std"))]
+// use crate::println;
 
 /// The typing tracker.  LIMIT is the limit of the history.
 pub struct Typer<const LIMIT: usize> {
@@ -80,7 +80,7 @@ impl<const LIMIT: usize> Typer<LIMIT> {
         if let Some(word) = self._words.pop() {
             let _ = word.typed;
             let _ = word.remove;
-            println!("*** remove: {}, type: {:?}", word.typed.len(), word.remove);
+            // println!("*** remove: {}, type: {:?}", word.typed.len(), word.remove);
             // TODO: Use the ortho rules.
             self.to_type.push_back(TypeAction { remove: word.typed.len(), text: word.remove });
         }
