@@ -1,6 +1,7 @@
 //! RTFCRE import.
 
 use bbq_steno::stroke::StenoWord;
+use regex::Regex;
 
 use crate::Result;
 
@@ -163,6 +164,7 @@ pub fn import<P: AsRef<Path>>(name: P) -> Result<BTreeMap<StenoWord, String>> {
     let mut last = String::new();
     let mut defn = Vec::new();
     let mut skipped = 0;
+    let encoder = Encoder::new();
     for tok in p {
         let tok = tok?;
 
@@ -195,7 +197,8 @@ pub fn import<P: AsRef<Path>>(name: P) -> Result<BTreeMap<StenoWord, String>> {
                     if skipped >= 2 {
                         // println!("defn: {:?} => {:?}", last, defn);
                         let last = StenoWord::parse(&last)?;
-                        dict.insert(last, format!("{:?}", defn));
+                        // dict.insert(last, format!("{:?}", defn));
+                        dict.insert(last, encoder.encode(&defn));
                     }
                     skipped += 1;
                     defn.clear();
@@ -236,5 +239,59 @@ pub fn import<P: AsRef<Path>>(name: P) -> Result<BTreeMap<StenoWord, String>> {
         }
     }
 
+    // Insert the last definition.
+    let last = StenoWord::parse(&last)?;
+    // The parser leaves some trailing garbage.
+    println!("Trailing definition: {:?}, {:?} {:?}",
+             last, defn, encoder.encode(&defn));
+    dict.insert(last, encoder.encode(&defn));
+
     Ok(dict)
+}
+
+struct Encoder {
+    punct: Regex,
+}
+
+impl Encoder {
+    fn new() -> Encoder {
+        Encoder {
+            punct: Regex::new(r"^([\.\?;:,]) ?$").unwrap(),
+        }
+    }
+
+// Convert the RTFCRE tokens into a dictionary entry.
+    fn encode(&self, tokens: &[Token]) -> String {
+        let mut result = String::new();
+
+        for token in tokens {
+            match token {
+                // This shouldn't really be present, but just ignore them if
+                // they are.
+                Token::Open => (),
+                Token::Close => (),
+                Token::Command(cmd) if cmd.as_str() == "cxds" => result.push('\x01'),
+                Token::Command(cmd) if cmd.as_str() == "cxfc" => {
+                    // Cap next should not insert space before, and indicate caps.
+                    result.push_str("\x01\x02");
+                }
+                Token::Command(cmd) => {
+                    result.push('{');
+                    result.push_str(cmd);
+                    result.push('}');
+                }
+                Token::Text(text) => {
+                    let text = text.trim_end_matches("\r\n");
+                    if let Some(cap) = self.punct.captures(text) {
+                        result.push('\x01');
+                        result.push_str(&cap[1]);
+                        result.push('\x02');
+                    } else {
+                        result.push_str(text);
+                    }
+                }
+            }
+        }
+        result
+    }
 }

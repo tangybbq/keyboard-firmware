@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
+use std::path::Path;
 use std::{fs::File, collections::BTreeMap, io::Write};
 
 use anyhow::Result;
 
 use bbq_steno::Stroke;
 use bbq_steno::stroke::StenoWord;
-use bbq_steno::dict::DictImpl;
 use bbq_steno::memdict::{MAGIC1, MemDict};
 use bbq_steno_macros::stroke;
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -38,6 +38,10 @@ fn main() -> Result<()> {
     } else {
         rtfcre::import("../phoenix/phoenix.rtf")?
     };
+
+    let dict = merge_json(dict, "phoenix_fix.json")?;
+    let dict = merge_json(dict, "taipo.json")?;
+    let dict = merge_json(dict, "user.json")?;
 
     // Print out the longest entry.
     let longest = dict.keys().map(|k| k.0.len()).max();
@@ -78,6 +82,28 @@ fn main() -> Result<()> {
     }
     */
     Ok(())
+}
+
+fn merge_json<P: AsRef<Path>>(mut dict: BTreeMap<StenoWord, String>, path: P) -> Result<BTreeMap<StenoWord, String>> {
+    let new: BTreeMap<String, String> = serde_json::from_reader(
+        File::open(path)?
+    )?;
+
+    for (k, v) in new.iter() {
+        let k = StenoWord::parse(k)?;
+        dict.insert(k, fix_json(v));
+    }
+
+    Ok(dict)
+}
+
+// Fix up the Plover to our style of dictionary entry.
+fn fix_json(text: &str) -> String {
+    if text == "{?}" {
+        "\x01?\x02".to_string()
+    } else {
+        text.to_string()
+    }
 }
 
 static TEST_STROKES: &[&[Stroke]] = &[
