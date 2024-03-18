@@ -20,7 +20,7 @@ pub struct Translator {
     /// The dictionaries to use for the lookups.
     dicts: Vec<Dict>,
 
-    /// The nodes at each state.
+    /// The nodes at each state.  These correspond 1:1 with the input strokes.
     history: Vec<Entry>,
 
     // Tracker of what was typed.
@@ -30,17 +30,33 @@ pub struct Translator {
 /// At a given state, these are the possible places we can go.
 #[derive(Debug)]
 struct Entry {
+    // NFA states at this point.
     nodes: Vec<Box<dyn Selector>>,
-    _text: String,
+
+    // The decoded text if there is an entry.  This will be raw steno if nothing
+    // decodes at this point.
+    text: Decoded,
 
     // How far back in the history have we successfully typed?  0 means we have
     // typed up to the current entry.
     last_typed: usize,
+
+    // Should we capitalize the next word?
+    cap_next: bool,
+
+    // Should we auto-insert a space?
+    auto_space: bool,
 }
 
 impl Entry {
     fn new() -> Entry {
-        Entry { nodes: Vec::new(), _text: String::new(), last_typed: 0 }
+        Entry {
+            nodes: Vec::new(),
+            text: Decoded::empty(),
+            last_typed: 0,
+            cap_next: true,
+            auto_space: false,
+        }
     }
 }
 
@@ -101,22 +117,58 @@ impl Translator {
             }
         }
 
-        // Determine how much previously typed text needs to be deleted.
-        let text = if let Some(best) = best_text {
-            for _ent in &self.history[self.history.len() - (best_len - 1) .. self.history.len()] {
-                self.typer.remove();
-            }
-            self.typer.add(0, true, &best);
-            best
+        // If there is a translation here, use it.  Otherwise fake a single
+        // stroke definition that is just the raw steno of this stroke.
+        let best = if let Some(best) = best_text {
+            // println!("raw: {:?}", best);
+            Decoded::new(&best, best_len)
         } else {
-            // There is no translation for the current stroke.  Type out the raw
-            // steno.
-            let text = stroke.to_string();
-            self.typer.add(0, true, &text);
-            text
+            Decoded::fake(stroke.to_string())
         };
 
-        self.history.push(Entry { nodes, _text: text, last_typed: last.last_typed + 1 });
+        // If this definition was multiple strokes, "untype" what was inserted
+        // by those previous strokes.  After this, 'pos' will point to the
+        // history entry preceeding the current definition.
+        // It is important that when we delete, we only delete the entries that
+        // were actually words.  They should always line up, so we don't check
+        // that here.
+        let mut skip = 0;
+        let mut pos = self.history.len() - 1;
+        for _ in 1..best.strokes {
+            if skip == 0 {
+                self.typer.remove();
+                skip = self.history[pos].text.strokes - 1;
+            } else {
+                skip -= 1;
+            }
+            pos -= 1;
+        }
+
+        // TODO: Make an iterator?
+        let prior = &self.history[pos];
+
+        // Capitalize the new text, if that is requested.
+        // TODO: Add an entry to decoded for force-not-caps.
+        let text = if prior.cap_next {
+            capitalize(&best.text)
+        } else {
+            // TODO: Clean this flow up so we don't need an extra allocation here.
+            best.text.clone()
+        };
+
+        // type in this result.
+        self.typer.add(0, prior.auto_space && best.allow_space_before, &text);
+
+        // Record this history entry.
+        let auto_space = best.space_after;
+        let cap_next = best.cap_next;
+        self.history.push(Entry {
+            nodes,
+            text: best,
+            last_typed: last.last_typed + 1, // This doesn't seem right.
+            auto_space,
+            cap_next,
+        })
     }
 
     fn undo(&mut self) {
@@ -137,7 +189,7 @@ impl Translator {
         // Just print the latest history, as the history doesn't change.
 
         let entry = self.history.last().unwrap();
-        println!("Entry: {:?}", entry._text);
+        println!("Entry: {:?}", entry.text);
         for node in &entry.nodes {
             println!("   {:?}", node);
             // Sometimes, it is useful to see all of the entries.
@@ -152,5 +204,81 @@ impl Translator {
             */
         }
     }
+}
 
+fn capitalize(text: &str) -> String {
+    let mut c = text.chars();
+    match c.next() {
+        None => String::new(),
+        // There is an extra allocation here, so improve this.
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+#[derive(Debug)]
+struct Decoded {
+    allow_space_before: bool,
+    space_after: bool,
+    cap_next: bool,
+    text: String, // TODO: This could be just a &str but that is complicated.
+    /// How many strokes does this definition consume.
+    strokes: usize,
+}
+
+impl Decoded {
+    fn new(text: &str, strokes: usize) -> Decoded {
+        let mut allow_space_before = true;
+        let mut space_after = true;
+        let mut cap_next = false;
+
+        let mut iter = text.chars();
+        let mut text = String::new();
+
+        // Deal with leading characters that control things.
+        while let Some(ch) = iter.next() {
+            match ch {
+                '\x01' => allow_space_before = false,
+                // Allow the cap-next marker at the start, to cover the cases
+                // when there is no text, and this is just the caps-next marker.
+                '\x02' => cap_next = true,
+                ch => {
+                    text.push(ch);
+                    break;
+                }
+            }
+        }
+
+        // Just push everything else onto text.
+        while let Some(ch) = iter.next() {
+            text.push(ch);
+        }
+
+        // Now, see what is at the end.
+        while let Some(ch) = text.pop() {
+            match ch {
+                '\x01' => space_after = false,
+                '\x02' => cap_next = true,
+                ch => {
+                    text.push(ch);
+                    break;
+                }
+            }
+        }
+
+        Decoded {
+            allow_space_before,
+            space_after,
+            cap_next,
+            text,
+            strokes,
+        }
+    }
+
+    fn fake(text: String) -> Decoded {
+        Decoded { allow_space_before: true, space_after: true, cap_next: false, text, strokes: 1 }
+    }
+
+    fn empty() -> Decoded {
+        Decoded { allow_space_before: true, space_after: true, cap_next: false, text: String::new(), strokes: 0 }
+    }
 }
