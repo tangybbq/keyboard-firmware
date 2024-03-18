@@ -135,16 +135,67 @@ impl Condvar {
     }
 }
 
-// Zephyr primitives.
-// To start, only support externally provided mutexes.  We don't have to worry
-// about how to allocate them, and pin them.
+// include/zephyr/kernel.h
 #[allow(non_camel_case_types)]
-#[repr(transparent)]
+#[repr(C)]
 pub struct k_mutex {
-    // Size is not yet determined.
+    wait_q: _wait_q_t,
+    owner: *mut k_thread,
+
+    lock_count: u32,
+
+    // TODO: Should this be wrapped with a macro like in the Zephyr headers?
+    #[cfg(CONFIG_TRACING)]
+    _obj_track_next: *mut k_mutex,
+
+    #[cfg(CONFIG_OBJ_CORE_MUTEX)]
+    obj_core: k_obj_core,
+
+    owner_orig_prio: c_int,
+}
+
+// TODO: Fill this out once we need to allocate.
+#[allow(non_camel_case_types)]
+#[repr(C)]
+pub struct k_thread {
     _pad: u32,
 }
 
+// include/zephyr/dlist.h
+#[allow(non_camel_case_types)]
+#[repr(C)]
+struct sys_dlist_t {
+    // We aren't actually using this struct from Rust code, so we don't need
+    // both legs of the union, and it is adequate to just use the first.
+    head: *mut sys_dlist_t,
+    next: *mut sys_dlist_t,
+}
+
+// The Zephyr kernel waitq is used internal to several structures that are on
+// waitq.
+#[cfg(CONFIG_WAITQ_SCALABLE)]
+mod waitq_impl {
+    #[allow(non_camel_case_types)]
+    #[repr(C)]
+    pub struct _wait_q_t {
+        waitq: _priq_rb,
+    }
+}
+
+#[cfg(not(CONFIG_WAITQ_SCALABLE))]
+mod waitq_impl {
+    use super::sys_dlist_t;
+
+    #[allow(non_camel_case_types)]
+    #[repr(C)]
+    pub struct _wait_q_t {
+        waitq: sys_dlist_t,
+    }
+}
+
+use waitq_impl::_wait_q_t;
+
+// Zephyr primitives.
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
 pub struct k_condvar {
