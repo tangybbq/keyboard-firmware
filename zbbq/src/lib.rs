@@ -34,6 +34,9 @@ compile_error!("CONFIG_RUST must be set to build Rust in Zephyr");
 
 #[no_mangle]
 extern "C" fn rust_main () {
+    // Sanity checks.
+    zephyr::struct_check::check_sizes();
+
     info!("Zephyr keyboard code");
     let pins = devices::PinMatrix::get();
     let reverse = devices::get_matrix_reverse();

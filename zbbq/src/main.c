@@ -75,3 +75,6 @@ K_MUTEX_DEFINE(event_queue_mutex);
 K_CONDVAR_DEFINE(event_queue_condvar);
 K_MUTEX_DEFINE(steno_queue_mutex);
 K_CONDVAR_DEFINE(steno_queue_condvar);
+
+// Structure size matching.
+const size_t struct_k_mutex_size = sizeof(struct k_mutex);

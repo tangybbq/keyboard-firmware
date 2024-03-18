@@ -13,6 +13,7 @@ pub mod channel;
 mod critical;
 pub mod sync;
 mod timer;
+pub mod struct_check;
 
 pub use timer::{Timer, struct_timer};
 
