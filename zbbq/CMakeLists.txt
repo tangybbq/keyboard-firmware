@@ -43,6 +43,25 @@ set(CARGO_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/rust/target-kbbq)
 set(RUST_LIBRARY ${CARGO_TARGET_DIR}/thumbv6m-none-eabi/${RUST_BUILD_TYPE}/libkbbq.a)
 set(SAMPLE_CARGO_CONFIG ${CMAKE_CURRENT_BINARY_DIR}/rust/sample-cargo-config.toml)
 
+# The shield selected distinguishes the 2-row and 3-row keyboards. Note that the
+# only way to specify features for the top level build is through the command
+# line. As such, the packages may not be built with the correct features if
+# cargo is invoked directly. Cmake should rerun the cargo build with the right
+# arguments, though, so builds should be correct. The default feature can be set
+# in Cargo.toml.
+if(NOT DEFINED SHIELD)
+  message(FATAL_ERROR "Must select a shield to build the keyboard firmware.")
+endif()
+if(SHIELD STREQUAL "proto2")
+  set(SHIELD_FEATURE "proto2")
+elseif(SHIELD STREQUAL "proto3")
+  set(SHIELD_FEATURE "proto3")
+elseif(SHIELD STREQUAL "proto4")
+  set(SHIELD_FEATURE "proto3")
+else()
+  message(FATAL_ERROR "SHIELD is unexpected value: ${SHIELD}")
+endif()
+
 # Getting CMake to always run Cargo is a bit of a mess. The trick is to make the
 # custom command's output file be a file that never gets created. This will
 # cause this to always rerun the cargo command. We add the actual library as a
@@ -84,6 +103,11 @@ add_custom_command(
     cargo build
     # TODO: release flag if release build
     # --release
+
+    # Override the features according to the shield given. For a general case,
+    # this will need to come from a variable or argument.
+    --no-default-features
+    --features ${SHIELD_FEATURE}
 
     # Set a replacement so that packages can just use `zephyr-sys` as a package
     # name to find it.
