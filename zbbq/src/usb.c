@@ -81,7 +81,7 @@ static void status_cb(enum usb_dc_status_code status, const uint8_t *param)
 	default:
 		break;
 	}
-	LOG_INF("USB status: %d", status);
+	// LOG_INF("USB status: %d", status);
 }
 
 void acm_write(int index, const uint8_t *buf, int len)

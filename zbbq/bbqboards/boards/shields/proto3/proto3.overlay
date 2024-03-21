@@ -12,6 +12,7 @@
 
 	chosen {
 		zephyr,matrix = &kbd_matrix;
+                inter-board-uart = &uart1;
 	};
 
 	kbd_matrix: kbd-matrix {
@@ -34,4 +35,27 @@
                 compatible = "gpio-mode-selector";
                 in-gpios = <&gpio0 18 (GPIO_PULL_UP | GPIO_ACTIVE_HIGH)>;
         };
+
+};
+
+/* We could use uart 1, but as we don't use the console, just remap uart 0 to
+ * the gpio pins. */
+&pinctrl {
+        uart1_inter: uart1_inter {
+                group1 {
+                        pinmux = <UART1_TX_P8>;
+                };
+                groupt2 {
+                        pinmux = <UART1_RX_P9>;
+                        input-enable;
+                };
+        };
+};
+
+&uart1 {
+        /delete-property/ hw-flow-control;
+        status = "okay";
+        pinctrl-0 = <&uart1_inter>;
+        pinctrl-names = "default";
+        current-speed = <390625>;
 };

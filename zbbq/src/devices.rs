@@ -224,6 +224,8 @@ pub mod leds {
     use super::Result;
     use super::Error;
 
+    use bbq_keyboard::RGB8;
+
     // The RGB API is straightforward.
     #[repr(C)]
     #[derive(Default, Clone, Copy)]
@@ -238,6 +240,10 @@ pub mod leds {
     impl LedRgb {
         pub const fn new(r: u8, g: u8, b: u8) -> LedRgb {
             LedRgb { r, g, b }
+        }
+
+        pub fn to_rgb8(self) -> RGB8 {
+            RGB8::new(self.r, self.g, self.b)
         }
     }
 

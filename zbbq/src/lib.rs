@@ -6,7 +6,7 @@ use core::slice;
 use alloc::vec::Vec;
 use alloc::collections::VecDeque;
 use bbq_keyboard::usb_typer::{enqueue_action, ActionHandler};
-use bbq_keyboard::{Keyboard, Mods, LayoutMode, UsbDeviceState, Timable};
+use bbq_keyboard::{Keyboard, Mods, LayoutMode, UsbDeviceState, Timable, Side, InterState};
 use bbq_keyboard::{layout::LayoutManager, EventQueue, Event, KeyEvent, KeyAction};
 use bbq_keyboard::dict::Dict;
 use bbq_steno::Stroke;
@@ -16,12 +16,14 @@ use zephyr::sync::{k_mutex, k_condvar};
 
 use crate::devices::acm::Uart;
 use crate::devices::leds::LedStrip;
+use crate::inter::InterHandler;
 use crate::leds::LedManager;
 use crate::{matrix::Matrix, zephyr::Timer, devices::GpioFlags};
 
 extern crate alloc;
 
 mod devices;
+mod inter;
 mod leds;
 mod matrix;
 mod zephyr;
@@ -50,10 +52,17 @@ extern "C" fn rust_main () {
     info!("Matrix translation: {:?}", translate);
     let translate = get_translation(translate);
 
-    if let Some(side_select) = devices::get_side_select() {
-        side_select.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
-        info!("Side: {:?}", side_select.pin_get().unwrap());
-    }
+    let side =
+        if let Some(side_select) = devices::get_side_select() {
+            side_select.pin_configure(GpioFlags::GPIO_INPUT).unwrap();
+            info!("Side: {:?}", side_select.pin_get().unwrap());
+            if side_select.pin_get().unwrap() { Side::Left } else { Side::Right }
+        } else {
+            // No indicator, assume left.
+            Side::Left
+        };
+
+    let mut inter = InterHandler::new(side);
 
     let mut heartbeat = unsafe {
         Timer::new_from_c(&mut heartbeat_timer)
@@ -71,6 +80,7 @@ extern "C" fn rust_main () {
     let mut suspended = true;
     let mut woken = false;
     let mut current_mode = LayoutMode::Steno;
+    let mut state = InterState::Idle;
     loop {
         // Update the state of the Gemini indicator.
         leds.set_base(2, if acm.is_dtr() {
@@ -98,6 +108,15 @@ extern "C" fn rust_main () {
         while let Ok(event) = event_queue().try_recv() {
             match event {
                 Event::Matrix(key) => {
+                    match state {
+                        InterState::Primary | InterState::Idle => {
+                            layout.handle_event(key, &mut MutEventQueue);
+                        }
+                        InterState::Secondary => {
+                            inter.add_key(key);
+                        }
+                    }
+
                     // If we get events, but are suspended, request a wakeup.
                     if suspended && !woken {
                         devices::usb_wakup();
@@ -106,13 +125,16 @@ extern "C" fn rust_main () {
                         // But, that isn't really ideal.  Unsure if we need to
                         // be careful to only call this once per suspend.
                     }
-                    // In the simple single-side case, matrix events are just
-                    // passed to the layout manager.
-                    layout.handle_event(key, &mut MutEventQueue);
                 }
                 Event::Key(key) => {
                     // Keypress are queued up, to be sent to the hid layer.
                     keys.push_back(key);
+                }
+
+                Event::InterKey(key) => {
+                    if state == InterState::Primary {
+                        layout.handle_event(key, &mut MutEventQueue);
+                    }
                 }
 
                 // For now, just show what steno strokes are.
@@ -173,6 +195,7 @@ extern "C" fn rust_main () {
                         has_global = false;
                         suspended = false;
                     }
+                    inter.set_state(bbq_keyboard::InterState::Primary);
                 }
 
                 Event::UsbState(UsbDeviceState::Suspend) => {
@@ -192,6 +215,25 @@ extern "C" fn rust_main () {
                     */
                 }
 
+                Event::BecomeState(new_state) => {
+                    if state != new_state {
+                        if new_state == InterState::Secondary {
+                            info!("Secondary");
+                            leds.clear_global(0);
+                        } else if new_state == InterState::Idle {
+                            info!("Idle");
+                            leds.clear_global(0);
+                        } else {
+                            info!("Primary");
+                        }
+                        state = new_state;
+                    }
+                    // else flashing check.  A secondary side thing.
+                }
+
+                Event::Heartbeat => {
+                }
+
                 // Catch all for the rest.
                 event => info!("event: {:?}", event),
             }
@@ -204,6 +246,7 @@ extern "C" fn rust_main () {
 
         layout.tick(&mut MutEventQueue);
         leds.tick();
+        inter.tick();
 
         heartbeat.wait();
     }
@@ -248,7 +291,6 @@ fn usb_hid_push(keys: &mut VecDeque<KeyAction>) {
                 // do.  For now just report if we can.
                 let (mods, keys) = keyset_to_hid(keys);
                 devices::hid_send_keyboard_report(mods.bits(), &keys);
-                info!("TODO: KeySet: {:?}", keys);
             }
             KeyAction::ModOnly(mods) => {
                 devices::hid_send_keyboard_report(mods.bits(), &[]);
