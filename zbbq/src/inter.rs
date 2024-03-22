@@ -130,9 +130,11 @@ impl InterHandler {
         self.keys.push(key);
     }
 
+    /*
     pub fn set_other_led(&mut self, leds: LedRgb) {
         self.leds = leds;
     }
+    */
 }
 
 extern "C" {
