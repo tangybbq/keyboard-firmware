@@ -14,6 +14,10 @@
 
 #if DT_HAS_CHOSEN(inter_board_uart)
 
+#define INTER_UART DT_CHOSEN(inter_board_uart)
+static const struct device *uart = DEVICE_DT_GET
+	(INTER_UART);
+
 #if 0
 // This is some legacy attempts to use the irq mode.  This isn't actually
 // necessary for us, though.
@@ -21,10 +25,6 @@ RING_BUF_DECLARE(inter_ring, 64);
 
 uint8_t ubugs[1024];
 int ubug_len = 0;
-
-#define INTER_UART DT_CHOSEN(inter_board_uart)
-static const struct device *uart = DEVICE_DT_GET
-	(INTER_UART);
 
 // Irq handler. For received data, just sticks it in the ring.  For transmit,
 // does nothing.
@@ -104,7 +104,7 @@ void inter_uart_setup(void)
 	uart_irq_rx_disable(uart);
 	uart_irq_tx_disable(uart);
 
-	uart_irq_callback_set(uart, inter_uart_isr);
+	// uart_irq_callback_set(uart, inter_uart_isr);
 
 	// Drain the fifo.
 	uint8_t ch;
