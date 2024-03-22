@@ -3,7 +3,9 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use crate::{devices::leds::{LedRgb, LedStrip}};
+use core::mem::MaybeUninit;
+
+use crate::{devices::leds::{LedRgb, LedStrip}, zephyr::{sync::{Mutex, k_mutex}, struct_timer, Timer}};
 
 const OFF: LedRgb = LedRgb::new(0, 0, 0);
 // const INIT: LedRgb = LedRgb::new(8, 8, 0);
@@ -212,8 +214,6 @@ pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[Step {
 }]);
 
 pub struct LedManager {
-    leds: LedStrip,
-
     states: [LedState; 4],
 
     /// Override the indicator by LEDs sent from the other side.
@@ -241,8 +241,9 @@ struct LedState {
 
 impl LedManager {
     pub fn new(leds: LedStrip) -> Self {
+        // Give the driver to the thread, through the shared data.
+        led_state().lock().driver = Some(leds);
         LedManager {
-            leds,
             states: [
                 // Assumes that we are in this state.
                 // Two row keyboards don't have qwerty, and start in taipo.
@@ -270,7 +271,7 @@ impl LedManager {
             colors[i] = color;
         }
 
-        let _ = self.leds.update(&colors);
+        led_state().lock().leds = colors;
     }
 
     /// Set a global indicator. This will override any other status being
@@ -293,7 +294,7 @@ impl LedManager {
     /// TODO: This should allow more than one to be set.
     pub fn set_other_side(&mut self, leds: LedRgb) {
         self.other_side = true;
-        let _ = self.leds.update(&[leds; 4]);
+        led_state().lock().leds = [leds; 4];
     }
 
     /*
@@ -385,4 +386,66 @@ impl LedState {
             self.phase = 0;
         }
     }
+}
+
+/// Currently, the rp2040 driver for the WS2812 LEDs is poll based (even though
+/// it uses PIO for writing).  We will mitigate this (about 460us to update 4
+/// leds), but just keeping state here, and having a slower low-priority thread
+/// actually update.  It will poll basically when things are idle.  This isn't
+/// good from a power perspective.
+/// TODO: Can we make this const static (not with the current way this is implemented).
+static mut LED_STATE: MaybeUninit<Mutex<LedInfo>> = MaybeUninit::uninit();
+
+struct LedInfo {
+    // The driver itself.
+    driver: Option<LedStrip>,
+
+    // The values of the LEDs.
+    leds: [LedRgb; 4],
+}
+
+#[no_mangle]
+extern "C" fn init_led_state() {
+    unsafe {
+        LED_STATE.write(Mutex::new_raw(&mut led_mutex,
+                                       LedInfo {
+                                           driver: None,
+                                           leds: [LedRgb::default(); 4]
+                                       }));
+    }
+}
+
+fn led_state() -> &'static Mutex<LedInfo> {
+    unsafe {
+        &*LED_STATE.as_ptr()
+    }
+}
+
+#[no_mangle]
+extern "C" fn led_thread_main() -> ! {
+    let mut heartbeat = unsafe {
+        Timer::new_from_c(&mut led_timer)
+    };
+
+    heartbeat.start(100);
+
+    // For startup, just wait until we have our driver, which we will then take
+    // for ourselves.  We need it to not be shared.
+    let driver = loop {
+        heartbeat.wait();
+        if let Some(driver) = led_state().lock().driver.take() {
+            break driver;
+        }
+    };
+
+    loop {
+        heartbeat.wait();
+        let leds = led_state().lock().leds.clone();
+        let _ = driver.update(&leds);
+    }
+}
+
+extern "C" {
+    static mut led_mutex: k_mutex;
+    static mut led_timer: struct_timer;
 }
