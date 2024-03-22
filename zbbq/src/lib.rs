@@ -84,6 +84,7 @@ extern "C" fn rust_main () {
     let mut woken = false;
     let mut current_mode = LayoutMode::Steno;
     let mut state = InterState::Idle;
+    let mut sometimes = Occasionally::new(5000);
     loop {
         // Update the state of the Gemini indicator.
         leds.set_base(2, if acm.is_dtr() {
@@ -93,6 +94,7 @@ extern "C" fn rust_main () {
         });
 
         // Perform a single scan of the matrix.
+        let timeit = TimeIt::new();
         matrix.scan(|code, press| {
             let code = translate(code);
             // info!("Key {} {:?}", code, press);
@@ -103,11 +105,15 @@ extern "C" fn rust_main () {
             }
             Ok(())
         }).unwrap();
+        sometimes.maybe(|| timeit.elapsed("matrix scan"));
 
         // Push off any usb-hid keypresses.
+        let tt = TimeIt::new();
         usb_hid_push(&mut keys);
+        sometimes.maybe(|| tt.elapsed("usb_hid_push"));
 
         // Dispatch any events.
+        let tt = TimeIt::new();
         while let Ok(event) = event_queue().try_recv() {
             match event {
                 Event::Matrix(key) => {
@@ -241,15 +247,24 @@ extern "C" fn rust_main () {
                 event => info!("event: {:?}", event),
             }
         }
+        sometimes.maybe(|| tt.elapsed("event dispatch"));
 
         // Pass the keys off to the layout manager.
         // for event in events {
         //     layout.handle_event(event, &mut silly);
         // }
 
+        let tt = TimeIt::new();
         layout.tick(&mut MutEventQueue);
+        sometimes.maybe(|| tt.elapsed("layout"));
+        let tt = TimeIt::new();
         leds.tick();
+        sometimes.maybe(|| tt.elapsed("leds"));
+        let tt = TimeIt::new();
         inter.tick();
+        sometimes.maybe(|| tt.elapsed("inter"));
+
+        sometimes.maybe(|| timeit.elapsed("total loop"));
 
         heartbeat.wait();
     }
@@ -520,4 +535,80 @@ impl Timable for WrapTimer {
 
 extern "C" {
     fn sys_cycle_get_64() -> u64;
+}
+
+// A little timer type for measuring things.  Note that using this will bring in
+// floating point.
+pub use time_util::TimeIt;
+mod time_util {
+    #![allow(dead_code)]
+
+    use crate::{sys_cycle_get_64, info};
+
+    pub struct TimeIt {
+        start: u64,
+    }
+
+    const BASE: usize = crate::kconfig::CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC;
+
+    impl TimeIt {
+        /// Start a new timer right now.
+        pub fn new() -> TimeIt {
+            let start = unsafe { sys_cycle_get_64() };
+            TimeIt { start }
+        }
+
+        /// Print a message about how much time has elapsed since the TimeIt was
+        /// created.  `name` is a tag to be included in the message.
+        pub fn elapsed(&self, name: &str) {
+            let end = unsafe { sys_cycle_get_64() };
+            if end < self.start {
+                info!("timer for {} wrapped", name);
+                return;
+            }
+
+            // Elapsed time in seconds.
+            let delta = (end - self.start) as f64 / (BASE as f64);
+
+            // Adjust this time until the units are decent.
+            let mut tmp = delta;
+            let mut pos = 0;
+            while pos < UNITS.len() && tmp < 1.0 {
+                tmp *= 1000.0;
+                pos += 1;
+            }
+            if pos < UNITS.len() {
+                // Use the new units.
+                info!("timeit {}: {:.1}{}", name, tmp, UNITS[pos]);
+            } else {
+                // Didn't fit, just print regular units.
+                info!("timeit {}: {}s", name, delta);
+            }
+        }
+    }
+
+    /// Table of units, starting with seconds, working their way down.
+    static UNITS: [&'static str; 4] = [
+        "s", "ms", "us", "ns",
+    ];
+}
+
+struct Occasionally {
+    period: usize,
+    current: usize,
+}
+
+impl Occasionally {
+    fn new(period: usize) -> Occasionally {
+        Occasionally { period, current: period }
+    }
+
+    fn maybe<F: FnOnce ()>(&mut self, f: F) {
+        if self.current == 0 {
+            f();
+            self.current = self.period;
+        } else {
+            self.current -= 1;
+        }
+    }
 }
