@@ -2,11 +2,10 @@
 
 use core::{ffi::c_int, mem::replace};
 
-use alloc::vec::Vec;
 use arraydeque::ArrayDeque;
-use bbq_keyboard::{Side, serialize::{Decoder, Packet, EventVec, PacketBuffer}, Timable, InterState, Event, KeyEvent};
+use bbq_keyboard::{Side, serialize::{Decoder, Packet, EventVec, PacketBuffer}, InterState, Event, KeyEvent};
 
-use crate::{info, warn, WrapTimer, event_queue, devices::leds::LedRgb};
+use crate::{info, warn, event_queue, devices::leds::LedRgb};
 
 pub struct InterHandler {
     xmit_buffer: PacketBuffer,
@@ -18,7 +17,6 @@ pub struct InterHandler {
     leds: LedRgb,
 
     side_warn: bool,
-    times: Vec<u64>,
 }
 
 impl InterHandler {
@@ -33,24 +31,10 @@ impl InterHandler {
             state: InterState::Idle,
             keys: EventVec::new(),
             side_warn: false,
-            times: Vec::new(),
         }
     }
 
     pub fn tick(&mut self) {
-        // Let's make sure we are being called once a ms.
-        if self.times.len() < 8 {
-            self.times.push(WrapTimer.get_ticks());
-            if self.times.len() == 8 {
-                let mut last = self.times[0];
-                for num in &self.times[1..] {
-                    let delta = (*num - last) as f64 / 125.0e6;
-                    info!("tick {}ms", delta * 1000.0);
-                    last = *num;
-                }
-            }
-        }
-
         // Make an assumption that the uart fifo is large enough to hold an
         // entire packet, and that this packet can be sent entirely in the 1ms
         // tick we have.  Zephyr doesn't have a non-blocking polling write, so
