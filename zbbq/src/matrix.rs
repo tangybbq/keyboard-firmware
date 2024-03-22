@@ -17,10 +17,14 @@ pub struct Matrix {
 }
 
 impl Matrix {
-    pub fn new(pins: PinMatrix, reverse: bool) -> Result<Matrix> {
+    pub fn new(mut pins: PinMatrix, reverse: bool) -> Result<Matrix> {
         let count = pins.cols.len() * pins.rows.len();
         let count = if reverse { 2 * count } else { count };
         let state = vec![Debouncer::new(); count];
+
+        if !reverse {
+            Self::pin_setup(&mut pins.cols, &mut pins.rows)?;
+        }
 
         Ok(Matrix {pins, state, reverse})
     }
@@ -31,9 +35,13 @@ impl Matrix {
     {
         let mut states = self.state.iter_mut().enumerate();
 
-        Self::pin_setup(&mut self.pins.cols, &mut self.pins.rows)?;
+        if self.reverse {
+            // If we are going to do a reversal, set the pins up this time.
+            Self::pin_setup(&mut self.pins.cols, &mut self.pins.rows)?;
+        }
         for col in &self.pins.cols {
             col.pin_set(true)?;
+            busy_wait(5);
             for row in &self.pins.rows {
                 let (code, state) = states.next().unwrap();
                 match state.react(row.pin_get()?) {
@@ -47,7 +55,7 @@ impl Matrix {
                 }
             }
             col.pin_set(false)?;
-            busy_wait(5);
+            // busy_wait(5);
         }
 
         if !self.reverse {
