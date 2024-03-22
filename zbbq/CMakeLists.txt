@@ -28,6 +28,37 @@ if(NOT DEFINED ZEPHYR_RS_MOUDLE_DIR)
   # message(FATAL_ERROR "Unable to find zephyr-rs module")
 endif()
 
+# Map Zephyr targets to LLVM targets.
+if(CONFIG_CPU_CORTEX_M)
+  if(CONFIG_CPU_CORTEX_M0 OR CONFIG_CPU_CORTEX_M0PLUS OR CONFIG_CPU_CORTEX_M1)
+    set(RUST_TARGET "thumbv6m-none-eabi")
+  elseif(CONFIG_CPU_CORTEX_M3)
+    set(RUST_TARGET "thumbv7m-none-eabi")
+  elseif(CONFIG_CPU_CORTEX_M4)
+    if(CONFIG_ARMV7_M_FP)
+      set(RUST_TARGET "thumbv7m-none-eabi")
+    else()
+      set(RUST_TARGET "thumbv7em-none-eabihf")
+    endif()
+  elseif(CONFIG_CPU_CORTEX_M23)
+    set(RUST_TARGET "thumbv8m.base-none-eabi")
+  elseif(CONFIG_CPU_CORTEX_M33 OR CONFIG_CPU_CORTEX_M55)
+    # Not a typo, Zephyr, uses ARMV7_M_ARMV8_M_FP to select the FP even on v8m.
+    if(CONFIG_ARMV7_M_FP)
+      set(RUST_TARGET "thumbv8m.main-none-eabihf")
+    else()
+      set(RUST_TARGET "thumbv8m.main-none-eabi")
+    endif()
+
+    # Todo: The M55 is thumbv8.1m.main-none-eabi, which can be added when Rust
+    # gain support for this target.
+  else()
+    message(FATAL_ERROR "Unknown Cortex-M target.")
+  endif()
+else()
+  message(FATAL_ERROR "Add support for other target")
+endif()
+
 # TODO: Make sure RUSTFLAGS is not set.
 # TODO: Create source directory.
 # TODO: Copy source Cargo.toml
@@ -37,10 +68,10 @@ endif()
 
 set(RUST_BUILD_TYPE debug)
 
-set(BUILD_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thumbv6m-none-eabi/debug)
+set(BUILD_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${RUST_TARGET}/debug)
 
 set(CARGO_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/rust/target-kbbq)
-set(RUST_LIBRARY ${CARGO_TARGET_DIR}/thumbv6m-none-eabi/${RUST_BUILD_TYPE}/libkbbq.a)
+set(RUST_LIBRARY ${CARGO_TARGET_DIR}/${RUST_TARGET}/${RUST_BUILD_TYPE}/libkbbq.a)
 set(SAMPLE_CARGO_CONFIG ${CMAKE_CURRENT_BINARY_DIR}/rust/sample-cargo-config.toml)
 
 # The shield selected distinguishes the 2-row and 3-row keyboards. Note that the
@@ -81,7 +112,7 @@ file(WRITE ${SAMPLE_CARGO_CONFIG} "
 # a `cargo build` to compile the rust code using the current Zephyr build.
 # If any settings in the Zephyr build change, this could become out of date.
 [build]
-target = \"thumbv6m-none-eabi\"
+target = \"${RUST_TARGET}\"
 target-dir = \"${CARGO_TARGET_DIR}\"
 
 [env]
@@ -112,7 +143,7 @@ add_custom_command(
     # Set a replacement so that packages can just use `zephyr-sys` as a package
     # name to find it.
     --config "patch.crates-io.zephyr-sys.path=\\\"${ZEPHYR_RS_MODULE_DIR}/zephyr-sys\\\""
-    --target thumbv6m-none-eabi
+    --target ${RUST_TARGET}
     --target-dir ${CARGO_TARGET_DIR}
   COMMENT "Building Rust application"
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
