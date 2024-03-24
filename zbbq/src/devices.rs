@@ -228,7 +228,7 @@ pub mod leds {
 
     // The RGB API is straightforward.
     #[repr(C)]
-    #[derive(Default, Clone, Copy)]
+    #[derive(Default, Clone, Copy, PartialEq, Eq)]
     pub struct LedRgb {
         #[cfg(CONFIG_LED_STRIP_RGB_SCRATCH)]
         scratch: u8,

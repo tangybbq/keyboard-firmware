@@ -427,7 +427,7 @@ extern "C" fn led_thread_main() -> ! {
         Timer::new_from_c(&mut led_timer)
     };
 
-    heartbeat.start(100);
+    heartbeat.start(1);
 
     // For startup, just wait until we have our driver, which we will then take
     // for ourselves.  We need it to not be shared.
@@ -438,10 +438,17 @@ extern "C" fn led_thread_main() -> ! {
         }
     };
 
+    // The led-strip driver is polled, so avoid updating it if it hasn't
+    // changed.
+    let mut last_led = [LedRgb::default(); 4];
+
     loop {
         heartbeat.wait();
         let leds = led_state().lock().leds.clone();
-        let _ = driver.update(&leds);
+        if leds != last_led {
+            let _ = driver.update(&leds);
+            last_led = leds;
+        }
     }
 }
 
