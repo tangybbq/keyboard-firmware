@@ -369,7 +369,7 @@ struct Entry {
     action: Action,
 }
 
-static TAIPO_ACTIONS: [Entry; 113] = [
+static TAIPO_ACTIONS: [Entry; 125] = [
     // The thumb keys by themselves.
     Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
@@ -534,4 +534,19 @@ static TAIPO_ACTIONS: [Entry; 113] = [
     Entry { code: 0x022, action: Action::OneShot(Mods::ALT), },
     Entry { code: 0x122, action: Action::Simple(Keyboard::UpArrow), },
     Entry { code: 0x222, action: Action::Simple(Keyboard::Home), },
+
+    // Map the function keys to the numbers, but with both thumbs pressed. F11
+    // is 'v' and F12 is 'w'.
+    Entry { code: 0x30c, action: Action::Simple(Keyboard::F10), },
+    Entry { code: 0x30a, action: Action::Simple(Keyboard::F1), },
+    Entry { code: 0x306, action: Action::Simple(Keyboard::F2), },
+    Entry { code: 0x305, action: Action::Simple(Keyboard::F3), },
+    Entry { code: 0x303, action: Action::Simple(Keyboard::F4), },
+    Entry { code: 0x3c0, action: Action::Simple(Keyboard::F5), },
+    Entry { code: 0x3a0, action: Action::Simple(Keyboard::F6), },
+    Entry { code: 0x360, action: Action::Simple(Keyboard::F7), },
+    Entry { code: 0x350, action: Action::Simple(Keyboard::F8), },
+    Entry { code: 0x330, action: Action::Simple(Keyboard::F9), },
+    Entry { code: 0x328, action: Action::Simple(Keyboard::F11), },
+    Entry { code: 0x381, action: Action::Simple(Keyboard::F12), },
 ];
