@@ -1,0 +1,12 @@
+[package]
+name = "dict-test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+bbq-steno = { version = "0.1", path = "../bbq-steno" }
+bbq-steno-macros = { version = "0.1.0", path = "../bbq-steno-macros" }
+regex = "1.10"
