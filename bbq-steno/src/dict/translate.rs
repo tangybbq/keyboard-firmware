@@ -156,8 +156,14 @@ impl Translator {
             best.text.clone()
         };
 
+        let add_space =
+            // If the auto-spacing rules require a space
+            (prior.auto_space && best.allow_space_before) &&
+            // But, if we are supposed to stitch, remove that space.
+            !(prior.text.stitch && best.stitch);
+
         // type in this result.
-        self.typer.add(0, prior.auto_space && best.allow_space_before, &text);
+        self.typer.add(0, add_space, &text);
 
         // Record this history entry.
         let auto_space = best.space_after;
@@ -220,6 +226,7 @@ struct Decoded {
     allow_space_before: bool,
     space_after: bool,
     cap_next: bool,
+    stitch: bool,
     text: String, // TODO: This could be just a &str but that is complicated.
     /// How many strokes does this definition consume.
     strokes: usize,
@@ -230,6 +237,7 @@ impl Decoded {
         let mut allow_space_before = true;
         let mut space_after = true;
         let mut cap_next = false;
+        let mut stitch = false;
 
         let mut iter = text.chars();
         let mut text = String::new();
@@ -241,6 +249,7 @@ impl Decoded {
                 // Allow the cap-next marker at the start, to cover the cases
                 // when there is no text, and this is just the caps-next marker.
                 '\x02' => cap_next = true,
+                '\x03' => stitch = true,
                 ch => {
                     text.push(ch);
                     break;
@@ -269,16 +278,30 @@ impl Decoded {
             allow_space_before,
             space_after,
             cap_next,
+            stitch,
             text,
             strokes,
         }
     }
 
     fn fake(text: String) -> Decoded {
-        Decoded { allow_space_before: true, space_after: true, cap_next: false, text, strokes: 1 }
+        Decoded {
+            allow_space_before: true,
+            space_after: true,
+            cap_next: false,
+            stitch: false,
+            text, strokes: 1,
+        }
     }
 
     fn empty() -> Decoded {
-        Decoded { allow_space_before: true, space_after: true, cap_next: false, text: String::new(), strokes: 0 }
+        Decoded {
+            allow_space_before: true,
+            space_after: true,
+            cap_next: false,
+            stitch: false,
+            text: String::new(),
+            strokes: 0,
+        }
     }
 }
