@@ -10,6 +10,7 @@ use bbq_steno::stroke::StenoWord;
 use bbq_steno::memdict::{MAGIC1, MemDict};
 use bbq_steno_macros::stroke;
 use byteorder::{LittleEndian, WriteBytesExt};
+use regex::Regex;
 // use rand::RngCore;
 
 mod rtfcre;
@@ -88,20 +89,34 @@ fn merge_json<P: AsRef<Path>>(mut dict: BTreeMap<StenoWord, String>, path: P) ->
     let new: BTreeMap<String, String> = serde_json::from_reader(
         File::open(path)?
     )?;
+    let fixer = JsonFixer::new();
 
     for (k, v) in new.iter() {
         let k = StenoWord::parse(k)?;
-        dict.insert(k, fix_json(v));
+        dict.insert(k, fixer.fix(v));
     }
 
     Ok(dict)
 }
 
-// Fix up the Plover to our style of dictionary entry.
-fn fix_json(text: &str) -> String {
-    if text == "{?}" {
-        "\x01?\x02".to_string()
-    } else {
+struct JsonFixer {
+    stitch: Regex,
+}
+
+impl JsonFixer {
+    fn new() -> JsonFixer {
+        JsonFixer {
+            stitch: Regex::new(r"^\{\&(.*)\}$").unwrap(),
+        }
+    }
+
+    fn fix(&self, text: &str) -> String {
+        if text == "{?}" {
+            return "\x01?\x02".to_string();
+        }
+        if let Some(caps) = self.stitch.captures(text) {
+            return format!("\x03{}", &caps[1]);
+        }
         text.to_string()
     }
 }
