@@ -110,10 +110,7 @@ impl Translator {
                     }
                 }
 
-                // Unless this node is unique, push it for additional nodes.
-                if !sel.unique() {
-                    nodes.push(sel);
-                }
+                nodes.push(sel);
             }
         }
 
