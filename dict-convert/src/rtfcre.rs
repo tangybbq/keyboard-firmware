@@ -285,7 +285,13 @@ impl Encoder {
                     if let Some(cap) = self.punct.captures(text) {
                         result.push('\x01');
                         result.push_str(&cap[1]);
-                        result.push('\x02');
+                        // If the punctuation should cap next, indicate this.
+                        // Only these matter here, as the others will have
+                        // explicit definitions in the plover phoenix fix
+                        // dictionary.
+                        if cap[1].starts_with(&['.', '?']) {
+                            result.push('\x02');
+                        }
                     } else {
                         result.push_str(text);
                     }
