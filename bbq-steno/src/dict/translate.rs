@@ -195,6 +195,10 @@ impl Translator {
         println!("Entry: {:?}", entry.text);
         for node in &entry.nodes {
             println!("   {:?}", node);
+            // Show the node state where we are.
+            if let Some(last) = self.history.last() {
+                println!("    {:?}", last);
+            }
             // Sometimes, it is useful to see all of the entries.
             /* TODO: Doesn't work after abstraction
             if false {
