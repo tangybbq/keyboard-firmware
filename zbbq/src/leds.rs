@@ -3,7 +3,7 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use core::mem::MaybeUninit;
+use core::{mem::MaybeUninit, ptr::addr_of_mut};
 
 use crate::{devices::leds::{LedRgb, LedStrip}, zephyr::{sync::{Mutex, k_mutex}, struct_timer, Timer}};
 
@@ -407,7 +407,7 @@ struct LedInfo {
 #[no_mangle]
 extern "C" fn init_led_state() {
     unsafe {
-        LED_STATE.write(Mutex::new_raw(&mut led_mutex,
+        LED_STATE.write(Mutex::new_raw(addr_of_mut!(led_mutex),
                                        LedInfo {
                                            driver: None,
                                            leds: [LedRgb::default(); 4]
@@ -424,7 +424,7 @@ fn led_state() -> &'static Mutex<LedInfo> {
 #[no_mangle]
 extern "C" fn led_thread_main() -> ! {
     let mut heartbeat = unsafe {
-        Timer::new_from_c(&mut led_timer)
+        Timer::new_from_c(addr_of_mut!(led_timer))
     };
 
     heartbeat.start(1);

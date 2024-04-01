@@ -1,6 +1,7 @@
 #![no_std]
 
 use core::mem::MaybeUninit;
+use core::ptr::addr_of_mut;
 use core::slice;
 
 use alloc::vec::Vec;
@@ -68,7 +69,7 @@ extern "C" fn rust_main () {
     let mut inter = InterHandler::new(side);
 
     let mut heartbeat = unsafe {
-        Timer::new_from_c(&mut heartbeat_timer)
+        Timer::new_from_c(addr_of_mut!(heartbeat_timer))
     };
 
     let mut layout = LayoutManager::new();
@@ -519,8 +520,10 @@ impl EventQueue for MutEventQueue {
 extern "C" fn init_queues() {
     // Initialize the static event queue.
     unsafe {
-        EVENT_QUEUE.write(Channel::new(&mut event_queue_mutex, &mut event_queue_condvar));
-        STENO_QUEUE.write(Channel::new(&mut steno_queue_mutex, &mut steno_queue_condvar));
+        EVENT_QUEUE.write(Channel::new(addr_of_mut!(event_queue_mutex),
+                                       addr_of_mut!(event_queue_condvar)));
+        STENO_QUEUE.write(Channel::new(addr_of_mut!(steno_queue_mutex),
+                                       addr_of_mut!(steno_queue_condvar)));
     }
 }
 
