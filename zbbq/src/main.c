@@ -50,15 +50,17 @@ int main(void) {
 			       0, 0, 0,
 			       5, 0, K_NO_WAIT);
 
-	// The LED thread will write to the LEDs.  The led strip driver on the
-	// rp2040 is currently blocking and polled, so we run this in a low
-	// priority task, periodically updating the values.
+	// The LED thread will write to the LEDs. The led strip driver on the
+	// rp2040 is currently blocking and polled. Unfortunately, if the thread
+	// is preempted, the LED's won't be programmed correctly, so we run this
+	// as a non-preemptable thread. This typically takes 200-300us, so
+	// shouldn't disrupt the regular scanning, too much.
 	(void) k_thread_create(&led_thread,
 			       led_thread_stack,
 			       LED_THREAD_STACK_SIZE,
 			       led_thread_main,
 			       0, 0, 0,
-			       10, 0, K_NO_WAIT);
+			       -2, 0, K_NO_WAIT);
 
 	rust_main();
 }
