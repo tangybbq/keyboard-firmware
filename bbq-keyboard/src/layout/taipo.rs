@@ -225,7 +225,66 @@ impl SideManager {
     }
 }
 
+#[cfg(test)]
+mod test_side_manager {
+    use super::{SideManager, TaipoEvent, TaipoEvents};
+
+    struct Tester {
+        events: TaipoEvents,
+        manager: SideManager,
+    }
+
+    impl Tester {
+        fn new() -> Tester {
+            Tester {
+                events: TaipoEvents::new(),
+                manager: SideManager::default(),
+            }
+        }
+
+        fn press(&mut self, keys: u16) {
+            self.manager.press(keys);
+        }
+
+        fn release(&mut self, keys: u16) {
+            self.manager.release(keys, &mut self.events);
+        }
+
+        fn spin(&mut self, ticks: usize) {
+            for _ in 0..ticks {
+                self.manager.tick(&mut self.events);
+            }
+        }
+
+        fn events(&mut self, events: &[TaipoEvent]) {
+            // Ensure the events match.
+            let mut gotten = Vec::new();
+            while let Some(ev) = self.events.pop_front() {
+                gotten.push(ev);
+            }
+            assert_eq!(&gotten, events);
+        }
+    }
+
+    /// Test the basics of the side.  Simulate two keys being pressed, and that
+    /// the event is sent when the timer expires.
+    #[test]
+    fn test_side_manager_basic() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(5);
+        tester.press(2);
+        tester.spin(52);
+        tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+        tester.release(2);
+        tester.events(&[]);
+        tester.release(1);
+        tester.events(&[TaipoEvent { is_press: false, code: 3 }]);
+    }
+}
+
 /// A single press or release indicated by Taipo.
+#[derive(Debug, Eq, PartialEq)]
 struct TaipoEvent {
     is_press: bool,
     code: u16,
