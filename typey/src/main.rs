@@ -22,6 +22,10 @@ struct WriteCommand {
     #[structopt(long = "dict")]
     /// The path to the dictionary to use.
     file: Option<String>,
+
+    #[structopt(long = "show")]
+    /// Style of show to use.
+    show: Option<ShowStyle>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -29,6 +33,24 @@ struct WriteCommand {
 struct Opt {
     #[structopt(subcommand)]
     command: Command
+}
+
+#[derive(Debug)]
+enum ShowStyle {
+    Short,
+    Long,
+}
+
+/// Allow ShowStyle as argument
+impl FromStr for ShowStyle {
+    type Err = anyhow::Error;
+    fn from_str(text: &str) -> Result<Self> {
+        match text {
+            "short" => Ok(ShowStyle::Short),
+            "long" => Ok(ShowStyle::Long),
+            _ => Err(anyhow!("Unknown show style")),
+        }
+    }
 }
 
 // mod rtfcre;
@@ -40,14 +62,14 @@ fn main() -> Result<()> {
     match opt.command {
         Command::Write(cmd) => {
             let file = cmd.file.unwrap_or_else(|| "../dict-convert/phoenix.bin".to_string());
-            writer(&file)?;
+            writer(&file, cmd.show)?;
         }
     }
 
     Ok(())
 }
 
-fn writer(dict: &str) -> Result<()> {
+fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
     let dict = load_dict(dict)?;
     let mut xlat = Translator::new(dict);
     let stdin = stdin();
@@ -66,7 +88,11 @@ fn writer(dict: &str) -> Result<()> {
                 writeln!(stdout, "Write: {}\r", stroke)?;
                 stdout.suspend_raw_mode()?;
                 xlat.add(stroke);
-                xlat.show();
+                match show {
+                    Some(ShowStyle::Short) => xlat.show(),
+                    Some(ShowStyle::Long) => xlat.show_verbose(),
+                    None => (),
+                }
                 while let Some(action) = xlat.next_action() {
                     writeln!(stdout, ">>> Delete {} type: {:?}", action.remove, action.text)?;
                 }
