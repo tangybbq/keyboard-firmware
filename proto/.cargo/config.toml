@@ -12,6 +12,7 @@ rustflags = [
   # "-C", "linker=flip-link",
   "-C", "link-arg=--nmagic",
   "-C", "link-arg=-Tlink.x",
+  # "-C", "link-arg=-Tramcode.x",
   "-C", "link-arg=-Tdefmt.x",
 
   # Code-size optimizations.
