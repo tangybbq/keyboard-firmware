@@ -14,3 +14,4 @@ bbq-steno = { version = "0.1.0", path = "../bbq-steno" }
 bbq-steno-macros = { version = "0.1.0", path = "../bbq-steno-macros" }
 regex-lite = "0.1.5"
 regex = "1.10.2"
+safe-regex = "0.2.5"

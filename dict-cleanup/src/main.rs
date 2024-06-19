@@ -4,6 +4,7 @@ use anyhow::Result;
 use bbq_steno::{dict::{MapDictBuilder, MapDict, Dict}, stroke::StenoWord, Stroke};
 use bbq_steno_macros::stroke;
 use regex_lite::Regex;
+use safe_regex::regex;
 // use regex::Regex;
 use std::{fs::File, collections::BTreeMap};
 
@@ -58,7 +59,29 @@ fn to_ending(stroke: Stroke) -> &'static str {
 }
 
 struct Ortho {
+    #[allow(dead_code)]
     rules: Vec<(Regex, String)>,
+}
+
+macro_rules! pat {
+    ($src:expr, $re:expr, ($($arg:ident),+), $replacement:expr) => {
+        if let Some(($($arg),+)) =
+            $re
+            .match_slices($src.as_bytes())
+        {
+            // println!("Pat match {}", $replacement);
+            return replace(&[$($arg),+], $replacement);
+        }
+    };
+    ($src:expr, $re:expr, $arg:ident, $replacement:expr) => {
+        if let Some(($arg,)) =
+            $re
+            .match_slices($src.as_bytes())
+        {
+            // println!("Pat match {}", $replacement);
+            return replace(&[$arg], $replacement);
+        }
+    };
 }
 
 impl Ortho {
@@ -74,20 +97,94 @@ impl Ortho {
 
     pub fn combine(&self, left: &str, right: &str) -> String {
         let start = format!("{} ^ {}", left, right);
-        for (rule, replacement) in &self.rules {
-            if let Some(cap) = rule.captures(&start) {
-                // println!("Rule: {:?} {:?},{:?}", start, rule, replacement);
-                let mut result = String::new();
-                cap.expand(replacement, &mut result);
-                // println!(" Match: {:?}", cap);
-                return result;
-            }
-        }
+
+        // pat!(start,
+        //      regex!(br"(.*(?:[bcdfghjklmnprstvwxyz]|qu)[aeiou])([bcdfgklmnprtvz]) \^ ([aeiouy].*)"),
+        //      (a, b, c),
+        //      r"$1$2$2$3");
+
+        // == +ly ==
+        // artistic + ly = artistically
+        pat!(start,
+             regex!(br"(.*[aeiou]c) \^ ly"),
+             a,
+             r"$1ally");
+        // humble + ly = humbly (*humblely)
+        // questionable +ly = questionably
+        // triple +ly = triply
+        pat!(start,
+             regex!(br"(.+[aeioubmnp])le \^ ly"),
+             a,
+             r"$1ly");
+
+        // Large one.
+        pat!(start,
+             regex!(br"^(.+)al \^ iz(e|ed|es|ing|er|ers|ation|ations|m|ms|able|ability|abilities)$"),
+             (a, b),
+             r"$1aliz$2");
+
+
+        // for (rule, replacement) in &self.rules {
+        //     if let Some(cap) = rule.captures(&start) {
+        //         // println!("Rule: {:?} {:?},{:?}", start, rule, replacement);
+        //         let mut result = String::new();
+        //         cap.expand(replacement, &mut result);
+        //         // println!(" Match: {:?}", cap);
+        //         return result;
+        //     }
+        // }
 
         // If no rules match, just combine them.
         format!("{}{}", left, right)
     }
 }
+
+fn replace(caps: &[&[u8]], replacement: &str) -> String {
+    let caps: Vec<_> = caps.into_iter().map(|s| String::from_utf8(s.to_vec()).unwrap()).collect();
+    let mut dollar = false;
+    let mut result = String::new();
+    for ch in replacement.chars() {
+        if dollar {
+            match ch {
+                '1' ..= '9' => {
+                    let offset = (ch as usize) - ('1' as usize);
+                    result.push_str(&caps[offset])
+                }
+                '$' => {
+                    result.push('$');
+                }
+                _ => panic!("Invalid escape char: {:?}", ch),
+            }
+            dollar = false;
+        } else {
+            if ch == '$' {
+                dollar = true;
+            } else {
+                result.push(ch)
+            }
+        }
+    }
+    result
+}
+
+/*
+macro_rules! pat {
+    ($re:expr, 1, $repl:expr) => {
+        (|text| {
+            if let Some((a)) = $re.match_slices(text.as_bytes()) {
+                let a = String::from_utf8(a.to_vec()).unwrap();
+                Some(replace(&[&a], $repl))
+            } else {
+                None
+            }
+        })
+    };
+}
+
+static ORTHO: &[&dyn Fn(&str) -> Option<String>] = &[
+    (r"^(.*[aeiou]c) \^ ly$", 1, r"$1ally"),
+];
+*/
 
 /// Othography rules copied out of plover, and changed to Rust string syntax.
 static ORTHO_BASE: &[(&str, &str)] = &[
