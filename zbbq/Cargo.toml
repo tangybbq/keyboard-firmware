@@ -41,15 +41,20 @@ default-features = false
 [dependencies.zephyr-sys]
 version = "0.1"
 
+# Ugh, for now, just depend on this to get rid of a warning.
+[dependencies.zephyr-core]
+version = "0.1"
+
 [dev-dependencies]
 # zephyr-sys = "0.1"
 
 [build-dependencies]
 regex = "1.10.3"
+zephyr-dt-build = "0.1"
 
 # Optimize even for debug builds.
 [profile.dev]
-opt-level = "s"
+opt-level = 2
 
 [features]
 proto2 = ["bbq-keyboard/proto2"]
