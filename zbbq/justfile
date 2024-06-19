@@ -38,3 +38,6 @@ gdb:
 
 rtt:
 	socat - TCP4:localhost:19021
+
+clean:
+	rm -rf build
