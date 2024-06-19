@@ -203,8 +203,8 @@ extern "C" fn rust_main () {
                     if has_global {
                         leds.clear_global(0);
                         has_global = false;
-                        suspended = false;
                     }
+                    suspended = false;
                     inter.set_state(bbq_keyboard::InterState::Primary);
                 }
 
