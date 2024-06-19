@@ -125,6 +125,17 @@ impl Translator {
             Decoded::fake(stroke.to_string())
         };
 
+        // When we have a match, we will never go back to previous matches that
+        // were shorter.  Think of this:
+        // a b
+        //   b c
+        // When we get the input 'a b', we have matched that, and we need to
+        // remove the partial matches for 'b', since we won't consider them.
+        // Note that this is _not_ what Plover does, so this probably won't do
+        // the right thing with the plover dictionary, but it is what other
+        // software does.
+        let nodes: Vec<_> = nodes.into_iter().filter(|x| x.count() >= best_len).collect();
+
         // If this definition was multiple strokes, "untype" what was inserted
         // by those previous strokes.  After this, 'pos' will point to the
         // history entry preceeding the current definition.
