@@ -211,6 +211,31 @@ impl Translator {
             */
         }
     }
+
+    /// Print out, very verbosely, the state of the translator.
+    #[cfg(feature = "std")]
+    pub fn show_verbose(&self) {
+        let entry = self.history.last().unwrap();
+        println!("Entry: {:?}", entry.text);
+        for node in &entry.nodes {
+            // println!("   {:?}", node);
+            node.dump();
+            // Show the node state where we are.
+            if let Some(last) = self.history.last() {
+                println!("    {:?}", last);
+            }
+            // Sometimes, it is useful to see all of the entries.
+            /* TODO: Doesn't work after abstraction
+            if false {
+                for i in node.left..node.right {
+                    println!("      {} {:?}",
+                             StenoWord(node.dict.key(i).to_vec()),
+                             node.dict.value(i));
+                }
+            }
+            */
+        }
+    }
 }
 
 fn capitalize(text: &str) -> String {

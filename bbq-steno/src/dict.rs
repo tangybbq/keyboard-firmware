@@ -42,6 +42,9 @@ pub trait Selector: Debug {
 
     /// Return a count of the number of strokes that have been selected.
     fn count(&self) -> usize;
+
+    /// Print this selector, verbosely.  This will print all entries that match.
+    fn dump(&self);
 }
 
 /// A Selector over a dictionary tracks a range of the dictionary that specifies
@@ -118,6 +121,23 @@ impl Selector for BinarySelector {
 
     fn count(&self) -> usize {
         self.count
+    }
+
+    // The selector is only implemented with std.
+    #[cfg(feature = "std")]
+    fn dump(&self) {
+        use crate::stroke::{StenoPhrase, StenoWord};
+
+        println!("Selector: {:?}", self);
+        for pos in self.left .. self.right {
+            println!("  {:8}: {:?}: {:?}", pos,
+                     StenoPhrase(vec![StenoWord(self.dict.key(pos).to_vec())]).to_string(),
+                     self.dict.value(pos));
+        }
+    }
+
+    #[cfg(not(feature = "std"))]
+    fn dump(&self) {
     }
 }
 
