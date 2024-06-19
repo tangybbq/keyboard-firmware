@@ -22,3 +22,21 @@
 - [ ] Implement retro space adjustments
 - [ ] Retro capitalization
 - [ ] Retro currenty
+- [ ] Make PHU/TAL/-BG "metallic" translate correctly.  It needs to use the
+      earlier translation, and not mu + talc.
+
+# Known bugs
+
+- [*] These words do not seem to lookup correctly, despite having a full entry.
+      - Clifton
+      - righteous
+      - squeamish
+      - aquamarine
+      - obnoxious
+      - consensus
+      - ametalic ??
+      - catatonic
+- [ ] Words where multiple steps of correction results in too much being deleted.
+      - "An academic"
+
+
