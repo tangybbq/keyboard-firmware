@@ -175,10 +175,10 @@ struct SideManager {
     down: bool,
 }
 
-// A few notes about this algorithm.  It is unclear what to do if a key comes
-// down before others are release, but the timeout has passed, and we have sent
-// the code.  I have decided to just ignore these keys, rather than send
-// spurious events.
+// Manage the key presses and releases per-side.  We consider keys that come
+// down within a given time interval to be pressed together.  This is more
+// strict than what is done for steno.  However, we want to be able to handle
+// rollover even just beyond the left-right alternating.
 
 impl SideManager {
     fn press(&mut self, tcode: u16) {
@@ -280,6 +280,25 @@ mod test_side_manager {
         tester.events(&[]);
         tester.release(1);
         tester.events(&[TaipoEvent { is_press: false, code: 3 }]);
+    }
+
+    /// Test rollover.  Once a set of keys has been pressed, and sent, other
+    /// keys can come in, which will be considered part of a new chord.  The
+    /// rollover only works with different keys.
+    #[test]
+    fn test_rollover() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(51);
+        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.press(2);
+        tester.spin(51);
+        tester.events(&[TaipoEvent { is_press: false, code: 1 },
+                        TaipoEvent { is_press: true, code: 2 }]);
+        tester.release(1);
+        tester.events(&[]);
+        tester.release(2);
+        tester.events(&[TaipoEvent { is_press: false, code: 2 }]);
     }
 }
 
