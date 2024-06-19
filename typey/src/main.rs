@@ -1,11 +1,12 @@
 use std::{
-    io::{stdin, stdout, Write}, rc::Rc
+    fs::File, io::{stdin, stdout, BufRead, BufReader, Write}, rc::Rc, str::FromStr
 };
 
 use anyhow::{anyhow, Result};
 use bbq_steno::{
-    dict::{Dict, DictImpl, Selector, Translator}, memdict::MemDict, Stroke
+    dict::{Dict, DictImpl, MapDictBuilder, Selector, Translator}, memdict::MemDict, Stroke
 };
+use regex::Regex;
 use structopt::StructOpt;
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
@@ -163,17 +164,33 @@ fn load_dict(name: &str) -> Result<Dict> {
         let bindict = std::fs::read(name)?;
         return Ok(Rc::new(KeptDict::from_data(bindict)));
     }
+    if name.ends_with(".txt") {
+        return load_txt(name)
+    }
     Err(anyhow!("Unknown dictionary extension"))
 }
 
-/*
-fn load_dict() -> Result<Rc<RamDict>> {
-    let phoenix = rtfcre::import("../phoenix/phoenix.rtf")?;
-    let mut builder = MapDictBuilder::new();
-    for (k, v) in phoenix {
-        // let k = StenoWord::parse(&k)?;
-        builder.insert(k.0, v);
+/// Load a .txt dictionary.  This is a simple format, which consists of entries
+/// similar to those found in the typey drills.
+fn load_txt(name: &str) -> Result<Dict> {
+    let re = Regex::new(r"^'(.*)': ([A-Z0-9/^+*-]+)$")?;
+    let lines = BufReader::new(File::open(name)?).lines();
+    let mut dict = MapDictBuilder::new();
+    for line in lines {
+        let line = line?;
+        let caps = match re.captures(&line) {
+            Some(caps) => caps,
+            None => {
+                println!("Unparsed line: {:?}", line);
+                continue;
+            }
+        };
+        let text = caps[1].to_string();
+        let mut steno = Vec::new();
+        for stroke in caps[2].split("/") {
+            steno.push(Stroke::from_text(stroke)?);
+        }
+        dict.insert(steno, text);
     }
-    Ok(Rc::new(builder.into_ram_dict()))
+    Ok(Rc::new(dict.into_ram_dict()))
 }
-*/
