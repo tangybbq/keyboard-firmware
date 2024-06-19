@@ -60,11 +60,13 @@ impl Entry {
     }
 }
 
+/*
 #[derive(Debug, Eq, PartialEq)]
 struct Translation {
     /// The actual definition.
     definition: String,
 }
+*/
 
 // Maxinum number of entries to keep for undo history. Note that if this is made
 // shorter than entries in the dictionary, those entries will never be found.
