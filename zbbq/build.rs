@@ -50,4 +50,6 @@ fn main() {
         }
     }
     writeln!(&mut f, "}}").unwrap();
+
+    zephyr_dt_build::support();
 }

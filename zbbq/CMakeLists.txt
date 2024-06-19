@@ -102,6 +102,22 @@ endif()
 
 set(DUMMY_FILE "${CMAKE_BINARY_DIR}/always-run-cargo.dummy")
 
+# Build a list of crate overrides, both for the .cargo config template and for the command line.
+set(command_paths)
+set(config_paths "")
+message(STATUS "Processing crates: ${ZEPHYR_RS_MODULES}")
+foreach(module IN LISTS ZEPHYR_RS_MODULES)
+  message(STATUS "module: ${module}")
+  set(config_paths
+    "${config_paths}\
+${module}.path = \"${ZEPHYR_RS_MODULE_DIR}/${module}\"
+")
+  list(APPEND command_paths
+     "--config"
+     "patch.crates-io.${module}.path=\\\"${ZEPHYR_RS_MODULE_DIR}/${module}\\\""
+   )
+endforeach()
+
 # Write out a cargo config file that can be copied into `.cargo/config.toml` in
 # the source directory to allow various IDE tools and such to work. The build we
 # invoke will override these settings, in case they are out of date. Everything
@@ -118,9 +134,10 @@ target-dir = \"${CARGO_TARGET_DIR}\"
 [env]
 BUILD_DIR = \"${CMAKE_CURRENT_BINARY_DIR}\"
 DOTCONFIG = \"${DOTCONFIG}\"
+ZEPHYR_DTS = \"${ZEPHYR_DTS}\"
 
 [patch.crates-io]
-zephyr-sys.path = \"${ZEPHYR_RS_MODULE_DIR}/zephyr-sys\"
+${config_paths}
 ")
 
 # The library can be built by just invoking Cargo
@@ -131,6 +148,7 @@ add_custom_command(
     ${CMAKE_EXECUTABLE}
     env BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}
     DOTCONFIG=${DOTCONFIG}
+    ZEPHYR_DTS=${ZEPHYR_DTS}
     cargo build
     # TODO: release flag if release build
     # --release
@@ -142,7 +160,7 @@ add_custom_command(
 
     # Set a replacement so that packages can just use `zephyr-sys` as a package
     # name to find it.
-    --config "patch.crates-io.zephyr-sys.path=\\\"${ZEPHYR_RS_MODULE_DIR}/zephyr-sys\\\""
+    ${command_paths}
     --target ${RUST_TARGET}
     --target-dir ${CARGO_TARGET_DIR}
   COMMENT "Building Rust application"
