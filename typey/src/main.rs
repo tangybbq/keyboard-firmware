@@ -1,11 +1,10 @@
 use std::{
-    io::{stdin, stdout, Write}, path::Path, rc::Rc
+    io::{stdin, stdout, Write}, rc::Rc
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use bbq_steno::{
-    dict::{Translator, Dict},
-    Stroke, memdict::MemDict,
+    dict::{Dict, DictImpl, Selector, Translator}, memdict::MemDict, Stroke
 };
 use structopt::StructOpt;
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
@@ -48,11 +47,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn writer<P: AsRef<Path>>(dict: P) -> Result<()> {
-    let bindict = std::fs::read(dict)?;
-    let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) }.unwrap();
-    let dict: Dict = Rc::new(mdict);
-    // let dict = load_dict().expect("Load main dict");
+fn writer(dict: &str) -> Result<()> {
+    let dict = load_dict(dict)?;
     let mut xlat = Translator::new(dict);
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode()?;
@@ -88,6 +84,60 @@ fn writer<P: AsRef<Path>>(dict: P) -> Result<()> {
         writeln!(stdout, "Key: {:?}\r", key)?;
     }
     Ok(())
+}
+
+/// The normal MemDict is an unsafe pointer to something.  To at least give this
+/// a resemblance of something usable dynamically, this struct implements dict,
+/// keeping the data around.
+struct KeptDict {
+    _kept: Vec<u8>,
+    dict: Rc<MemDict>,
+}
+
+impl KeptDict {
+    /// Take ownership of a block of data and build a memdict out of it.
+    pub fn from_data(data: Vec<u8>) -> KeptDict {
+        // `Vec` does not move the data as long as there a no allocations.
+        let mdict = unsafe { MemDict::from_raw_ptr(data.as_ptr()) }.unwrap();
+        KeptDict {
+            _kept: data,
+            dict: Rc::new(mdict),
+        }
+    }
+}
+
+/// Passthrough implementation.
+impl DictImpl for KeptDict {
+    fn len(&self) -> usize {
+        self.dict.len()
+    }
+
+    fn key(&self, index: usize) -> &[Stroke] {
+        self.dict.key(index)
+    }
+
+    fn value(&self, index: usize) -> &str {
+        self.dict.value(index)
+    }
+
+    fn selector(self: Rc<Self>) -> Box<dyn Selector> {
+        self.dict.clone().selector()
+    }
+
+    fn scan(&self, a: usize, b: usize, pos: usize, needle: Stroke) -> usize {
+        self.dict.scan(a, b, pos, needle)
+    }
+}
+
+/// Load the given dictionary, using the extension to determine what type it is.
+fn load_dict(name: &str) -> Result<Dict> {
+    if name.ends_with(".bin") {
+        // .bin files are the internal memory mapped format used in the
+        // keyboards.
+        let bindict = std::fs::read(name)?;
+        return Ok(Rc::new(KeptDict::from_data(bindict)));
+    }
+    Err(anyhow!("Unknown dictionary extension"))
 }
 
 /*
