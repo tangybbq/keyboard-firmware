@@ -17,6 +17,7 @@ mod testlog;
 
 #[cfg(test)]
 mod log {
+    #[allow(unused_imports)]
     pub use log::warn;
 }
 

@@ -129,17 +129,13 @@ impl Translator {
         // It is important that when we delete, we only delete the entries that
         // were actually words.  They should always line up, so we don't check
         // that here.
-        let mut skip = 0;
-        let mut pos = self.history.len() - 1;
-        for _ in 1..best.strokes {
-            if skip == 0 {
-                self.typer.remove();
-                skip = self.history[pos].text.strokes - 1;
-            } else {
-                skip -= 1;
-            }
-            pos -= 1;
-        }
+        // Skip tracks how many strokes to skip.
+        let pos = self.history.len() - best.strokes;
+        // println!("best: {:?}", best);
+        // println!("history:");
+        // for h in &self.history {
+        //     println!("  {:?}", h);
+        // }
 
         // TODO: Make an iterator?
         let prior = &self.history[pos];
@@ -160,7 +156,7 @@ impl Translator {
             !(prior.text.stitch && best.stitch);
 
         // type in this result.
-        self.typer.add(0, add_space, &text);
+        self.typer.replace(best.strokes - 1, add_space, &text);
 
         // Record this history entry.
         let auto_space = best.space_after;
@@ -175,7 +171,9 @@ impl Translator {
     }
 
     fn undo(&mut self) {
-        if let Some(_entry) = self.history.pop() {
+        // Don't remove the initial entry, which has the initial state.
+        if self.history.len() > 1 {
+            let _ = self.history.pop();
             self.typer.remove();
         }
     }

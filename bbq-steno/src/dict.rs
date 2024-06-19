@@ -24,7 +24,7 @@ pub use self::typer::TypeAction;
 mod mapdict;
 mod ortho;
 mod translate;
-mod typer;
+pub mod typer;
 
 pub type Dict = Rc<dyn DictImpl>;
 
