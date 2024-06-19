@@ -1,5 +1,5 @@
 use std::{
-    io::{stdin, stdout, Write}, rc::Rc,
+    io::{stdin, stdout, Write}, path::Path, rc::Rc
 };
 
 use anyhow::Result;
@@ -7,12 +7,49 @@ use bbq_steno::{
     dict::{Translator, Dict},
     Stroke, memdict::MemDict,
 };
+use structopt::StructOpt;
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
+
+/// The main commands available.
+#[derive(Debug, StructOpt)]
+enum Command {
+    #[structopt(name = "write")]
+    /// Write, using the dictionary lookup.
+    Write(WriteCommand),
+}
+
+#[derive(Debug, StructOpt)]
+struct WriteCommand {
+    #[structopt(long = "dict")]
+    /// The path to the dictionary to use.
+    file: Option<String>,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "typey", about = "Typing testing utilities")]
+struct Opt {
+    #[structopt(subcommand)]
+    command: Command
+}
 
 // mod rtfcre;
 
 fn main() -> Result<()> {
-    let bindict = std::fs::read("../dict-convert/phoenix.bin")?;
+    let opt = Opt::from_args();
+    println!("command: {:?}", opt);
+
+    match opt.command {
+        Command::Write(cmd) => {
+            let file = cmd.file.unwrap_or_else(|| "../dict-convert/phoenix.bin".to_string());
+            writer(&file)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn writer<P: AsRef<Path>>(dict: P) -> Result<()> {
+    let bindict = std::fs::read(dict)?;
     let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) }.unwrap();
     let dict: Dict = Rc::new(mdict);
     // let dict = load_dict().expect("Load main dict");
