@@ -9,4 +9,5 @@ edition = "2021"
 anyhow = "1.0"
 bbq-steno = { version = "0.1", path = "../bbq-steno" }
 bbq-steno-macros = { version = "0.1.0", path = "../bbq-steno-macros" }
+dirs = "5.0.1"
 regex = "1.10"

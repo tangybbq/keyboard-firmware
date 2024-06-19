@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) }.unwrap();
     let dict: Dict = Rc::new(mdict);
 
-    let base = Path::new("/home/davidb/steno/steno-drill/phoenix");
+    let base = dirs::home_dir().unwrap().join("steno").join("steno-drill").join("phoenix");
     let mut names = Vec::new();
     for entry in base.read_dir()? {
         let entry = entry?;
