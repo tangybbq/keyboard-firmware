@@ -2,7 +2,7 @@
 // https://docs.swift.org/swift-book
 
 /// A Steno stroke represents the keys that were pressed in a single "stroke".
-public struct Stroke: Equatable, Hashable {
+public struct Stroke: Equatable, Hashable, Comparable {
     public let bits: UInt32
 
     public enum StrokeError: Error {
@@ -92,6 +92,16 @@ public struct Stroke: Equatable, Hashable {
         }
 
         self.bits = stroke
+    }
+
+    public static func < (lhs: Stroke, rhs: Stroke) -> Bool {
+        return lhs.bits < rhs.bits
+    }
+
+    public var succ: Stroke {
+        get {
+            Stroke(bits: bits + 1)
+        }
     }
 
     /// Show this stroke in a compact format.
