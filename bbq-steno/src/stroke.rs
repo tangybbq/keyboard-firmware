@@ -25,7 +25,7 @@ use arrayvec::ArrayString;
 #[derive(Debug)]
 pub enum Error {
     InvalidHyphen,
-    InvalidChar(char),
+    InvalidChar(char, String),
 }
 
 /// The stroke itself is just a 32 bit number.  It represents a single stroke on the machine.
@@ -97,7 +97,7 @@ impl Stroke {
                 let norm = if let Some(n) = norms.next() {
                     n
                 } else {
-                    return Err(Error::InvalidChar(ch));
+                    return Err(Error::InvalidChar(ch, text.to_string()));
                 };
                 let num = if let Some(n) = nums.next() {
                     n
