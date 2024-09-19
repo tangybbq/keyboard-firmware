@@ -1,0 +1,43 @@
+
+# The proto2 is a 30-key built around the sparkfun pro micro rp2040, one on each side.
+#target := "sparkfun_pro_micro_rp2040"
+#shield := "proto2"
+
+# The proto3 is a 30-key split built around the sparkfun_pro_micro_rp2040.
+target := "sparkfun_pro_micro_rp2040"
+shield := "proto3"
+
+# The proto4 is a 30-key built around the pimoroni tiny 2040 board.
+#target := "pimoroni_tiny_2040"
+#shield := "proto4"
+
+# The highboard is a 42-key semi-hand-wired board built around the Adafruit Feather RP2040
+#target := "adafruit_feather_rp2040"
+#shield := "highboard"
+
+srcdir := `pwd`
+
+build:
+	rm -rf build
+	west build \
+		--board {{target}} \
+		-- \
+		-DBOARD_FLASH_RUNNER=jlink \
+		-DBOARD_DEBUG_RUNNER=jlink \
+		-DSHIELD={{shield}} \
+		-DEXTRA_ZEPHYR_MODULES={{srcdir}}/bbqboards \
+		-DCONFIG_COMPILER_SAVE_TEMPS=y \
+		#
+	echo Done
+
+jlink:
+	west debugserver
+
+gdb:
+	TERM=xterm arm-zephyr-eabi-gdb "build/zephyr/zephyr.elf"
+
+rtt:
+	socat - TCP4:localhost:19021
+
+clean:
+	rm -rf build

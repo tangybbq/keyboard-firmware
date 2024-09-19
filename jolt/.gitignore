@@ -1,0 +1,4 @@
+# Never record the build dir.
+build/
+
+# In our case, we do actually want to capture the symlink in the .cargo directory.

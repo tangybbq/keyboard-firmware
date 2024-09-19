@@ -1,0 +1,13 @@
+# Binding for mode selector
+
+description: |
+  A GPIO used to perform some kind of mode selection.
+
+compatible: "gpio-mode-selector"
+
+properties:
+  in-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      The GPIO(s) used for the mode selection.

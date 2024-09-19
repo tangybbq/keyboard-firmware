@@ -1,0 +1,41 @@
+/* Device tree overlay for Proto2 keyboard matrix
+ *
+ * This board only supports the sparkfun_promicro_rp2040 board, which is mounted
+ * directly onto the board, so we don't use the connector, but just directly
+ * attach to the GPIOs.
+ */
+
+/ {
+	aliases {
+		matrix = &kbd_matrix;
+	};
+
+	chosen {
+		zephyr,matrix = &kbd_matrix;
+	};
+
+	kbd_matrix: kbd-matrix {
+		compatible = "bbq-kbd-matrix";
+		row-gpios = <&gpio0 0 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 1 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 2 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 3 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 4 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 5 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+		col-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 7 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 26 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 27 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 28 GPIO_ACTIVE_HIGH>;
+                translate = "proto4";
+                /* reverse-scan; */
+		idle-mode = "scan";
+	};
+
+        /* No side select, as there is only one "side" as far as software is concerned.
+        side_select {
+                compatible = "gpio-mode-selector";
+                in-gpios = <&gpio0 27 (GPIO_PULL_UP | GPIO_ACTIVE_HIGH)>;
+        };
+        */
+};
