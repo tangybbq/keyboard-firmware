@@ -14,3 +14,9 @@ crate-type = ["staticlib"]
 
 [dependencies]
 zephyr = "3.7.0"
+
+[dependencies.bbq-keyboard]
+version = "0.1.0"
+default-features = false
+features = ["proto3", "log"]
+path = "../bbq-keyboard"
