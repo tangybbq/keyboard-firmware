@@ -17,6 +17,7 @@
 
 extern crate alloc;
 
+use alloc::string::{String, ToString};
 use core::ops::{BitAnd, BitOr, BitOrAssign, BitAndAssign, Not};
 
 use arrayvec::ArrayString;

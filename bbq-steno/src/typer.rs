@@ -88,6 +88,7 @@
 extern crate alloc;
 
 use alloc::collections::VecDeque;
+use alloc::string::String;
 
 /// A TypeHandler accepts these items from the translator, handling them
 /// eventually through the keyboard.
