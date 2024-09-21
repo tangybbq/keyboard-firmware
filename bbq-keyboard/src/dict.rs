@@ -6,7 +6,7 @@ use alloc::{vec::Vec, rc::Rc, string::ToString};
 
 use bbq_steno::{memdict::MemDict, dict::{Translator, TypeAction}, Stroke};
 use bbq_steno_macros::stroke;
-use defmt::info;
+use crate::log::info;
 
 use crate::Timable;
 

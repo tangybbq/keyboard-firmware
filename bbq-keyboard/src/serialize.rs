@@ -9,10 +9,6 @@ use arraydeque::ArrayDeque;
 use crc::{Crc, CRC_16_IBM_SDLC, Digest};
 use smart_leds::RGB8;
 
-#[cfg(not(feature = "std"))]
-use defmt::warn;
-
-#[cfg(feature = "std")]
 use crate::log::warn;
 
 // TODO: Make the hardcoded sizes part of the board support.

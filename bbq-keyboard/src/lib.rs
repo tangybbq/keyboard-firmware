@@ -26,13 +26,13 @@ pub mod layout;
 #[cfg(test)]
 mod testlog;
 
-#[cfg(test)]
+#[cfg(not(feature = "defmt"))]
 mod log {
     pub use log::warn;
     pub use log::info;
 }
 
-#[cfg(not(test))]
+#[cfg(feature = "defmt")]
 mod log {
     pub use defmt::info;
     pub use defmt::warn;
@@ -69,6 +69,7 @@ pub enum KeyEvent {
     Release(u8),
 }
 
+#[cfg(feature = "defmt")]
 impl defmt::Format for KeyEvent {
     fn format(&self, fmt: defmt::Formatter) {
         match self {
@@ -197,6 +198,7 @@ pub enum InterState {
     Secondary,
 }
 
+#[cfg(feature = "defmt")]
 impl defmt::Format for InterState {
     fn format(&self, fmt: defmt::Formatter) {
         match self {

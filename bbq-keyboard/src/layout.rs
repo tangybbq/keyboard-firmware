@@ -284,6 +284,7 @@ impl LayoutMode {
     }
 }
 
+#[cfg(feature = "defmt")]
 impl defmt::Format for LayoutMode {
     fn format(&self, fmt: defmt::Formatter) {
         match self {
