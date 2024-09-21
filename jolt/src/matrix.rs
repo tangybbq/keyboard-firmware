@@ -71,14 +71,11 @@ impl Matrix {
 /// The state of an individual key.
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum KeyState {
-    /// Key is in the released state.
-    Released,
-    /// Key is in the pressed state.
-    Pressed,
-    /// We've seen a release edge, and will consider it released when consistent.
-    DebounceRelease,
-    /// We've seen a press edge, and will consider it pressed when consistent.
-    DebouncePress,
+    /// Key is stable with the given pressed state.
+    Stable(bool),
+    /// We've detected the start of a transition to the dest, but need to see it stable before
+    /// considering it done.
+    Debounce(bool),
 }
 
 /// The action keys undergo.
@@ -101,53 +98,30 @@ const DEBOUNCE_COUNT: usize = 20;
 impl Debouncer {
     fn new() -> Debouncer {
         Debouncer {
-            state: KeyState::Released,
+            state: KeyState::Stable(false),
             counter: 0,
         }
     }
 
     fn react(&mut self, pressed: bool) -> KeyAction {
         match self.state {
-            KeyState::Released => {
-                if pressed {
-                    self.state = KeyState::DebouncePress;
+            KeyState::Stable(cur) => {
+                if cur != pressed {
+                    self.state = KeyState::Debounce(pressed);
                     self.counter = 0;
                 }
                 KeyAction::None
             }
-            KeyState::Pressed => {
-                if !pressed {
-                    self.state = KeyState::DebounceRelease;
-                    self.counter = 0;
-                }
-                KeyAction::None
-            }
-            KeyState::DebounceRelease => {
-                if pressed {
-                    // Reset the counter any time we see a press state.
+            KeyState::Debounce(target) => {
+                if target != pressed {
+                    // Reset the counter any time the state isn't our goal.
                     self.counter = 0;
                     KeyAction::None
                 } else {
                     self.counter += 1;
                     if self.counter == DEBOUNCE_COUNT {
-                        self.state = KeyState::Released;
-                        KeyAction::Release
-                    } else {
-                        KeyAction::None
-                    }
-                }
-            }
-            // TODO: Perhaps just two states, and a press/release flag.
-            KeyState::DebouncePress => {
-                if !pressed {
-                    // Reset the counter any time we see a press state.
-                    self.counter = 0;
-                    KeyAction::None
-                } else {
-                    self.counter += 1;
-                    if self.counter == DEBOUNCE_COUNT {
-                        self.state = KeyState::Pressed;
-                        KeyAction::Press
+                        self.state = KeyState::Stable(target);
+                        if target { KeyAction::Press } else { KeyAction::Release }
                     } else {
                         KeyAction::None
                     }
