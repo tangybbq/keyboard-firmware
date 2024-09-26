@@ -22,6 +22,11 @@ default-features = false
 features = ["proto3", "log"]
 path = "../bbq-keyboard"
 
+[dependencies.bbq-steno]
+version = "0.1.0"
+default-features = false
+path = "../bbq-steno"
+
 [profile.dev]
 opt-level = 1
 

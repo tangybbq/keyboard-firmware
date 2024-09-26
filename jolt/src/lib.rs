@@ -18,20 +18,26 @@ use zephyr::object::KobjInit;
 use zephyr::sync::channel::{
     self,
     Sender,
+    Receiver,
     Message,
 };
 
 use bbq_keyboard::{
+    dict::Dict,
     Event,
     EventQueue,
     Keyboard,
     KeyAction,
     KeyEvent,
     layout::LayoutManager,
+    LayoutMode,
     Mods,
+    Timable,
     UsbDeviceState,
+    usb_typer::{enqueue_action, ActionHandler},
 };
 use bbq_keyboard::serialize::{Decoder, Packet, PacketBuffer};
+use bbq_steno::Stroke;
 
 mod devices;
 mod matrix;
@@ -45,6 +51,19 @@ extern "C" fn rust_main() {
     EVENT_QUEUE_STATIC.init();
     let equeue = EVENT_QUEUE_STATIC.get();
     let (equeue_send, equeue_recv) = channel::unbounded_from::<Event>(equeue);
+
+    // This is the steno queue.
+    STENO_QUEUE_STATIC.init();
+    let stenoq = STENO_QUEUE_STATIC.get();
+    let (stenoq_send, stenoq_recv) = channel::unbounded_from::<Stroke>(stenoq);
+
+    // Spawn the steno thread.
+    // TODO: This needs to be lower priority.
+    let sc = equeue_send.clone();
+    let thread = STENO_THREAD.spawn(STENO_STACK.token(), move || {
+        steno_thread(stenoq_recv, sc);
+    });
+    thread.start();
 
     unsafe {
         // Store a sender for the USB callback.
@@ -89,6 +108,9 @@ extern "C" fn rust_main() {
     let mut eq_send = SendWrap(equeue_send.clone());
     let mut keys = VecDeque::new();
 
+    // TODO: We should really ask for the current mode, instead of hoping to align them.
+    let mut current_mode = LayoutMode::Steno;
+
     loop {
         let ev = equeue_recv.recv().unwrap();
 
@@ -99,10 +121,38 @@ extern "C" fn rust_main() {
                 // TODO: State determines what we do with this.
                 layout.handle_event(key, &mut eq_send);
             }
+
             Event::Key(key) => {
                 // Keypresses are queued up, to be sent to the hid layer.
                 keys.push_back(key);
             }
+
+            Event::RawSteno(stroke) => {
+                if current_mode == LayoutMode::Steno {
+                    // TODO: Send a steno stroke
+                    stenoq_send.send(stroke).unwrap();
+                } else {
+                    // TODO: Send stroke over Gemini protocol.
+                }
+            }
+
+            // Once the steno layer has translated the strokes, it gives us a TypeAction to send
+            // off to HID.
+            Event::StenoText(action) => {
+                for _ in 0..action.remove {
+                    keys.push_back(KeyAction::KeyPress(Keyboard::DeleteBackspace, Mods::empty()));
+                    keys.push_back(KeyAction::KeyRelease);
+                }
+                // Then, just send the text.
+                enqueue_action(&mut KeyActionWrap(&mut keys), &action.text);
+            }
+
+            // Mode select affects the LEDs and our notion of the current mode.
+            Event::Mode(mode) => {
+                // TODO: Leds
+                current_mode = mode;
+            }
+
             ev => {
                 printkln!("Event: {:?}", ev);
             }
@@ -223,6 +273,38 @@ fn keyset_to_hid(keys: Vec<Keyboard>) -> (Mods, Vec<u8>) {
     }
     (mods, result)
 }
+
+struct KeyActionWrap<'a>(&'a mut VecDeque<KeyAction>);
+
+impl<'a> ActionHandler for KeyActionWrap<'a> {
+    fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
+        for act in events {
+            self.0.push_back(act);
+        }
+    }
+}
+
+/// The lower priority steno lookup thread.
+fn steno_thread(recv: Receiver<Stroke>, events: Sender<Event>) {
+    printkln!("Steno thread running");
+    let mut dict = Dict::new();
+    loop {
+        let stroke = recv.recv().unwrap();
+        for action in dict.handle_stroke(stroke, &WrapTimer) {
+            // Enqueue the action, and the actual typing will be queued up by the main thread.
+            events.send(Event::StenoText(action)).unwrap();
+        }
+    }
+}
+
+struct WrapTimer;
+
+impl Timable for WrapTimer {
+    fn get_ticks(&self) -> u64 {
+        unsafe { zephyr::raw::k_cycle_get_64() }
+    }
+}
+
 /// A wrapper around a Sender to implement the EventQueue trait.
 struct SendWrap(Sender<Event>);
 
@@ -303,4 +385,11 @@ fn setup_heartbeat() {
 kobj_define! {
     // The main event queue.
     static EVENT_QUEUE_STATIC: StaticQueue;
+
+    // The steno thread.
+    static STENO_THREAD: StaticThread;
+    static STENO_STACK: ThreadStack<4096>;
+
+    // Event Q for sending to steno thread.
+    static STENO_QUEUE_STATIC: StaticQueue;
 }
