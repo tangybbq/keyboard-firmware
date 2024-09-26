@@ -51,11 +51,7 @@ extern "C" fn rust_main() {
         HEARTBEAT_MAIN_SEND = Some(equeue_send.clone());
     }
 
-    // Store a tick even for the IRQ.
-    let tick = Box::new(Message::new(Event::Tick));
-    critical_section::with(|cs| {
-        HEARTBEAT_BOX.borrow(cs).replace(Some(tick));
-    });
+    add_heartbeat_box();
 
     // After the callbacks have the queue handles, we can start the heartbeat.
     setup_heartbeat();
@@ -148,10 +144,7 @@ extern "C" fn rust_main() {
 
         // After processing the main loop, generate a message for the tick irq handler.  This will
         // allow ticks to be missed if processing takes too long.
-        let tick = Box::new(Message::new(Event::Tick));
-        critical_section::with(|cs| {
-            HEARTBEAT_BOX.borrow(cs).replace(Some(tick));
-        });
+        add_heartbeat_box();
     }
 }
 
@@ -188,6 +181,14 @@ extern "C" fn rust_heartbeat() {
     if let Some(boxed) = boxed {
         send.send_boxed(boxed).unwrap();
     }
+}
+
+/// Give the heartbeat IRQ a box holding a message it can send.
+fn add_heartbeat_box() {
+    let tick = Box::new(Message::new(Event::Tick));
+    critical_section::with(|cs| {
+        HEARTBEAT_BOX.borrow(cs).replace(Some(tick));
+    });
 }
 
 /// Initialize the USB.
