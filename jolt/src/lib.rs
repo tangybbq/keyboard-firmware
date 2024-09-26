@@ -155,7 +155,6 @@ static mut USB_CB_MAIN_SEND: Option<Sender<Event>> = None;
 /// Rust USB callback.
 #[no_mangle]
 extern "C" fn rust_usb_status(state: u32) {
-    printkln!("USB: {}", state);
     let send = unsafe { USB_CB_MAIN_SEND.as_mut().unwrap() };
 
     let state = match state {
