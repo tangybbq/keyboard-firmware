@@ -1,0 +1,9 @@
+/* Bring in the CDC UARTs. */
+ &zephyr_udc0 {
+        acm_uart_0: cdc_acm_uart0 {
+                compatible = "zephyr,cdc-acm-uart";
+        };
+        acm_uart_1: cdc_acm_uart1 {
+                compatible = "zephyr,cdc-acm-uart";
+        };
+};
