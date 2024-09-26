@@ -6,3 +6,5 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(hello_rust_world)
 
 rust_cargo_application()
+
+target_sources(app PRIVATE src/usb.c)

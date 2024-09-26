@@ -30,7 +30,7 @@ build:
 		#
 	echo Done
 
-jlink:
+serve:
 	west debugserver
 
 gdb:

@@ -6,6 +6,8 @@ set substitute-path /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081 \
 
 target extended-remote :2331
 
+b rust_main
+
 define z
   load
   monitor reset
