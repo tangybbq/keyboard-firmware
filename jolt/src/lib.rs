@@ -6,9 +6,11 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 
 use core::cell::RefCell;
+use core::slice;
 
 use matrix::Matrix;
 use zephyr::{kobj_define, printkln};
@@ -21,7 +23,12 @@ use zephyr::sync::channel::{
 
 use bbq_keyboard::{
     Event,
+    EventQueue,
+    Keyboard,
+    KeyAction,
     KeyEvent,
+    layout::LayoutManager,
+    Mods,
     UsbDeviceState,
 };
 use bbq_keyboard::serialize::{Decoder, Packet, PacketBuffer};
@@ -67,7 +74,9 @@ extern "C" fn rust_main() {
     let cols: Vec<_> = cols.into_iter().collect();
 
     let matrix = Matrix::new(rows, cols);
-    let mut scanner = Scanner::new(matrix, equeue_send);
+    let mut scanner = Scanner::new(matrix, equeue_send.clone());
+
+    let mut layout = LayoutManager::new();
 
     let mut uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
     let mut buffer = [0u8; 32];
@@ -76,12 +85,24 @@ extern "C" fn rust_main() {
     let mut out_buffer = PacketBuffer::new();
 
     let mut decode = Decoder::new();
+
+    let mut eq_send = SendWrap(equeue_send.clone());
+    let mut keys = VecDeque::new();
+
     loop {
         let ev = equeue_recv.recv().unwrap();
 
         let mut is_tick = false;
         match ev {
             Event::Tick => is_tick = true,
+            Event::Matrix(key) => {
+                // TODO: State determines what we do with this.
+                layout.handle_event(key, &mut eq_send);
+            }
+            Event::Key(key) => {
+                // Keypresses are queued up, to be sent to the hid layer.
+                keys.push_back(key);
+            }
             ev => {
                 printkln!("Event: {:?}", ev);
             }
@@ -119,6 +140,9 @@ extern "C" fn rust_main() {
             }
         }
 
+        layout.tick(&mut eq_send);
+        usb_hid_push(&mut keys);
+
         // After processing the main loop, generate a message for the tick irq handler.  This will
         // allow ticks to be missed if processing takes too long.
         add_heartbeat_box();
@@ -151,6 +175,60 @@ impl Scanner {
             };
             self.events.send(Event::Matrix(event)).unwrap();
         });
+    }
+}
+
+/// Push usb-hid events to the USB stack, when possible.
+fn usb_hid_push(keys: &mut VecDeque<KeyAction>) {
+    if !devices::hid_is_accepting() {
+        return;
+    }
+
+    if let Some(key) = keys.pop_front() {
+        match key {
+            KeyAction::KeyPress(code, mods) => {
+                let code = code as u8;
+                devices::hid_send_keyboard_report(mods.bits(), slice::from_ref(&code));
+            }
+            KeyAction::KeyRelease => {
+                devices::hid_send_keyboard_report(0, &[]);
+            }
+            KeyAction::KeySet(keys) => {
+                // TODO We don't handle more than 6 keys, which qwerty mode can do.  For now, just
+                // report if we can.
+                let (mods, keys) = keyset_to_hid(keys);
+                devices::hid_send_keyboard_report(mods.bits(), &keys);
+            }
+            KeyAction::ModOnly(mods) => {
+                devices::hid_send_keyboard_report(mods.bits(), &[]);
+            }
+            KeyAction::Stall => (),
+        }
+    }
+}
+
+// Qwerty mode just sends scan codes, but not the mod bits as expected by the HID layer.  To fix
+// this, convert the codes from QWERTY into a proper formatted data for a report.
+fn keyset_to_hid(keys: Vec<Keyboard>) -> (Mods, Vec<u8>) {
+    let mut result = Vec::new();
+    let mut mods = Mods::empty();
+    for key in keys {
+        match key {
+            Keyboard::LeftControl => mods |= Mods::CONTROL,
+            Keyboard::LeftShift => mods |= Mods::SHIFT,
+            Keyboard::LeftAlt => mods |= Mods::ALT,
+            Keyboard::LeftGUI => mods |= Mods::GUI,
+            key => result.push(key as u8),
+        }
+    }
+    (mods, result)
+}
+/// A wrapper around a Sender to implement the EventQueue trait.
+struct SendWrap(Sender<Event>);
+
+impl EventQueue for SendWrap {
+    fn push(&mut self, val: Event) {
+        self.0.send(val).unwrap();
     }
 }
 
