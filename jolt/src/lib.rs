@@ -18,20 +18,15 @@ use zephyr::sync::channel::{
     Sender,
     Message,
 };
-use zephyr::sys::busy_wait;
-use zephyr::raw::{
-    GPIO_INPUT,
-    GPIO_PULL_UP,
-};
 
 use bbq_keyboard::{
     Event,
     KeyEvent,
-    Side,
     UsbDeviceState,
 };
-use bbq_keyboard::serialize::{Decoder, Packet, PacketBuffer, EventVec};
+use bbq_keyboard::serialize::{Decoder, Packet, PacketBuffer};
 
+mod devices;
 mod matrix;
 
 #[no_mangle]
@@ -57,16 +52,7 @@ extern "C" fn rust_main() {
     setup_heartbeat();
 
     // Retrieve the side select.
-    let side_select = zephyr::devicetree::side_select::get_gpios();
-    let mut side_select = match side_select {
-        [pin] => pin,
-        // Compile error here means more than one pin is defined in DT.
-    };
-
-    side_select.configure(GPIO_INPUT | GPIO_PULL_UP);
-    busy_wait(5);
-    let side = if side_select.get() { Side::Left } else { Side::Right };
-
+    let side = devices::get_side();
     printkln!("Our side: {:?}", side);
 
     // Initialize USB HID.
@@ -80,8 +66,8 @@ extern "C" fn rust_main() {
     let rows: Vec<_> = rows.into_iter().collect();
     let cols: Vec<_> = cols.into_iter().collect();
 
-    let mut matrix = Matrix::new(rows, cols);
-    // let mut matrix = Matrix::new(cols, rows);
+    let matrix = Matrix::new(rows, cols);
+    let mut scanner = Scanner::new(matrix, equeue_send);
 
     let mut uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
     let mut buffer = [0u8; 32];
@@ -106,21 +92,12 @@ extern "C" fn rust_main() {
             continue;
         }
 
-        let mut keys = EventVec::new();
-        matrix.scan(|code, action| {
-            let key = if action {
-                KeyEvent::Press(code)
-            } else {
-                KeyEvent::Release(code)
-            };
-            // printkln!("{:?} {}", action, code);
-            keys.push(key);
-        });
+        scanner.scan();
 
         // Transmit to the uart.
         let packet = Packet::Secondary {
             side: side,
-            keys: keys,
+            keys: Vec::new(),
         };
         packet.encode(&mut out_buffer, &mut seq);
 
@@ -145,6 +122,35 @@ extern "C" fn rust_main() {
         // After processing the main loop, generate a message for the tick irq handler.  This will
         // allow ticks to be missed if processing takes too long.
         add_heartbeat_box();
+    }
+}
+
+/// Scanner.
+///
+/// The scanner is responsible for receiving scan events from the keyboard, as well as from the
+/// other side.
+struct Scanner {
+    matrix: Matrix,
+    events: Sender<Event>,
+    translate: fn (u8) -> u8,
+}
+
+impl Scanner {
+    fn new(matrix: Matrix, events: Sender<Event>) -> Scanner {
+        let translate = devices::get_translation();
+        Scanner { matrix, events, translate }
+    }
+
+    fn scan(&mut self) {
+        self.matrix.scan(|code, press| {
+            let code = (self.translate)(code);
+            let event = if press {
+                KeyEvent::Press(code)
+            } else {
+                KeyEvent::Release(code)
+            };
+            self.events.send(Event::Matrix(event)).unwrap();
+        });
     }
 }
 
