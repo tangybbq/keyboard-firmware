@@ -14,6 +14,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 zephyr = "3.7.0"
+critical-section = "1.1.2"
 
 [dependencies.bbq-keyboard]
 version = "0.1.0"

@@ -5,7 +5,10 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
+
+use core::cell::RefCell;
 
 use matrix::Matrix;
 use zephyr::{kobj_define, printkln};
@@ -13,9 +16,9 @@ use zephyr::object::KobjInit;
 use zephyr::sync::channel::{
     self,
     Sender,
+    Message,
 };
 use zephyr::sys::busy_wait;
-use zephyr::time::{Duration, sleep};
 use zephyr::raw::{
     GPIO_INPUT,
     GPIO_PULL_UP,
@@ -44,8 +47,15 @@ extern "C" fn rust_main() {
     unsafe {
         // Store a sender for the USB callback.
         USB_CB_MAIN_SEND = Some(equeue_send.clone());
+        // Store a sender for the Heartbeat callback.
         HEARTBEAT_MAIN_SEND = Some(equeue_send.clone());
     }
+
+    // Store a tick even for the IRQ.
+    let tick = Box::new(Message::new(Event::Tick));
+    critical_section::with(|cs| {
+        HEARTBEAT_BOX.borrow(cs).replace(Some(tick));
+    });
 
     // After the callbacks have the queue handles, we can start the heartbeat.
     setup_heartbeat();
@@ -83,7 +93,6 @@ extern "C" fn rust_main() {
 
     let mut out_buffer = PacketBuffer::new();
 
-    let delay = Duration::millis_at_least(1);
     let mut decode = Decoder::new();
     loop {
         let ev = equeue_recv.recv().unwrap();
@@ -137,7 +146,12 @@ extern "C" fn rust_main() {
             }
         }
 
-        sleep(delay);
+        // After processing the main loop, generate a message for the tick irq handler.  This will
+        // allow ticks to be missed if processing takes too long.
+        let tick = Box::new(Message::new(Event::Tick));
+        critical_section::with(|cs| {
+            HEARTBEAT_BOX.borrow(cs).replace(Some(tick));
+        });
     }
 }
 
@@ -161,11 +175,19 @@ extern "C" fn rust_usb_status(state: u32) {
 }
 
 static mut HEARTBEAT_MAIN_SEND: Option<Sender<Event>> = None;
+static HEARTBEAT_BOX: critical_section::Mutex<RefCell<Option<Box<Message<Event>>>>> =
+    critical_section::Mutex::new(RefCell::new(None));
 
 #[no_mangle]
 extern "C" fn rust_heartbeat() {
     let send = unsafe { HEARTBEAT_MAIN_SEND.as_mut().unwrap() };
-    send.send(Event::Tick).unwrap();
+    let boxed = critical_section::with(|cs| {
+        HEARTBEAT_BOX.borrow_ref_mut(cs).take()
+    });
+    // Send it, if there was one there to send.
+    if let Some(boxed) = boxed {
+        send.send_boxed(boxed).unwrap();
+    }
 }
 
 /// Initialize the USB.
