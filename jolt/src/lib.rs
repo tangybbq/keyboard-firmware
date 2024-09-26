@@ -8,7 +8,12 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use matrix::Matrix;
-use zephyr::printkln;
+use zephyr::{kobj_define, printkln};
+use zephyr::object::KobjInit;
+use zephyr::sync::channel::{
+    self,
+    Sender,
+};
 use zephyr::sys::busy_wait;
 use zephyr::time::{Duration, sleep};
 use zephyr::raw::{
@@ -16,7 +21,12 @@ use zephyr::raw::{
     GPIO_PULL_UP,
 };
 
-use bbq_keyboard::{KeyEvent, Side};
+use bbq_keyboard::{
+    Event,
+    KeyEvent,
+    Side,
+    UsbDeviceState,
+};
 use bbq_keyboard::serialize::{Decoder, Packet, PacketBuffer, EventVec};
 
 mod matrix;
@@ -25,6 +35,20 @@ mod matrix;
 extern "C" fn rust_main() {
     printkln!("Hello world from Rust on {}",
               zephyr::kconfig::CONFIG_BOARD);
+
+    // Initialize the main event queue.
+    EVENT_QUEUE_STATIC.init();
+    let equeue = EVENT_QUEUE_STATIC.get();
+    let (equeue_send, equeue_recv) = channel::unbounded_from::<Event>(equeue);
+
+    unsafe {
+        // Store a sender for the USB callback.
+        USB_CB_MAIN_SEND = Some(equeue_send.clone());
+        HEARTBEAT_MAIN_SEND = Some(equeue_send.clone());
+    }
+
+    // After the callbacks have the queue handles, we can start the heartbeat.
+    setup_heartbeat();
 
     // Retrieve the side select.
     let side_select = zephyr::devicetree::side_select::get_gpios();
@@ -62,6 +86,21 @@ extern "C" fn rust_main() {
     let delay = Duration::millis_at_least(1);
     let mut decode = Decoder::new();
     loop {
+        let ev = equeue_recv.recv().unwrap();
+
+        let mut is_tick = false;
+        match ev {
+            Event::Tick => is_tick = true,
+            ev => {
+                printkln!("Event: {:?}", ev);
+            }
+        }
+
+        // Only continue when the tick is received.
+        if !is_tick {
+            continue;
+        }
+
         let mut keys = EventVec::new();
         matrix.scan(|code, action| {
             let key = if action {
@@ -102,10 +141,31 @@ extern "C" fn rust_main() {
     }
 }
 
+/// Event queue sender for main queue.  Written once during init, and should be safe to just
+/// directly use.
+static mut USB_CB_MAIN_SEND: Option<Sender<Event>> = None;
+
 /// Rust USB callback.
 #[no_mangle]
 extern "C" fn rust_usb_status(state: u32) {
     printkln!("USB: {}", state);
+    let send = unsafe { USB_CB_MAIN_SEND.as_mut().unwrap() };
+
+    let state = match state {
+        0 => UsbDeviceState::Configured,
+        1 => UsbDeviceState::Suspend,
+        2 => UsbDeviceState::Resume,
+        _ => unreachable!(),
+    };
+    send.send(Event::UsbState(state)).unwrap();
+}
+
+static mut HEARTBEAT_MAIN_SEND: Option<Sender<Event>> = None;
+
+#[no_mangle]
+extern "C" fn rust_heartbeat() {
+    let send = unsafe { HEARTBEAT_MAIN_SEND.as_mut().unwrap() };
+    send.send(Event::Tick).unwrap();
 }
 
 /// Initialize the USB.
@@ -121,4 +181,20 @@ fn usb_setup() {
             panic!("Unable to initialize USB");
         }
     }
+}
+
+/// Initialize the heartbeat.
+fn setup_heartbeat() {
+    unsafe {
+        extern "C" {
+            fn setup_heartbeat();
+        }
+
+        setup_heartbeat();
+    }
+}
+
+kobj_define! {
+    // The main event queue.
+    static EVENT_QUEUE_STATIC: StaticQueue;
 }

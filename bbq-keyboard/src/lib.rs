@@ -167,6 +167,9 @@ pub enum Event {
 
     /// Steno text to be typed.
     StenoText(TypeAction),
+
+    /// Tick.  Happens every 1 ms.
+    Tick,
 }
 
 /// Instead of the usb-device crate's UsbDeviceState, add our own, as the one in

@@ -7,4 +7,4 @@ project(hello_rust_world)
 
 rust_cargo_application()
 
-target_sources(app PRIVATE src/usb.c)
+target_sources(app PRIVATE src/heartbeat.c src/usb.c)
