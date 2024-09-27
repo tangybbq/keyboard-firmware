@@ -338,7 +338,7 @@ static HEARTBEAT_BOX: critical_section::Mutex<RefCell<Option<Box<Message<Event>>
 
 #[no_mangle]
 extern "C" fn rust_heartbeat() {
-    let send = unsafe { HEARTBEAT_MAIN_SEND.as_mut().unwrap() };
+    let send = unsafe { HEARTBEAT_MAIN_SEND.as_ref().unwrap() };
     let boxed = critical_section::with(|cs| {
         HEARTBEAT_BOX.borrow_ref_mut(cs).take()
     });
