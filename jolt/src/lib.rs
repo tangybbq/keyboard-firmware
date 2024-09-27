@@ -193,6 +193,13 @@ extern "C" fn rust_main() {
         layout.tick(&mut eq_send);
         usb_hid_push(&mut keys);
 
+        // Print out heap stats every few minutes.
+        heap_counter += 1;
+        if heap_counter >= 120_000 {
+            heap_counter = 0;
+            show_heap_stats();
+        }
+
         // After processing the main loop, generate a message for the tick irq handler.  This will
         // allow ticks to be missed if processing takes too long.
         add_heartbeat_box();
@@ -379,6 +386,17 @@ fn setup_heartbeat() {
         }
 
         setup_heartbeat();
+    }
+}
+
+/// Show heap stats.
+fn show_heap_stats() {
+    unsafe {
+        extern "C" {
+            fn show_heap_stats();
+        }
+
+        show_heap_stats();
     }
 }
 
