@@ -7,7 +7,7 @@ use core::ffi::c_int;
 
 use bbq_keyboard::Side;
 
-use zephyr::raw::{GPIO_INPUT, GPIO_PULL_UP};
+use zephyr::raw::{GPIO_INPUT, GPIO_PULL_DOWN};
 use zephyr::sys::busy_wait;
 
 /// Get the "side" configuration.  Determines which side we are on based on a GPIO.
@@ -18,12 +18,12 @@ pub fn get_side() -> Side {
         // Compile error here means other than a single pin is defined in the DT.
     };
 
-    side_select.configure(GPIO_INPUT | GPIO_PULL_UP);
+    side_select.configure(GPIO_INPUT | GPIO_PULL_DOWN);
     busy_wait(5);
     if side_select.get() {
-        Side::Left
-    } else {
         Side::Right
+    } else {
+        Side::Left
     }
 }
 
