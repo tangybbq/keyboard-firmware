@@ -14,6 +14,7 @@ use core::slice;
 
 use matrix::Matrix;
 use zephyr::{kobj_define, printkln};
+use zephyr::driver::uart::LineControl;
 use zephyr::object::KobjInit;
 use zephyr::sync::channel::{
     self,
@@ -110,6 +111,8 @@ extern "C" fn rust_main() {
     let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
     let mut inter = InterHandler::new(side, uart, equeue_send.clone());
 
+    let acm = zephyr::devicetree::labels::acm_uart_0::get_instance();
+
     let mut eq_send = SendWrap(equeue_send.clone());
     let mut keys = VecDeque::new();
 
@@ -120,6 +123,13 @@ extern "C" fn rust_main() {
     let mut heap_counter = 0;
 
     loop {
+        // Update the state of the Gemini indicator.
+        leds.set_base(2, if let Ok(1) = acm.line_ctrl_get(LineControl::DTR) {
+            &leds::GEMINI_INDICATOR
+        } else {
+            &leds::OFF_INDICATOR
+        });
+
         let ev = equeue_recv.recv().unwrap();
 
         let mut is_tick = false;
