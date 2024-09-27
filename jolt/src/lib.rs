@@ -40,9 +40,11 @@ use bbq_keyboard::{
 use bbq_steno::Stroke;
 
 use crate::inter::InterHandler;
+use crate::leds::LedManager;
 
 mod devices;
 mod inter;
+mod leds;
 mod matrix;
 
 #[no_mangle]
@@ -65,7 +67,7 @@ extern "C" fn rust_main() {
     // Spawn the steno thread.
     // TODO: This needs to be lower priority.
     let sc = equeue_send.clone();
-    let thread = STENO_THREAD.spawn(STENO_STACK.token(), move || {
+    let thread = STENO_THREAD.spawn(STENO_STACK.token(), 5, move || {
         steno_thread(stenoq_recv, sc);
     });
     thread.start();
@@ -102,6 +104,8 @@ extern "C" fn rust_main() {
 
     let mut layout = LayoutManager::new();
 
+    let leds = zephyr::devicetree::aliases::led_strip::get_instance();
+    let mut leds = LedManager::new(leds);
 
     let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
     let mut inter = InterHandler::new(side, uart, equeue_send.clone());
@@ -199,6 +203,7 @@ extern "C" fn rust_main() {
         usb_hid_push(&mut keys);
 
         inter.tick();
+        leds.tick();
 
         // Print out heap stats every few minutes.
         heap_counter += 1;
