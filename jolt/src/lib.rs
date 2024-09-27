@@ -47,6 +47,8 @@ extern "C" fn rust_main() {
     printkln!("Hello world from Rust on {}",
               zephyr::kconfig::CONFIG_BOARD);
 
+    zephyr::set_logger();
+
     // Initialize the main event queue.
     EVENT_QUEUE_STATIC.init();
     let equeue = EVENT_QUEUE_STATIC.get();
