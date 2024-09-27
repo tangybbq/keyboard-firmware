@@ -26,6 +26,7 @@ use bbq_keyboard::{
     dict::Dict,
     Event,
     EventQueue,
+    InterState,
     Keyboard,
     KeyAction,
     KeyEvent,
@@ -36,10 +37,12 @@ use bbq_keyboard::{
     UsbDeviceState,
     usb_typer::{enqueue_action, ActionHandler},
 };
-use bbq_keyboard::serialize::{Decoder, Packet, PacketBuffer};
 use bbq_steno::Stroke;
 
+use crate::inter::InterHandler;
+
 mod devices;
+mod inter;
 mod matrix;
 
 #[no_mangle]
@@ -94,24 +97,23 @@ extern "C" fn rust_main() {
     let rows: Vec<_> = rows.into_iter().collect();
     let cols: Vec<_> = cols.into_iter().collect();
 
-    let matrix = Matrix::new(rows, cols);
+    let matrix = Matrix::new(rows, cols, side);
     let mut scanner = Scanner::new(matrix, equeue_send.clone());
 
     let mut layout = LayoutManager::new();
 
-    let mut uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
-    let mut buffer = [0u8; 32];
-    let mut seq = 0;
 
-    let mut out_buffer = PacketBuffer::new();
-
-    let mut decode = Decoder::new();
+    let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
+    let mut inter = InterHandler::new(side, uart, equeue_send.clone());
 
     let mut eq_send = SendWrap(equeue_send.clone());
     let mut keys = VecDeque::new();
 
     // TODO: We should really ask for the current mode, instead of hoping to align them.
     let mut current_mode = LayoutMode::Steno;
+    let mut state = InterState::Idle;
+
+    let mut heap_counter = 0;
 
     loop {
         let ev = equeue_recv.recv().unwrap();
@@ -120,13 +122,25 @@ extern "C" fn rust_main() {
         match ev {
             Event::Tick => is_tick = true,
             Event::Matrix(key) => {
-                // TODO: State determines what we do with this.
-                layout.handle_event(key, &mut eq_send);
+                match state {
+                    InterState::Primary | InterState::Idle => {
+                        layout.handle_event(key, &mut eq_send);
+                    }
+                    InterState::Secondary => {
+                        inter.add_key(key);
+                    }
+                }
             }
 
             Event::Key(key) => {
                 // Keypresses are queued up, to be sent to the hid layer.
                 keys.push_back(key);
+            }
+
+            Event::InterKey(key) => {
+                if state == InterState::Primary {
+                    layout.handle_event(key, &mut eq_send);
+                }
             }
 
             Event::RawSteno(stroke) => {
@@ -155,6 +169,20 @@ extern "C" fn rust_main() {
                 current_mode = mode;
             }
 
+            // Handle the USB becoming configured.
+            Event::UsbState(UsbDeviceState::Configured) | Event::UsbState(UsbDeviceState::Resume) => {
+                // TODO: Leds
+                inter.set_state(bbq_keyboard::InterState::Primary);
+            }
+
+            Event::BecomeState(new_state) => {
+                // TODO: Leds
+                state = new_state;
+            }
+
+            Event::Heartbeat => {
+            }
+
             ev => {
                 printkln!("Event: {:?}", ev);
             }
@@ -167,33 +195,10 @@ extern "C" fn rust_main() {
 
         scanner.scan();
 
-        // Transmit to the uart.
-        let packet = Packet::Secondary {
-            side: side,
-            keys: Vec::new(),
-        };
-        packet.encode(&mut out_buffer, &mut seq);
-
-        let (a, b) = out_buffer.as_slices();
-        let _ = uart.fifo_fill(a).unwrap();
-        let _ = uart.fifo_fill(b).unwrap();
-        out_buffer.clear();
-
-        // buffer.iter_mut().for_each(|p| *p = 0xff);
-
-        let num = uart.fifo_read(&mut buffer).unwrap();
-        for ch in &buffer[0..num] {
-            if let Some(packet) = decode.add_byte(*ch) {
-                if let Packet::Secondary { keys, .. } = &packet {
-                    if !keys.is_empty() {
-                        printkln!("Packet: {:?}", packet);
-                    }
-                }
-            }
-        }
-
         layout.tick(&mut eq_send);
         usb_hid_push(&mut keys);
+
+        inter.tick();
 
         // Print out heap stats every few minutes.
         heap_counter += 1;

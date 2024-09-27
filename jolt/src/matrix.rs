@@ -14,16 +14,19 @@ use zephyr::raw::{
     GPIO_PULL_DOWN,
 };
 
+use bbq_keyboard::Side;
+
 pub struct Matrix {
     rows: Vec<GpioPin>,
     cols: Vec<GpioPin>,
     state: Vec<Debouncer>,
+    side: Side
 }
 
 impl Matrix {
-    pub fn new(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> Matrix {
+    pub fn new(rows: Vec<GpioPin>, cols: Vec<GpioPin>, side: Side) -> Matrix {
         let state = (0 .. rows.len() * cols.len()).map(|_| Debouncer::new()).collect();
-        let mut result = Matrix { rows, cols, state };
+        let mut result = Matrix { rows, cols, state, side };
         Self::pin_setup(&mut result.cols, &mut result.rows);
         result
     }
@@ -32,8 +35,8 @@ impl Matrix {
     pub fn scan<F>(&mut self, mut act: F)
         where F: FnMut(u8, bool),
     {
+        let bias = if self.side.is_left() { 0 } else { self.state.len() };
         let mut states = self.state.iter_mut().enumerate();
-
         for col in &mut self.cols {
             col.set(true);
             busy_wait(5);
@@ -41,10 +44,10 @@ impl Matrix {
                 let (code, state) = states.next().unwrap();
                 match state.react(row.get()) {
                     KeyAction::Press => {
-                        act(code as u8, true);
+                        act((code + bias) as u8, true);
                     }
                     KeyAction::Release => {
-                        act(code as u8, false);
+                        act((code + bias) as u8, false);
                     }
                     _ => (),
                 }
