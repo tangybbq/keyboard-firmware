@@ -12,6 +12,8 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::slice;
 
+use log::info;
+
 use matrix::Matrix;
 use zephyr::{kobj_define, printkln};
 use zephyr::driver::uart::LineControl;
@@ -119,6 +121,9 @@ extern "C" fn rust_main() {
     // TODO: We should really ask for the current mode, instead of hoping to align them.
     let mut current_mode = LayoutMode::Steno;
     let mut state = InterState::Idle;
+    // let mut suspended = true;
+    // let mut woken = false;
+    let mut has_global = true;
 
     let mut heap_counter = 0;
 
@@ -177,20 +182,58 @@ extern "C" fn rust_main() {
                 enqueue_action(&mut KeyActionWrap(&mut keys), &action.text);
             }
 
-            // Mode select affects the LEDs and our notion of the current mode.
+            // Mode select and mode affect the LEDs.
+            Event::ModeSelect(mode) => {
+                info!("modeselect: {:?}", mode);
+                let next = match mode {
+                    LayoutMode::Steno => &leds::STENO_SELECT_INDICATOR,
+                    LayoutMode::StenoRaw => &leds::STENO_RAW_SELECT_INDICATOR,
+                    LayoutMode::Taipo => &leds::TAIPO_SELECT_INDICATOR,
+                    LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
+                    _ => &leds::QWERTY_SELECT_INDICATOR,
+                };
+                leds.set_base(0, next);
+            }
+
+            // Mode select and mode affect the LEDs.
             Event::Mode(mode) => {
-                // TODO: Leds
+                info!("modeselect: {:?}", mode);
+                let next = match mode {
+                    LayoutMode::Steno => &leds::STENO_INDICATOR,
+                    LayoutMode::StenoRaw => &leds::STENO_RAW_INDICATOR,
+                    LayoutMode::Taipo => &leds::TAIPO_INDICATOR,
+                    LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
+                    _ => &leds::QWERTY_INDICATOR,
+                };
+                leds.set_base(0, next);
                 current_mode = mode;
             }
 
             // Handle the USB becoming configured.
             Event::UsbState(UsbDeviceState::Configured) | Event::UsbState(UsbDeviceState::Resume) => {
-                // TODO: Leds
+                if has_global {
+                    leds.clear_global(0);
+                    has_global = false;
+                }
+                // suspended = false;
                 inter.set_state(bbq_keyboard::InterState::Primary);
             }
 
+            Event::UsbState(UsbDeviceState::Suspend) => {
+                leds.set_global(0, &leds::SLEEP_INDICATOR);
+                has_global = true;
+                // suspended = true;
+                // woken = false;
+            }
+
             Event::BecomeState(new_state) => {
-                // TODO: Leds
+                if state != new_state {
+                    if new_state == InterState::Secondary {
+                        leds.clear_global(0);
+                    } else if new_state == InterState::Idle {
+                        leds.clear_global(0);
+                    }
+                }
                 state = new_state;
             }
 
