@@ -113,7 +113,8 @@ extern "C" fn rust_main() {
     let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
     let mut inter = InterHandler::new(side, uart, equeue_send.clone());
 
-    let acm = zephyr::devicetree::labels::acm_uart_0::get_instance();
+    let mut acm = zephyr::devicetree::labels::acm_uart_0::get_instance();
+    let mut acm_active;
 
     let mut eq_send = SendWrap(equeue_send.clone());
     let mut keys = VecDeque::new();
@@ -129,11 +130,13 @@ extern "C" fn rust_main() {
 
     loop {
         // Update the state of the Gemini indicator.
-        leds.set_base(2, if let Ok(1) = acm.line_ctrl_get(LineControl::DTR) {
-            &leds::GEMINI_INDICATOR
+        if let Ok(1) =  acm.line_ctrl_get(LineControl::DTR) {
+            leds.set_base(2, &leds::GEMINI_INDICATOR);
+            acm_active = true;
         } else {
-            &leds::OFF_INDICATOR
-        });
+            leds.set_base(2, &leds::OFF_INDICATOR);
+            acm_active = false;
+        }
 
         let ev = equeue_recv.recv().unwrap();
 
@@ -167,7 +170,18 @@ extern "C" fn rust_main() {
                     // TODO: Send a steno stroke
                     stenoq_send.send(stroke).unwrap();
                 } else {
-                    // TODO: Send stroke over Gemini protocol.
+                    // Send Gemini data if possible.
+                    if acm_active {
+                        // Put as much as we can in the FIFO.  This should be drained if active.
+                        // TODO: Better management.
+                        // TODO: Do the tx enable tx disable stuff.
+                        let packet = stroke.to_gemini();
+                        // Deal with errors and such.
+                        match acm.fifo_fill(&packet) {
+                            Ok(_) => (),
+                            Err(_) => (),
+                        }
+                    }
                 }
             }
 
