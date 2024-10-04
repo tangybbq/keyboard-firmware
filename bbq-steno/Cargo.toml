@@ -18,14 +18,7 @@ safe-regex = "0.2.5"
 # Dependencies for 'std', which is how the binaries are build.
 clap = { version = "4.0", features = ["derive"], optional = true }
 anyhow = { version = "1.0.75", optional = true }
-regex = { version = "=1.10.6", optional = true }
-
-[dev-dependencies]
-env_logger = "0.10.0"
-log = "0.4.20"
-bbq-steno-macros = { version = "0.1", path = "../bbq-steno-macros" }
-anyhow = "1.0.75"
-serde_json = "1.0.107"
+regex = { version = "1.10.6", optional = true }
 
 [features]
 default = ["std"]
