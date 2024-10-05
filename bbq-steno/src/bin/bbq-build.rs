@@ -10,11 +10,17 @@ use clap::{Parser, Subcommand};
 
 use anyhow::Result;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fs::File};
 use bbq_steno::stroke::StenoWord;
 
 #[path = "bbq-build/rtfcre.rs"]
 mod rtfcre;
+
+#[path = "bbq-build/jsondict.rs"]
+mod jsondict;
+
+#[path = "bbq-build/encode.rs"]
+mod encode;
 
 #[derive(Parser)]
 #[command(name = "MyProgram")]
@@ -50,11 +56,20 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::Build { output, files } => {
             println!("Building files: {:?}", files);
-            for file in files {
-                let _ = load_dict(file)?;
+            let mut dicts = Vec::new();
+            for f in files {
+                let dict = load_dict(f)?;
+                dicts.push(encode::encode_dict(&dict)?);
             }
+
             println!("Output will be written to: {}", output);
-            // Add logic to handle the build process here
+
+            // For now, just concatenate them, but really need a helper to
+            // put the group header.
+            let mut fd = File::create(output)?;
+
+            let slices: Vec<_> = dicts.iter().map(|d| d.as_slice()).collect();
+            encode::write_group(&mut fd, &slices)?;
         }
         Commands::Show { filename } => {
             println!("Showing file: {}", filename);
@@ -80,7 +95,7 @@ fn load_dict(name: &str) -> Result<BTreeMap<StenoWord, String>> {
 }
 
 fn load_json(name: &str) -> Result<BTreeMap<StenoWord, String>> {
-    todo!()
+    jsondict::import(name)
 }
 
 fn load_rtf(name: &str) -> Result<BTreeMap<StenoWord, String>> {

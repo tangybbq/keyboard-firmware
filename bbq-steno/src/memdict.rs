@@ -14,6 +14,7 @@ use alloc::rc::Rc;
 use crate::{stroke::Stroke, dict::{DictImpl, Selector, BinarySelector}};
 
 pub const MAGIC1: &[u8] = b"stenodct";
+pub const MAGIC_GROUP: &[u8] = b"stenogrp";
 
 /// This structure encodes the above. It is intended to be able to process the
 /// directly-mapped structure, and as such, doesn't use pointers, but offsets.
@@ -221,3 +222,25 @@ impl Dict for MemDict {
     }
 }
 */
+
+pub const MAX_DICT_GROUP_SIZE: usize = 16;
+
+/// This structure encodes multiple dictionaries.  We just define a fixed
+/// number that are allowed.
+#[repr(C)]
+#[derive(Debug)]
+pub struct RawDictSet {
+    magic: [u8; 8],
+    /// Number of dictionaries present.
+    size: u32,
+    dicts: [RawDictInfo; MAX_DICT_GROUP_SIZE],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct RawDictInfo {
+    /// Offset (relative to the beginning of the header.
+    offset: u32,
+    /// Size of this dictionary.
+    size: u32,
+}
