@@ -243,8 +243,8 @@ pub fn import<P: AsRef<Path>>(name: P) -> Result<BTreeMap<StenoWord, String>> {
     // Insert the last definition.
     let last = StenoWord::parse(&last)?;
     // The parser leaves some trailing garbage.
-    println!("Trailing definition: {:?}, {:?} {:?}",
-             last, defn, encoder.encode(&defn));
+    //println!("Trailing definition: {:?}, {:?} {:?}",
+    //         last, defn, encoder.encode(&defn));
     dict.insert(last, encoder.encode(&defn));
 
     Ok(dict)
