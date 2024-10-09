@@ -8,6 +8,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
+use bbq_keyboard::boardinfo::BoardInfo;
 
 use core::cell::RefCell;
 use core::slice;
@@ -87,8 +88,13 @@ extern "C" fn rust_main() {
     // After the callbacks have the queue handles, we can start the heartbeat.
     setup_heartbeat();
 
+    // Retrieve our information.
+    let side_data = (zephyr::kconfig::CONFIG_FLASH_BASE_ADDRESS + 2*1024*1024 - 256) as *const u8;
+    let info = unsafe { BoardInfo::decode_from_memory(side_data) }.expect("Board info not present");
+
     // Retrieve the side select.
-    let side = devices::get_side();
+    // let side = devices::get_side();
+    let side = info.side.expect("TODO: Support single CPU boards");
     printkln!("Our side: {:?}", side);
 
     // Initialize USB HID.
