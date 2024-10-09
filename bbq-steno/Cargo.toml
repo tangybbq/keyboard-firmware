@@ -2,32 +2,21 @@
 name = "bbq-steno"
 version = "0.1.0"
 edition = "2021"
-default-run = "bbq-build"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[[bin]]
-name = "bbq-build"
-path = "src/bin/bbq-build.rs"
 
 [dependencies]
 defmt = "0.3"
 arrayvec = { version = "0.7", default-features = false }
 safe-regex = "0.2.5"
 
-# Dependencies for 'std', which is how the binaries are build.
-clap = { version = "4.0", features = ["derive"], optional = true }
-anyhow = { version = "1.0.75", optional = true }
-regex = { version = "1.10.6", optional = true }
-serde_json = { version = "1.0", optional = true }
-byteorder = { version = "1.5", optional = true }
-
-[build-dependencies]
-build-data = "0"
+# We use serde and ciborium, which should support no-std.
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+ciborium = { version = "0.2", default-features = false }
 
 [features]
 default = ["std"]
-std = ["dep:clap", "dep:anyhow", "dep:regex", "dep:serde_json", "dep:byteorder"]
+std = []
 
 # Optimize the tests so they don't take too long
 [profile.test]

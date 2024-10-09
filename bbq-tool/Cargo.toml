@@ -1,0 +1,20 @@
+[package]
+name = "bbq-tool"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+anyhow = { version = "1.0.75" }
+regex = { version = "1.10.6" }
+serde_json = { version = "1.0" }
+byteorder = { version = "1.5" }
+serde = { version = "1.0", features = ["derive"] }
+ciborium = "0.2"
+
+[dependencies.bbq-steno]
+version = "0.1.0"
+path = "../bbq-steno"
+
+[build-dependencies]
+build-data = "0"

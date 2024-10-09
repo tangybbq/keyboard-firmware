@@ -13,13 +13,8 @@ use anyhow::Result;
 use std::{collections::BTreeMap, fs::File};
 use bbq_steno::stroke::StenoWord;
 
-#[path = "bbq-build/rtfcre.rs"]
 mod rtfcre;
-
-#[path = "bbq-build/jsondict.rs"]
 mod jsondict;
-
-#[path = "bbq-build/encode.rs"]
 mod encode;
 
 #[derive(Parser)]
