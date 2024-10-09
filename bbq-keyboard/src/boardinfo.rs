@@ -7,9 +7,10 @@
 extern crate alloc;
 
 use alloc::string::String;
+use alloc::vec;
 
 use serde::{Deserialize, Serialize};
-use core::fmt::Debug;
+use core::{fmt::Debug, slice::from_raw_parts};
 
 use ciborium::tag::Required;
 
@@ -70,5 +71,16 @@ impl BoardInfo {
     {
         let tagged: Required<_, BOARDINFO_TAG> = ciborium::from_reader_with_buffer(reader, scratch_buffer)?;
         Ok(tagged.0)
+    }
+
+    /// Attempt to decode the board information from a given fixed address in memory.  
+    ///
+    /// This allocates a small buffer using an allocated vec, as needed by the cbor library.  This
+    /// assumes there is a block of 256 bytes at the address.
+    pub unsafe fn decode_from_memory(addr: *const u8) -> Option<BoardInfo> {
+        let mut scratch = vec![0u8; 256];
+
+        let buffer: &[u8] = from_raw_parts(addr, 256);
+        Self::decode(buffer, &mut scratch).ok()
     }
 }
