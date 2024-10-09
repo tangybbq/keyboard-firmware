@@ -16,5 +16,9 @@ ciborium = "0.2"
 version = "0.1.0"
 path = "../bbq-steno"
 
+[dependencies.bbq-keyboard]
+version = "0.1.0"
+path = "../bbq-keyboard"
+
 [build-dependencies]
 build-data = "0"

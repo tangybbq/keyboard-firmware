@@ -16,9 +16,16 @@ smart-leds = "0.3"
 usb-device = "0.2"
 usbd-human-interface-device = "0.4"
 
+# We use serde and ciborium, which should support no-std.
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+ciborium = { version = "0.2", default-features = false }
+ciborium-io = { version = "0.2", default-features = false, features = ["alloc"] }
+
 bbq-steno = { version = "0.1", default-features = false, path = "../bbq-steno" }
 bbq-steno-macros = { version = "0.1", path = "../bbq-steno-macros", default-features = false }
 bitflags = "2.4.1"
+
+clap = { version = "4.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
 env_logger = "0.10.0"
@@ -26,7 +33,7 @@ log = "0.4.20"
 
 [features]
 default = ["std", "proto3", "dep:log"]
-std = []
+std = ["dep:clap"]
 proto2 = []
 proto3 = []
 defmt = ["dep:defmt"]

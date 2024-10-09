@@ -6,12 +6,14 @@
 //! - json: The Plover native formatting, decoding Plover formatting instructions.
 //! - cre: The RTF/CRE format, at least as used by the Phoenix dictionary.
 
+use bbq_keyboard::Side;
 use clap::{Parser, Subcommand};
 
 use anyhow::Result;
 
 use std::{collections::BTreeMap, fs::File};
 use bbq_steno::stroke::StenoWord;
+use bbq_keyboard::boardinfo::BoardInfo;
 
 mod rtfcre;
 mod jsondict;
@@ -43,6 +45,21 @@ enum Commands {
         /// The file to show
         filename: String,
     },
+
+    /// Generate a buildinfo record.
+    BoardInfo {
+        /// Output file
+        #[arg(short, long, value_name = "FILE")]
+        output: String,
+
+        /// The name of this build.
+        #[arg(long)]
+        name: String,
+
+        /// The side info.
+        #[arg(long)]
+        side: Option<Side>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -69,6 +86,15 @@ fn main() -> Result<()> {
         Commands::Show { filename } => {
             println!("Showing file: {}", filename);
             // Add logic to display the file contents here
+        }
+        Commands::BoardInfo { output, name, side } => {
+            let info = BoardInfo {
+                name: name.to_string(),
+                side: side.clone(),
+            };
+
+            let mut fd = File::create(output)?;
+            info.encode(&mut fd)?;
         }
     }
 
