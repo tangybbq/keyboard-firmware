@@ -74,9 +74,9 @@ struct Translation {
 const HIST_MAX: usize = 20;
 
 impl Translator {
-    pub fn new(dict: Dict) -> Self {
+    pub fn new(dicts: Vec<Dict>) -> Self {
         Translator {
-            dicts: vec![dict],
+            dicts,
             history: vec![Entry::new()],
             typer: Typer::new(),
         }

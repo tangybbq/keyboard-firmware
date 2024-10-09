@@ -1,133 +1,156 @@
 //! Dictionary memory encoding.
 
-use std::{collections::BTreeMap, io::Write, mem};
+use std::{collections::BTreeMap, io::Write};
 
-use bbq_steno::{memdict::{RawDictSet, MAGIC1, MAGIC_GROUP, MAX_DICT_GROUP_SIZE}, stroke::StenoWord};
+use bbq_steno::{memdict::{RawDictGroup, RawMemDict, TaggedGroupDict, HEADER_MAX_BYTES}, stroke::StenoWord};
 use byteorder::{LittleEndian, WriteBytesExt};
+use ciborium::tag::Required;
 
 use crate::Result;
 
 /// Target endianness.
 type Target = LittleEndian;
 
-pub fn encode_dict(dict: &BTreeMap<StenoWord, String>) -> Result<Vec<u8>> {
-    let mut result = Vec::new();
+pub struct DictBuilder {
+    dicts: Vec<OneDict>,
+    offset: usize,
+}
 
-    // Add a placeholder for the header.
-    for _ in 0..128 {
-        result.push(0);
-    }
-    let mut header = Vec::new();
-    header.extend(MAGIC1);
-    header.write_u32::<Target>(dict.len() as u32)?;
+/// Internally, store the raw dict, and the padded data.
+struct OneDict {
+    raw: RawMemDict,
+    data: Vec<u8>,
+}
 
-    // Write out the key table.
-    let mut keys = Vec::new();
-    let key_table = result.len();
-    let mut offset = 0;
-    for k in dict.keys() {
-        // Record the key offset table.
-        keys.push(TablePos {
-            offset,
-            length: k.0.len(),
-        });
-        offset += k.0.len();
-
-        // Push out the strokes to the file.
-        for st in &k.0 {
-            result.write_u32::<Target>(st.into_raw())?;
+impl DictBuilder {
+    pub fn new() -> DictBuilder {
+        DictBuilder {
+            dicts: Vec::new(),
+            offset: HEADER_MAX_BYTES,
         }
     }
-    let new_pos = result.len();
-    header.write_u32::<Target>(key_table as u32)?;
-    header.write_u32::<Target>((new_pos - key_table) as u32)?;
 
-    assert_eq!(dict.len(), keys.len());
+    pub fn add(&mut self, dict: &BTreeMap<StenoWord, String>) {
+        let mut entry = RawMemDict::default();
+        let mut data = Vec::new();
 
-    pad(&mut result, 8);
-    let keyposes = result.len();
-    header.write_u32::<Target>(keyposes as u32)?;
+        entry.size = dict.len() as u32;
 
-    for pos in &keys {
-        result.write_u32::<Target>(pos.encoded())?;
-    }
+        let starting_offset = self.offset;
 
-    pad(&mut result, 8);
+        // Write out all of the keys, consecutively, collecting offset and
+        // length values for them.
+        let base = self.offset;
+        let mut keys = Vec::new();
+        let mut offset = 0;
+        for k in dict.keys() {
+            keys.push(TablePos {
+                offset,
+                length: k.0.len(),
+            });
+            offset += k.0.len();
 
-    // Encode all of the text strings.
-    let mut texts = Vec::new();
-    let text_table = result.len();
-    let mut offset = 0;
-    for v in dict.values() {
-        texts.push(TablePos {
-            offset,
-            length: v.len(),
+            // Push out the strokes themselves.
+            for st in &k.0 {
+                data.write_u32::<Target>(st.into_raw()).unwrap();
+                self.offset += 4;
+            }
+        }
+        self.pad_buffer(&mut data, 8);
+        entry.keys_offset = base as u32;
+        entry.keys_length = (self.offset - base) as u32;
+
+        assert_eq!(data.len(), self.offset - starting_offset);
+
+        // Write out the key table.
+        entry.key_pos_offset = self.offset as u32;
+        for pos in &keys {
+            data.write_u32::<Target>(pos.encoded()).unwrap();
+            self.offset += 4;
+        }
+        self.pad_buffer(&mut data, 8);
+
+        assert_eq!(data.len(), self.offset - starting_offset);
+
+        // Add all of the text strings, tracking their offsets.
+        let base = self.offset;
+        let mut texts = Vec::new();
+        let mut offset = 0;
+        for v in dict.values() {
+            texts.push(TablePos {
+                offset,
+                length: v.len(),
+            });
+            offset += v.len();
+
+            // Append the raw text.
+            data.extend_from_slice(v.as_bytes());
+            self.offset += v.len();
+        }
+        self.pad_buffer(&mut data, 8);
+        entry.text_offset = base as u32;
+        entry.text_length = (self.offset - base) as u32;
+
+        assert_eq!(data.len(), self.offset - starting_offset);
+
+        // Finally output a table of the offsets and lengths of the
+        // strings.
+        entry.text_table_offset = self.offset as u32;
+        for pos in &texts {
+            data.write_u32::<Target>(pos.encoded()).unwrap();
+            self.offset += 4;
+        }
+
+        assert_eq!(data.len(), self.offset - starting_offset);
+
+        // Pad the whole thing to 16 byte
+        self.pad_buffer(&mut data, 16);
+
+        assert_eq!(data.len(), self.offset - starting_offset);
+
+        self.dicts.push(OneDict {
+            raw: entry,
+            data,
         });
-        offset += v.len();
-
-        // Append the raw text.
-        result.extend_from_slice(v.as_bytes());
     }
 
-    pad(&mut result, 8);
-    header.write_u32::<Target>(text_table as u32)?;
-    header.write_u32::<Target>(offset as u32)?;
-
-    let textposes = result.len();
-    header.write_u32::<Target>(textposes as u32)?;
-    for pos in &texts {
-        result.write_u32::<Target>(pos.encoded())?;
+    fn pad_buffer(&mut self, data: &mut Vec<u8>, padding: usize) {
+        while data.len() % padding > 0 {
+            data.push(0xff);
+            self.offset += 1;
+        }
     }
 
-    pad(&mut result, 16);
+    pub fn write_group<W: Write>(self, writer: &mut W) -> Result<()> {
+        let (raws, datas): (Vec<_>, Vec<_>) = self.dicts
+                            .into_iter()
+                            .map(|d| (d.raw, d.data))
+                            .unzip();
 
-    // Stamp the header in place.
-    result[0..header.len()].copy_from_slice(&header);
-    let mut wr = &mut result[header.len()..128];
-    write!(&mut wr, "({:?}, {:?}, {:?})",
-        env!("GIT_COMMIT"),
-        env!("GIT_DIRTY"),
-        env!("BUILD_TIMESTAMP"),
-    )?;
+        let header: TaggedGroupDict = Required(RawDictGroup {
+            dicts: raws,
+        });
+        let mut header_bytes: Vec<u8> = Vec::new();
 
-    Ok(result)
-}
+        ciborium::into_writer(&header, &mut header_bytes).unwrap();
 
-/// Write out a group of dictionaries.
-pub fn write_group<W: Write>(out: &mut W, dicts: &[&[u8]]) -> Result<()> {
-    out.write_all(MAGIC_GROUP)?;
-    out.write_u32::<Target>(dicts.len() as u32)?;
+        if header_bytes.len() > HEADER_MAX_BYTES {
+            panic!("HEADER_MAX_BYTES is insufficient, must be at least {}",
+                   header_bytes.len());
+        }
 
-    let header_len = mem::size_of::<RawDictSet>();
-    let mut offset = header_len.next_multiple_of(16);
-    for d in dicts {
-        out.write_u32::<Target>(offset as u32)?;
-        out.write_u32::<Target>(d.len() as u32)?;
-        offset += d.len();
-    }
+        // Pad the header to the actual size.
+        while header_bytes.len() < HEADER_MAX_BYTES {
+            header_bytes.push(0xFF);
+        }
 
-    // Just zeros for the remainder.
-    for _ in dicts.len()..MAX_DICT_GROUP_SIZE {
-        out.write_u32::<Target>(0)?;
-        out.write_u32::<Target>(0)?;
-    }
+        writer.write_all(&header_bytes)?;
 
-    // Pad the output.
-    let len = header_len.next_multiple_of(16) - header_len;
-    let buf = vec![0b0; len];
-    out.write(&buf)?;
+        for data in datas {
+            writer.write_all(&data)?;
+        }
 
-    for d in dicts {
-        out.write_all(d)?;
-    }
-
-    Ok(())
-}
-
-/// Pad the buffer to align with the given alignment.
-fn pad(buf: &mut Vec<u8>, align: usize) {
-    while (buf.len() % align) > 0 {
-        buf.push(0);
+        Ok(())
     }
 }
 

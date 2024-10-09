@@ -8,39 +8,62 @@
 
 extern crate alloc;
 
+use core::slice::from_raw_parts;
+
 use alloc::boxed::Box;
 use alloc::rc::Rc;
+use alloc::vec::Vec;
+use alloc::vec;
+use ciborium::tag::Required;
+use serde::{Deserialize, Serialize};
 
 use crate::{stroke::Stroke, dict::{DictImpl, Selector, BinarySelector}};
+use log::warn;
 
-pub const MAGIC1: &[u8] = b"stenodct";
-pub const MAGIC_GROUP: &[u8] = b"stenogrp";
+pub const DICT_TAG: u64 = 0x7374656e6f646374;
+pub const GROUP_TAG: u64 = 0x7374656e6f6d6c74;
 
-/// This structure encodes the above. It is intended to be able to process the
-/// directly-mapped structure, and as such, doesn't use pointers, but offsets.
-#[repr(C)]
-#[derive(Debug)]
+/// Size allowed for the header, needs to incorporate the largest number of
+/// groups used.
+pub const HEADER_MAX_BYTES: usize = 512;
+
+/// The Cbor struct for each dictionary.
+///
+/// This will be converted to the `MemDict` upon loading.  All of the
+/// offsets are relative to the beginning of the mapped region (where the
+/// CBOR starts).
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct RawMemDict {
-    magic: [u8; 8],
     /// Number of entries in this dictionary.
-    size: u32,
-    /// Byte position (relative to this header) of the keys.
-    keys_offset: u32,
-    keys_length: u32,
+    pub size: u32,
+    /// Byte position (relative to the overall dictionary header) of the keys.
+    pub keys_offset: u32,
+    pub keys_length: u32,
     /// Byte position of the key table.
-    key_pos_offset: u32,
+    pub key_pos_offset: u32,
     /// Byte offset of the text block.
-    text_offset: u32,
-    text_length: u32,
+    pub text_offset: u32,
+    pub text_length: u32,
     /// Byte offset of the text table.
-    text_table_offset: u32,
+    pub text_table_offset: u32,
 }
+
+pub type TaggedRawMemDict = Required<RawMemDict, DICT_TAG>;
+
+/// This structure encodes multiple dictionaries.  We just define a fixed
+/// number that are allowed.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RawDictGroup {
+    pub dicts: Vec<RawMemDict>,
+}
+
+pub type TaggedGroupDict = Required<RawDictGroup, GROUP_TAG>;
 
 /// The saner MemDict representation. This holds the above header, and some more
 /// friendly information and has methods for better accessing the structure.
 pub struct MemDict {
     /// The raw header.
-    pub raw: &'static RawMemDict,
+    pub raw: RawMemDict,
     /// The keys are just an array of strokes in memory.
     pub keys: &'static [Stroke],
     /// The key table store in an encoded manner, the key element.
@@ -54,12 +77,45 @@ pub struct MemDict {
 // TODO: Come up with error handling.
 
 impl MemDict {
-    pub unsafe fn from_raw_ptr(ptr: *const u8) -> Option<MemDict> {
-        let raw = &*(ptr as *const RawMemDict);
-        if raw.magic != MAGIC1 {
-            return None;
+    /// Attempt to decode memory dictionaries at the given base.
+    ///
+    /// The dictionaries present can be either a single dictionary, or a
+    /// group of them defined above.  If anything goes wrong, this returns
+    /// an empty Vector, indicating no dictionaries are found.
+    pub unsafe fn from_raw_ptr(ptr: *const u8) -> Vec<MemDict> {
+        let mut scratch = vec![0u8; 256];
+        let header: &[u8] = from_raw_parts(ptr, HEADER_MAX_BYTES);
+
+        // If this is a single dictionary, use that.
+        let single: Result<TaggedRawMemDict, _> = ciborium::from_reader_with_buffer(header, &mut scratch);
+        if let Ok(single) = single {
+            warn!("single: {:#?}", single);
+            return Self::decode_single(ptr, single.0).into_iter().collect();
         }
 
+        // Try decoding as a group.
+        let group: Result<TaggedGroupDict, _> = ciborium::from_reader_with_buffer(header, &mut scratch);
+        if let Ok(group) = group {
+            let mut result = Vec::new();
+            warn!("group: {:#?}", group);
+            for elt in group.0.dicts {
+                if let Some(dict) = Self::decode_single(ptr, elt) {
+                    result.push(dict);
+                } else {
+                    // Any error indicates we should not use anything from
+                    // the dicts.
+                    return Vec::new();
+                }
+            }
+
+            return result;
+        }
+
+        Vec::new()
+    }
+
+    unsafe fn decode_single(ptr: *const u8, raw: RawMemDict) -> Option<MemDict> {
+        // println!("single: {:#x?}", raw);
         let keys = core::slice::from_raw_parts(
             ptr.add(raw.keys_offset as usize) as *const Stroke,
             raw.keys_length as usize,
@@ -222,25 +278,3 @@ impl Dict for MemDict {
     }
 }
 */
-
-pub const MAX_DICT_GROUP_SIZE: usize = 16;
-
-/// This structure encodes multiple dictionaries.  We just define a fixed
-/// number that are allowed.
-#[repr(C)]
-#[derive(Debug)]
-pub struct RawDictSet {
-    magic: [u8; 8],
-    /// Number of dictionaries present.
-    size: u32,
-    dicts: [RawDictInfo; MAX_DICT_GROUP_SIZE],
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct RawDictInfo {
-    /// Offset (relative to the beginning of the header.
-    offset: u32,
-    /// Size of this dictionary.
-    size: u32,
-}

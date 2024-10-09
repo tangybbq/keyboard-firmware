@@ -10,9 +10,10 @@ use bbq_keyboard::Side;
 use clap::{Parser, Subcommand};
 
 use anyhow::Result;
+use encode::DictBuilder;
 
 use std::{collections::BTreeMap, fs::File};
-use bbq_steno::stroke::StenoWord;
+use bbq_steno::{dict::DictImpl, memdict::MemDict, stroke::StenoWord};
 use bbq_keyboard::boardinfo::BoardInfo;
 
 mod rtfcre;
@@ -68,10 +69,10 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::Build { output, files } => {
             println!("Building files: {:?}", files);
-            let mut dicts = Vec::new();
+            let mut build = DictBuilder::new();
             for f in files {
                 let dict = load_dict(f)?;
-                dicts.push(encode::encode_dict(&dict)?);
+                build.add(&dict);
             }
 
             println!("Output will be written to: {}", output);
@@ -79,13 +80,20 @@ fn main() -> Result<()> {
             // For now, just concatenate them, but really need a helper to
             // put the group header.
             let mut fd = File::create(output)?;
-
-            let slices: Vec<_> = dicts.iter().map(|d| d.as_slice()).collect();
-            encode::write_group(&mut fd, &slices)?;
+            build.write_group(&mut fd)?;
         }
         Commands::Show { filename } => {
             println!("Showing file: {}", filename);
-            // Add logic to display the file contents here
+            let data = std::fs::read(filename)?;
+            let dicts = unsafe { MemDict::from_raw_ptr(data.as_ptr()) };
+            println!("There are {} dicts", dicts.len());
+            for dict in &dicts {
+                println!("{} entries", dict.len());
+                println!("key offsets: {} len", dict.key_offsets.len());
+                println!("offset 0: 0x{:x?}", dict.key_offsets[0]);
+                println!("key 0 {:?}", dict.key(0));
+                println!("text 0 {:?}", dict.value(0));
+            }
         }
         Commands::BoardInfo { output, name, side } => {
             let info = BoardInfo {
