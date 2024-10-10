@@ -13,9 +13,7 @@ use core::slice::from_raw_parts;
 use alloc::boxed::Box;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use alloc::vec;
-use ciborium::tag::Required;
-use serde::{Deserialize, Serialize};
+use minicbor::{Decode, Encode};
 
 use crate::{stroke::Stroke, dict::{DictImpl, Selector, BinarySelector}};
 use log::warn;
@@ -32,32 +30,38 @@ pub const HEADER_MAX_BYTES: usize = 512;
 /// This will be converted to the `MemDict` upon loading.  All of the
 /// offsets are relative to the beginning of the mapped region (where the
 /// CBOR starts).
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Encode, Decode)]
+#[cbor(tag(0x7374656e6f646374))]
 pub struct RawMemDict {
     /// Number of entries in this dictionary.
+    #[n(0)]
     pub size: u32,
     /// Byte position (relative to the overall dictionary header) of the keys.
+    #[n(1)]
     pub keys_offset: u32,
+    #[n(2)]
     pub keys_length: u32,
     /// Byte position of the key table.
+    #[n(3)]
     pub key_pos_offset: u32,
     /// Byte offset of the text block.
+    #[n(4)]
     pub text_offset: u32,
+    #[n(5)]
     pub text_length: u32,
     /// Byte offset of the text table.
+    #[n(6)]
     pub text_table_offset: u32,
 }
 
-pub type TaggedRawMemDict = Required<RawMemDict, DICT_TAG>;
-
 /// This structure encodes multiple dictionaries.  We just define a fixed
 /// number that are allowed.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Encode, Decode)]
+#[cbor(tag(0x7374656e6f6d6c74))]
 pub struct RawDictGroup {
+    #[n(0)]
     pub dicts: Vec<RawMemDict>,
 }
-
-pub type TaggedGroupDict = Required<RawDictGroup, GROUP_TAG>;
 
 /// The saner MemDict representation. This holds the above header, and some more
 /// friendly information and has methods for better accessing the structure.
@@ -83,22 +87,21 @@ impl MemDict {
     /// group of them defined above.  If anything goes wrong, this returns
     /// an empty Vector, indicating no dictionaries are found.
     pub unsafe fn from_raw_ptr(ptr: *const u8) -> Vec<MemDict> {
-        let mut scratch = vec![0u8; 256];
         let header: &[u8] = from_raw_parts(ptr, HEADER_MAX_BYTES);
 
         // If this is a single dictionary, use that.
-        let single: Result<TaggedRawMemDict, _> = ciborium::from_reader_with_buffer(header, &mut scratch);
+        let single: Result<RawMemDict, _> = minicbor::decode(header);
         if let Ok(single) = single {
             warn!("single: {:#?}", single);
-            return Self::decode_single(ptr, single.0).into_iter().collect();
+            return Self::decode_single(ptr, single).into_iter().collect();
         }
 
         // Try decoding as a group.
-        let group: Result<TaggedGroupDict, _> = ciborium::from_reader_with_buffer(header, &mut scratch);
+        let group: Result<RawDictGroup, _> = minicbor::decode(header);
         if let Ok(group) = group {
             let mut result = Vec::new();
             warn!("group: {:#?}", group);
-            for elt in group.0.dicts {
+            for elt in group.dicts {
                 if let Some(dict) = Self::decode_single(ptr, elt) {
                     result.push(dict);
                 } else {

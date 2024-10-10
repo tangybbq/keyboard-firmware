@@ -2,9 +2,8 @@
 
 use std::{collections::BTreeMap, io::Write};
 
-use bbq_steno::{memdict::{RawDictGroup, RawMemDict, TaggedGroupDict, HEADER_MAX_BYTES}, stroke::StenoWord};
+use bbq_steno::{memdict::{RawDictGroup, RawMemDict, HEADER_MAX_BYTES}, stroke::StenoWord};
 use byteorder::{LittleEndian, WriteBytesExt};
-use ciborium::tag::Required;
 
 use crate::Result;
 
@@ -127,12 +126,12 @@ impl DictBuilder {
                             .map(|d| (d.raw, d.data))
                             .unzip();
 
-        let header: TaggedGroupDict = Required(RawDictGroup {
+        let header = RawDictGroup {
             dicts: raws,
-        });
+        };
         let mut header_bytes: Vec<u8> = Vec::new();
 
-        ciborium::into_writer(&header, &mut header_bytes).unwrap();
+        minicbor::encode(&header, &mut header_bytes).unwrap();
 
         if header_bytes.len() > HEADER_MAX_BYTES {
             panic!("HEADER_MAX_BYTES is insufficient, must be at least {}",
