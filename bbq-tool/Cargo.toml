@@ -11,6 +11,7 @@ serde_json = { version = "1.0" }
 byteorder = { version = "1.5" }
 serde = { version = "1.0", features = ["derive"] }
 ciborium = "0.2"
+minicbor = { version = "0.25.1", features = ["alloc", "derive", "std"] }
 
 [dependencies.bbq-steno]
 version = "0.1.0"

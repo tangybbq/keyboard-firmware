@@ -11,6 +11,7 @@ use clap::{Parser, Subcommand};
 
 use anyhow::Result;
 use encode::DictBuilder;
+use minicbor::encode::write::Writer;
 
 use std::{collections::BTreeMap, fs::File};
 use bbq_steno::{dict::DictImpl, memdict::MemDict, stroke::StenoWord};
@@ -101,8 +102,8 @@ fn main() -> Result<()> {
                 side: side.clone(),
             };
 
-            let mut fd = File::create(output)?;
-            info.encode(&mut fd)?;
+            let fd = File::create(output)?;
+            minicbor::encode(&info, Writer::new(fd))?;
         }
     }
 

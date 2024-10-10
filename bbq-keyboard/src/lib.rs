@@ -11,7 +11,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use bbq_steno::{Stroke, dict::TypeAction};
-use serde::{Deserialize, Serialize};
+use minicbor::{Decode, Encode};
 pub use smart_leds::RGB8;
 pub use usbd_human_interface_device::page::Keyboard;
 use bitflags::bitflags;
@@ -44,10 +44,12 @@ mod log {
 }
 
 /// Which side of the keyboard are we.
-#[derive(Eq, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(ValueEnum))]
 pub enum Side {
+    #[n(0)]
     Left,
+    #[n(1)]
     Right,
 }
 

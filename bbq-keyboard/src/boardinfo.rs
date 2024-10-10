@@ -7,14 +7,12 @@
 extern crate alloc;
 
 use alloc::string::String;
-use alloc::vec;
+use minicbor::{Decode, Encode};
 
-use serde::{Deserialize, Serialize};
 use core::{fmt::Debug, slice::from_raw_parts};
 
-use ciborium::tag::Required;
-
 use crate::Side;
+use crate::log::warn;
 
 /// The side indicator.
 ///
@@ -25,9 +23,12 @@ use crate::Side;
 ///
 /// This is information about the current board.  At this time, these are
 /// stored at a fixed offset in flash [`BOARD_INFO_OFFSET`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Encode, Decode)]
+#[cbor(tag(0x626f617264696e66))]
+#[cbor(map)]
 pub struct BoardInfo {
     /// The name of this board.
+    #[n(1)]
     pub name: String,
 
     /// Which side this board occupies.
@@ -36,51 +37,41 @@ pub struct BoardInfo {
     /// design where the two halves have their own MCU.  `None` indicates
     /// either a non-split design, or one where a single MCU handles both
     /// sides.
+    #[n(2)]
     pub side: Option<Side>,
 }
 
 pub const BOARDINFO_TAG: u64 = 0x626f617264696e66;
 
+/*
 #[cfg(feature = "std")]
 mod impls {
-    use ciborium::tag::Required;
-
     use super::{BoardInfo, BOARDINFO_TAG};
-    use std::fmt::Debug;
 
     impl BoardInfo {
-        pub fn encode<W: ciborium_io::Write>(
+        pub fn encode<W: minicbor::encode::write::Write>(
             &self,
             writer: W,
-        ) -> Result<(), ciborium::ser::Error<W::Error>>
-            where W::Error: Debug,
-        {
-            let tagged: Required<_, BOARDINFO_TAG> = Required(self);
-
-            ciborium::into_writer(&tagged, writer)
+        ) -> Result<(), minicbor::encode::Error<W::Error>> {
+            minicbor::encode(self, writer)
         }
     }
 }
+*/
 
 impl BoardInfo {
-    pub fn decode<R: ciborium_io::Read>(
-        reader: R,
-        scratch_buffer: &mut [u8],
-    ) -> Result<BoardInfo, ciborium::de::Error<R::Error>>
-        where R::Error: Debug,
-    {
-        let tagged: Required<_, BOARDINFO_TAG> = ciborium::from_reader_with_buffer(reader, scratch_buffer)?;
-        Ok(tagged.0)
-    }
-
     /// Attempt to decode the board information from a given fixed address in memory.  
     ///
     /// This allocates a small buffer using an allocated vec, as needed by the cbor library.  This
     /// assumes there is a block of 256 bytes at the address.
     pub unsafe fn decode_from_memory(addr: *const u8) -> Option<BoardInfo> {
-        let mut scratch = vec![0u8; 256];
-
         let buffer: &[u8] = from_raw_parts(addr, 256);
-        Self::decode(buffer, &mut scratch).ok()
+        match minicbor::decode(buffer) {
+            Ok(info) => Some(info),
+            Err(e) => {
+                warn!("Fail to read BoardInfo: {:?}", e);
+                None
+            }
+        }
     }
 }

@@ -7,17 +7,17 @@ uf2conv=$ZEPHYR_BASE/scripts/build/uf2conv.py
 cargo run -- board-info -o proto3-left.bin --name proto3 --side left
 cargo run -- board-info -o proto3-right.bin --name proto3 --side right
 
-# arm-zephyr-eabi-objcopy \
-# 	-I binary \
-# 	-O elf32-littlearm \
-# 	--change-section-address .data=0x1001fff00 \
-# 	proto3-left.bin proto3-left.elf
+arm-zephyr-eabi-objcopy \
+	-I binary \
+	-O elf32-littlearm \
+	--change-section-address .data=0x101fff00 \
+	proto3-left.bin proto3-left.elf
 
-# arm-zephyr-eabi-objcopy \
-# 	-I binary \
-# 	-O elf32-littlearm \
-# 	--change-section-address .data=0x1001fff00 \
-# 	proto3-right.bin proto3-right.elf
+arm-zephyr-eabi-objcopy \
+	-I binary \
+	-O elf32-littlearm \
+	--change-section-address .data=0x101fff00 \
+	proto3-right.bin proto3-right.elf
 
 $uf2conv \
 	-b 0x101fff00 \
