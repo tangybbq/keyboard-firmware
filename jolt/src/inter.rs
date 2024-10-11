@@ -25,6 +25,7 @@ pub struct InterHandler {
 }
 
 impl InterHandler {
+    #[allow(dead_code)]
     pub fn new(side: Side, uart: Uart, events: Sender<Event>) -> Self {
         Self {
             xmit_buffer: PacketBuffer::new(),

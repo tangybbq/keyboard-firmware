@@ -1,0 +1,13 @@
+# Kconfigs for keyboards
+# These can be overridden with the build config
+
+mainmenu "Jolt keyboard firmware"
+
+# This is only temporary until we can do build cfg based on dt nodes being present.
+config JOLT_INTER
+	bool "Jolt keyboard serial interlink"
+	default y
+	help
+	  Enable the uart-based serial link between keyboards
+
+source "Kconfig.zephyr"

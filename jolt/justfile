@@ -2,18 +2,22 @@
 # The proto2 is a 30-key built around the sparkfun pro micro rp2040, one on each side.
 #target := "sparkfun_pro_micro_rp2040"
 #shield := "proto2"
+#flags := ""
 
 # The proto3 is a 30-key split built around the sparkfun_pro_micro_rp2040.
-target := "sparkfun_pro_micro_rp2040"
-shield := "proto3"
+# target := "sparkfun_pro_micro_rp2040"
+# shield := "proto3"
+# flags := ""
 
 # The proto4 is a 30-key built around the pimoroni tiny 2040 board.
-#target := "pimoroni_tiny_2040"
-#shield := "proto4"
+target := "pimoroni_tiny_2040"
+shield := "proto4"
+flags := "-DCONFIG_JOLT_INTER=n"
 
 # The highboard is a 42-key semi-hand-wired board built around the Adafruit Feather RP2040
-#target := "adafruit_feather_rp2040"
-#shield := "highboard"
+# target := "adafruit_feather_rp2040"
+# shield := "highboard"
+# flags := "-DCONFIG_JOLT_INTER=n"
 
 srcdir := `pwd`
 
@@ -22,6 +26,7 @@ build:
 	west build \
 		--board {{target}} \
 		-- \
+		{{flags}} \
 		-DBOARD_FLASH_RUNNER=jlink \
 		-DBOARD_DEBUG_RUNNER=jlink \
 		-DSHIELD={{shield}} \

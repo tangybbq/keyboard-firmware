@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![no_std]
+#![allow(unexpected_cfgs)]
 
 extern crate alloc;
 
@@ -37,12 +38,14 @@ use bbq_keyboard::{
     layout::LayoutManager,
     LayoutMode,
     Mods,
+    Side,
     Timable,
     UsbDeviceState,
     usb_typer::{enqueue_action, ActionHandler},
 };
 use bbq_steno::Stroke;
 
+#[allow(unused_imports)]
 use crate::inter::InterHandler;
 use crate::leds::LedManager;
 
@@ -95,6 +98,9 @@ extern "C" fn rust_main() {
     // Retrieve the side select.
     // let side = devices::get_side();
     let side = info.side.expect("TODO: Support single CPU boards");
+    /*
+    let side = bbq_keyboard::Side::Left;
+    */
     printkln!("Our side: {:?}", side);
 
     // Initialize USB HID.
@@ -116,8 +122,7 @@ extern "C" fn rust_main() {
     let leds = zephyr::devicetree::aliases::led_strip::get_instance();
     let mut leds = LedManager::new(leds);
 
-    let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
-    let mut inter = InterHandler::new(side, uart, equeue_send.clone());
+    let mut inter = get_inter(side, equeue_send.clone());
 
     let mut acm = zephyr::devicetree::labels::acm_uart_0::get_instance();
     let mut acm_active;
@@ -155,7 +160,9 @@ extern "C" fn rust_main() {
                         layout.handle_event(key, &mut eq_send);
                     }
                     InterState::Secondary => {
-                        inter.add_key(key);
+                        if let Some(ref mut inter) = inter {
+                            inter.add_key(key);
+                        }
                     }
                 }
             }
@@ -236,7 +243,9 @@ extern "C" fn rust_main() {
                     has_global = false;
                 }
                 // suspended = false;
-                inter.set_state(bbq_keyboard::InterState::Primary);
+                if let Some(ref mut inter) = inter {
+                    inter.set_state(bbq_keyboard::InterState::Primary);
+                }
             }
 
             Event::UsbState(UsbDeviceState::Suspend) => {
@@ -275,7 +284,9 @@ extern "C" fn rust_main() {
         layout.tick(&mut eq_send);
         usb_hid_push(&mut keys);
 
-        inter.tick();
+        if let Some(ref mut inter) = inter {
+            inter.tick();
+        }
         leds.tick();
 
         // Print out heap stats every few minutes.
@@ -289,6 +300,18 @@ extern "C" fn rust_main() {
         // allow ticks to be missed if processing takes too long.
         add_heartbeat_box();
     }
+}
+
+/// Conditionally return the inter-board code.
+#[cfg(CONFIG_JOLT_INTER)]
+fn get_inter(side: Side, equeue_send: Sender<Event>) -> Option<InterHandler> {
+    let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
+    Some(InterHandler::new(side, uart, equeue_send))
+}
+
+#[cfg(not(CONFIG_JOLT_INTER))]
+fn get_inter(_side: Side, _equeue_send: Sender<Event>) -> Option<InterHandler> {
+    None
 }
 
 /// Scanner.
