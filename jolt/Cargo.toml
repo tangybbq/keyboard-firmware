@@ -20,7 +20,7 @@ log = "0.4.22"
 [dependencies.bbq-keyboard]
 version = "0.1.0"
 default-features = false
-features = ["proto3", "log"]
+features = ["log"]
 path = "../bbq-keyboard"
 
 [dependencies.bbq-steno]
@@ -38,3 +38,11 @@ debug = true
 
 [build-dependencies]
 zephyr-build = "3.7.0"
+
+[features]
+proto2 = ["bbq-keyboard/proto2"]
+proto3 = ["bbq-keyboard/proto3"]
+
+# TODO: This needs to come from the build.
+# More TODO: This needs to be dynamic.
+default = ["proto2"]

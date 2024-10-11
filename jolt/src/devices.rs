@@ -5,14 +5,6 @@
 
 use core::ffi::c_int;
 
-pub fn get_translation() -> fn (u8) -> u8 {
-    translate_id
-}
-
-fn translate_id(code: u8) -> u8 {
-    code
-}
-
 pub fn hid_is_accepting() -> bool {
     (unsafe {is_hid_accepting()}) != 0
 }

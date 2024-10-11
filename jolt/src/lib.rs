@@ -53,6 +53,7 @@ mod devices;
 mod inter;
 mod leds;
 mod matrix;
+mod translate;
 
 #[no_mangle]
 extern "C" fn rust_main() {
@@ -96,11 +97,9 @@ extern "C" fn rust_main() {
     let info = unsafe { BoardInfo::decode_from_memory(side_data) }.expect("Board info not present");
 
     // Retrieve the side select.
-    // let side = devices::get_side();
-    let side = info.side.expect("TODO: Support single CPU boards");
-    /*
-    let side = bbq_keyboard::Side::Left;
-    */
+    // For now, if we are a single setup, consider that the "left" side,
+    // which will avoid any bias of the scancodes.
+    let side = info.side.unwrap_or(Side::Left);
     printkln!("Our side: {:?}", side);
 
     // Initialize USB HID.
@@ -115,7 +114,7 @@ extern "C" fn rust_main() {
     let cols: Vec<_> = cols.into_iter().collect();
 
     let matrix = Matrix::new(rows, cols, side);
-    let mut scanner = Scanner::new(matrix, equeue_send.clone());
+    let mut scanner = Scanner::new(matrix, equeue_send.clone(), &info);
 
     let mut layout = LayoutManager::new();
 
@@ -325,8 +324,8 @@ struct Scanner {
 }
 
 impl Scanner {
-    fn new(matrix: Matrix, events: Sender<Event>) -> Scanner {
-        let translate = devices::get_translation();
+    fn new(matrix: Matrix, events: Sender<Event>, info: &BoardInfo) -> Scanner {
+        let translate = translate::get_translation(&info.name);
         Scanner { matrix, events, translate }
     }
 
