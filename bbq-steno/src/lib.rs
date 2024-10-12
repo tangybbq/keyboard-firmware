@@ -10,6 +10,9 @@ pub mod dict;
 pub mod memdict;
 pub mod stroke;
 pub mod typer;
+pub mod replacements;
+
+pub use replacements::Replacement;
 
 pub use stroke::Stroke;
 
