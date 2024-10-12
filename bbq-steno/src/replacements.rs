@@ -47,11 +47,6 @@ pub enum Previous {
     ReplaceSpace(char),
 }
 
-/// Check if the given text contains a raw keypress.
-pub fn has_raw(text: &str) -> bool {
-    text.contains('\x0a')
-}
-
 impl Replacement {
     /// Attempt to build a replacement.  Returns None if there are errors in the replacement,
     /// otherwise it is the decoded string as a vector of replacements.
