@@ -4,7 +4,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use bbq_steno::{
-    dict::{Dict, MapDictBuilder, Translator}, memdict::MemDict, Stroke
+    dict::{Dict, MapDictBuilder, Lookup}, memdict::MemDict, Stroke
 };
 use regex::Regex;
 use structopt::StructOpt;
@@ -72,7 +72,7 @@ fn main() -> Result<()> {
 
 fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
     let dict = load_dict(dict)?;
-    let mut xlat = Translator::new(dict);
+    let mut xlat = Lookup::new(dict);
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode()?;
 
@@ -88,15 +88,13 @@ fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
             if let Ok(stroke) = Stroke::from_text(&word) {
                 writeln!(stdout, "Write: {}\r", stroke)?;
                 stdout.suspend_raw_mode()?;
-                xlat.add(stroke);
+                let action = xlat.add(stroke);
                 match show {
                     Some(ShowStyle::Short) => xlat.show(),
                     Some(ShowStyle::Long) => xlat.show_verbose(),
                     None => (),
                 }
-                while let Some(action) = xlat.next_action() {
-                    writeln!(stdout, ">>> Delete {} type: {:?}", action.remove, action.text)?;
-                }
+                writeln!(stdout, "Action: {:?}", action)?;
                 stdout.activate_raw_mode()?;
             } else {
                 writeln!(stdout, "Invalid: {:?}\r", word)?;

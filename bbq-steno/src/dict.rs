@@ -20,10 +20,12 @@ use crate::Stroke;
 pub use self::mapdict::{RamDict, MapDictBuilder};
 pub use self::translate::Translator;
 pub use self::typer::TypeAction;
+pub use self::lookup::Lookup;
 
 mod mapdict;
 mod ortho;
 mod translate;
+mod lookup;
 pub mod typer;
 
 pub type Dict = Rc<dyn DictImpl>;
