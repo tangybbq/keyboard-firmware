@@ -4,7 +4,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use bbq_steno::{
-    dict::{Dict, DictImpl, MapDictBuilder, Selector, Translator}, memdict::MemDict, Stroke
+    dict::{Dict, MapDictBuilder, Translator}, memdict::MemDict, Stroke
 };
 use regex::Regex;
 use structopt::StructOpt;
@@ -113,56 +113,17 @@ fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
     Ok(())
 }
 
-/// The normal MemDict is an unsafe pointer to something.  To at least give this
-/// a resemblance of something usable dynamically, this struct implements dict,
-/// keeping the data around.
-struct KeptDict {
-    _kept: Vec<u8>,
-    dict: Rc<MemDict>,
-}
-
-impl KeptDict {
-    /// Take ownership of a block of data and build a memdict out of it.
-    pub fn from_data(data: Vec<u8>) -> KeptDict {
-        // `Vec` does not move the data as long as there a no allocations.
-        let mdict = unsafe { MemDict::from_raw_ptr(data.as_ptr()) }.unwrap();
-        KeptDict {
-            _kept: data,
-            dict: Rc::new(mdict),
-        }
-    }
-}
-
-/// Passthrough implementation.
-impl DictImpl for KeptDict {
-    fn len(&self) -> usize {
-        self.dict.len()
-    }
-
-    fn key(&self, index: usize) -> &[Stroke] {
-        self.dict.key(index)
-    }
-
-    fn value(&self, index: usize) -> &str {
-        self.dict.value(index)
-    }
-
-    fn selector(self: Rc<Self>) -> Box<dyn Selector> {
-        self.dict.clone().selector()
-    }
-
-    fn scan(&self, a: usize, b: usize, pos: usize, needle: Stroke) -> usize {
-        self.dict.scan(a, b, pos, needle)
-    }
-}
-
 /// Load the given dictionary, using the extension to determine what type it is.
-fn load_dict(name: &str) -> Result<Dict> {
+/// Note that memory dictionaries are leaked, so that they are static.  This is a consequence of the
+/// API of the embedded dictionary which is intended to operate on memory mapped data.
+fn load_dict(name: &str) -> Result<Vec<Dict>> {
     if name.ends_with(".bin") {
         // .bin files are the internal memory mapped format used in the
         // keyboards.
         let bindict = std::fs::read(name)?;
-        return Ok(Rc::new(KeptDict::from_data(bindict)));
+        let bindict = bindict.leak();
+        let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) };
+        return Ok(mdict.into_iter().map(|d| Rc::new(d) as Dict).collect())
     }
     if name.ends_with(".txt") {
         return load_txt(name)
@@ -172,7 +133,7 @@ fn load_dict(name: &str) -> Result<Dict> {
 
 /// Load a .txt dictionary.  This is a simple format, which consists of entries
 /// similar to those found in the typey drills.
-fn load_txt(name: &str) -> Result<Dict> {
+fn load_txt(name: &str) -> Result<Vec<Dict>> {
     let re = Regex::new(r"^'(.*)': ([A-Z0-9/^+*-]+)$")?;
     let lines = BufReader::new(File::open(name)?).lines();
     let mut dict = MapDictBuilder::new();
@@ -192,5 +153,5 @@ fn load_txt(name: &str) -> Result<Dict> {
         }
         dict.insert(steno, text);
     }
-    Ok(Rc::new(dict.into_ram_dict()))
+    Ok(vec![Rc::new(dict.into_ram_dict()) as Dict])
 }
