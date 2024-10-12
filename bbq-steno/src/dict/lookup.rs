@@ -18,11 +18,13 @@
 
 use heapless::Deque;
 
-use crate::Stroke;
+use crate::{Replacement, Stroke};
 
 use super::{Dict, Selector};
 
 extern crate alloc;
+
+use alloc::format;
 
 /// The maximum history length.  This should be the sum of the desired history and the longest
 /// stroke we will process.  Realistically, undo is not typically done more than a dozen.
@@ -65,7 +67,7 @@ pub enum Action {
     /// This stroke added a definition, with the given text, and 
     Add {
         /// The text of the translation.
-        text: String,
+        text: Vec<Replacement>,
         /// The number of strokes consumed by this insertion.
         strokes: usize,
     },
@@ -146,7 +148,13 @@ impl Lookup {
         // TODO: Purge the history when something is seen that is a keypress.
 
         // This is a type action.
-        Action::Add { text: best, strokes: best_len }
+        Action::Add {
+            text: Replacement::decode(&best).unwrap_or_else(|| {
+                let invalid = format!("#INV:{:?}#", best);
+                vec![Replacement::Text(invalid)]
+            }),
+            strokes: best_len,
+        }
     }
 
     fn undo(&mut self) -> Action {
