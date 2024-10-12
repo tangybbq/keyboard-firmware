@@ -143,16 +143,30 @@ impl Lookup {
         }
 
         // Add a new node to the history.
-        self.history.push_front(Entry { nodes }).unwrap();
+        self.history.push_back(Entry { nodes }).unwrap();
 
-        // TODO: Purge the history when something is seen that is a keypress.
+        let xlat = Replacement::decode(&best).unwrap_or_else(|| {
+            // Insert a very obvious translation to let the user know there is a bad entry in their
+            // dictionary.
+            let invalid = format!("#INV:{:?}#", best);
+            vec![Replacement::Text(invalid)]
+        });
+
+        // If this translates to a key action, reset the history entirely.
+        if xlat.iter().any(|elt| {
+            if let Replacement::Raw(_) = elt {
+                true
+            } else {
+                false
+            }})
+        {
+            self.history.clear();
+            let _ = self.history.push_back(Entry::new());
+        }
 
         // This is a type action.
         Action::Add {
-            text: Replacement::decode(&best).unwrap_or_else(|| {
-                let invalid = format!("#INV:{:?}#", best);
-                vec![Replacement::Text(invalid)]
-            }),
+            text: xlat,
             strokes: best_len,
         }
     }
