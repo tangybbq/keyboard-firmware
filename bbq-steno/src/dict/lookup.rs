@@ -162,8 +162,14 @@ impl Lookup {
         // be potentially confusing, though.
         if self.history.len() > 1 {
             let _ = self.history.pop_front();
+            Action::Undo
+        } else {
+            // If there is no undo available, don't do anything.
+            Action::Add {
+                text: vec![],
+                strokes: 1,
+            }
         }
-        Action::Undo
     }
 
     /// Print short debugging information for the current state.
