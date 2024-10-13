@@ -4,7 +4,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use bbq_steno::{
-    dict::{Dict, MapDictBuilder, Lookup}, memdict::MemDict, Stroke
+    dict::{Dict, Joiner, Lookup, MapDictBuilder}, memdict::MemDict, Stroke
 };
 use regex::Regex;
 use structopt::StructOpt;
@@ -76,6 +76,8 @@ fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode()?;
 
+    let mut joiner = Joiner::new();
+
     let mut word = String::new();
     writeln!(stdout, "Begin.\r")?;
     for key in stdin.keys() {
@@ -95,6 +97,10 @@ fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
                     None => (),
                 }
                 writeln!(stdout, "Action: {:?}", action)?;
+                joiner.add(action);
+                while let Some(act) = joiner.pop(0) {
+                    writeln!(stdout, "Act: {:?}", act)?;
+                }
                 stdout.activate_raw_mode()?;
             } else {
                 writeln!(stdout, "Invalid: {:?}\r", word)?;
