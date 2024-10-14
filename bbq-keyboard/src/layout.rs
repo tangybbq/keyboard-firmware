@@ -235,12 +235,13 @@ impl ModeSelector {
     }
 
     /// Determine if there is a mode update based on pressed keys while selecting.
+    /// TODO: These are based on the 3-row keyboard.
     fn new_mode(&self) -> Option<LayoutMode> {
         match self.seen & !(1 << (MODE_KEY)) {
             // qwerty 'f' or 'j' select qwerty.
             m if m == (1 << 17) || m == (1 << 41) => Some(LayoutMode::Qwerty),
-            // qwerty 'd' or 'k' select NKRO.
-            m if m == (1 << 13) || m == (1 << 37) => Some(LayoutMode::NKRO),
+            // qwerty 'd' or 'k' select StenoRaw.
+            m if m == (1 << 13) || m == (1 << 37) => Some(LayoutMode::StenoRaw),
             // qwerty 's' or 'l' select steno raw.
             m if m == (1 << 9) || m == (1 << 33) => Some(LayoutMode::Steno),
             _ => None,
