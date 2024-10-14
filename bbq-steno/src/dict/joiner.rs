@@ -52,16 +52,22 @@ pub struct Joiner {
 }
 
 // Information carried from one stroke to the next.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct State {
     cap: bool,
     space: bool,
 }
 
 /// Just the fields from the add action.
+#[derive(Debug)]
 struct Add {
+    /// How many characters to remove?  Avoids having to count characters in `removed`.
     remove: usize,
+    /// The characters that were removed.  Reversed, as we don't need it unless Undo is pressed.
+    removed: String,
+    /// What new characters to append.
     append: String,
+    /// The meta state after this Add.
     state: State,
 }
 
@@ -91,7 +97,7 @@ impl Joiner {
         self.shrink();
 
         match action {
-            Action::Undo => todo!(),
+            Action::Undo => self.undo(),
             Action::Add { text, strokes } => {
                 self.do_add(text, strokes);
             }
@@ -105,12 +111,20 @@ impl Joiner {
         // Figure out how much to delete based on the previous state.
         // remove must be signed because this can go negative at times.
         let mut remove: isize = 0;
+        let mut tmp = vec![];
         for _ in 1..strokes {
             let elt = self.history.pop_back().unwrap();
             println!("remove: len:{}, remove:{}", elt.append.len(), elt.remove);
             remove += elt.append.len() as isize;
             remove -= elt.remove as isize;
+            tmp.push(elt);
         }
+
+        // Push the history back to the way it was.
+        while let Some(h) = tmp.pop() {
+            self.history.push_back(h);
+        }
+
         if remove < 0 {
             println!("Warning negative remove");
             remove = 0;
@@ -119,8 +133,9 @@ impl Joiner {
         let (new, new_state) = self.compute_new(&text);
 
         // Pop the remove characters.
+        let mut removed = String::new();
         for _ in 0..remove {
-            self.typed.pop();
+            removed.push(self.typed.pop().unwrap_or('?'));
         }
         self.typed.push_str(&new);
         println!("Typed: {:?}", self.typed);
@@ -128,6 +143,7 @@ impl Joiner {
         // Push to the history.
         self.history.push_back(Add {
             remove: remove as usize,
+            removed,
             append: new.clone(),
             state: new_state,
         });
@@ -190,6 +206,30 @@ impl Joiner {
         (result, next_state)
     }
 
+    fn undo(&mut self) {
+        if let Some(add) = self.history.pop_back() {
+            // Reverse, as it was pulled out in reverse order.
+            let removed: String = add.removed.chars().rev().collect();
+
+            // Remove what was appended.  These are just discarded as undo is permanent.
+            // This needs to count codepoints, not bytes.
+            for _ in 0..add.append.chars().count() {
+                self.typed.pop();
+            }
+
+            // Add the removed characters to what is typed.
+            self.typed.push_str(&removed);
+
+            // Synthesize an action for this.
+            self.actions.push_back((self.now, Joined::Type {
+                remove: add.append.len(),
+                append: removed,
+            }));
+
+            println!("Typed: {:?}", self.typed);
+        }
+    }
+
     /// Retrieve an action, if there is one whose age is sufficiently old.
     /// TODO: Use the age.
     pub fn pop(&mut self, _min_age: u64) -> Option<Joined> {
@@ -214,5 +254,17 @@ impl Joiner {
             }
             self.typed.replace_range(0..(self.typed.len() - MIN_TYPED), "");
         }
+    }
+
+    #[cfg(feature = "std")]
+    pub fn show(&self) {
+        println!("--- state ---");
+        println!("Typed: {:?}", self.typed);
+        println!("history: [");
+        for h in &self.history {
+            println!("  {:?}", h);
+        }
+        // println!("actions: {:?}", self.actions);
+        println!("--- end state ---");
     }
 }

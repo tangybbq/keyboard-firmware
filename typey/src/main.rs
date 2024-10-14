@@ -6,37 +6,38 @@ use anyhow::{anyhow, Result};
 use bbq_steno::{
     dict::{Dict, Joiner, Lookup, MapDictBuilder}, memdict::MemDict, Stroke
 };
+use clap::{Parser, Subcommand, ValueEnum};
 use regex::Regex;
-use structopt::StructOpt;
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
 /// The main commands available.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Subcommand)]
 enum Command {
-    #[structopt(name = "write")]
+    #[clap(name = "write")]
     /// Write, using the dictionary lookup.
     Write(WriteCommand),
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 struct WriteCommand {
-    #[structopt(long = "dict")]
+    #[arg(long = "dict")]
     /// The path to the dictionary to use.
     file: Option<String>,
 
-    #[structopt(long = "show")]
+    #[arg(long = "show")]
     /// Style of show to use.
     show: Option<ShowStyle>,
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "typey", about = "Typing testing utilities")]
+#[derive(Debug, Parser)]
+#[command(name = "typey")]
+#[command(about = "Typing testing utilities")]
 struct Opt {
-    #[structopt(subcommand)]
-    command: Command
+    #[command(subcommand)]
+    command: Command,
 }
 
-#[derive(Debug)]
+#[derive(Debug, ValueEnum, Clone)]
 enum ShowStyle {
     Short,
     Long,
@@ -57,7 +58,7 @@ impl FromStr for ShowStyle {
 // mod rtfcre;
 
 fn main() -> Result<()> {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
     println!("command: {:?}", opt);
 
     match opt.command {
@@ -98,6 +99,9 @@ fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
                 }
                 writeln!(stdout, "Action: {:?}", action)?;
                 joiner.add(action);
+                if let Some(ShowStyle::Short) = show {
+                    joiner.show();
+                }
                 while let Some(act) = joiner.pop(0) {
                     writeln!(stdout, "Act: {:?}", act)?;
                 }
