@@ -83,9 +83,17 @@ impl Exercise {
     }
 
     pub fn check(&self, dicts: Vec<Dict>) {
-        println!("Check: {}", self.name);
+        let mut wrongs = Vec::new();
         for entry in &self.entries {
-            entry.check(dicts.clone());
+            let mut lwrongs = entry.check(dicts.clone());
+            wrongs.append(&mut lwrongs);
+        }
+        if !wrongs.is_empty() {
+            println!("In: {}", self.name);
+            for (good, bad) in wrongs {
+                println!("    expect: {:?}", good);
+                println!("       got: {:?}", bad);
+            }
         }
     }
 
@@ -105,7 +113,10 @@ impl Exercise {
 
 impl Entry {
     /// Determine if the given entry translates the same using the dictionary as the given text.
-    pub fn check(&self, dicts: Vec<Dict>) {
+    /// Returns the incorrect entries, with the expected and actual values in a tuple.
+    pub fn check(&self, dicts: Vec<Dict>) -> Vec<(String, String)> {
+        let mut wrongs = Vec::new();
+
         // The exercises insert a visible space to make it possible to tell if
         // this should be a phrase. Remove that here, as we want to compare with
         // real spaces.
@@ -131,8 +142,8 @@ impl Entry {
             }
         }
         if src != text {
-            println!("good: {:?}", src);
-            println!("      {:?}", text);
+            wrongs.push((src, text));
         }
+        wrongs
     }
 }
