@@ -175,7 +175,7 @@ impl Lookup {
         // Be sure to not remove the first entry, as we need at least one starting point. This might
         // be potentially confusing, though.
         if self.history.len() > 1 {
-            let _ = self.history.pop_front();
+            let _ = self.history.pop_back();
             Action::Undo
         } else {
             // If there is no undo available, don't do anything.
