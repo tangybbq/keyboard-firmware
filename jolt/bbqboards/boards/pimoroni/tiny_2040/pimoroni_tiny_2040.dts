@@ -29,19 +29,41 @@
 		/* pwm-green = &pwm_green; */
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		/* Declare these, but disable. */
+		status = "disabled";
+
+		red_led: led_0 {
+			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+			label = "Red - LED0";
+		};
+
+		green_led: led_1 {
+			gpios = <&gpio0 19 GPIO_ACTIVE_HIGH>;
+			label = "Green - LED1";
+		};
+
+		blue_led: led_2 {
+			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+			label = "Blue - LED2";
+		};
+	};
+
 	pwm_leds {
 		compatible = "pwm-leds";
 		status = "okay";
 		pwm_red: pwm_led_0 {
-			pwms = <&pwm 3 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm 2 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
 			label = "PWM_RED";
 		};
 		pwm_green: pwm_led_1 {
-			pwms = <&pwm 4 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm 3 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
 			label = "PWM_GREEN";
 		};
 		pwm_blue: pwm_led_2 {
-			pwms = <&pwm 5 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm 4 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
 			label = "PWM_BLUE";
 		};
 	};
@@ -124,7 +146,7 @@
 
 &pwm {
 	status = "okay";
-	pinctrl-0 = <&pwm_ch1b_default &pwm_ch2a_default &pwm_ch2b_default>;
+	pinctrl-0 = <&pwm_ch1a_default &pwm_ch1b_default &pwm_ch2a_default>;
 	divider-int-0 = <255>;
 	divider-int-1 = <255>;
 	divider-int-2 = <255>;
