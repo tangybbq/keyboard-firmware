@@ -105,7 +105,11 @@ fn writer(cmd: &WriteCommand) -> Result<()> {
         }
         if key == Key::Char(' ') {
             if let Ok(stroke) = Stroke::from_text(&word) {
+                word.clear();
                 writeln!(stdout, "Write: {}\r", stroke)?;
+                if cmd.stop == StopPoint::Steno {
+                    continue;
+                }
                 stdout.suspend_raw_mode()?;
                 let action = xlat.add(stroke);
                 match cmd.show {
@@ -114,6 +118,11 @@ fn writer(cmd: &WriteCommand) -> Result<()> {
                     None => (),
                 }
                 writeln!(stdout, "Action: {:?}", action)?;
+
+                if cmd.stop == StopPoint::Lookup {
+                    stdout.activate_raw_mode()?;
+                    continue;
+                }
                 joiner.add(action);
                 if let Some(ShowStyle::Short) = cmd.show {
                     joiner.show();
@@ -122,11 +131,12 @@ fn writer(cmd: &WriteCommand) -> Result<()> {
                     writeln!(stdout, "Act: {:?}", act)?;
                 }
                 stdout.activate_raw_mode()?;
+                continue;
             } else {
                 writeln!(stdout, "Invalid: {:?}\r", word)?;
+                word.clear();
+                continue;
             }
-            word.clear();
-            continue;
         }
         if let Key::Char(ch) = key {
             word.push(ch);
