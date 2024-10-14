@@ -252,12 +252,14 @@ pub fn import<P: AsRef<Path>>(name: P) -> Result<BTreeMap<StenoWord, String>> {
 
 struct Encoder {
     punct: Regex,
+    only_num: Regex,
 }
 
 impl Encoder {
     fn new() -> Encoder {
         Encoder {
             punct: Regex::new(r"^([\.\?;:,]) ?$").unwrap(),
+            only_num: Regex::new(r"^\d+$").unwrap(),
         }
     }
 
@@ -295,6 +297,9 @@ impl Encoder {
                         if cap[1].starts_with(&['.', '?']) {
                             result.push('\x02');
                         }
+                    } else if self.only_num.is_match(text) {
+                        result.push('\x03');
+                        result.push_str(text);
                     } else {
                         result.push_str(text);
                     }
