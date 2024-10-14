@@ -24,9 +24,13 @@ struct WriteCommand {
     /// The path to the dictionary to use.
     file: Option<String>,
 
-    #[arg(long = "show")]
+    #[arg(long)]
     /// Style of show to use.
     show: Option<ShowStyle>,
+
+    #[arg(long, default_value = "joiner")]
+    /// Where to stop printing.
+    stop: StopPoint,
 }
 
 #[derive(Debug, Parser)]
@@ -39,8 +43,20 @@ struct Opt {
 
 #[derive(Debug, ValueEnum, Clone)]
 enum ShowStyle {
+    /// Short debugging.
     Short,
+    /// Longer debugging.
     Long,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, ValueEnum)]
+enum StopPoint {
+    /// Stop after receiving just the raw steno.
+    Steno,
+    /// Stop after Lookup.
+    Lookup,
+    /// Stop after Joiner.
+    Joiner,
 }
 
 /// Allow ShowStyle as argument
@@ -63,16 +79,16 @@ fn main() -> Result<()> {
 
     match opt.command {
         Command::Write(cmd) => {
-            let file = cmd.file.unwrap_or_else(|| "../dict-convert/phoenix.bin".to_string());
-            writer(&file, cmd.show)?;
+            writer(&cmd)?;
         }
     }
 
     Ok(())
 }
 
-fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
-    let dict = load_dict(dict)?;
+fn writer(cmd: &WriteCommand) -> Result<()> {
+    let file = cmd.file.clone().unwrap_or_else(|| "../phoenix/phoenix.bin".to_string());
+    let dict = load_dict(&file)?;
     let mut xlat = Lookup::new(dict);
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode()?;
@@ -92,14 +108,14 @@ fn writer(dict: &str, show: Option<ShowStyle>) -> Result<()> {
                 writeln!(stdout, "Write: {}\r", stroke)?;
                 stdout.suspend_raw_mode()?;
                 let action = xlat.add(stroke);
-                match show {
+                match cmd.show {
                     Some(ShowStyle::Short) => xlat.show(),
                     Some(ShowStyle::Long) => xlat.show_verbose(),
                     None => (),
                 }
                 writeln!(stdout, "Action: {:?}", action)?;
                 joiner.add(action);
-                if let Some(ShowStyle::Short) = show {
+                if let Some(ShowStyle::Short) = cmd.show {
                     joiner.show();
                 }
                 while let Some(act) = joiner.pop(0) {
