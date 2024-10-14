@@ -196,5 +196,9 @@ impl Lookup {
     #[cfg(feature = "std")]
     pub fn show_verbose(&self) {
         println!("Lookup show_verbose");
+        println!("  history {}:", self.history.len());
+        for n in &self.history {
+            println!("    {:?}", n);
+        }
     }
 }
