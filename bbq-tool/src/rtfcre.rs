@@ -274,7 +274,9 @@ impl Encoder {
                 Token::Command(cmd) if cmd.as_str() == "cxds" => result.push('\x01'),
                 Token::Command(cmd) if cmd.as_str() == "cxfc" => {
                     // Cap next should not insert space before, and indicate caps.
-                    result.push_str("\x01\x02");
+                    // Now that interpretation is fixed, remove the delete space, since the space
+                    // will only be inserted when there is text.
+                    result.push_str("\x02");
                 }
                 Token::Command(cmd) => {
                     result.push('{');
