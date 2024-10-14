@@ -106,7 +106,7 @@ impl Joiner {
 
     /// Perform an add of additional data.
     fn do_add(&mut self, text: Vec<Replacement>, strokes: usize) {
-        println!("do_add: {} {:?}", strokes, text);
+        // println!("do_add: {} {:?}", strokes, text);
 
         // Figure out how much to delete based on the previous state.
         // remove must be signed because this can go negative at times.
@@ -114,7 +114,7 @@ impl Joiner {
         let mut tmp = vec![];
         for _ in 1..strokes {
             let elt = self.history.pop_back().unwrap();
-            println!("remove: len:{}, remove:{}", elt.append.len(), elt.remove);
+            // println!("remove: len:{}, remove:{}", elt.append.len(), elt.remove);
             remove += elt.append.len() as isize;
             remove -= elt.remove as isize;
             tmp.push(elt);
@@ -138,7 +138,7 @@ impl Joiner {
             removed.push(self.typed.pop().unwrap_or('?'));
         }
         self.typed.push_str(&new);
-        println!("Typed: {:?}", self.typed);
+        // println!("Typed: {:?}", self.typed);
 
         // Push to the history.
         self.history.push_back(Add {
@@ -167,7 +167,7 @@ impl Joiner {
             // Fake initial state.
             State { cap: true, space: false }
         };
-        println!("compute_new: state: {:?}", state);
+        // println!("compute_new: state: {:?}", state);
 
         let mut next_state = State { cap: false, space: state.space };
 
@@ -204,7 +204,7 @@ impl Joiner {
                 _ => (),
             }
         }
-        println!("   nextstate: {:?}", next_state);
+        // println!("   nextstate: {:?}", next_state);
 
         (result, next_state)
     }
@@ -229,7 +229,7 @@ impl Joiner {
                 append: removed,
             }));
 
-            println!("Typed: {:?}", self.typed);
+            // println!("Typed: {:?}", self.typed);
         }
     }
 
