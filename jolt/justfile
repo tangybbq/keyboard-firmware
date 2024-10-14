@@ -10,14 +10,19 @@
 # flags := ""
 
 # The proto4 is a 30-key built around the pimoroni tiny 2040 board.
-target := "pimoroni_tiny_2040"
-shield := "proto4"
-flags := "-DCONFIG_JOLT_INTER=n"
+# target := "pimoroni_tiny_2040"
+# shield := "proto4"
+# flags := "-DCONFIG_JOLT_INTER=n"
 
 # The highboard is a 42-key semi-hand-wired board built around the Adafruit Feather RP2040
 # target := "adafruit_feather_rp2040"
 # shield := "highboard"
 # flags := "-DCONFIG_JOLT_INTER=n"
+
+# The jolt1 is a 42-key built around the pimoroni tiny 2040 board.
+target := "pimoroni_tiny_2040"
+shield := "jolt1"
+flags := "-DCONFIG_JOLT_INTER=y"
 
 srcdir := `pwd`
 
