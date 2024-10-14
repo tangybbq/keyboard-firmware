@@ -3,14 +3,14 @@
 use std::{path::Path, io::BufRead, io::BufReader, fs::File, rc::Rc};
 
 use anyhow::{Result, anyhow};
-use bbq_steno::{memdict::MemDict, Stroke, dict::{Dict, Translator}};
+use bbq_steno::{dict::{Dict, Joined, Joiner, Lookup}, memdict::MemDict, Stroke};
 use regex::Regex;
 
 fn main() -> Result<()> {
-    // Pull the entire dictionary in.
-    let bindict = std::fs::read("../dict-convert/phoenix.bin")?;
-    let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) }.unwrap();
-    let dict: Dict = Rc::new(mdict);
+    // Pull in the user dictionary.
+    let bindict = std::fs::read("../bbq-tool/dicts.bin")?;
+    let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) };
+    let dicts: Vec<_> = mdict.into_iter().map(|d| Rc::new(d) as Dict).collect();
 
     let base = dirs::home_dir().unwrap().join("steno").join("steno-drill").join("phoenix");
     let mut names = Vec::new();
@@ -29,7 +29,7 @@ fn main() -> Result<()> {
         // println!("{:#?}", drill);
         // drill.entries[0].check(dict.clone());
 
-        drill.check(dict.clone());
+        drill.check(dicts.clone());
     }
 
     Ok(())
@@ -79,13 +79,13 @@ impl Exercise {
             entries.push(Entry { text, steno });
         }
 
-        Ok(Exercise { name: name, entries: entries })
+        Ok(Exercise { name, entries })
     }
 
-    pub fn check(&self, dict: Dict) {
+    pub fn check(&self, dicts: Vec<Dict>) {
         println!("Check: {}", self.name);
         for entry in &self.entries {
-            entry.check(dict.clone());
+            entry.check(dicts.clone());
         }
     }
 
@@ -105,24 +105,29 @@ impl Exercise {
 
 impl Entry {
     /// Determine if the given entry translates the same using the dictionary as the given text.
-    pub fn check(&self, dict: Dict) {
+    pub fn check(&self, dicts: Vec<Dict>) {
         // The exercises insert a visible space to make it possible to tell if
         // this should be a phrase. Remove that here, as we want to compare with
         // real spaces.
         let src = self.text.replace("␣", " ");
-        let mut xlat = Translator::new(dict);
+        let mut lookup = Lookup::new(dicts);
+        let mut joiner = Joiner::new();
 
         let mut text = String::new();
 
         for stroke in &self.steno {
             // println!("stroke: {}", stroke);
-            xlat.add(*stroke);
-            while let Some(act) = xlat.next_action() {
-                // println!("Act: {:?}", act);
-                for _ in 0..act.remove {
-                    text.pop();
+            let action = lookup.add(*stroke);
+            joiner.add(action);
+            while let Some(act) = joiner.pop(0) {
+                match act {
+                    Joined::Type { remove, append } => {
+                        for _ in 0..remove {
+                            text.pop();
+                        }
+                        text.push_str(&append);
+                    }
                 }
-                text.push_str(&act.text);
             }
         }
         if src != text {
