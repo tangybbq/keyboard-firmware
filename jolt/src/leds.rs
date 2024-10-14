@@ -435,11 +435,40 @@ struct LedInfo {
 
 fn led_thread(mut driver: LedStrip, info: Arc<InfoPair>) -> ! {
     let limit = driver.chain_len().min(4);
+    let pwm_leds = unsafe { get_pwm() };
     loop {
         let info = get_info(&*info);
         let leds = info.each_ref().map(|l| l.0);
         driver.update(&leds[0..limit]).unwrap();
+
+        // Also update the LEDs.  For now, just check for 1, but count really should be a multiple
+        // of 3.
+        if pwm_leds.count >= 3 {
+            unsafe {
+                let value = (((leds[0].r as u32) * 100) >> 8) as u8;
+                pwm_set_brightness(pwm_leds.dev, 0, value);
+                let value = (((leds[0].g as u32) * 100) >> 8) as u8;
+                pwm_set_brightness(pwm_leds.dev, 1, value);
+                let value = (((leds[0].b as u32) * 100) >> 8) as u8;
+                pwm_set_brightness(pwm_leds.dev, 2, value);
+            }
+        }
     }
+}
+
+#[repr(C)]
+#[allow(non_camel_case_types)]
+struct pwm_led_info {
+    dev: *const zephyr::raw::device,
+    count: u32,
+}
+
+extern "C" {
+    fn get_pwm() -> pwm_led_info;
+    fn pwm_set_brightness(dev: *const zephyr::raw::device,
+                          index: u32,
+                          value: u8)
+        -> core::ffi::c_int;
 }
 
 // Helper to get the state, waiting for it to be present.

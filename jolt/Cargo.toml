@@ -45,4 +45,4 @@ proto3 = ["bbq-keyboard/proto3"]
 
 # TODO: This needs to come from the build.
 # More TODO: This needs to be dynamic.
-default = ["proto2"]
+default = ["proto3"]

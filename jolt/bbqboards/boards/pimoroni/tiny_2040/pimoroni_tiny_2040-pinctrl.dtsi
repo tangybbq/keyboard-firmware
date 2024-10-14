@@ -56,4 +56,22 @@
 			pinmux = <PIO0_P29>;
 		};
 	};
+
+	pwm_ch1b_default: pwm_ch1b_default {
+		group1 {
+			pinmux = <PWM_1B_P19>;
+		};
+	};
+
+	pwm_ch2a_default: pwm_ch2a_default {
+		group1 {
+			pinmux = <PWM_2A_P20>;
+		};
+	};
+
+	pwm_ch2b_default: pwm_ch2b_default {
+		group1 {
+			pinmux = <PWM_2B_P21>;
+		};
+	};
 };

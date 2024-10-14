@@ -9,6 +9,7 @@ pub fn get_translation(board: &str) -> fn (u8) -> u8 {
     match board {
         "proto3" => id,
         "proto4" => proto4,
+        "jolt1" => id,
         xlate => panic!("Unsupported translation table {:?}", xlate),
     }
 }

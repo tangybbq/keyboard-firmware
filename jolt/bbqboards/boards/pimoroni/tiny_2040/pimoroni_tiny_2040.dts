@@ -11,6 +11,7 @@
 /* #include "sparkfun_pro_micro_connector.dtsi" */
 #include <freq.h>
 #include <zephyr/dt-bindings/led/led.h>
+#include <zephyr/dt-bindings/pwm/pwm.h>
 
 / {
 	chosen {
@@ -24,6 +25,25 @@
 	aliases {
 		watchdog0 = &wdt0;
 		led-strip = &ws2812;
+		/* pwm-red = &pwm_red; */
+		/* pwm-green = &pwm_green; */
+	};
+
+	pwm_leds {
+		compatible = "pwm-leds";
+		status = "okay";
+		pwm_red: pwm_led_0 {
+			pwms = <&pwm 3 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			label = "PWM_RED";
+		};
+		pwm_green: pwm_led_1 {
+			pwms = <&pwm 4 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			label = "PWM_GREEN";
+		};
+		pwm_blue: pwm_led_2 {
+			pwms = <&pwm 5 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			label = "PWM_BLUE";
+		};
 	};
 };
 
@@ -99,6 +119,18 @@
 &adc {
 	status = "okay";
 	pinctrl-0 = <&adc_default>;
+	pinctrl-names = "default";
+};
+
+&pwm {
+	status = "okay";
+	pinctrl-0 = <&pwm_ch1b_default &pwm_ch2a_default &pwm_ch2b_default>;
+	divider-int-0 = <255>;
+	divider-int-1 = <255>;
+	divider-int-2 = <255>;
+	divider-frac-0 = <15>;
+	divider-frac-1 = <15>;
+	divider-frac-2 = <15>;
 	pinctrl-names = "default";
 };
 
