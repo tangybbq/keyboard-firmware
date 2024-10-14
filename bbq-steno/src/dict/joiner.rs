@@ -130,7 +130,7 @@ impl Joiner {
             remove = 0;
         }
 
-        let (new, new_state) = self.compute_new(&text);
+        let (new, new_state) = self.compute_new(&text, strokes);
 
         // Pop the remove characters.
         let mut removed = String::new();
@@ -156,18 +156,20 @@ impl Joiner {
     }
 
     /// Calculate the new text, based on context, state, and where we are in the input.
-    fn compute_new(&mut self, text: &[Replacement]) -> (String, State) {
+    fn compute_new(&mut self, text: &[Replacement], strokes: usize) -> (String, State) {
         let mut result = String::new();
 
-        // Get the values from the history.
-        let mut state = if let Some(node) = self.history.back() {
+        // Go back in history by one less than the number of strokes in this definition.
+        let mut state = if let Some(node) = self.history.iter().rev().skip(strokes - 1).next() {
+        // let mut state = if let Some(node) = self.history.back() {
             node.state.clone()
         } else {
             // Fake initial state.
             State { cap: true, space: false }
         };
+        println!("compute_new: state: {:?}", state);
 
-        let mut next_state = State { cap: false, space: false };
+        let mut next_state = State { cap: false, space: state.space };
 
         for elt in text {
             match elt {
@@ -202,6 +204,7 @@ impl Joiner {
                 _ => (),
             }
         }
+        println!("   nextstate: {:?}", next_state);
 
         (result, next_state)
     }
