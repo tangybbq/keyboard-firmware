@@ -18,6 +18,9 @@
 extern crate alloc;
 
 use alloc::collections::VecDeque;
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
 
 use crate::Replacement;
 
@@ -126,7 +129,7 @@ impl Joiner {
         }
 
         if remove < 0 {
-            println!("Warning negative remove");
+            // println!("Warning negative remove");
             remove = 0;
         }
 

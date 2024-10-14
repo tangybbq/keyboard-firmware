@@ -16,13 +16,17 @@
 //! mostly comes from translations that indicate direct keypresses, and when these are sent, it is
 //! not meaningful to undo.  Lookup will simple discard the undo history when these are encountered.
 
+extern crate alloc;
+
 use heapless::Deque;
 
+use alloc::boxed::Box;
+use alloc::string::ToString;
+use alloc::vec;
+use alloc::vec::Vec;
 use crate::{Replacement, Stroke};
 
 use super::{Dict, Selector};
-
-extern crate alloc;
 
 use alloc::format;
 
