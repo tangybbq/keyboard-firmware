@@ -59,6 +59,7 @@ pub struct Joiner {
 struct State {
     cap: bool,
     space: bool,
+    stitch: bool,
 }
 
 /// Just the fields from the add action.
@@ -168,16 +169,16 @@ impl Joiner {
             node.state.clone()
         } else {
             // Fake initial state.
-            State { cap: true, space: false }
+            State { cap: true, space: false, stitch: false }
         };
         // println!("compute_new: state: {:?}", state);
 
-        let mut next_state = State { cap: false, space: state.space };
+        let mut next_state = State { cap: false, space: state.space, stitch: false };
 
         for elt in text {
             match elt {
                 Replacement::Text(t) => {
-                    if state.space {
+                    if state.space && (!state.stitch || !next_state.stitch) {
                         result.push(' ');
                         state.space = false;
                     }
@@ -203,6 +204,7 @@ impl Joiner {
                     next_state.space = false;
                 }
                 Replacement::CapNext => next_state.cap = true,
+                Replacement::Stitch => next_state.stitch = true,
                 // TODO: These should all do something here.
                 _ => (),
             }
