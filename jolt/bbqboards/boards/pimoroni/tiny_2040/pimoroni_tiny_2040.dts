@@ -146,7 +146,7 @@
 
 &pwm {
 	status = "okay";
-	pinctrl-0 = <&pwm_ch1a_default &pwm_ch1b_default &pwm_ch2a_default>;
+	pinctrl-0 = <&pwm_default>;
 	divider-int-0 = <255>;
 	divider-int-1 = <255>;
 	divider-int-2 = <255>;
