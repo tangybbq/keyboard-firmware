@@ -76,6 +76,9 @@ pub struct LayoutManager {
 
     // Global mode.  This indicates what mode we are in.
     mode: ModeSelector,
+
+    // Set to true for the first tick.
+    first_tick: bool,
 }
 
 impl LayoutManager {
@@ -86,6 +89,7 @@ impl LayoutManager {
             mode: ModeSelector::default(),
             qwerty: QwertyManager::default(),
             taipo: TaipoManager::default(),
+            first_tick: true,
         }
     }
 
@@ -95,6 +99,12 @@ impl LayoutManager {
         self.artsey.tick(events);
         self.qwerty.tick(events);
         self.taipo.tick(events);
+
+        // Inform the upper layer what our initial mode is.
+        if self.first_tick {
+            events.push(Event::Mode(self.mode.get()));
+            self.first_tick = false;
+        }
     }
 
     pub fn poll(&mut self) {
