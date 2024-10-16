@@ -103,14 +103,14 @@ pub static SLEEP_INDICATOR: Indication = Indication(&[
 
 /// Steno mode
 pub static STENO_INDICATOR: Indication = Indication(&[Step {
-    color: LedRgb::new(0, 0, 4),
+    color: LedRgb::new(0, 0, 24),
     count: 10000,
 }]);
 
 /// Steno mode select
 pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
     Step {
-        color: LedRgb::new(0, 0, 4),
+        color: LedRgb::new(0, 0, 24),
         count: 100,
     },
     Step {
@@ -121,14 +121,14 @@ pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
 
 /// Steno raw mode
 pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
-    color: LedRgb::new(4, 4, 0),
+    color: LedRgb::new(16, 8, 0),
     count: 10000,
 }]);
 
 /// Steno raw mode select
 pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
     Step {
-        color: LedRgb::new(4, 4, 0),
+        color: LedRgb::new(16, 8, 0),
         count: 100,
     },
     Step {
@@ -175,14 +175,14 @@ pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
 
 /// Taipo mode
 pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
-    color: LedRgb::new(1, 2, 2),
+    color: LedRgb::new(16, 8, 24),
     count: 10000,
 }]);
 
 /// Taipo select mode
 pub static TAIPO_SELECT_INDICATOR: Indication = Indication(&[
     Step {
-        color: LedRgb::new(1, 2, 2),
+        color: LedRgb::new(16, 8, 24),
         count: 100,
     },
     Step {
