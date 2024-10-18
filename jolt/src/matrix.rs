@@ -7,7 +7,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use zephyr::sys::busy_wait;
-use zephyr::sys::gpio::GpioPin;
+use zephyr::device::gpio::{GpioPin, GpioToken};
 use zephyr::raw::{
     GPIO_OUTPUT_INACTIVE,
     GPIO_INPUT,
@@ -17,6 +17,7 @@ use zephyr::raw::{
 use bbq_keyboard::Side;
 
 pub struct Matrix {
+    token: GpioToken,
     rows: Vec<GpioPin>,
     cols: Vec<GpioPin>,
     state: Vec<Debouncer>,
@@ -26,8 +27,9 @@ pub struct Matrix {
 impl Matrix {
     pub fn new(rows: Vec<GpioPin>, cols: Vec<GpioPin>, side: Side) -> Matrix {
         let state = (0 .. rows.len() * cols.len()).map(|_| Debouncer::new()).collect();
-        let mut result = Matrix { rows, cols, state, side };
-        Self::pin_setup(&mut result.cols, &mut result.rows);
+        let token = unsafe { GpioToken::get_instance().unwrap() };
+        let mut result = Matrix { token, rows, cols, state, side };
+        Self::pin_setup(&mut result.token, &mut result.cols, &mut result.rows);
         result
     }
 
@@ -38,11 +40,11 @@ impl Matrix {
         let bias = if self.side.is_left() { 0 } else { self.state.len() };
         let mut states = self.state.iter_mut().enumerate();
         for col in &mut self.cols {
-            col.set(true);
-            busy_wait(5);
-            for row in &self.rows {
+            unsafe { col.set(&mut self.token, true); }
+            unsafe { busy_wait(5); }
+            for row in &mut self.rows {
                 let (code, state) = states.next().unwrap();
-                match state.react(row.get()) {
+                match state.react(unsafe { row.get(&mut self.token) }) {
                     KeyAction::Press => {
                         act((code + bias) as u8, true);
                     }
@@ -52,21 +54,25 @@ impl Matrix {
                     _ => (),
                 }
             }
-            col.set(false);
+            unsafe { col.set(&mut self.token, false); }
             // busy_wait(5);
         }
     }
 
     /// Setup the gpios to drive from 'push' and read from 'pull'.
-    fn pin_setup(push: &mut [GpioPin], pull: &mut [GpioPin]) {
+    fn pin_setup(token: &mut GpioToken, push: &mut [GpioPin], pull: &mut [GpioPin]) {
         // The 'push' values are the outputs.
         for col in push {
-            col.configure(GPIO_OUTPUT_INACTIVE);
+            unsafe {
+                col.configure(token, GPIO_OUTPUT_INACTIVE);
+            }
         }
 
         // And 'pull' are the inputs.
         for row in pull {
-            row.configure(GPIO_INPUT | GPIO_PULL_DOWN);
+            unsafe {
+                row.configure(token, GPIO_INPUT | GPIO_PULL_DOWN);
+            }
         }
     }
 }

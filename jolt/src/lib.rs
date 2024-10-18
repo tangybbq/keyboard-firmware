@@ -18,8 +18,7 @@ use log::info;
 
 use matrix::Matrix;
 use zephyr::{kobj_define, printkln};
-use zephyr::driver::uart::LineControl;
-use zephyr::object::KobjInit;
+use zephyr::device::uart::LineControl;
 use zephyr::sync::channel::{
     self,
     Sender,
@@ -63,22 +62,21 @@ extern "C" fn rust_main() {
     zephyr::set_logger();
 
     // Initialize the main event queue.
-    EVENT_QUEUE_STATIC.init();
-    let equeue = EVENT_QUEUE_STATIC.get();
+    let equeue = EVENT_QUEUE_STATIC.init_once(()).unwrap();
     let (equeue_send, equeue_recv) = channel::unbounded_from::<Event>(equeue);
 
     // This is the steno queue.
-    STENO_QUEUE_STATIC.init();
-    let stenoq = STENO_QUEUE_STATIC.get();
+    let stenoq = STENO_QUEUE_STATIC.init_once(()).unwrap();
     let (stenoq_send, stenoq_recv) = channel::unbounded_from::<Stroke>(stenoq);
 
     // Spawn the steno thread.
     // TODO: This needs to be lower priority.
     let sc = equeue_send.clone();
-    let thread = STENO_THREAD.spawn(STENO_STACK.token(), 5, move || {
+    let mut thread = STENO_THREAD.init_once(STENO_STACK.init_once(()).unwrap()).unwrap();
+    thread.set_priority(5);
+    thread.spawn(move || {
         steno_thread(stenoq_recv, sc);
     });
-    thread.start();
 
     unsafe {
         // Store a sender for the USB callback.
@@ -110,20 +108,20 @@ extern "C" fn rust_main() {
     let cols = zephyr::devicetree::aliases::matrix::get_cols();
 
     // Build a Vec for these.
-    let rows: Vec<_> = rows.into_iter().collect();
-    let cols: Vec<_> = cols.into_iter().collect();
+    let rows: Vec<_> = rows.into_iter().map(|p| p.unwrap()).collect();
+    let cols: Vec<_> = cols.into_iter().map(|p| p.unwrap()).collect();
 
     let matrix = Matrix::new(rows, cols, side);
     let mut scanner = Scanner::new(matrix, equeue_send.clone(), &info);
 
     let mut layout = LayoutManager::new();
 
-    let leds = zephyr::devicetree::aliases::led_strip::get_instance();
+    let leds = zephyr::devicetree::aliases::led_strip::get_instance().unwrap();
     let mut leds = LedManager::new(leds);
 
     let mut inter = get_inter(side, equeue_send.clone());
 
-    let mut acm = zephyr::devicetree::labels::acm_uart_0::get_instance();
+    let mut acm = zephyr::devicetree::labels::acm_uart_0::get_instance().unwrap();
     let mut acm_active;
 
     let mut eq_send = SendWrap(equeue_send.clone());
@@ -140,7 +138,7 @@ extern "C" fn rust_main() {
 
     loop {
         // Update the state of the Gemini indicator.
-        if let Ok(1) =  acm.line_ctrl_get(LineControl::DTR) {
+        if let Ok(1) =  unsafe { acm.line_ctrl_get(LineControl::DTR) } {
             leds.set_base(2, &leds::GEMINI_INDICATOR);
             acm_active = true;
         } else {
@@ -154,6 +152,7 @@ extern "C" fn rust_main() {
         match ev {
             Event::Tick => is_tick = true,
             Event::Matrix(key) => {
+                // info!("Matrix: {:?}", key);
                 match state {
                     InterState::Primary | InterState::Idle => {
                         layout.handle_event(key, &mut eq_send);
@@ -189,7 +188,7 @@ extern "C" fn rust_main() {
                         // TODO: Do the tx enable tx disable stuff.
                         let packet = stroke.to_gemini();
                         // Deal with errors and such.
-                        match acm.fifo_fill(&packet) {
+                        match unsafe { acm.fifo_fill(&packet) } {
                             Ok(_) => (),
                             Err(_) => (),
                         }
@@ -304,7 +303,7 @@ extern "C" fn rust_main() {
 /// Conditionally return the inter-board code.
 #[cfg(CONFIG_JOLT_INTER)]
 fn get_inter(side: Side, equeue_send: Sender<Event>) -> Option<InterHandler> {
-    let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance();
+    let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance().unwrap();
     Some(InterHandler::new(side, uart, equeue_send))
 }
 
@@ -458,7 +457,9 @@ extern "C" fn rust_heartbeat() {
     });
     // Send it, if there was one there to send.
     if let Some(boxed) = boxed {
-        send.send_boxed(boxed).unwrap();
+        unsafe {
+            send.send_boxed(boxed).unwrap();
+        }
     }
 }
 

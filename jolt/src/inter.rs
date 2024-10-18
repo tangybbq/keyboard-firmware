@@ -4,7 +4,7 @@ use core::mem::replace;
 
 use bbq_keyboard::{Side, serialize::{Decoder, Packet, EventVec, PacketBuffer}, InterState, Event, KeyEvent};
 
-use zephyr::driver::uart::Uart;
+use zephyr::device::uart::Uart;
 use zephyr::sync::channel::Sender;
 use log::{warn, info};
 
@@ -111,7 +111,7 @@ impl InterHandler {
         // TODO: Buffer this better.
         while let Some(ch) = self.xmit_buffer.pop_front() {
             let buf = [ch];
-            match self.uart.fifo_fill(&buf) {
+            match unsafe { self.uart.fifo_fill(&buf) } {
                 Ok(1) => (),
                 Ok(_) => (), // TODO: warn?
                 Err(_) => (),
@@ -141,7 +141,7 @@ impl InterHandler {
     /// TODO: Buffer this better.
     fn uart_read(&mut self) -> zephyr::Result<Option<u8>> {
         let mut buf = [0u8];
-        match self.uart.fifo_read(&mut buf) {
+        match unsafe { self.uart.fifo_read(&mut buf) } {
             Ok(1) => Ok(Some(buf[0])),
             Ok(0) => Ok(None),
             Ok(_) => unreachable!(),

@@ -5,8 +5,7 @@
 
 use crate::devices::leds::LedRgb;
 use zephyr::kobj_define;
-use zephyr::object::KobjInit;
-use zephyr::driver::led_strip::LedStrip;
+use zephyr::device::led_strip::LedStrip;
 use zephyr::sync::{Arc, Condvar, Mutex};
 
 const OFF: LedRgb = LedRgb::new(0, 0, 0);
@@ -247,10 +246,8 @@ struct LedState {
 impl LedManager {
     pub fn new(leds: LedStrip) -> Self {
 
-        LED_MUTEX_STATIC.init();
-        LED_CONDVAR_STATIC.init();
-        let sys_mutex = LED_MUTEX_STATIC.get();
-        let sys_condvar = LED_CONDVAR_STATIC.get();
+        let sys_mutex = LED_MUTEX_STATIC.init_once(()).unwrap();
+        let sys_condvar = LED_CONDVAR_STATIC.init_once(()).unwrap();
 
         let condvar = Condvar::new_from(sys_condvar);
         let info = LedInfo {
@@ -259,11 +256,11 @@ impl LedManager {
         let info = Arc::new((Mutex::new_from(info, sys_mutex), condvar));
 
         let info2 = info.clone();
-        let thread = LED_THREAD.spawn(LED_STACK.token(), -1, move || {
+        let mut thread = LED_THREAD.init_once(LED_STACK.init_once(()).unwrap()).unwrap();
+        thread.set_priority(-1);
+        thread.spawn(move || {
             led_thread(leds, info2);
         });
-        // TODO: set priority.
-        thread.start();
 
         LedManager {
             states: [
@@ -439,7 +436,7 @@ fn led_thread(mut driver: LedStrip, info: Arc<InfoPair>) -> ! {
     loop {
         let info = get_info(&*info);
         let leds = info.each_ref().map(|l| l.0);
-        driver.update(&leds[0..limit]).unwrap();
+        unsafe { driver.update(&leds[0..limit]).unwrap(); }
 
         // Also update the LEDs.  For now, just check for 1, but count really should be a multiple
         // of 3.
