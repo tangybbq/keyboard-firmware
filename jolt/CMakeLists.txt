@@ -8,4 +8,4 @@ project(hello_rust_world)
 rust_cargo_application()
 
 target_sources(app PRIVATE
-    src/heapinfo.c src/heartbeat.c src/pwm.c src/usb.c)
+    src/heapinfo.c src/heartbeat.c src/usb.c)
