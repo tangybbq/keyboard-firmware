@@ -32,14 +32,20 @@ impl LedGroup for PwmLed {
 }
 
 impl PwmLed {
+    #[cfg(dt = "chosen::bbq_pwm_leds")]
     pub fn get_instance() -> Option<PwmLed> {
         // TODO: Use a chosen and be conditional.
-        let leds = zephyr::devicetree::pwm_leds::get_instance()?;
+        let leds = zephyr::devicetree::chosen::bbq_pwm_leds::get_instance()?;
         // Require at least 3 LEDs.
         if leds.len() >= 3 {
             Some(PwmLed { leds })
         } else {
             None
         }
+    }
+
+    #[cfg(not(dt = "chosen::bbq_pwm_leds"))]
+    pub fn get_instance() -> Option<PwmLed> {
+        None
     }
 }
