@@ -13,6 +13,7 @@
 	chosen {
 		zephyr,matrix = &kbd_matrix;
                 inter-board-uart = &uart0;
+		bbq,pwm-leds = &pwm_leds;
 	};
 
 	kbd_matrix: kbd-matrix {

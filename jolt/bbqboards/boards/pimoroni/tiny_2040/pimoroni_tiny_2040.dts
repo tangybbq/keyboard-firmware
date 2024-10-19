@@ -51,7 +51,7 @@
 		};
 	};
 
-	pwm_leds {
+	pwm_leds: pwm_leds {
 		compatible = "pwm-leds";
 		status = "okay";
 		pwm_red: pwm_led_0 {
