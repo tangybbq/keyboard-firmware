@@ -11,6 +11,10 @@ CONFIG_UART_INTERRUPT_DRIVEN=y
 CONFIG_CONSOLE=y
 CONFIG_UART_CONSOLE=n
 
+# There isn't a uart connected to anything, so use RTT.
+CONFIG_RTT_CONSOLE=y
+CONFIG_USE_SEGGER_RTT=y
+
 # Enable clock control by default
 CONFIG_CLOCK_CONTROL=y
 
