@@ -267,8 +267,12 @@ impl LedManager {
             led_thread(leds, info2);
         });
 
-        let states: Vec<_> = (0..len).map(|_| {
-            LedState::new(UNDEF_INDICATOR.0, Some(INIT_INDICATOR.0))
+        let states: Vec<_> = (0..len).map(|i| {
+            if i == 0 {
+                LedState::new(UNDEF_INDICATOR.0, Some(INIT_INDICATOR.0))
+            } else {
+                LedState::new(UNDEF_INDICATOR.0, None)
+            }
         }).collect();
 
         LedManager {
