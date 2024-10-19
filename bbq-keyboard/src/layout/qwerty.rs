@@ -568,8 +568,8 @@ static NUM_MAP: [Mapping; NKEYS + 24] = [
 
     // 28
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard0, mods: Mods::empty() }),
-    Mapping::Dead,
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::Semicolon, mods: Mods::empty() }),
+    Mapping::Key(KeyMapping { key: Keyboard::ForwardSlash, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 32
@@ -581,7 +581,7 @@ static NUM_MAP: [Mapping; NKEYS + 24] = [
     // 36
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard8, mods: Mods::empty() }),
     Mapping::Dead,
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::Comma, mods: Mods::empty() }),
     Mapping::Dead,
 
     // 40
@@ -594,7 +594,7 @@ static NUM_MAP: [Mapping; NKEYS + 24] = [
     Mapping::Key(KeyMapping { key: Keyboard::Keyboard6, mods: Mods::empty() }),
     Mapping::Dead,
     Mapping::Dead,
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::Space, mods: Mods::empty() }),
 
     // Left hand upper combos
     // 48
