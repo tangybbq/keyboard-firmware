@@ -9,8 +9,6 @@ pub struct PwmLed {
     leds: Leds,
 }
 
-unsafe impl Send for PwmLed {}
-
 impl LedGroup for PwmLed {
     fn len(&self) -> usize {
         self.leds.len() / 3
@@ -34,7 +32,6 @@ impl LedGroup for PwmLed {
 impl PwmLed {
     #[cfg(dt = "chosen::bbq_pwm_leds")]
     pub fn get_instance() -> Option<PwmLed> {
-        // TODO: Use a chosen and be conditional.
         let leds = zephyr::devicetree::chosen::bbq_pwm_leds::get_instance()?;
         // Require at least 3 LEDs.
         if leds.len() >= 3 {
