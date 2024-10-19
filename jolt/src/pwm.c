@@ -6,6 +6,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/led.h>
 
+// TODO: Make this conditional.
+// TODO: Interface this through DT in Rust.
+
 #define LED_PWM_NODE_ID DT_COMPAT_GET_ANY_STATUS_OKAY(pwm_leds)
 
 const char *led_label[] = {

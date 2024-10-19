@@ -10,6 +10,7 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
+use leds::LedSet;
 
 use core::cell::RefCell;
 use core::slice;
@@ -46,7 +47,7 @@ use bbq_steno::Stroke;
 
 #[allow(unused_imports)]
 use crate::inter::InterHandler;
-use crate::leds::LedManager;
+use crate::leds::manager::LedManager;
 
 mod devices;
 mod inter;
@@ -116,7 +117,7 @@ extern "C" fn rust_main() {
 
     let mut layout = LayoutManager::new();
 
-    let leds = zephyr::devicetree::aliases::led_strip::get_instance().unwrap();
+    let leds = LedSet::get_all();
     let mut leds = LedManager::new(leds);
 
     let mut inter = get_inter(side, equeue_send.clone());
@@ -139,10 +140,10 @@ extern "C" fn rust_main() {
     loop {
         // Update the state of the Gemini indicator.
         if let Ok(1) =  unsafe { acm.line_ctrl_get(LineControl::DTR) } {
-            leds.set_base(2, &leds::GEMINI_INDICATOR);
+            leds.set_base(2, &leds::manager::GEMINI_INDICATOR);
             acm_active = true;
         } else {
-            leds.set_base(2, &leds::OFF_INDICATOR);
+            leds.set_base(2, &leds::manager::OFF_INDICATOR);
             acm_active = false;
         }
 
@@ -211,11 +212,11 @@ extern "C" fn rust_main() {
             Event::ModeSelect(mode) => {
                 info!("modeselect: {:?}", mode);
                 let next = match mode {
-                    LayoutMode::Steno => &leds::STENO_SELECT_INDICATOR,
-                    LayoutMode::StenoRaw => &leds::STENO_RAW_SELECT_INDICATOR,
-                    LayoutMode::Taipo => &leds::TAIPO_SELECT_INDICATOR,
-                    LayoutMode::Qwerty => &leds::QWERTY_SELECT_INDICATOR,
-                    _ => &leds::QWERTY_SELECT_INDICATOR,
+                    LayoutMode::Steno => &leds::manager::STENO_SELECT_INDICATOR,
+                    LayoutMode::StenoRaw => &leds::manager::STENO_RAW_SELECT_INDICATOR,
+                    LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
+                    LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
+                    _ => &leds::manager::QWERTY_SELECT_INDICATOR,
                 };
                 leds.set_base(0, next);
             }
@@ -224,11 +225,11 @@ extern "C" fn rust_main() {
             Event::Mode(mode) => {
                 info!("modeselect: {:?}", mode);
                 let next = match mode {
-                    LayoutMode::Steno => &leds::STENO_INDICATOR,
-                    LayoutMode::StenoRaw => &leds::STENO_RAW_INDICATOR,
-                    LayoutMode::Taipo => &leds::TAIPO_INDICATOR,
-                    LayoutMode::Qwerty => &leds::QWERTY_INDICATOR,
-                    _ => &leds::QWERTY_INDICATOR,
+                    LayoutMode::Steno => &leds::manager::STENO_INDICATOR,
+                    LayoutMode::StenoRaw => &leds::manager::STENO_RAW_INDICATOR,
+                    LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
+                    LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
+                    _ => &leds::manager::QWERTY_INDICATOR,
                 };
                 leds.set_base(0, next);
                 current_mode = mode;
@@ -247,7 +248,7 @@ extern "C" fn rust_main() {
             }
 
             Event::UsbState(UsbDeviceState::Suspend) => {
-                leds.set_global(0, &leds::SLEEP_INDICATOR);
+                leds.set_global(0, &leds::manager::SLEEP_INDICATOR);
                 has_global = true;
                 // suspended = true;
                 // woken = false;
