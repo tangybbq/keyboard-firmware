@@ -11,6 +11,7 @@ use rgb::RGB8;
 
 pub mod manager;
 mod pwm;
+mod led_strip;
 
 /// Represents a driver for 1 or more RGB LEDs.
 pub trait LedGroup: Send + 'static {
@@ -53,6 +54,10 @@ impl LedSet {
         let mut all = Vec::new();
         if let Some(led) = pwm::PwmLed::get_instance() {
             all.push(Box::new(led) as Box<dyn LedGroup>);
+        }
+
+        if let Some(leds) = led_strip::LedStripGroup::get_instance() {
+            all.push(Box::new(leds) as Box<dyn LedGroup>);
         }
 
         LedSet { all }
