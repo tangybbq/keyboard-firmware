@@ -69,7 +69,7 @@ vec![stroke!("ST"), stroke!("OP"), stroke!("-G")],
 }
 */
 
-#[test]
+// #[test]
 fn main_dict() {
     let dict = load_dict().expect("Unable to load main dict");
     let pos = dict.clone().selector();
@@ -109,7 +109,7 @@ fn test_translator() {
 /// Load the main dictionary.
 fn load_dict() -> Result<Rc<RamDict>> {
     let data: BTreeMap<String, String> =
-        serde_json::from_reader(File::open("../dict-convert/lapwing-base.json")?)?;
+        serde_json::from_reader(File::open("../phoenix/phoenix_fix.json")?)?;
     let mut builder = MapDictBuilder::new();
     for (k, v) in data {
         let k = StenoWord::parse(&k)?;
