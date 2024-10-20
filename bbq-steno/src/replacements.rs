@@ -8,17 +8,39 @@
 //! - 0x02 - Cap next
 //! - 0x03 - Stitch
 //! - 0x04 - Force Space
-//! - 0x05c - Capitalize the previous 'c' words
-//! - 0x06c - Lowerize the previous 'c' words
-//! - 0x07c - UPCASE the previous 'c' words
-//! - 0x08c - Delete previous 'c' spaces
-//! - 0x09cx - Replace previous 'c' spaces with character 'x'
-//! - 0x0axxx-x0b - Raw press, described by 'x' characters
+//! - 0x05C - Capitalize the previous 'c' words
+//! - 0x06C - Lowerize the previous 'c' words
+//! - 0x07C - UPCASE the previous 'c' words
+//! - 0x08C - Delete previous 'c' spaces
+//! - 0x09Cx - Replace previous 'c' spaces with character 'x'
+//! - 0x0a - NL
+//! - 0x10xxx-x0b - Raw press, described by 'x' characters
+//! - 0x0c - retroactive break
+//! - 0x0d - CR
+//! - 0x0exxxx0x0b - Number format, template in xxxx.
+//! - 0x0f - Upcase next
 
 extern crate alloc;
 
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+
+const DELETE_SPACE: char = '\u{0001}';
+const CAP_NEXT: char = '\u{0002}';
+const STITCH: char = '\u{0003}';
+const FORCE_SPACE: char = '\u{0004}';
+const UPCASE_NEXT: char = '\u{0005}';
+const CAP_PREV: char = '\u{e001}';
+const LOWER_PREV: char = '\u{e002}';
+const UPPER_PREV: char = '\u{e003}';
+const DEL_SPACES: char = '\u{e004}';
+const REPL_SPACES: char = '\u{e005}';
+const RAW: char = '\u{e006}';
+const RETRO_BREAK: char = '\u{e007}';
+const BREAK: char = '\u{e008}';
+const RETRO_NUM: char = '\u{e00a}';
+
+const TERM_TEXT: char = '\u{0000}';
 
 #[derive(Debug)]
 pub enum Replacement {
@@ -36,6 +58,10 @@ pub enum Replacement {
     Previous(u32, Previous),
     /// Raw action
     Raw(String),
+    /// Retroactive break
+    RetroBreak,
+    /// Upcase next word.
+    UpNext,
 }
 
 /// Previous actions
@@ -46,6 +72,7 @@ pub enum Previous {
     Upcase,
     DeleteSpace,
     ReplaceSpace(char),
+    Number(String),
 }
 
 impl Replacement {
@@ -58,44 +85,49 @@ impl Replacement {
 
         while let Some(c) = chars.next() {
             match c {
-                '\x01' => result.push(Replacement::DeleteSpace),
-                '\x02' => result.push(Replacement::CapNext),
-                '\x03' => result.push(Replacement::Stitch),
-                '\x04' => result.push(Replacement::ForceSpace),
-                '\x05' => {
+                DELETE_SPACE => result.push(Replacement::DeleteSpace),
+                CAP_NEXT => result.push(Replacement::CapNext),
+                STITCH => result.push(Replacement::Stitch),
+                FORCE_SPACE => result.push(Replacement::ForceSpace),
+                UPCASE_NEXT => result.push(Replacement::UpNext),
+                CAP_PREV => {
                     let count = chars.next()?;
                     result.push(Replacement::Previous(count as u32, Previous::Capitalize));
                 }
-                '\x06' => {
+                LOWER_PREV => {
                     let count = chars.next()?;
                     result.push(Replacement::Previous(count as u32, Previous::Lowerize));
                 }
-                '\x07' => {
+                UPPER_PREV => {
                     let count = chars.next()?;
                     result.push(Replacement::Previous(count as u32, Previous::Upcase));
                 }
-                '\x08' => {
+                DEL_SPACES => {
                     let count = chars.next()?;
                     result.push(Replacement::Previous(count as u32, Previous::DeleteSpace));
                 }
-                '\x09' => {
+                REPL_SPACES => {
                     let count = chars.next()?;
                     let next = chars.next()?;
                     result.push(Replacement::Previous(count as u32, Previous::ReplaceSpace(next)));
                 }
-                '\x0a' => {
+                RAW | RETRO_NUM => {
                     let mut raw = String::new();
                     loop {
                         let ch = chars.next()?;
-                        if ch == '\x0b' {
+                        if ch == TERM_TEXT {
                             break;
                         }
                         raw.push(ch);
                     }
-                    result.push(Replacement::Raw(raw));
+                    if c == RAW {
+                        result.push(Replacement::Raw(raw));
+                    } else {
+                        result.push(Replacement::Previous(1, Previous::Number(raw)));
+                    }
                 }
-                '\x0b' => return None,
-                '\x0c' ..= '\x1f' => return None,
+                BREAK => return None,
+                RETRO_BREAK => result.push(Replacement::RetroBreak),
                 ch => {
                     // Add this character to an existing Text, if there is one, otherwise create a
                     // new text with just this character.
@@ -126,39 +158,47 @@ impl Replacement {
 
         for elt in slice {
             match elt {
-                Replacement::DeleteSpace => result.push('\x01'),
-                Replacement::CapNext => result.push('\x02'),
-                Replacement::Stitch => result.push('\x03'),
-                Replacement::ForceSpace => result.push('\x04'),
+                Replacement::DeleteSpace => result.push(DELETE_SPACE),
+                Replacement::CapNext => result.push(CAP_NEXT),
+                Replacement::Stitch => result.push(STITCH),
+                Replacement::ForceSpace => result.push(FORCE_SPACE),
+                Replacement::RetroBreak => result.push(RETRO_BREAK),
+                Replacement::UpNext => result.push(UPCASE_NEXT),
                 Replacement::Previous(count, kind) => {
                     match kind {
                         Previous::Capitalize => {
-                            result.push('\x05');
+                            result.push(CAP_PREV);
                             result.push(char::from_u32(*count).unwrap());
                         }
                         Previous::Lowerize => {
-                            result.push('\x06');
+                            result.push(LOWER_PREV);
                             result.push(char::from_u32(*count).unwrap());
                         }
                         Previous::Upcase => {
-                            result.push('\x07');
+                            result.push(UPPER_PREV);
                             result.push(char::from_u32(*count).unwrap());
                         }
                         Previous::DeleteSpace => {
-                            result.push('\x08');
+                            result.push(DEL_SPACES);
                             result.push(char::from_u32(*count).unwrap());
                         }
                         Previous::ReplaceSpace(with) => {
-                            result.push('\x09');
+                            result.push(REPL_SPACES);
                             result.push(char::from_u32(*count).unwrap());
                             result.push(*with);
+                        }
+                        Previous::Number(text) => {
+                            // TODO: Previous number format, not supported?
+                            result.push(RETRO_NUM);
+                            result.push_str(&text);
+                            result.push(TERM_TEXT);
                         }
                     }
                 }
                 Replacement::Raw(raw) => {
-                    result.push('\x0a');
+                    result.push(RAW);
                     result.push_str(&raw);
-                    result.push('\x0b');
+                    result.push(TERM_TEXT);
                 }
                 Replacement::Text(text) => result.push_str(text),
             }
