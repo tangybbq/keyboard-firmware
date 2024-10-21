@@ -345,7 +345,10 @@ impl Next {
             }
 
             _ => {
-                eprintln!("Act: {:?}", text);
+                #[cfg(feature = "std")]
+                {
+                    eprintln!("Act: {:?}", text);
+                }
             }
         }
     }
