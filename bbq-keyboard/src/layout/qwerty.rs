@@ -196,7 +196,7 @@ impl ComboHandler {
 
         self.pending_age += 1;
 
-        if self.pending_age >= 250 {
+        if self.pending_age >= 50 {
             self.push_pending();
         }
     }
