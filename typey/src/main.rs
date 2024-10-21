@@ -232,7 +232,7 @@ fn exbuild(cmd: &ExbuildCommand) -> Result<()> {
                 // TODO: Handle raw and other types.
                 while let Some(Joined::Type { remove, append }) = joiner.pop(0) {
                     for _ in 0..remove {
-                        write!(stdout, "\u{0008}")?;
+                        write!(stdout, "\u{0008} \u{0008}")?;
                         text.pop();
                     }
                     let mut appendit = append.chars();
