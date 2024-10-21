@@ -124,14 +124,15 @@ impl ComboHandler {
                             // Set the flags indicating both of these keys are down,
                             // and part of a combo.
                             self.comboed |= (1 << prior_key) | (1 << key);
+                            self.pending = None;
                         } else {
-                            // Not a valid combo, press both keys, in the order
-                            // we saw them in.
+                            // Not a valid combo.  Press the older one.
                             self.ready.push_back(LayeredEvent { key: KeyEvent::Press(prior_key), layer });
-                            self.ready.push_back(LayeredEvent { key:  KeyEvent::Press(key), layer });
+                            // And make the new key into a pending key, resetting the age timer for
+                            // the new press.
+                            self.pending = Some((key, layer));
+                            self.pending_age = 0;
                         }
-                        // In either case, we've exhausted the pending key.
-                        self.pending = None;
                     } else {
                         // We have a possible key from a combo. Hold it for a
                         // little bit, and see if we get the other key.
