@@ -86,6 +86,19 @@ pub enum Joined {
     }
 }
 
+/// This describes the states in the process of computing the set of actions based on the
+/// translation.
+struct Next {
+    // How much is being removed by this action.
+    remove: usize,
+    // Characters to be appended as part of the remove.
+    append: String,
+    // Tracks the state as we type.
+    state: State,
+    // What will be the end state after the actions.
+    next_state: State,
+}
+
 impl Joiner {
     pub fn new() -> Joiner {
         Joiner {
@@ -141,76 +154,31 @@ impl Joiner {
         }
 
         // Compute the new state and action based on what is in the definition.
-        let mut remove = remove as usize;
-        let mut append = String::new();
-        let new_state = self.compute_new(&text, strokes, &mut remove, &mut append);
+        let mut next = Next::new(self, remove as usize, strokes);
 
-        self.typed.push_str(&append);
+        // Handle each incoming operation.
+        for elt in &text {
+            next.add_replacement(elt);
+        }
+
+        // Perform the action computed above.
+
+        self.typed.push_str(&next.append);
         // println!("Typed: {:?}", self.typed);
 
         // Push to the history.
         self.history.push_back(Add {
-            remove: remove as usize,
+            remove: next.remove,
             removed,
-            append: append.clone(),
-            state: new_state,
+            append: next.append.clone(),
+            state: next.next_state,
         });
 
         // Push an action.
-        self.actions.push_back((self.now, Joined::Type { remove, append }));
-    }
-
-    /// Calculate the new text, based on context, state, and where we are in the input.
-    fn compute_new(&mut self, text: &[Replacement], strokes: usize, _remove: &mut usize, append: &mut String) -> State {
-        // Go back in history by one less than the number of strokes in this definition.
-        let mut state = if let Some(node) = self.history.iter().rev().skip(strokes - 1).next() {
-        // let mut state = if let Some(node) = self.history.back() {
-            node.state.clone()
-        } else {
-            // Fake initial state.
-            State { cap: true, space: false, stitch: false }
-        };
-        // println!("compute_new: state: {:?}", state);
-
-        let mut next_state = State { cap: false, space: state.space, stitch: false };
-
-        for elt in text {
-            match elt {
-                Replacement::Text(t) => {
-                    if state.space && (!state.stitch || !next_state.stitch) {
-                        append.push(' ');
-                        state.space = false;
-                    }
-                    if state.cap {
-                        // Todo, this doesn't do the cap carry through needed.
-                        let mut chars = t.as_str().chars();
-                        if let Some(first) = chars.next() {
-                            // Push the first char. This doesn't handle the case where the uppercase
-                            // version ends up as multiple characters.
-                            append.push(first.to_uppercase().next().unwrap());
-                        }
-                        append.push_str(chars.as_str());
-                    } else {
-                        append.push_str(t);
-                    }
-                    state.cap = false;
-                    next_state.space = true;
-                    next_state.cap = false;
-                }
-                Replacement::DeleteSpace => {
-                    // Handle the ambiguity of this occurring at either the beginning or the end.
-                    state.space = false;
-                    next_state.space = false;
-                }
-                Replacement::CapNext => next_state.cap = true,
-                Replacement::Stitch => next_state.stitch = true,
-                // TODO: These should all do something here.
-                _ => (),
-            }
-        }
-        // println!("   nextstate: {:?}", next_state);
-
-        next_state
+        self.actions.push_back((self.now, Joined::Type {
+            remove: next.remove,
+            append: next.append,
+        }));
     }
 
     fn undo(&mut self) {
@@ -273,5 +241,63 @@ impl Joiner {
         }
         // println!("actions: {:?}", self.actions);
         println!("--- end state ---");
+    }
+}
+
+impl Next {
+    fn new(joiner: &mut Joiner, remove: usize, strokes: usize) -> Next {
+        // Go back in history, one less than the number of strokes in this definition to get our
+        // starting state.
+        let state = if let Some(node) = joiner.history.iter().rev().skip(strokes - 1).next() {
+            node.state.clone()
+        } else {
+            // Fake an initial state.  Shouldn't happen unless we back up over the history.
+            State { cap: true, space: false, stitch: false }
+        };
+
+        let next_state = State { cap: false, space: state.space, stitch: false };
+
+        Next {
+            remove,
+            append: String::new(),
+            state,
+            next_state,
+        }
+    }
+
+    /// Add a replacement to the current state.
+    fn add_replacement(&mut self, text: &Replacement) {
+        match text {
+            Replacement::Text(t) => {
+                if self.state.space && (!self.state.stitch || !self.next_state.stitch) {
+                    self.append.push(' ');
+                    self.state.space = false;
+                }
+                if self.state.cap {
+                    // TODO: This doesn't do the cap carry through needed.
+                    let mut chars = t.as_str().chars();
+                    if let Some(first) = chars.next() {
+                        // TODO: This doesn't handle unicode caps that are more than one character.
+                        self.append.push(first.to_uppercase().next().unwrap());
+                    }
+                    self.append.push_str(chars.as_str());
+                } else {
+                    self.append.push_str(t);
+                }
+                self.state.cap = false;
+                self.next_state.space = true;
+                self.next_state.cap = false;
+            }
+            Replacement::DeleteSpace => {
+                // Handle the ambiguity of this occurring at either the beginning or end.
+                self.state.space = false;
+                self.next_state.space = false;
+            }
+            Replacement::CapNext => self.next_state.cap = true,
+            Replacement::Stitch => self.next_state.stitch = true,
+            _ => {
+                eprintln!("Act: {:?}", text);
+            }
+        }
     }
 }
