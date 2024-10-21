@@ -22,6 +22,7 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
+use crate::replacements::Previous;
 use crate::Replacement;
 
 use super::lookup::Action;
@@ -91,6 +92,8 @@ pub enum Joined {
 struct Next {
     // How much is being removed by this action.
     remove: usize,
+    // Characters actually removed.
+    removed: String,
     // Characters to be appended as part of the remove.
     append: String,
     // Tracks the state as we type.
@@ -147,18 +150,17 @@ impl Joiner {
             remove = 0;
         }
 
-        // Pop the removed characters.
-        let mut removed = String::new();
-        for _ in 0..remove {
-            removed.push(self.typed.pop().unwrap_or('?'));
-        }
-
         // Compute the new state and action based on what is in the definition.
         let mut next = Next::new(self, remove as usize, strokes);
 
+        // Pop the removed characters.
+        for _ in 0..remove {
+            next.removed.push(self.typed.pop().unwrap_or('?'));
+        }
+
         // Handle each incoming operation.
         for elt in &text {
-            next.add_replacement(elt);
+            next.add_replacement(self, elt);
         }
 
         // Perform the action computed above.
@@ -169,7 +171,7 @@ impl Joiner {
         // Push to the history.
         self.history.push_back(Add {
             remove: next.remove,
-            removed,
+            removed: next.removed,
             append: next.append.clone(),
             state: next.next_state,
         });
@@ -259,6 +261,7 @@ impl Next {
 
         Next {
             remove,
+            removed: String::new(),
             append: String::new(),
             state,
             next_state,
@@ -266,7 +269,7 @@ impl Next {
     }
 
     /// Add a replacement to the current state.
-    fn add_replacement(&mut self, text: &Replacement) {
+    fn add_replacement(&mut self, joiner: &mut Joiner, text: &Replacement) {
         match text {
             Replacement::Text(t) => {
                 if self.state.space && (!self.state.stitch || !self.next_state.stitch) {
@@ -295,6 +298,52 @@ impl Next {
             }
             Replacement::CapNext => self.next_state.cap = true,
             Replacement::Stitch => self.next_state.stitch = true,
+
+            // Capitalize the previous 'n' words.
+            Replacement::Previous(n, Previous::Capitalize) => {
+                let mut buf = String::new();
+
+                let mut word_count = 1;
+
+                // Pop characters until we find 'n' word boundaries.  We assume that we're inside of
+                // a word when we start, what are word boundards needs to be better determined.
+                while let Some(ch) = joiner.typed.pop() {
+                    // For now, just consider space to be word boundaries.
+                    if ch != ' ' {
+                        buf.push(ch);
+                        self.removed.push(ch);
+                        self.remove += 1;
+                    } else {
+                        if word_count == *n {
+                            // Done, put the character back.  And finish.
+                            joiner.typed.push(ch);
+                            break;
+                        } else {
+                            // Otherwise, we got another word boundary.
+                            buf.push(ch);
+                            self.removed.push(ch);
+                            self.remove += 1;
+                            word_count += 1;
+                        }
+                    }
+                }
+
+                // Now, retype the text, but with capitalization.
+                let mut word_start = true;
+                while let Some(ch) = buf.pop() {
+                    if word_start {
+                        // TODO: Handle multiple characters from this.
+                        self.append.push(ch.to_uppercase().next().unwrap());
+                        word_start = false;
+                    } else {
+                        self.append.push(ch);
+                    }
+                    if ch == ' ' {
+                        word_start = true;
+                    }
+                }
+            }
+
             _ => {
                 eprintln!("Act: {:?}", text);
             }
