@@ -134,35 +134,34 @@ impl Joiner {
             remove = 0;
         }
 
-        let (new, new_state) = self.compute_new(&text, strokes);
-
-        // Pop the remove characters.
+        // Pop the removed characters.
         let mut removed = String::new();
         for _ in 0..remove {
             removed.push(self.typed.pop().unwrap_or('?'));
         }
-        self.typed.push_str(&new);
+
+        // Compute the new state and action based on what is in the definition.
+        let mut remove = remove as usize;
+        let mut append = String::new();
+        let new_state = self.compute_new(&text, strokes, &mut remove, &mut append);
+
+        self.typed.push_str(&append);
         // println!("Typed: {:?}", self.typed);
 
         // Push to the history.
         self.history.push_back(Add {
             remove: remove as usize,
             removed,
-            append: new.clone(),
+            append: append.clone(),
             state: new_state,
         });
 
         // Push an action.
-        self.actions.push_back((self.now, Joined::Type {
-            remove: remove as usize,
-            append: new,
-        }));
+        self.actions.push_back((self.now, Joined::Type { remove, append }));
     }
 
     /// Calculate the new text, based on context, state, and where we are in the input.
-    fn compute_new(&mut self, text: &[Replacement], strokes: usize) -> (String, State) {
-        let mut result = String::new();
-
+    fn compute_new(&mut self, text: &[Replacement], strokes: usize, _remove: &mut usize, append: &mut String) -> State {
         // Go back in history by one less than the number of strokes in this definition.
         let mut state = if let Some(node) = self.history.iter().rev().skip(strokes - 1).next() {
         // let mut state = if let Some(node) = self.history.back() {
@@ -179,7 +178,7 @@ impl Joiner {
             match elt {
                 Replacement::Text(t) => {
                     if state.space && (!state.stitch || !next_state.stitch) {
-                        result.push(' ');
+                        append.push(' ');
                         state.space = false;
                     }
                     if state.cap {
@@ -188,11 +187,11 @@ impl Joiner {
                         if let Some(first) = chars.next() {
                             // Push the first char. This doesn't handle the case where the uppercase
                             // version ends up as multiple characters.
-                            result.push(first.to_uppercase().next().unwrap());
+                            append.push(first.to_uppercase().next().unwrap());
                         }
-                        result.push_str(chars.as_str());
+                        append.push_str(chars.as_str());
                     } else {
-                        result.push_str(t);
+                        append.push_str(t);
                     }
                     state.cap = false;
                     next_state.space = true;
@@ -211,7 +210,7 @@ impl Joiner {
         }
         // println!("   nextstate: {:?}", next_state);
 
-        (result, next_state)
+        next_state
     }
 
     fn undo(&mut self) {
