@@ -282,6 +282,7 @@ impl Encoder {
                 }
                 Token::Command(cmd) => {
                     result.push('{');
+                    let cmd = cmd.trim_end_matches("\r\n");
                     result.push_str(cmd);
                     result.push('}');
                 }

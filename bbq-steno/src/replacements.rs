@@ -39,6 +39,7 @@ const RAW: char = '\u{e006}';
 const RETRO_BREAK: char = '\u{e007}';
 const BREAK: char = '\u{e008}';
 const RETRO_NUM: char = '\u{e00a}';
+const RETRO_CURRENCY: char = '\u{e00b}';
 
 const TERM_TEXT: char = '\u{0000}';
 
@@ -73,6 +74,7 @@ pub enum Previous {
     DeleteSpace,
     ReplaceSpace(char),
     Number(String),
+    Currency(String),
 }
 
 impl Replacement {
@@ -111,7 +113,7 @@ impl Replacement {
                     let next = chars.next()?;
                     result.push(Replacement::Previous(count as u32, Previous::ReplaceSpace(next)));
                 }
-                RAW | RETRO_NUM => {
+                RAW | RETRO_NUM | RETRO_CURRENCY => {
                     let mut raw = String::new();
                     loop {
                         let ch = chars.next()?;
@@ -122,6 +124,8 @@ impl Replacement {
                     }
                     if c == RAW {
                         result.push(Replacement::Raw(raw));
+                    } else if c == RETRO_CURRENCY {
+                        result.push(Replacement::Previous(1, Previous::Currency(raw)));
                     } else {
                         result.push(Replacement::Previous(1, Previous::Number(raw)));
                     }
@@ -190,6 +194,12 @@ impl Replacement {
                         Previous::Number(text) => {
                             // TODO: Previous number format, not supported?
                             result.push(RETRO_NUM);
+                            result.push_str(&text);
+                            result.push(TERM_TEXT);
+                        }
+                        Previous::Currency(text) => {
+                            // TODO: Previous number format, not supported?
+                            result.push(RETRO_CURRENCY);
                             result.push_str(&text);
                             result.push(TERM_TEXT);
                         }
