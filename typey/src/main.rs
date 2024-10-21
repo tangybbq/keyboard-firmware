@@ -4,7 +4,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use bbq_steno::{
-    dict::{Dict, Joiner, Lookup, MapDictBuilder}, memdict::MemDict, Stroke
+    dict::{Dict, Joined, Joiner, Lookup, MapDictBuilder}, memdict::MemDict, stroke::StenoWord, Stroke
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use regex::Regex;
@@ -16,6 +16,9 @@ enum Command {
     #[clap(name = "write")]
     /// Write, using the dictionary lookup.
     Write(WriteCommand),
+    #[clap(name = "exbuild")]
+    /// Build a steno dictionary.
+    Exbuild(ExbuildCommand),
 }
 
 #[derive(Debug, Parser)]
@@ -31,6 +34,17 @@ struct WriteCommand {
     #[arg(long, default_value = "joiner")]
     /// Where to stop printing.
     stop: StopPoint,
+}
+
+#[derive(Debug, Parser)]
+struct ExbuildCommand {
+    #[arg(long = "dict")]
+    /// The path to the dictionary to use.
+    file: String,
+
+    #[arg(long)]
+    /// Where to output the finished exercise file.
+    output: String,
 }
 
 #[derive(Debug, Parser)]
@@ -81,6 +95,7 @@ fn main() -> Result<()> {
         Command::Write(cmd) => {
             writer(&cmd)?;
         }
+        Command::Exbuild(cmd) => exbuild(&cmd)?,
     }
 
     Ok(())
@@ -163,6 +178,84 @@ fn load_dict(name: &str) -> Result<Vec<Dict>> {
         return load_txt(name)
     }
     Err(anyhow!("Unknown dictionary extension"))
+}
+
+fn exbuild(cmd: &ExbuildCommand) -> Result<()> {
+    let mut out = File::create(&cmd.output)?;
+
+    writeln!(out, "Exercise {}", cmd.output)?;
+    writeln!(out, "")?;
+
+    let dict = load_dict(&cmd.file)?;
+
+    let mut xlat = Lookup::new(dict);
+    let mut joiner = Joiner::new();
+
+    let mut strokes = Vec::new();
+    let mut text = String::new();
+
+    let stdin = stdin();
+    let mut stdout = stdout().into_raw_mode()?;
+
+    println!("Begin\r");
+    let mut word = String::new();
+    for key in stdin.keys() {
+        let key = key?;
+        if key == Key::Esc {
+            break;
+        }
+        if key == Key::Char(' ') {
+            if let Ok(stroke) = Stroke::from_text(&word) {
+                // println!("s:{}", stroke);
+                // Handle the newline specially.
+                if word == "R-RPB" {
+                    let stenoword = StenoWord(strokes);
+                    // println!("\r\n'{}': {}\r", text, stenoword);
+                    println!("\r");
+                    writeln!(out, "'{}': {}", text, stenoword)?;
+                    strokes = Vec::new();
+                    text = String::new();
+                    word.clear();
+
+                    // Ideally, the translator could just continue, but we don't yet carry over caps
+                    // yet, so just create a new one.  This breaks delete before the newline.
+                    joiner = Joiner::new();
+                    continue;
+                }
+                word.clear();
+                strokes.push(stroke);
+                let action = xlat.add(stroke);
+                joiner.add(action);
+                // TODO: Handle raw and other types.
+                while let Some(Joined::Type { remove, append }) = joiner.pop(0) {
+                    for _ in 0..remove {
+                        write!(stdout, "\u{0008}")?;
+                        text.pop();
+                    }
+                    let mut appendit = append.chars();
+                    if let Some(ch) = appendit.next() {
+                        text.push(ch);
+                    }
+                    // For exercises, replace explicit spaces with the Unicode visible space.
+                    text.push_str(&appendit.as_str().replace(' ', "␣"));
+                    write!(stdout, "{}", append)?;
+                    stdout.flush()?;
+                }
+                continue;
+            } else {
+                // Print invalid.
+                println!("#<{}>", word);
+                word.clear();
+                continue;
+            }
+        }
+        if let Key::Char(ch) = key {
+            word.push(ch);
+            continue;
+        }
+    }
+
+    Ok(())
 }
 
 /// Load a .txt dictionary.  This is a simple format, which consists of entries
