@@ -1,5 +1,5 @@
 use std::{
-    fs::File, io::{stdin, stdout, BufRead, BufReader, Write}, rc::Rc, str::FromStr
+    fs::{File, OpenOptions}, io::{stdin, stdout, BufRead, BufReader, Write}, rc::Rc, str::FromStr
 };
 
 use anyhow::{anyhow, Result};
@@ -181,7 +181,10 @@ fn load_dict(name: &str) -> Result<Vec<Dict>> {
 }
 
 fn exbuild(cmd: &ExbuildCommand) -> Result<()> {
-    let mut out = File::create(&cmd.output)?;
+    let mut out = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(&cmd.output)?;
 
     writeln!(out, "Exercise {}", cmd.output)?;
     writeln!(out, "")?;
