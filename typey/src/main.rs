@@ -226,7 +226,11 @@ fn exbuild(cmd: &ExbuildCommand) -> Result<()> {
                     continue;
                 }
                 word.clear();
-                strokes.push(stroke);
+                if stroke.is_star() {
+                    strokes.pop();
+                } else {
+                    strokes.push(stroke);
+                }
                 let action = xlat.add(stroke);
                 joiner.add(action);
                 // TODO: Handle raw and other types.
