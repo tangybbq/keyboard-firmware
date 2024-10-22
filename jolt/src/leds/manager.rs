@@ -340,7 +340,7 @@ impl LedManager {
     }
 
     /// Set the led state for the child thread.
-    pub fn set_state(&self, leds: Vec<RGB8>) {
+    fn set_state(&self, leds: Vec<RGB8>) {
         let (lock, cond) = &*self.info;
         let mut info = lock.lock().unwrap();
         info.leds = Some(leds);
