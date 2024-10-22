@@ -29,19 +29,19 @@ struct Step {
 pub static INIT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(8, 0, 0),
-        count: 100,
+        count: 1,
     },
     Step {
         color: RGB8::new(0, 8, 0),
-        count: 100,
+        count: 1,
     },
     Step {
         color: RGB8::new(0, 0, 8),
-        count: 100,
+        count: 1,
     },
     Step {
         color: OFF,
-        count: 300,
+        count: 3,
     },
 ]);
 
@@ -50,11 +50,11 @@ pub static INIT_INDICATOR: Indication = Indication(&[
 pub static UNDEF_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(1, 1, 1),
-        count: 10,
+        count: 1,
     },
     Step {
         color: OFF,
-        count: 3000,
+        count: 30,
     },
 ]);
 
@@ -63,11 +63,11 @@ pub static UNDEF_INDICATOR: Indication = Indication(&[
 pub static USB_PRIMARY: Indication = Indication(&[
     Step {
         color: RGB8::new(8, 8, 0),
-        count: 300,
+        count: 3,
     },
     Step {
         color: OFF,
-        count: 300,
+        count: 3,
     },
 ]);
 
@@ -75,7 +75,7 @@ pub static USB_PRIMARY: Indication = Indication(&[
 pub static OFF_INDICATOR: Indication = Indication(&[
     Step {
         color: OFF,
-        count: 1000,
+        count: 10,
     },
 ]);
 
@@ -83,7 +83,7 @@ pub static OFF_INDICATOR: Indication = Indication(&[
 pub static GEMINI_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(0, 0, 8),
-        count: 1000,
+        count: 10,
     },
 ]);
 
@@ -98,126 +98,126 @@ pub static OFF_INDICATOR: Indication = Indication(&[
 pub static SLEEP_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(0, 0, 8),
-        count: 3000,
+        count: 30,
     },
     Step {
         color: RGB8::new(0, 0, 16),
-        count: 3000,
+        count: 30,
     },
 ]);
 
 /// Steno mode
 pub static STENO_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(0, 0, 24),
-    count: 10000,
+    count: 100,
 }]);
 
 /// Steno mode select
 pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(0, 0, 24),
-        count: 100,
+        count: 1,
     },
     Step {
         color: RGB8::new(0, 0, 0),
-        count: 100,
+        count: 1,
     },
 ]);
 
 /// Steno raw mode
 pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 8, 0),
-    count: 10000,
+    count: 100,
 }]);
 
 /// Steno raw mode select
 pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(16, 8, 0),
-        count: 100,
+        count: 1,
     },
     Step {
         color: RGB8::new(0, 0, 0),
-        count: 100,
+        count: 1,
     },
 ]);
 
 /// NKRO steno mode
 pub static NKRO_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(32, 0, 32),
-    count: 10000,
+    count: 100,
 }]);
 
 /// NKRO steno select mode
 pub static NKRO_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(32, 0, 32),
-        count: 100,
+        count: 1,
     },
     Step {
         color: RGB8::new(0, 0, 0),
-        count: 100,
+        count: 1,
     },
 ]);
 
 /// Artsey mode
 pub static ARTSEY_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 0, 0),
-    count: 10000,
+    count: 100,
 }]);
 
 /// Artsey select mode
 pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(16, 0, 0),
-        count: 100,
+        count: 1,
     },
     Step {
         color: RGB8::new(0, 0, 0),
-        count: 100,
+        count: 1,
     },
 ]);
 
 /// Taipo mode
 pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 8, 24),
-    count: 10000,
+    count: 100,
 }]);
 
 /// Taipo select mode
 pub static TAIPO_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(16, 8, 24),
-        count: 100,
+        count: 1,
     },
     Step {
         color: RGB8::new(0, 0, 0),
-        count: 100,
+        count: 1,
     },
 ]);
 
 /// Qwerty mode
 pub static QWERTY_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(0, 16, 0),
-    count: 10000,
+    count: 100,
 }]);
 
 /// Qwerty select mode
 pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(0, 16, 0),
-        count: 100,
+        count: 1,
     },
     Step {
         color: RGB8::new(0, 0, 0),
-        count: 100,
+        count: 1,
     },
 ]);
 
 /// Artsey Nav mode
 pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(20, 20, 0),
-    count: 10000,
+    count: 100,
 }]);
 
 pub struct LedManager {
