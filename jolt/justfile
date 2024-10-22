@@ -24,6 +24,8 @@ target := "pimoroni_tiny_2040"
 shield := "jolt1"
 flags := "-DCONFIG_JOLT_INTER=y"
 
+toolopt := "--tool-opt=\"/Applications/SEGGER/JLink/GDBServer/RTOSPlugin_Zephyr.dylib\""
+
 srcdir := `pwd`
 
 build:
