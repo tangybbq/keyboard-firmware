@@ -7,6 +7,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use alloc::boxed::Box;
+use log::info;
 use rgb::RGB8;
 
 pub mod manager;
@@ -60,6 +61,8 @@ impl LedSet {
             all.push(Box::new(leds) as Box<dyn LedGroup>);
         }
 
-        LedSet { all }
+        let result = LedSet { all };
+        info!("{} leds found", result.len());
+        result
     }
 }
