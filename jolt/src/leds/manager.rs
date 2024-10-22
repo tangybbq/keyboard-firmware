@@ -10,6 +10,8 @@ use rgb::RGB8;
 use zephyr::kobj_define;
 use zephyr::sync::{Arc, Condvar, Mutex};
 
+use crate::Stats;
+
 use super::LedSet;
 
 const OFF: RGB8 = RGB8::new(0, 0, 0);
@@ -248,7 +250,7 @@ struct LedState {
 }
 
 impl LedManager {
-    pub fn new(leds: LedSet) -> Self {
+    pub fn new(leds: LedSet, stats: Arc<Stats>) -> Self {
         let len = leds.len();
 
         let sys_mutex = LED_MUTEX_STATIC.init_once(()).unwrap();
@@ -262,9 +264,11 @@ impl LedManager {
 
         let info2 = info.clone();
         let mut thread = LED_THREAD.init_once(LED_STACK.init_once(()).unwrap()).unwrap();
-        thread.set_priority(-1);
+        // Low priority for PWM, need high priority for WS2812
+        thread.set_priority(10);
+        thread.set_name(c"leds");
         thread.spawn(move || {
-            led_thread(leds, info2);
+            led_thread(leds, info2, stats);
         });
 
         let states: Vec<_> = (0..len).map(|i| {
@@ -448,15 +452,18 @@ struct LedInfo {
     leds: Option<Vec<RGB8>>,
 }
 
-fn led_thread(mut all_leds: LedSet, info: Arc<InfoPair>) -> ! {
+fn led_thread(mut all_leds: LedSet, info: Arc<InfoPair>, stats: Arc<Stats>) -> ! {
     let limit = all_leds.len();
     loop {
         let info = get_info(&*info);
+        stats.start("led");
         all_leds.update(&info);
+        stats.stop("led");
     }
 }
 
 // Helper to get the state, waiting for it to be present.
+#[inline(never)]
 fn get_info(info: &InfoPair) -> Vec<RGB8> {
     let (lock, cond) = info;
     let mut lock = lock.lock().unwrap();
