@@ -16,7 +16,7 @@ use alloc::vec::Vec;
 use minicbor::{Decode, Encode};
 
 use crate::{stroke::Stroke, dict::{DictImpl, Selector, BinarySelector}};
-use log::warn;
+// use log::warn;
 
 pub const DICT_TAG: u64 = 0x7374656e6f646374;
 pub const GROUP_TAG: u64 = 0x7374656e6f6d6c74;
@@ -92,7 +92,7 @@ impl MemDict {
         // If this is a single dictionary, use that.
         let single: Result<RawMemDict, _> = minicbor::decode(header);
         if let Ok(single) = single {
-            warn!("single: {:#?}", single);
+            // warn!("single: {:#?}", single);
             return Self::decode_single(ptr, single).into_iter().collect();
         }
 
@@ -100,7 +100,7 @@ impl MemDict {
         let group: Result<RawDictGroup, _> = minicbor::decode(header);
         if let Ok(group) = group {
             let mut result = Vec::new();
-            warn!("group: {:#?}", group);
+            // warn!("group: {:#?}", group);
             for elt in group.dicts {
                 if let Some(dict) = Self::decode_single(ptr, elt) {
                     result.push(dict);
