@@ -36,7 +36,7 @@ static KEY_TABLE: [u16; 128] = [
     NONE,  // 0x07, Bell (often represented as BEL)
     NONE,  // 0x08, Backspace (often represented as BS)
     NONE,  // 0x09, Horizontal Tab (often represented as HT)
-    NONE,  // 0x0A, Line feed/New line (often represented as LF)
+    n(Keyboard::ReturnEnter),  // 0x0A, Line feed/New line (often represented as LF)
     NONE,  // 0x0B, Vertical Tab (often represented as VT)
     NONE,  // 0x0C, Form feed (often represented as FF)
     NONE,  // 0x0D, Carriage return (often represented as CR)
