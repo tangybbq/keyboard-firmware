@@ -88,6 +88,13 @@ impl FromStr for ShowStyle {
 // mod rtfcre;
 
 fn main() -> Result<()> {
+    // Regular env logger, but add a carriage return so the output is still sane even when in raw
+    // mode.
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Warn)
+        .format_suffix("\r\n")
+        .init();
+    log::warn!("program started");
     let opt = Opt::parse();
     println!("command: {:?}", opt);
 
