@@ -257,7 +257,8 @@ impl Next {
             State { cap: true, space: false, stitch: false }
         };
 
-        let next_state = State { cap: false, space: state.space, stitch: false };
+        // Carry the cap through, which we will remove, once we actually capitalize something.
+        let next_state = State { cap: state.cap, space: state.space, stitch: false };
 
         Next {
             remove,
@@ -276,20 +277,22 @@ impl Next {
                     self.append.push(' ');
                     self.state.space = false;
                 }
-                if self.state.cap {
-                    // TODO: This doesn't do the cap carry through needed.
-                    let mut chars = t.as_str().chars();
-                    if let Some(first) = chars.next() {
+                for ch in t.as_str().chars() {
+                    // If capitalization is expected, and the next character is alphabetic, consider
+                    // it capitalized (even if it is already capitalized).  This can carry through,
+                    // even across multiple strokes until something is actually affected by the caps.
+                    if self.state.cap && ch.is_alphabetic() {
                         // TODO: This doesn't handle unicode caps that are more than one character.
-                        self.append.push(first.to_uppercase().next().unwrap());
+                        self.append.push(ch.to_uppercase().next().unwrap());
+
+                        // Now that we've capitalized something, we can stop.
+                        self.state.cap = false;
+                        self.next_state.cap = false;
+                    } else {
+                        self.append.push(ch);
                     }
-                    self.append.push_str(chars.as_str());
-                } else {
-                    self.append.push_str(t);
                 }
-                self.state.cap = false;
                 self.next_state.space = true;
-                self.next_state.cap = false;
             }
             Replacement::DeleteSpace => {
                 // Handle the ambiguity of this occurring at either the beginning or end.
