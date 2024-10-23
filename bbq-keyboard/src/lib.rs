@@ -10,7 +10,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use bbq_steno::{Stroke, dict::TypeAction};
+use bbq_steno::{dict::Joined, Stroke};
 use minicbor::{Decode, Encode};
 pub use smart_leds::RGB8;
 pub use usbd_human_interface_device::page::Keyboard;
@@ -174,7 +174,7 @@ pub enum Event {
     SendLed(RGB8),
 
     /// Steno text to be typed.
-    StenoText(TypeAction),
+    StenoText(Joined),
 
     /// Tick.  Happens every 1 ms.
     Tick,

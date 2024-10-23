@@ -12,6 +12,7 @@ use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
+use bbq_steno::dict::Joined;
 use leds::LedSet;
 use zephyr::sync::{Arc, Mutex};
 
@@ -213,13 +214,13 @@ extern "C" fn rust_main() {
 
             // Once the steno layer has translated the strokes, it gives us a TypeAction to send
             // off to HID.
-            Event::StenoText(action) => {
-                for _ in 0..action.remove {
+            Event::StenoText(Joined::Type { remove, append }) => {
+                for _ in 0..remove {
                     keys.push_back(KeyAction::KeyPress(Keyboard::DeleteBackspace, Mods::empty()));
                     keys.push_back(KeyAction::KeyRelease);
                 }
                 // Then, just send the text.
-                enqueue_action(&mut KeyActionWrap(&mut keys), &action.text);
+                enqueue_action(&mut KeyActionWrap(&mut keys), &append);
             }
 
             // Mode select and mode affect the LEDs.
