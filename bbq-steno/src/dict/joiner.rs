@@ -281,7 +281,9 @@ impl Next {
                     // If capitalization is expected, and the next character is alphabetic, consider
                     // it capitalized (even if it is already capitalized).  This can carry through,
                     // even across multiple strokes until something is actually affected by the caps.
-                    if self.state.cap && ch.is_alphabetic() {
+                    // We also want to stop after numeric things, to catch sentences that start with
+                    // a number, and avoid capitalizing the word after that.
+                    if self.state.cap && ch.is_alphanumeric() {
                         // TODO: This doesn't handle unicode caps that are more than one character.
                         self.append.push(ch.to_uppercase().next().unwrap());
 
