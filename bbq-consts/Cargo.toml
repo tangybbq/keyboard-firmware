@@ -1,0 +1,8 @@
+[package]
+name = "bbq-consts"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bbq-steno-macros = { version = "0.1.0", path = "../bbq-steno-macros" }
+bbq-steno = { version = "0.1.0", path = "../bbq-steno" }

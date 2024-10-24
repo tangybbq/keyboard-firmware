@@ -11,8 +11,13 @@ use crate::Result;
 type Target = LittleEndian;
 
 pub struct DictBuilder {
-    dicts: Vec<OneDict>,
+    dicts: Vec<DictOrBuiltin>,
     offset: usize,
+}
+
+enum DictOrBuiltin {
+    Dict(OneDict),
+    Builtin(String),
 }
 
 /// Internally, store the raw dict, and the padded data.
@@ -107,10 +112,14 @@ impl DictBuilder {
 
         assert_eq!(data.len(), self.offset - starting_offset);
 
-        self.dicts.push(OneDict {
+        self.dicts.push(DictOrBuiltin::Dict(OneDict {
             raw: entry,
             data,
-        });
+        }));
+    }
+
+    pub fn add_builtin(&mut self, name: &str) {
+        self.dicts.push(DictOrBuiltin::Builtin(name.to_string()));
     }
 
     fn pad_buffer(&mut self, data: &mut Vec<u8>, padding: usize) {
@@ -123,7 +132,15 @@ impl DictBuilder {
     pub fn write_group<W: Write>(self, writer: &mut W) -> Result<()> {
         let (raws, datas): (Vec<_>, Vec<_>) = self.dicts
                             .into_iter()
-                            .map(|d| (GroupEntry::Memory(d.raw), d.data))
+                            .map(|d| {
+                                match d {
+                                    DictOrBuiltin::Dict(d) => (GroupEntry::Memory(d.raw), d.data),
+                                    DictOrBuiltin::Builtin(name) => (
+                                        GroupEntry::Builtin(name.clone()),
+                                        Vec::new()
+                                    ),
+                                }
+                            })
                             .unzip();
 
         let header = RawDictGroup {

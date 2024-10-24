@@ -37,7 +37,7 @@ enum Commands {
         #[arg(short, long, value_name = "FILE")]
         output: String,
 
-        /// Input files to build
+        /// Input files to build.  Use `+name` to represent an internal dictionary.
         #[arg(required = true)]
         files: Vec<String>,
     },
@@ -72,8 +72,14 @@ fn main() -> Result<()> {
             println!("Building files: {:?}", files);
             let mut build = DictBuilder::new();
             for f in files {
-                let dict = load_dict(f)?;
-                build.add(&dict);
+                if f.starts_with('+') {
+                    let mut iter = f.chars();
+                    iter.next();
+                    build.add_builtin(iter.as_str());
+                } else {
+                    let dict = load_dict(f)?;
+                    build.add(&dict);
+                }
             }
 
             println!("Output will be written to: {}", output);

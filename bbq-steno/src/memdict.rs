@@ -16,7 +16,7 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use minicbor::{Decode, Encode};
 
-use crate::{stroke::Stroke, dict::{Dict, DictImpl, Selector, BinarySelector}};
+use crate::{dict::{BinarySelector, Dict, DictImpl, EmilySymbols, Selector}, stroke::Stroke};
 // use log::warn;
 
 pub const DICT_TAG: u64 = 0x7374656e6f646374;
@@ -127,6 +127,10 @@ impl MemDict {
                             // the dicts.
                             return Vec::new();
                         }
+                    }
+
+                    GroupEntry::Builtin(ref s) if s == "emily-symbols" => {
+                        result.push(Rc::new(EmilySymbols) as Dict);
                     }
 
                     // Any unused dictionary will reject the set.

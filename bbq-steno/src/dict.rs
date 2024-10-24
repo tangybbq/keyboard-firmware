@@ -22,7 +22,9 @@ pub use self::translate::Translator;
 pub use self::typer::TypeAction;
 pub use self::lookup::Lookup;
 pub use self::joiner::{Joiner, Joined};
+pub use self::emily::EmilySymbols;
 
+mod emily;
 mod joiner;
 mod lookup;
 mod mapdict;
