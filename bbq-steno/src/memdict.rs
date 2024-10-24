@@ -11,6 +11,7 @@ extern crate alloc;
 use core::slice::from_raw_parts;
 
 use alloc::boxed::Box;
+use alloc::string::String;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use minicbor::{Decode, Encode};
