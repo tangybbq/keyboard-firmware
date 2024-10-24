@@ -253,14 +253,11 @@ impl LedManager {
     pub fn new(leds: LedSet, stats: Arc<Stats>) -> Self {
         let len = leds.len();
 
-        let sys_mutex = LED_MUTEX_STATIC.init_once(()).unwrap();
-        let sys_condvar = LED_CONDVAR_STATIC.init_once(()).unwrap();
-
-        let condvar = Condvar::new_from(sys_condvar);
+        let condvar = Condvar::new();
         let info = LedInfo {
             leds: None,
         };
-        let info = Arc::new((Mutex::new_from(info, sys_mutex), condvar));
+        let info = Arc::new((Mutex::new(info), condvar));
 
         let info2 = info.clone();
         let mut thread = LED_THREAD.init_once(LED_STACK.init_once(()).unwrap()).unwrap();
@@ -476,10 +473,6 @@ fn get_info(info: &InfoPair) -> Vec<RGB8> {
 }
 
 kobj_define! {
-    // Container for the LED state.
-    static LED_MUTEX_STATIC: StaticMutex;
-    static LED_CONDVAR_STATIC: StaticCondvar;
-
     // The thread for the LED writer.
     static LED_THREAD: StaticThread;
     static LED_STACK: ThreadStack<2048>;

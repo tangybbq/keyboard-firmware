@@ -67,12 +67,10 @@ extern "C" fn rust_main() {
     zephyr::set_logger();
 
     // Initialize the main event queue.
-    let equeue = EVENT_QUEUE_STATIC.init_once(()).unwrap();
-    let (equeue_send, equeue_recv) = channel::unbounded_from::<Event>(equeue);
+    let (equeue_send, equeue_recv) = channel::unbounded::<Event>();
 
     // This is the steno queue.
-    let stenoq = STENO_QUEUE_STATIC.init_once(()).unwrap();
-    let (stenoq_send, stenoq_recv) = channel::unbounded_from::<Stroke>(stenoq);
+    let (stenoq_send, stenoq_recv) = channel::unbounded::<Stroke>();
 
     let stats = Arc::new(Stats::new());
 
@@ -580,7 +578,7 @@ impl Default for StatInfo {
 
 impl Stats {
     fn new() -> Stats {
-        Stats(Mutex::new_from( BTreeMap::new(), STATS_MUTEX.init_once(()).unwrap()))
+        Stats(Mutex::new(BTreeMap::new()))
     }
 
     pub fn start(&self, name: &'static str) {
@@ -672,16 +670,7 @@ impl StatInfo {
 }
 
 kobj_define! {
-    // The main event queue.
-    static EVENT_QUEUE_STATIC: StaticQueue;
-
     // The steno thread.
     static STENO_THREAD: StaticThread;
     static STENO_STACK: ThreadStack<4096>;
-
-    // Event Q for sending to steno thread.
-    static STENO_QUEUE_STATIC: StaticQueue;
-
-    // Mutex to hold statistics.
-    static STATS_MUTEX: StaticMutex;
 }
