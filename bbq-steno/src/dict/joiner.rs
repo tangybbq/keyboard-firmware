@@ -306,7 +306,13 @@ impl Next {
 
             // Capitalize the previous 'n' words.
             Replacement::Previous(n, Previous::Capitalize) => {
-                self.fix_prior_words(joiner, *n as usize);
+                self.fix_prior_words(joiner, *n as usize, CapMode::Title);
+            }
+            Replacement::Previous(n, Previous::Lowerize) => {
+                self.fix_prior_words(joiner, *n as usize, CapMode::Lower);
+            }
+            Replacement::Previous(n, Previous::Upcase) => {
+                self.fix_prior_words(joiner, *n as usize, CapMode::Upper);
             }
 
             _ => {
@@ -322,7 +328,7 @@ impl Next {
     ///
     /// Currently, this views "words" as things separated by spaces, so will be confused by
     /// punctuation.
-    fn fix_prior_words(&mut self, joiner: &mut Joiner, words: usize) {
+    fn fix_prior_words(&mut self, joiner: &mut Joiner, words: usize, mode: CapMode) {
         // Holds characters, in reverse order, as we pop them off of typed.
         let mut buf = String::new();
 
@@ -354,17 +360,64 @@ impl Next {
         }
 
         // Now, retype the text, but with the indicated change.
+        mode.convert(&mut buf, &mut self.append);
+    }
+}
+
+/// Capitalization modes.
+#[derive(Debug, Clone, Copy)]
+enum CapMode {
+    /// The entire word should be in uppercase.
+    Upper,
+    /// The entire word should be in lowercase.
+    Lower,
+    /// The first letter should be uppercase, with the rest lowercase.
+    Title,
+}
+
+impl CapMode {
+    /// Convert a reversed set of words unto the given CapMode.
+    ///
+    /// Source is a reversed set of characters containing the words to operate on.  The result will
+    /// be pushed to dest.
+    fn convert(self, src: &mut String, dest: &mut String) {
         let mut word_start = true;
-        while let Some(ch) = buf.pop() {
+        while let Some(ch) = src.pop() {
             if word_start {
-                // This is the action from the beginning.
-                for ch in ch.to_uppercase() {
-                    self.append.push(ch);
+                match self {
+                    CapMode::Upper | CapMode::Title => {
+                        for ch in ch.to_uppercase() {
+                            dest.push(ch);
+                        }
+                    }
+                    CapMode::Lower => {
+                        for ch in ch.to_lowercase() {
+                            dest.push(ch);
+                        }
+                    }
                 }
                 word_start = false;
             } else {
-                self.append.push(ch);
+                match self {
+                    CapMode::Upper => {
+                        for ch in ch.to_uppercase() {
+                            dest.push(ch);
+                        }
+                    }
+                    CapMode::Lower => {
+                        for ch in ch.to_lowercase() {
+                            dest.push(ch);
+                        }
+                    }
+                    CapMode::Title => {
+                        // I think it is best to just leave characters in the middle alone, so stray
+                        // caps in a word will be unharmed.
+                        dest.push(ch);
+                    }
+                }
             }
+
+            // TODO: Consider better notions of multiple words.
             if ch == ' ' {
                 word_start = true;
             }
