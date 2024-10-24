@@ -14,7 +14,7 @@ use encode::DictBuilder;
 use minicbor::encode::write::Writer;
 
 use std::{collections::BTreeMap, fs::File};
-use bbq_steno::{dict::DictImpl, memdict::MemDict, stroke::StenoWord};
+use bbq_steno::{memdict::MemDict, stroke::StenoWord};
 use bbq_keyboard::boardinfo::BoardInfo;
 
 mod rtfcre;
@@ -90,8 +90,8 @@ fn main() -> Result<()> {
             println!("There are {} dicts", dicts.len());
             for dict in &dicts {
                 println!("{} entries", dict.len());
-                println!("key offsets: {} len", dict.key_offsets.len());
-                println!("offset 0: 0x{:x?}", dict.key_offsets[0]);
+                //println!("key offsets: {} len", dict.key_offsets.len());
+                //println!("offset 0: 0x{:x?}", dict.key_offsets[0]);
                 println!("key 0 {:?}", dict.key(0));
                 println!("text 0 {:?}", dict.value(0));
             }

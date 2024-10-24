@@ -15,7 +15,7 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use minicbor::{Decode, Encode};
 
-use crate::{stroke::Stroke, dict::{DictImpl, Selector, BinarySelector}};
+use crate::{stroke::Stroke, dict::{Dict, DictImpl, Selector, BinarySelector}};
 // use log::warn;
 
 pub const DICT_TAG: u64 = 0x7374656e6f646374;
@@ -86,14 +86,17 @@ impl MemDict {
     /// The dictionaries present can be either a single dictionary, or a
     /// group of them defined above.  If anything goes wrong, this returns
     /// an empty Vector, indicating no dictionaries are found.
-    pub unsafe fn from_raw_ptr(ptr: *const u8) -> Vec<MemDict> {
+    pub unsafe fn from_raw_ptr(ptr: *const u8) -> Vec<Dict> {
         let header: &[u8] = from_raw_parts(ptr, HEADER_MAX_BYTES);
 
         // If this is a single dictionary, use that.
         let single: Result<RawMemDict, _> = minicbor::decode(header);
         if let Ok(single) = single {
             // warn!("single: {:#?}", single);
-            return Self::decode_single(ptr, single).into_iter().collect();
+            return Self::decode_single(ptr, single)
+                .into_iter()
+                .map(|d| Rc::new(d) as Dict)
+                .collect();
         }
 
         // Try decoding as a group.
@@ -103,7 +106,7 @@ impl MemDict {
             // warn!("group: {:#?}", group);
             for elt in group.dicts {
                 if let Some(dict) = Self::decode_single(ptr, elt) {
-                    result.push(dict);
+                    result.push(Rc::new(dict) as Dict);
                 } else {
                     // Any error indicates we should not use anything from
                     // the dicts.

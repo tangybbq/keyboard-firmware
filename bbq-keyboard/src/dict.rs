@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-use alloc::{rc::Rc, string::ToString, vec::Vec};
+use alloc::{string::ToString, vec::Vec};
 
 use bbq_steno::{dict::{Joined, Joiner, Lookup}, memdict::MemDict, Stroke};
 use bbq_steno_macros::stroke;
@@ -29,7 +29,6 @@ impl Dict {
             // dictionaries seem to be about 6.5MB.
             MemDict::from_raw_ptr(0x10200000 as *const u8)
         };
-        let xlat: Vec<_> = xlat.into_iter().map(|d| Rc::new(d) as bbq_steno::dict::Dict).collect();
         info!("Found {} steno dictionaries", xlat.len());
         let lookup = Lookup::new(xlat);
         let joiner = Joiner::new();

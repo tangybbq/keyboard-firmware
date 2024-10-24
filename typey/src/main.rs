@@ -179,7 +179,7 @@ fn load_dict(name: &str) -> Result<Vec<Dict>> {
         let bindict = std::fs::read(name)?;
         let bindict = bindict.leak();
         let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) };
-        return Ok(mdict.into_iter().map(|d| Rc::new(d) as Dict).collect())
+        return Ok(mdict);
     }
     if name.ends_with(".txt") {
         return load_txt(name)

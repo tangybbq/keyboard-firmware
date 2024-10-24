@@ -1,6 +1,6 @@
 //! Steno dictionary lookup testing.
 
-use std::{path::Path, io::BufRead, io::BufReader, fs::File, rc::Rc};
+use std::{path::Path, io::BufRead, io::BufReader, fs::File};
 
 use anyhow::{Result, anyhow};
 use bbq_steno::{dict::{Dict, Joined, Joiner, Lookup}, memdict::MemDict, Stroke};
@@ -9,8 +9,7 @@ use regex::Regex;
 fn main() -> Result<()> {
     // Pull in the user dictionary.
     let bindict = std::fs::read("../bbq-tool/dicts.bin")?;
-    let mdict = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) };
-    let dicts: Vec<_> = mdict.into_iter().map(|d| Rc::new(d) as Dict).collect();
+    let dicts = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) };
 
     let base = dirs::home_dir().unwrap().join("steno").join("steno-drill").join("phoenix");
     let mut names = Vec::new();
