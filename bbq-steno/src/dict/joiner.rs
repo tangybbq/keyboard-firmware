@@ -306,47 +306,7 @@ impl Next {
 
             // Capitalize the previous 'n' words.
             Replacement::Previous(n, Previous::Capitalize) => {
-                let mut buf = String::new();
-
-                let mut word_count = 1;
-
-                // Pop characters until we find 'n' word boundaries.  We assume that we're inside of
-                // a word when we start, what are word boundards needs to be better determined.
-                while let Some(ch) = joiner.typed.pop() {
-                    // For now, just consider space to be word boundaries.
-                    if ch != ' ' {
-                        buf.push(ch);
-                        self.removed.push(ch);
-                        self.remove += 1;
-                    } else {
-                        if word_count == *n {
-                            // Done, put the character back.  And finish.
-                            joiner.typed.push(ch);
-                            break;
-                        } else {
-                            // Otherwise, we got another word boundary.
-                            buf.push(ch);
-                            self.removed.push(ch);
-                            self.remove += 1;
-                            word_count += 1;
-                        }
-                    }
-                }
-
-                // Now, retype the text, but with capitalization.
-                let mut word_start = true;
-                while let Some(ch) = buf.pop() {
-                    if word_start {
-                        // TODO: Handle multiple characters from this.
-                        self.append.push(ch.to_uppercase().next().unwrap());
-                        word_start = false;
-                    } else {
-                        self.append.push(ch);
-                    }
-                    if ch == ' ' {
-                        word_start = true;
-                    }
-                }
+                self.fix_prior_words(joiner, *n as usize);
             }
 
             _ => {
@@ -354,6 +314,59 @@ impl Next {
                 {
                     eprintln!("Act: {:?}", text);
                 }
+            }
+        }
+    }
+
+    /// Update previous 'n' words, appropriately.
+    ///
+    /// Currently, this views "words" as things separated by spaces, so will be confused by
+    /// punctuation.
+    fn fix_prior_words(&mut self, joiner: &mut Joiner, words: usize) {
+        // Holds characters, in reverse order, as we pop them off of typed.
+        let mut buf = String::new();
+
+        // Count of words we've encountered.
+        let mut word_count = 1;
+
+        // Pop characters until we find `words` word boundaries.  We assume that we're at the end of
+        // a words when we start.
+        while let Some(ch) = joiner.typed.pop() {
+            // For now, just consider space to be word boundaries.  This might be better to use
+            // sequences of alphanum characters separated by non alphaum.
+            if ch != ' ' {
+                buf.push(ch);
+                self.removed.push(ch);
+                self.remove += 1;
+            } else {
+                if word_count == words {
+                    // Done, put the character back. And finish.
+                    joiner.typed.push(ch);
+                    break;
+                } else {
+                    // Otherwise, we got another word boundary.
+                    buf.push(ch);
+                    self.removed.push(ch);
+                    self.remove += 1;
+                    word_count += 1;
+                }
+            }
+        }
+
+        // Now, retype the text, but with the indicated change.
+        let mut word_start = true;
+        while let Some(ch) = buf.pop() {
+            if word_start {
+                // This is the action from the beginning.
+                for ch in ch.to_uppercase() {
+                    self.append.push(ch);
+                }
+                word_start = false;
+            } else {
+                self.append.push(ch);
+            }
+            if ch == ' ' {
+                word_start = true;
             }
         }
     }
