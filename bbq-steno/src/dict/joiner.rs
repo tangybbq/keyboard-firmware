@@ -314,6 +314,10 @@ impl Next {
             Replacement::Previous(n, Previous::Upcase) => {
                 self.fix_prior_words(joiner, *n as usize, CapMode::Upper);
             }
+            // I'm not clear what other options there are, this seems to just be this 10:$ entry.
+            Replacement::Previous(1, Previous::Currency(_)) => {
+                self.fix_currency(joiner);
+            }
 
             _ => {
                 #[cfg(feature = "std")]
@@ -361,6 +365,32 @@ impl Next {
 
         // Now, retype the text, but with the indicated change.
         mode.convert(&mut buf, &mut self.append);
+    }
+
+    /// Add a dollar sign in front of the previous amount of currency.  There are we're looking for
+    /// a sequence of digits to put this in front of.  The examples allow the word "million" and
+    /// "billion" to occur, but, frankly, I see little reason to actually use this, and find it is
+    /// probably easier to not even bother with the whole retro currency thing.
+    fn fix_currency(&mut self, joiner: &mut Joiner) {
+        let mut buf = String::new();
+
+        // Pop characters as long as they are digits.
+        while let Some(ch) = joiner.typed.pop() {
+            if ch.is_digit(10) || ch == ',' || ch == '.' {
+                buf.push(ch);
+                self.removed.push(ch);
+                self.remove += 1;
+            } else {
+                joiner.typed.push(ch);
+                break;
+            }
+        }
+
+        // Add the dollar sign.
+        self.append.push('$');
+        while let Some(ch) = buf.pop() {
+            self.append.push(ch);
+        }
     }
 }
 
