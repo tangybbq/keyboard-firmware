@@ -2,7 +2,7 @@
 
 use std::{collections::BTreeMap, io::Write};
 
-use bbq_steno::{memdict::{RawDictGroup, RawMemDict, HEADER_MAX_BYTES}, stroke::StenoWord};
+use bbq_steno::{memdict::{GroupEntry, RawDictGroup, RawMemDict, HEADER_MAX_BYTES}, stroke::StenoWord};
 use byteorder::{LittleEndian, WriteBytesExt};
 
 use crate::Result;
@@ -123,7 +123,7 @@ impl DictBuilder {
     pub fn write_group<W: Write>(self, writer: &mut W) -> Result<()> {
         let (raws, datas): (Vec<_>, Vec<_>) = self.dicts
                             .into_iter()
-                            .map(|d| (d.raw, d.data))
+                            .map(|d| (GroupEntry::Memory(d.raw), d.data))
                             .unzip();
 
         let header = RawDictGroup {

@@ -60,7 +60,19 @@ pub struct RawMemDict {
 #[cbor(tag(0x7374656e6f6d6c74))]
 pub struct RawDictGroup {
     #[n(0)]
-    pub dicts: Vec<RawMemDict>,
+    pub dicts: Vec<GroupEntry>,
+}
+
+/// Each entry in a group can consist of a memory dictionary, or can refer to a named internal
+/// dictionary. This allows the tool building the dictionaries to determine the order of the
+/// internal dictionaries.
+#[derive(Debug, Encode, Decode)]
+#[cbor(tag(0xa21f9a2955e1abca))]
+pub enum GroupEntry {
+    #[n(0)]
+    Memory(#[n(0)] RawMemDict),
+    #[n(1)]
+    Builtin(#[n(0)] String),
 }
 
 /// The saner MemDict representation. This holds the above header, and some more
@@ -105,12 +117,19 @@ impl MemDict {
             let mut result = Vec::new();
             // warn!("group: {:#?}", group);
             for elt in group.dicts {
-                if let Some(dict) = Self::decode_single(ptr, elt) {
-                    result.push(Rc::new(dict) as Dict);
-                } else {
-                    // Any error indicates we should not use anything from
-                    // the dicts.
-                    return Vec::new();
+                match elt {
+                    GroupEntry::Memory(elt) => {
+                        if let Some(dict) = Self::decode_single(ptr, elt) {
+                            result.push(Rc::new(dict) as Dict);
+                        } else {
+                            // Any error indicates we should not use anything from
+                            // the dicts.
+                            return Vec::new();
+                        }
+                    }
+
+                    // Any unused dictionary will reject the set.
+                    _ => return Vec::new(),
                 }
             }
 
