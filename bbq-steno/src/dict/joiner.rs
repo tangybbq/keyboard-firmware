@@ -335,31 +335,20 @@ impl Next {
     fn fix_prior_words(&mut self, joiner: &mut Joiner, words: usize, mode: CapMode) {
         // Holds characters, in reverse order, as we pop them off of typed.
         let mut buf = String::new();
+        let mut walk = WordWalk::new();
 
-        // Count of words we've encountered.
-        let mut word_count = 1;
-
-        // Pop characters until we find `words` word boundaries.  We assume that we're at the end of
-        // a words when we start.
         while let Some(ch) = joiner.typed.pop() {
-            // For now, just consider space to be word boundaries.  This might be better to use
-            // sequences of alphanum characters separated by non alphaum.
-            if ch != ' ' {
+            walk.visit(ch);
+
+            if walk.done(words) {
+                // Done, push this character back, and act as if we didn't see it.
+                joiner.typed.push(ch);
+                break;
+            } else {
+                // Otherwise, push to our buffer and move on.
                 buf.push(ch);
                 self.removed.push(ch);
                 self.remove += 1;
-            } else {
-                if word_count == words {
-                    // Done, put the character back. And finish.
-                    joiner.typed.push(ch);
-                    break;
-                } else {
-                    // Otherwise, we got another word boundary.
-                    buf.push(ch);
-                    self.removed.push(ch);
-                    self.remove += 1;
-                    word_count += 1;
-                }
             }
         }
 
@@ -411,46 +400,100 @@ impl CapMode {
     /// Source is a reversed set of characters containing the words to operate on.  The result will
     /// be pushed to dest.
     fn convert(self, src: &mut String, dest: &mut String) {
-        let mut word_start = true;
-        while let Some(ch) = src.pop() {
-            if word_start {
-                match self {
-                    CapMode::Upper | CapMode::Title => {
-                        for ch in ch.to_uppercase() {
-                            dest.push(ch);
-                        }
-                    }
-                    CapMode::Lower => {
-                        for ch in ch.to_lowercase() {
-                            dest.push(ch);
-                        }
-                    }
-                }
-                word_start = false;
-            } else {
-                match self {
-                    CapMode::Upper => {
-                        for ch in ch.to_uppercase() {
-                            dest.push(ch);
-                        }
-                    }
-                    CapMode::Lower => {
-                        for ch in ch.to_lowercase() {
-                            dest.push(ch);
-                        }
-                    }
-                    CapMode::Title => {
-                        // I think it is best to just leave characters in the middle alone, so stray
-                        // caps in a word will be unharmed.
-                        dest.push(ch);
-                    }
-                }
-            }
+        let mut walk = WordWalk::new();
 
-            // TODO: Consider better notions of multiple words.
-            if ch == ' ' {
-                word_start = true;
+        while let Some(ch) = src.pop() {
+            walk.visit(ch);
+            if walk.is_in_word() {
+                match (walk.is_first(), self) {
+                    // Capitalize the next, if we're at the start, asking for either Upper or Title,
+                    // or we're in the word, and doing full Upper.
+                    (true, CapMode::Upper) |
+                        (true, CapMode::Title) |
+                        (false, CapMode::Upper) =>
+                    {
+                        for ch in ch.to_uppercase() {
+                            dest.push(ch);
+                        }
+                    }
+                    // Lowerize if we're asking for that.
+                    (_, CapMode::Lower) => {
+                        for ch in ch.to_lowercase() {
+                            dest.push(ch);
+                        }
+                    }
+                    // The inner characters of Title case are left alone.  This changes deSantos to
+                    // DeSantos, not Desantos.
+                    (false, CapMode::Title) => dest.push(ch),
+                }
+            } else {
+                // Not in word, just pushes it and we continue.
+                dest.push(ch);
             }
         }
+    }
+}
+
+/// Track word boundaries when walking text one character at a time.
+///
+/// Tracks the number of words visited, as well as whether we are at the start of a word, inside of
+/// a word, or between words.
+///
+/// To this, a word is defined as a sequence of alphanumeric characters separated by
+/// non-alphanumeric characters.
+///
+/// This can be started either in a word or not, and `word` will become 1 at the first character of
+/// the first word.
+///
+/// This is designed to be run in either direction, although "first" will actually mean "last" when
+/// run in reverse.
+struct WordWalk {
+    /// Are we inside of a word.
+    in_word: bool,
+    /// Is this the first character of a word, also first character of a non-word.
+    first: bool,
+    /// What word are we on.  Counts the first word as 1.
+    word: usize,
+}
+
+impl WordWalk {
+    /// Construct a new word walker, ready to look at characters.
+    fn new() -> WordWalk {
+        WordWalk {
+            in_word: false,
+            first: true,
+            word: 0,
+        }
+    }
+
+    /// Indicate a character visited, updating the state.
+    fn visit(&mut self, ch: char) {
+        let ch_in_word = ch.is_alphanumeric();
+
+        if ch_in_word != self.in_word {
+            self.in_word = ch_in_word;
+            self.first = true;
+            if ch_in_word {
+                self.word += 1;
+            }
+        } else {
+            self.first = false;
+        }
+    }
+
+    /// Is this a first word character?
+    fn is_first(&self) -> bool {
+        self.in_word && self.first
+    }
+
+    /// Are we in a word?
+    fn is_in_word(&self) -> bool {
+        self.in_word
+    }
+
+    /// Are we done with the given number of words.  Will be true on the first non-word character
+    /// after seeing 'n' words.
+    fn done(&self, count: usize) -> bool {
+        !self.in_word && self.word == count
     }
 }
