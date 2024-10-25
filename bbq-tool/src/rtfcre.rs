@@ -280,6 +280,12 @@ impl Encoder {
                     // will only be inserted when there is text.
                     result.push_str("\x02");
                 }
+                Token::Command(cmd) if cmd.as_str() == "cxfl" => {
+                    // This command seems to indicate that the previous period or other punctuation
+                    // should not cause the auto capitalization that it normally does.  Since we
+                    // detect the punctuation actively, rathern than always, this really isn't an
+                    // issue for us.
+                }
                 Token::Command(cmd) => {
                     result.push('{');
                     let cmd = cmd.trim_end_matches("\r\n");
@@ -300,6 +306,10 @@ impl Encoder {
                         }
                     } else if self.only_num.is_match(text) {
                         result.push('\x03');
+                        result.push_str(text);
+                    } else if text.starts_with(&[',']) {
+                        // Other instances that start with some punct need to have that stripped.
+                        result.push('\x01');
                         result.push_str(text);
                     } else {
                         result.push_str(text);
