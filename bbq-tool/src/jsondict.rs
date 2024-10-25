@@ -1,4 +1,7 @@
 //! JSON dictionary loading.
+//!
+//! YAML dictionaries are also supported, as the only difference is in the encoding, and not the
+//! contents of the entries.
 
 use std::{collections::BTreeMap, fs::File, path::Path};
 
@@ -7,17 +10,47 @@ use regex::Regex;
 
 use crate::Result;
 
-pub fn import<P: AsRef<Path>>(name: P) -> Result<BTreeMap<StenoWord, String>> {
+pub fn import_json<P: AsRef<Path>>(name: P) -> Result<BTreeMap<StenoWord, String>> {
     let new: BTreeMap<String, String> = serde_json::from_reader(
         File::open(name)?
     )?;
+    import(new)
+}
+
+fn import(data: BTreeMap<String, String>) -> Result<BTreeMap<StenoWord, String>> {
     let fixer = JsonFixer::new();
 
     let mut dict = BTreeMap::new();
 
-    for (k, v) in new.iter() {
+    for (k, v) in data.iter() {
         let key = StenoWord::parse(k)?;
         dict.insert(key, fixer.fix(k, v));
+    }
+
+    Ok(dict)
+}
+
+pub fn import_yaml<P: AsRef<Path>>(name: P) -> Result<BTreeMap<StenoWord, String>> {
+    let new: serde_yaml_ng::Value = serde_yaml_ng::from_reader(
+        File::open(name)?
+    )?;
+
+    // The yaml dictionary is a mapping from definitions to sequences of strings.  It is not clear
+    // why, the definitions are reversed, and why it has multiple strings for each, but we build
+    // this into the desired mapping.
+    let new = new.as_mapping().expect("yaml should be mapping");
+
+    let fixer = JsonFixer::new();
+
+    let mut dict = BTreeMap::new();
+    for (k, v) in new {
+        let k = k.as_str().unwrap();
+        let v = v.as_sequence().unwrap();
+        assert!(v.len() == 1);
+        let v = v[0].as_str().unwrap();
+
+        let key = StenoWord::parse(v)?;
+        dict.insert(key, fixer.fix(v, k));
     }
 
     Ok(dict)

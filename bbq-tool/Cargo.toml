@@ -12,6 +12,7 @@ byteorder = { version = "1.5" }
 serde = { version = "1.0", features = ["derive"] }
 ciborium = "0.2"
 minicbor = { version = "0.25.1", features = ["alloc", "derive", "std"] }
+serde_yaml_ng = "0.10.0"
 
 [dependencies.bbq-steno]
 version = "0.1.0"

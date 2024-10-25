@@ -123,6 +123,8 @@ fn main() -> Result<()> {
 fn load_dict(name: &str) -> Result<BTreeMap<StenoWord, String>> {
     if name.ends_with(".json") {
         load_json(name)
+    } else if name.ends_with(".yaml") || name.ends_with(".yml") {
+        load_yaml(name)
     } else if name.ends_with(".rtf") {
         load_rtf(name)
     } else {
@@ -131,7 +133,11 @@ fn load_dict(name: &str) -> Result<BTreeMap<StenoWord, String>> {
 }
 
 fn load_json(name: &str) -> Result<BTreeMap<StenoWord, String>> {
-    jsondict::import(name)
+    jsondict::import_json(name)
+}
+
+fn load_yaml(name: &str) -> Result<BTreeMap<StenoWord, String>> {
+    jsondict::import_yaml(name)
 }
 
 fn load_rtf(name: &str) -> Result<BTreeMap<StenoWord, String>> {
