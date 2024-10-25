@@ -319,6 +319,11 @@ impl Next {
                 self.fix_currency(joiner);
             }
 
+            Replacement::Previous(n, Previous::ReplaceSpace(ch)) => {
+                self.replace_spaces(joiner, *n as usize,
+                                    if *ch == '\0' { None } else { Some(*ch) });
+            }
+
             _ => {
                 #[cfg(feature = "std")]
                 {
@@ -354,6 +359,36 @@ impl Next {
 
         // Now, retype the text, but with the indicated change.
         mode.convert(&mut buf, &mut self.append);
+    }
+
+    /// Replace the previous 'count' spaces with the given replacement.
+    fn replace_spaces(&mut self, joiner: &mut Joiner, count: usize, replacement: Option<char>) {
+        let mut buf = String::new();
+        let mut seen = 0;
+
+        while let Some(ch) = joiner.typed.pop() {
+            buf.push(ch);
+            self.removed.push(ch);
+            self.remove += 1;
+
+            if ch == ' ' {
+                seen += 1;
+                if seen == count {
+                    break;
+                }
+            }
+        }
+
+        // Retype, inserting all back into the input.
+        while let Some(ch) = buf.pop() {
+            if ch == ' ' {
+                if let Some(repl) = replacement {
+                    self.append.push(repl);
+                }
+            } else {
+                self.append.push(ch);
+            }
+        }
     }
 
     /// Add a dollar sign in front of the previous amount of currency.  There are we're looking for
