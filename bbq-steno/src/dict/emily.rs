@@ -107,9 +107,10 @@ impl Decoded {
             }
         }
 
-        if !post_space {
-            buf.push(Replacement::DeleteSpace);
+        if post_space {
+            buf.push(Replacement::Text(" ".to_string()));
         }
+        buf.push(Replacement::DeleteSpace);
 
         if cap_next {
             buf.push(Replacement::CapNext);
