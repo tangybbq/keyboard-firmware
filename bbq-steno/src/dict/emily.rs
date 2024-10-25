@@ -24,7 +24,12 @@
 //!
 //! Lastly, the TS keys indicate from 1-4 repititions of the symbol.
 
-use std::rc;
+extern crate alloc;
+
+use alloc::boxed::Box;
+use alloc::rc::Rc;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 
 // Unfortunately, we can't use the bbq-steno-macros crate, as that would create a circular
 // dependency.  Instead, these constants are auto-generated, and placed in the consts module beneath
@@ -51,7 +56,7 @@ impl Decoded {
     /// not a stroke for that.
     fn decode(stroke: Stroke) -> Option<Decoded> {
         let starter = stroke & STARTER;
-        warn!("Emily lookup {}: Starter: {}", stroke, starter);
+        // warn!("Emily lookup {}: Starter: {}", stroke, starter);
         if starter != START1 && starter != START2 && starter != START3 {
             return None
         }
@@ -282,7 +287,7 @@ impl DictImpl for EmilySymbols {
         todo!()
     }
 
-    fn selector(self: rc::Rc<Self>) -> Box<dyn Selector> {
+    fn selector(self: Rc<Self>) -> Box<dyn Selector> {
         Box::new(RootSelector)
     }
 
