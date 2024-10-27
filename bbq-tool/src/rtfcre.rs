@@ -286,6 +286,13 @@ impl Encoder {
                     // detect the punctuation actively, rathern than always, this really isn't an
                     // issue for us.
                 }
+                Token::Command(cmd) if cmd.as_str() == "~\r\n" => {
+                    // This is kind of awkward.  Ideally, we'd like a space if needed.  But as the
+                    // dictionary works, this won't "cure" the delete space previously unless we are
+                    // explicit about some kind of text.  To make this work in all contexts, delete
+                    // spaces on both sides of an explicit space.
+                    result.push_str("\x01 \x01");
+                }
                 Token::Command(cmd) => {
                     result.push('{');
                     let cmd = cmd.trim_end_matches("\r\n");
