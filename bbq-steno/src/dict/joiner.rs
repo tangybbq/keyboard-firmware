@@ -56,10 +56,14 @@ pub struct Joiner {
 }
 
 // Information carried from one stroke to the next.
+//
+// The difference between space and force space is that if a "space" is next to a non "space"
+// stroke, there won't be a space, whereas either having "force space" will result in a space.
 #[derive(Clone, Debug)]
 struct State {
     cap: bool,
     space: bool,
+    force_space: bool,
     stitch: bool,
 }
 
@@ -254,11 +258,11 @@ impl Next {
             node.state.clone()
         } else {
             // Fake an initial state.  Shouldn't happen unless we back up over the history.
-            State { cap: true, space: false, stitch: false }
+            State { cap: true, space: false, force_space: false, stitch: false }
         };
 
         // Carry the cap through, which we will remove, once we actually capitalize something.
-        let next_state = State { cap: state.cap, space: state.space, stitch: false };
+        let next_state = State { cap: state.cap, space: state.space, force_space: false, stitch: false };
 
         Next {
             remove,
@@ -273,9 +277,13 @@ impl Next {
     fn add_replacement(&mut self, joiner: &mut Joiner, text: &Replacement) {
         match text {
             Replacement::Text(t) => {
-                if self.state.space && (!self.state.stitch || !self.next_state.stitch) {
+                if (self.state.space && (!self.state.stitch || !self.next_state.stitch)) ||
+                    (self.state.force_space || self.next_state.force_space)
+                {
                     self.append.push(' ');
                     self.state.space = false;
+                    self.state.force_space = false;
+                    self.next_state.force_space = false;
                 }
                 for ch in t.as_str().chars() {
                     // If capitalization is expected, and the next character is alphabetic, consider
@@ -302,6 +310,11 @@ impl Next {
                 self.next_state.space = false;
             }
             Replacement::CapNext => self.next_state.cap = true,
+            Replacement::ForceSpace => {
+                // Same ambiguity as above.
+                self.state.force_space = true;
+                self.next_state.force_space = true;
+            }
             Replacement::Stitch => self.next_state.stitch = true,
 
             // Capitalize the previous 'n' words.

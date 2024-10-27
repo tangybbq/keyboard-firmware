@@ -91,7 +91,9 @@ impl Decoded {
 
         let mut buf = Vec::new();
 
-        if !pre_space {
+        if pre_space {
+            buf.push(Replacement::ForceSpace);
+        } else {
             buf.push(Replacement::DeleteSpace);
         }
 
@@ -113,9 +115,10 @@ impl Decoded {
         }
 
         if post_space {
-            buf.push(Replacement::Text(" ".to_string()));
+            buf.push(Replacement::ForceSpace);
+        } else {
+            buf.push(Replacement::DeleteSpace);
         }
-        buf.push(Replacement::DeleteSpace);
 
         if cap_next {
             buf.push(Replacement::CapNext);
