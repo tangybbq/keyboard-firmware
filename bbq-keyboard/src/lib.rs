@@ -161,6 +161,9 @@ pub enum Event {
     /// We are doing a mode select, with the given mode being the next mode.
     ModeSelect(LayoutMode),
 
+    /// Message back from the layout code that steno raw mode is enabled.
+    RawMode(bool),
+
     /// A keypress (from a typical keyboard mode)
     Key(KeyAction),
 

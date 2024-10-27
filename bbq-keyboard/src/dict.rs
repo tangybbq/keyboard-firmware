@@ -6,7 +6,7 @@ use alloc::{string::ToString, vec::Vec};
 
 use bbq_steno::{dict::{Joined, Joiner, Lookup}, memdict::MemDict, Stroke};
 use bbq_steno_macros::stroke;
-use crate::log::info;
+use crate::{log::info, Event, EventQueue};
 
 use crate::Timable;
 
@@ -39,12 +39,13 @@ impl Dict {
         }
     }
 
-    pub fn handle_stroke(&mut self, stroke: Stroke, timer: &dyn Timable) -> Vec<Joined> {
+    pub fn handle_stroke(&mut self, stroke: Stroke, events: &mut dyn EventQueue, timer: &dyn Timable) -> Vec<Joined> {
         let mut result = Vec::new();
 
         // Special check for the raw mode stroke.  Use it to toggle raw mode.
         if stroke == stroke!("RA*U") {
             self.raw = !self.raw;
+            events.push(Event::RawMode(self.raw));
             return result;
         }
 

@@ -124,6 +124,24 @@ pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+/// Steno mode
+pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(0, 8, 24),
+    count: 100,
+}]);
+
+/// Steno mode select
+pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
+    Step {
+        color: RGB8::new(0, 8, 24),
+        count: 1,
+    },
+    Step {
+        color: RGB8::new(0, 0, 0),
+        count: 1,
+    },
+]);
+
 /// Steno direct (for plover)
 pub static STENO_DIRECT_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 8, 0),

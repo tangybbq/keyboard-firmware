@@ -13,6 +13,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_steno::dict::Joined;
+use leds::manager::Indication;
 use leds::LedSet;
 use zephyr::sync::{Arc, Mutex};
 
@@ -137,6 +138,7 @@ extern "C" fn rust_main() {
     // TODO: We should really ask for the current mode, instead of hoping to align them.
     let mut current_mode = LayoutMode::Steno;
     let mut state = InterState::Idle;
+    let mut raw_mode = false;
     // let mut suspended = true;
     // let mut woken = false;
     let mut has_global = true;
@@ -225,7 +227,7 @@ extern "C" fn rust_main() {
             Event::ModeSelect(mode) => {
                 info!("modeselect: {:?}", mode);
                 let next = match mode {
-                    LayoutMode::Steno => &leds::manager::STENO_SELECT_INDICATOR,
+                    LayoutMode::Steno => get_steno_select_indicator(raw_mode),
                     LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
                     LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
                     LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
@@ -238,7 +240,7 @@ extern "C" fn rust_main() {
             Event::Mode(mode) => {
                 info!("modeselect: {:?}", mode);
                 let next = match mode {
-                    LayoutMode::Steno => &leds::manager::STENO_INDICATOR,
+                    LayoutMode::Steno => get_steno_indicator(raw_mode),
                     LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
                     LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
                     LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
@@ -246,6 +248,14 @@ extern "C" fn rust_main() {
                 };
                 leds.set_base(0, next);
                 current_mode = mode;
+            }
+
+            Event::RawMode(raw) => {
+                info!("Switch raw: {:?}", raw);
+                raw_mode = raw;
+                if current_mode == LayoutMode::Steno {
+                    leds.set_base(0, get_steno_indicator(raw_mode))
+                }
             }
 
             // Handle the USB becoming configured.
@@ -339,6 +349,22 @@ extern "C" fn rust_main() {
         // After processing the main loop, generate a message for the tick irq handler.  This will
         // allow ticks to be missed if processing takes too long.
         add_heartbeat_box();
+    }
+}
+
+fn get_steno_indicator(raw: bool) -> &'static Indication {
+    if raw {
+        &leds::manager::STENO_RAW_INDICATOR
+    } else {
+        &leds::manager::STENO_INDICATOR
+    }
+}
+
+fn get_steno_select_indicator(raw: bool) -> &'static Indication {
+    if raw {
+        &leds::manager::STENO_RAW_SELECT_INDICATOR
+    } else {
+        &leds::manager::STENO_SELECT_INDICATOR
     }
 }
 
@@ -442,11 +468,12 @@ impl<'a> ActionHandler for KeyActionWrap<'a> {
 /// The lower priority steno lookup thread.
 fn steno_thread(recv: Receiver<Stroke>, events: Sender<Event>, stats: Arc<Stats>) {
     printkln!("Steno thread running");
+    let mut eq_send = SendWrap(events.clone());
     let mut dict = Dict::new();
     loop {
         let stroke = recv.recv().unwrap();
         stats.start("steno");
-        for action in dict.handle_stroke(stroke, &WrapTimer) {
+        for action in dict.handle_stroke(stroke, &mut eq_send, &WrapTimer) {
             // Enqueue the action, and the actual typing will be queued up by the main thread.
             events.send(Event::StenoText(action)).unwrap();
         }
