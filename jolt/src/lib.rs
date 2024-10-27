@@ -226,7 +226,7 @@ extern "C" fn rust_main() {
                 info!("modeselect: {:?}", mode);
                 let next = match mode {
                     LayoutMode::Steno => &leds::manager::STENO_SELECT_INDICATOR,
-                    LayoutMode::StenoRaw => &leds::manager::STENO_RAW_SELECT_INDICATOR,
+                    LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
                     LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
                     LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
                     _ => &leds::manager::QWERTY_SELECT_INDICATOR,
@@ -239,7 +239,7 @@ extern "C" fn rust_main() {
                 info!("modeselect: {:?}", mode);
                 let next = match mode {
                     LayoutMode::Steno => &leds::manager::STENO_INDICATOR,
-                    LayoutMode::StenoRaw => &leds::manager::STENO_RAW_INDICATOR,
+                    LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
                     LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
                     LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
                     _ => &leds::manager::QWERTY_INDICATOR,

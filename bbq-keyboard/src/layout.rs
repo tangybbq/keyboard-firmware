@@ -123,7 +123,7 @@ impl LayoutManager {
                 LayoutMode::Taipo => {
                     self.taipo.handle_event(event, events);
                 }
-                LayoutMode::Steno | LayoutMode::StenoRaw => {
+                LayoutMode::Steno | LayoutMode::StenoDirect => {
                     self.raw.handle_event(event, events);
                 }
                 LayoutMode::Qwerty => {
@@ -140,7 +140,7 @@ impl LayoutManager {
 /// The global keyboard mode.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LayoutMode {
-    StenoRaw,
+    StenoDirect,
     Steno,
     Artsey,
     Taipo,
@@ -250,8 +250,8 @@ impl ModeSelector {
         match self.seen & !(1 << (MODE_KEY)) {
             // qwerty 'f' or 'j' select qwerty.
             m if m == (1 << 17) || m == (1 << 41) => Some(LayoutMode::Qwerty),
-            // qwerty 'd' or 'k' select StenoRaw.
-            m if m == (1 << 13) || m == (1 << 37) => Some(LayoutMode::StenoRaw),
+            // qwerty 'd' or 'k' select StenoDirect.
+            m if m == (1 << 13) || m == (1 << 37) => Some(LayoutMode::StenoDirect),
             // qwerty 's' or 'l' select steno raw.
             m if m == (1 << 9) || m == (1 << 33) => Some(LayoutMode::Steno),
             _ => None,
@@ -267,8 +267,8 @@ impl LayoutMode {
     fn next(self) -> Self {
         match self {
             // Direct cycling between these modes.
-            LayoutMode::Steno => LayoutMode::StenoRaw,
-            LayoutMode::StenoRaw => LayoutMode::Taipo,
+            LayoutMode::Steno => LayoutMode::StenoDirect,
+            LayoutMode::StenoDirect => LayoutMode::Taipo,
             LayoutMode::Taipo => LayoutMode::Steno,
 
             // These move to another mode, but cannot be entered directly.
@@ -283,8 +283,8 @@ impl LayoutMode {
     fn next(self) -> Self {
         match self {
             // Direct cycling is between these modes.
-            LayoutMode::Steno => LayoutMode::StenoRaw,
-            LayoutMode::StenoRaw => LayoutMode::Taipo,
+            LayoutMode::Steno => LayoutMode::StenoDirect,
+            LayoutMode::StenoDirect => LayoutMode::Taipo,
             LayoutMode::Taipo => LayoutMode::Qwerty,
             LayoutMode::Qwerty => LayoutMode::Steno,
 
@@ -300,7 +300,7 @@ impl defmt::Format for LayoutMode {
     fn format(&self, fmt: defmt::Formatter) {
         match self {
             LayoutMode::Steno => defmt::write!(fmt, "steno"),
-            LayoutMode::StenoRaw => defmt::write!(fmt, "stenoraw"),
+            LayoutMode::StenoDirect => defmt::write!(fmt, "StenoDirect"),
             LayoutMode::Artsey => defmt::write!(fmt, "artsey"),
             LayoutMode::Qwerty => defmt::write!(fmt, "qwerty"),
             LayoutMode::NKRO => defmt::write!(fmt, "nkro"),

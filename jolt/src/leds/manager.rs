@@ -124,14 +124,14 @@ pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
-/// Steno raw mode
-pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
+/// Steno direct (for plover)
+pub static STENO_DIRECT_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 8, 0),
     count: 100,
 }]);
 
-/// Steno raw mode select
-pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
+/// Steno direct mode select
+pub static STENO_DIRECT_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(16, 8, 0),
         count: 1,
