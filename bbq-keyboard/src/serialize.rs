@@ -3,9 +3,9 @@
 extern crate alloc;
 
 use core::mem::replace;
-use alloc::vec::Vec;
 
 use arraydeque::ArrayDeque;
+use arrayvec::ArrayVec;
 use crc::{Crc, CRC_16_IBM_SDLC, Digest};
 use smart_leds::RGB8;
 
@@ -13,11 +13,16 @@ use crate::log::warn;
 
 // TODO: Make the hardcoded sizes part of the board support.
 
-use crate::{Side, KeyEvent};
+use crate::Side;
 
 pub type PacketBuffer = ArrayDeque<u8, 28>;
 // pub type EventVec = ArrayVec<KeyEvent, 21>;
-pub type EventVec = Vec<KeyEvent>;
+
+/// The bits representing the keys that have been pressed.
+pub type KeyBits = [u8; 7];
+
+/// Internally, build these up here.
+type KeyVec = ArrayVec<u8, 7>;
 
 /// The CRC generator we are using.
 pub const CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_IBM_SDLC);
@@ -41,7 +46,7 @@ pub enum Packet {
         /// Which side of the keyboard we are.
         side: Side,
         /// Key events.
-        keys: EventVec,
+        keys: KeyBits,
     },
 }
 
@@ -90,13 +95,7 @@ impl Packet {
             Packet::Secondary { side, keys } => {
                 buf.push_back(token(3, *side)).unwrap();
                 buf.push_back(*seq).unwrap();
-                for elt in keys {
-                    let b = match elt {
-                        KeyEvent::Press(code) => *code,
-                        KeyEvent::Release(code) => *code | 64,
-                    };
-                    buf.push_back(b).unwrap();
-                }
+                buf.extend_back(keys.iter().cloned());
             }
         }
 
@@ -151,7 +150,7 @@ impl Decoder {
                     pos: 0,
                 }),
                 3 => Some(InnerDecodeState::Secondary {
-                    events: EventVec::new(),
+                    events: KeyVec::default(),
                 }),
                 // Otherwise, invalid, start over.
                 _ => None,
@@ -164,8 +163,8 @@ impl Decoder {
                     crc.update(&[token, byte]);
                     DecodeState::Inside {
                         inner: s,
-                        crc: crc,
-                        side: side,
+                        crc,
+                        side,
                     }
                 }
             }
@@ -251,7 +250,7 @@ impl DecodeState {
                 crc.update(&[0xff]);
                 let result = crc.finalize();
                 DecodeState::CRC {
-                    inner: inner,
+                    inner,
                     expected_crc: crc_split(result),
                     gotten: [0, 0],
                     pos: 0,
@@ -280,7 +279,7 @@ enum InnerDecodeState {
     },
     Secondary {
         /// Digest so far.
-        events: EventVec,
+        events: KeyVec,
     },
 }
 
@@ -297,13 +296,8 @@ impl InnerDecodeState {
                 }
                 // If past end, just discard.
             }
-            InnerDecodeState::Secondary { events } => {
-                let ev = if (byte & 64) == 0 {
-                    KeyEvent::Press(byte)
-                } else {
-                    KeyEvent::Release(byte & 63)
-                };
-                events.push(ev);
+            InnerDecodeState::Secondary { ref mut events } => {
+                events.push(byte);
             }
         }
     }
@@ -315,7 +309,11 @@ impl InnerDecodeState {
                 let led = RGB8::new(leds[0], leds[1], leds[2]);
                 Packet::Primary { side, led }
             }
-            InnerDecodeState::Secondary { events } => Packet::Secondary { side, keys: events }
+            InnerDecodeState::Secondary { events } => {
+                let keys: KeyBits = events.as_slice().try_into()
+                    .unwrap_or_else(|_| KeyBits::default());
+                Packet::Secondary { side, keys }
+            }
         }
     }
 }
@@ -374,12 +372,7 @@ fn test_serialize() {
     }
     assert_eq!(Some(b), bb);
 
-    let mut keys = EventVec::new();
-    keys.push(KeyEvent::Press(5));
-    keys.push(KeyEvent::Press(18));
-    keys.push(KeyEvent::Release(18));
-    keys.push(KeyEvent::Release(5));
-    keys.push(KeyEvent::Release(7));
+    let keys = [5, 2, 0, 1, 7, 41];
     let c = Packet::Secondary {
         side: Side::Left,
         keys,

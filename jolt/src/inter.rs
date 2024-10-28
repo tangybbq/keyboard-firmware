@@ -1,8 +1,6 @@
 //! Inter keyboard communication.
 
-use core::mem::replace;
-
-use bbq_keyboard::{Side, serialize::{Decoder, Packet, EventVec, PacketBuffer}, InterState, Event, KeyEvent};
+use bbq_keyboard::{Side, serialize::{Decoder, Packet, KeyBits, PacketBuffer}, InterState, Event, KeyEvent};
 
 use zephyr::device::uart::Uart;
 use zephyr::sync::channel::Sender;
@@ -16,7 +14,10 @@ pub struct InterHandler {
     side: Side,
     seq: u8,
     state: InterState,
-    keys: EventVec,
+    /// Keys being sent.
+    keys: KeyBits,
+    /// Values of keys pressed since last time we received a packet.
+    last_keys: KeyBits,
     leds: LedRgb,
     events: Sender<Event>,
     uart: Uart,
@@ -34,7 +35,8 @@ impl InterHandler {
             leds: LedRgb::default(),
             side,
             state: InterState::Idle,
-            keys: EventVec::new(),
+            keys: KeyBits::default(),
+            last_keys: KeyBits::default(),
             side_warn: false,
             uart,
             events,
@@ -69,10 +71,13 @@ impl InterHandler {
                             Packet::Secondary { side: _, keys } => {
                                 // info!("Secondary: {:?}", keys);
                                 self.events.send(Event::Heartbeat).unwrap();
+                                self.update_keys(keys);
+                                /*
                                 for key in &keys {
                                     // info!("interkey: {:?}", key);
                                     self.events.send(Event::InterKey(*key)).unwrap();
                                 }
+                                */
                             }
                         }
                     }
@@ -95,7 +100,7 @@ impl InterHandler {
                 .encode(&mut self.xmit_buffer, &mut self.seq);
             }
             InterState::Secondary => {
-                let keys = replace(&mut self.keys, EventVec::new());
+                let keys = self.keys;
                 Packet::Secondary {
                     side: self.side,
                     keys,
@@ -134,7 +139,41 @@ impl InterHandler {
     }
 
     pub fn add_key(&mut self, key: KeyEvent) {
-        self.keys.push(key);
+        let index = key.key() / 7;
+        let bit = 1u8 << (key.key() % 7);
+        if key.is_press() {
+            self.keys[index as usize] |= bit;
+        } else {
+            self.keys[index as usize] &= !bit;
+        }
+    }
+
+    /// Send events for every key that has changed.
+    fn update_keys(&mut self, keys: KeyBits) {
+        // Quickly handle the common case of no changes.
+        if self.last_keys == keys {
+            return;
+        }
+
+        // info!("keys: {:02x?}, last: {:02x?}", keys, self.last_keys);
+
+        let mut key = 0;
+        for byte in 0..keys.len() {
+            for bit in 0..7 {
+                let bnum = 1 << bit;
+                if (keys[byte] & bnum) != (self.last_keys[byte] & bnum) {
+                    let ev = if (keys[byte] & bnum) != 0 {
+                        KeyEvent::Press(key)
+                    } else {
+                        KeyEvent::Release(key)
+                    };
+                    self.events.send(Event::InterKey(ev)).unwrap();
+                }
+
+                key += 1;
+            }
+        }
+        self.last_keys = keys;
     }
 
     /// Try to read a single byte from the UART.
