@@ -297,7 +297,9 @@ impl InnerDecodeState {
                 // If past end, just discard.
             }
             InnerDecodeState::Secondary { ref mut events } => {
-                events.push(byte);
+                // This needs to not fail on overflow, since we haven't seen the CRC yet, this might
+                // just be discarded entirely.
+                let _ = events.try_push(byte);
             }
         }
     }
