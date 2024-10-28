@@ -50,7 +50,7 @@ pub mod usb {
     /// There is a single instance of the USB system.  As this is somewhat unsafe, we'll just
     /// require the caller to create only a single instance of this (for now).
     pub struct Usb {
-        hid0: Arc<Mutex<HidIn>>,
+        hid0: Arc<HidWrap>,
     }
 
     impl Usb {
@@ -62,11 +62,13 @@ pub mod usb {
             }
 
             // Setup our shared data before it is needed.
-            let hid0 = Arc::new(Mutex::new(HidIn {
+            let hid0 = Arc::new(HidWrap {
                 device: hid0_dev,
-                ready: true,
-                additional: VecDeque::new(),
-            }));
+                state: Mutex::new(HidIn {
+                    ready: true,
+                    additional: VecDeque::new(),
+                }),
+            });
 
             // Just store the pointer.  TODO: This would actually be a good place to detect multiple
             // initialization.
@@ -111,14 +113,14 @@ pub mod usb {
                 report[i + 2] = *key;
             }
 
-            let mut state = self.hid0.lock().unwrap();
+            let mut state = self.hid0.state.lock().unwrap();
 
             if state.ready {
                 // We can directly send it.  We have the mutex which avoids the race with it getting
                 // sent immediately.
                 unsafe {
                     raw::hid_int_ep_write(
-                        state.device,
+                        self.hid0.device,
                         report.as_ptr(),
                         report.len() as u32,
                         ptr::null_mut(),
@@ -139,15 +141,20 @@ pub mod usb {
     /// able to hold one event queued, and then will inform us when that event has been read, and
     /// that it is ready for a new event.
     struct HidIn {
-        /// The device we are concerned with.
-        device: *const raw::device,
         /// Is the driver's endpoint empty?
         ready: bool,
         /// Additional events to send.
         additional: VecDeque<Vec<u8>>,
     }
 
-    static HID0: AtomicPtr<Mutex<HidIn>> = AtomicPtr::new(ptr::null_mut());
+    /// The outer wrapper holds the device (which will be constant) and the Mutex (and possibly a
+    /// Condvar later) to be able to match these without having to take each Mutex.
+    struct HidWrap {
+        device: *const raw::device,
+        state: Mutex<HidIn>,
+    }
+
+    static HID0: AtomicPtr<HidWrap> = AtomicPtr::new(ptr::null_mut());
 
     static USB_OPS: raw::hid_ops = raw::hid_ops {
         get_report: None,
@@ -161,13 +168,12 @@ pub mod usb {
     // Note that this is called from a USB worker thread.  There might be concerns about stack, but
     // it should be safe to allocate/deallocate.
     extern "C" fn hid0_in_ready(device: *const raw::device) {
-        let state = HID0.load(Ordering::Acquire);
-        let state = unsafe { &*state };
-        let mut state = state.lock().unwrap();
-
-        if device != state.device {
+        let wrap = HID0.load(Ordering::Acquire);
+        let wrap = unsafe { &*wrap };
+        if device != wrap.device {
             panic!("hid0_in_ready called with wrong callback");
         }
+        let mut state = wrap.state.lock().unwrap();
 
         if state.ready {
             warn!("in_ready callback while already ready");
