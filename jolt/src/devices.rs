@@ -51,24 +51,32 @@ pub mod usb {
     /// require the caller to create only a single instance of this (for now).
     pub struct Usb {
         hid0: Arc<HidWrap>,
+        hid1: Arc<HidWrap>,
     }
 
     impl Usb {
         pub fn new() -> Result<Usb> {
             let hid0 = Self::setup_hid(c"HID_0", &HID0);
+            let hid1 = Self::setup_hid(c"HID_1", &HID1);
 
             let kbd_desc = unsafe { hid_get_kbd_desc() };
             unsafe {
                 raw::usb_hid_register_device(hid0.device, kbd_desc.base, kbd_desc.len, &USB_OPS);
-
                 raw::usb_hid_init(hid0.device);
+
+                raw::usb_hid_register_device(hid1.device,
+                                             PLOVER_HID_DESC.as_ptr(),
+                                             PLOVER_HID_DESC.len(),
+                                             &USB_OPS);
+                raw::usb_hid_init(hid1.device);
+
                 if raw::usb_enable(Some(status_cb)) != 0 {
                     error!("Failed to enable USB");
                     return Err(Error(raw::ENODEV));
                 }
             }
 
-            Ok(Usb { hid0 })
+            Ok(Usb { hid0, hid1 })
         }
 
         fn setup_hid(cname: &CStr, global: &AtomicPtr<HidWrap>) -> Arc<HidWrap> {
@@ -156,10 +164,11 @@ pub mod usb {
     }
 
     static HID0: AtomicPtr<HidWrap> = AtomicPtr::new(ptr::null_mut());
+    static HID1: AtomicPtr<HidWrap> = AtomicPtr::new(ptr::null_mut());
 
     static USB_OPS: raw::hid_ops = raw::hid_ops {
         get_report: None,
-        int_in_ready: Some(hid0_in_ready),
+        int_in_ready: Some(hid_in_ready),
         int_out_ready: None,
         on_idle: None,
         protocol_change: None,
@@ -168,17 +177,29 @@ pub mod usb {
 
     // Note that this is called from a USB worker thread.  There might be concerns about stack, but
     // it should be safe to allocate/deallocate.
-    extern "C" fn hid0_in_ready(device: *const raw::device) {
-        let wrap = HID0.load(Ordering::Acquire);
+    extern "C" fn hid_in_ready(device: *const raw::device) {
+        if check_hid_in_ready(device, &HID0) {
+            return;
+        }
+        if check_hid_in_ready(device, &HID1) {
+            return;
+        }
+        panic!("hid callback from unknown device");
+    }
+
+    // Handle the endpoint returning true if this is the right device.
+    fn check_hid_in_ready(device: *const raw::device, global: &AtomicPtr<HidWrap>) -> bool {
+        let wrap = global.load(Ordering::Acquire);
         let wrap = unsafe { &*wrap };
         if device != wrap.device {
-            panic!("hid0_in_ready called with wrong callback");
+            return false;
         }
         let mut state = wrap.state.lock().unwrap();
 
         if state.ready {
             warn!("in_ready callback while already ready");
-            return;
+            // But, it did "handle it".
+            return true;
         }
 
         // If we have more data to send, just send it.
@@ -197,6 +218,8 @@ pub mod usb {
             // Otherwise, indicate ready, so the next send will go here.
             state.ready = true;
         }
+
+        true
     }
 
     extern "C" fn status_cb(status: raw::usb_dc_status_code, _param: *const u8) {
@@ -218,4 +241,22 @@ pub mod usb {
     extern "C" {
         fn hid_get_kbd_desc() -> U8Vec;
     }
+
+    /// Plover HID descriptor.
+    ///
+    /// Defined at https://github.com/dnaq/plover-machine-hid
+    static PLOVER_HID_DESC: [u8; 25] = [
+        0x06, 0x50, 0xff,              // UsagePage (65360)
+        0x0a, 0x56, 0x4c,              // Usage (19542)
+        0xa1, 0x02,                    // Collection (Logical)
+        0x85, 0x50,                    //     ReportID (80)
+        0x25, 0x01,                    //     LogicalMaximum (1)
+        0x75, 0x01,                    //     ReportSize (1)
+        0x95, 0x40,                    //     ReportCount (64)
+        0x05, 0x0a,                    //     UsagePage (ordinal)
+        0x19, 0x00,                    //     UsageMinimum (Ordinal(0))
+        0x29, 0x3f,                    //     UsageMaximum (Ordinal(63))
+        0x81, 0x02,                    //     Input (Variable)
+        0xc0,                          // EndCollection
+    ];
 }
