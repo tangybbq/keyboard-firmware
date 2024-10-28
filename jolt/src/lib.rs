@@ -209,6 +209,9 @@ extern "C" fn rust_main() {
                             Err(_) => (),
                         }
                     }
+                    // Also, send to the HID Report descriptor.
+                    usb.send_plover_report(&stroke.to_plover_hid());
+                    usb.send_plover_report(&Stroke::empty().to_plover_hid());
                 }
             }
 

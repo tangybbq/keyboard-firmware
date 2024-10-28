@@ -141,6 +141,25 @@ pub mod usb {
                 state.additional.push_back(report.to_vec());
             }
         }
+
+        pub fn send_plover_report(&self, report: &[u8]) {
+            let mut state = self.hid1.state.lock().unwrap();
+
+            // Todo, this is repeated, perhaps in the HidWrap as a method.
+            if state.ready {
+                unsafe {
+                    raw::hid_int_ep_write(
+                        self.hid1.device,
+                        report.as_ptr(),
+                        report.len() as u32,
+                        ptr::null_mut(),
+                    );
+                }
+                state.ready = false;
+            } else {
+                state.additional.push_back(report.to_vec());
+            }
+        }
     }
 
     // For now, go ahead and just allocate for events that are too large.  They aren't really

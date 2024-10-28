@@ -330,6 +330,34 @@ static TOGEMINI: &[(u8, u8)] = &[
     (0, 0x20), // #
 ];
 
+static TOHID: &[u16] = &[
+    21, // -Z
+    20, // -D
+    19, // -S
+    18, // -T
+    17, // -G
+    16, // -L
+    15, // -B
+    14, // -P
+    13, // -R
+    12, // -F
+    11, // U
+    10, // E
+    9, // *
+    8, // O
+    7, // A
+    6, // R
+    5, // H
+    4, // W
+    3, // P
+    2, // K
+    1, // T
+    0, // S
+    24, // +
+    23, // ^
+    22, // #
+];
+
 impl Stroke {
     /// Convert a steno stroke into a Gemini code to send it.
     pub fn to_gemini(&self) -> [u8; 6] {
@@ -339,6 +367,30 @@ impl Stroke {
                 result[*byte as usize] |= bits;
             }
         }
+        result
+    }
+
+    /// Convert a stroke into a Plover HID report.
+    pub fn to_plover_hid(&self) -> [u8; 9] {
+        let mut result = [0u8; 9];
+
+        // First byte, defined by the descriptor.
+        result[0] = 0x50;
+
+        // Walk through the bits, using the TOHID table to map to the report entries.
+        let mut raw = self.0;
+        for index in TOHID.iter() {
+            let index = *index as usize;
+            let offset = 1 + index / 8;
+            let bit = index % 8;
+
+            if (raw & 1) != 0 {
+                result[offset] |= 0x80 >> bit;
+            }
+
+            raw >>= 1;
+        }
+
         result
     }
 }
