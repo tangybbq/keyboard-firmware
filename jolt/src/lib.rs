@@ -109,7 +109,7 @@ extern "C" fn rust_main() {
     printkln!("Our side: {:?}", side);
 
     // Initialize USB HID.
-    usb_setup();
+    let usb = devices::usb::Usb::new().unwrap();
 
     // Is this the best way to do this?  These aren't that big.
     let rows = zephyr::devicetree::aliases::matrix::get_rows();
@@ -308,7 +308,7 @@ extern "C" fn rust_main() {
         stats.start("layout.tick");
         layout.tick(&mut eq_send);
         stats.stop("layout.tick");
-        usb_hid_push(&mut keys);
+        usb_hid_push(&usb, &mut keys);
 
         if let Some(ref mut inter) = inter {
             stats.start("inter");
@@ -410,28 +410,25 @@ impl Scanner {
 }
 
 /// Push usb-hid events to the USB stack, when possible.
-fn usb_hid_push(keys: &mut VecDeque<KeyAction>) {
-    if !devices::hid_is_accepting() {
-        return;
-    }
+fn usb_hid_push(usb: &devices::usb::Usb, keys: &mut VecDeque<KeyAction>) {
 
-    if let Some(key) = keys.pop_front() {
+    while let Some(key) = keys.pop_front() {
         match key {
             KeyAction::KeyPress(code, mods) => {
                 let code = code as u8;
-                devices::hid_send_keyboard_report(mods.bits(), slice::from_ref(&code));
+                usb.send_keyboard_report(mods.bits(), slice::from_ref(&code));
             }
             KeyAction::KeyRelease => {
-                devices::hid_send_keyboard_report(0, &[]);
+                usb.send_keyboard_report(0, &[]);
             }
             KeyAction::KeySet(keys) => {
                 // TODO We don't handle more than 6 keys, which qwerty mode can do.  For now, just
                 // report if we can.
                 let (mods, keys) = keyset_to_hid(keys);
-                devices::hid_send_keyboard_report(mods.bits(), &keys);
+                usb.send_keyboard_report(mods.bits(), &keys);
             }
             KeyAction::ModOnly(mods) => {
-                devices::hid_send_keyboard_report(mods.bits(), &[]);
+                usb.send_keyboard_report(mods.bits(), &[]);
             }
             KeyAction::Stall => (),
         }
@@ -503,8 +500,7 @@ impl EventQueue for SendWrap {
 static mut USB_CB_MAIN_SEND: Option<Sender<Event>> = None;
 
 /// Rust USB callback.
-#[no_mangle]
-extern "C" fn rust_usb_status(state: u32) {
+pub fn rust_usb_status(state: u32) {
     let send = unsafe { USB_CB_MAIN_SEND.as_mut().unwrap() };
 
     let state = match state {
@@ -540,21 +536,6 @@ fn add_heartbeat_box() {
     critical_section::with(|cs| {
         HEARTBEAT_BOX.borrow(cs).replace(Some(tick));
     });
-}
-
-/// Initialize the USB.
-fn usb_setup() {
-    unsafe {
-        use core::ffi::c_int;
-
-        extern "C" {
-            fn usb_setup() -> c_int;
-        }
-
-        if usb_setup() != 0 {
-            panic!("Unable to initialize USB");
-        }
-    }
 }
 
 /// Initialize the heartbeat.
