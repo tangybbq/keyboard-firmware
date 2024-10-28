@@ -35,7 +35,7 @@ pub mod usb {
     //! This interfaces directly with the USB stack.  As this is not very general, we just use the
     //! unsafe entries directly.
 
-    use core::{ptr, sync::atomic::Ordering};
+    use core::{ffi::CStr, ptr, sync::atomic::Ordering};
 
     use alloc::{collections::vec_deque::VecDeque, vec::Vec};
     use log::{error, warn};
@@ -55,43 +55,13 @@ pub mod usb {
 
     impl Usb {
         pub fn new() -> Result<Usb> {
-            let hid0_dev = unsafe { raw::device_get_binding(c"HID_0".as_ptr()) };
-            if hid0_dev.is_null() {
-                error!("Cannot get USB HID 0 device");
-                return Err(Error(raw::ENODEV));
-            }
-
-            // Setup our shared data before it is needed.
-            let hid0 = Arc::new(HidWrap {
-                device: hid0_dev,
-                state: Mutex::new(HidIn {
-                    ready: true,
-                    additional: VecDeque::new(),
-                }),
-            });
-
-            // Just store the pointer.  TODO: This would actually be a good place to detect multiple
-            // initialization.
-            let hid0_ptr = Arc::into_raw(hid0.clone()) as *mut _;
-
-            if HID0
-                .compare_exchange(
-                    ptr::null_mut(),
-                    hid0_ptr,
-                    Ordering::SeqCst,
-                    Ordering::Relaxed,
-                )
-                .is_err()
-            {
-                error!("Attempt at multiple initialization of USB");
-                return Err(Error(raw::EINVAL));
-            }
+            let hid0 = Self::setup_hid(c"HID_0", &HID0);
 
             let kbd_desc = unsafe { hid_get_kbd_desc() };
             unsafe {
-                raw::usb_hid_register_device(hid0_dev, kbd_desc.base, kbd_desc.len, &USB_OPS);
+                raw::usb_hid_register_device(hid0.device, kbd_desc.base, kbd_desc.len, &USB_OPS);
 
-                raw::usb_hid_init(hid0_dev);
+                raw::usb_hid_init(hid0.device);
                 if raw::usb_enable(Some(status_cb)) != 0 {
                     error!("Failed to enable USB");
                     return Err(Error(raw::ENODEV));
@@ -99,6 +69,37 @@ pub mod usb {
             }
 
             Ok(Usb { hid0 })
+        }
+
+        fn setup_hid(cname: &CStr, global: &AtomicPtr<HidWrap>) -> Arc<HidWrap> {
+            let dev = unsafe { raw::device_get_binding(cname.as_ptr()) };
+            if dev.is_null() {
+                panic!("Cannot get USB {:?} device", cname);
+            }
+
+            let hid = Arc::new(HidWrap {
+                device: dev,
+                state: Mutex::new(HidIn {
+                    ready: true,
+                    additional: VecDeque::new(),
+                }),
+            });
+
+            let hid_ptr = Arc::into_raw(hid.clone()) as *mut _;
+
+            if global
+                .compare_exchange(
+                    ptr::null_mut(),
+                    hid_ptr,
+                    Ordering::SeqCst,
+                    Ordering::Relaxed,
+                )
+                .is_err()
+            {
+                panic!("Attempt to multiply-initialize USB {:?}", cname);
+            }
+
+            hid
         }
 
         pub fn send_keyboard_report(&self, mods: u8, keys: &[u8]) {
