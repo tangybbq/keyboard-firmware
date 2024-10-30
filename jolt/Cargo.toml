@@ -29,6 +29,11 @@ version = "0.1.0"
 default-features = false
 path = "../bbq-steno"
 
+[dependencies.minder]
+version = "0.1.0"
+default-features = false
+path = "../minder"
+
 [profile.dev]
 opt-level = 1
 

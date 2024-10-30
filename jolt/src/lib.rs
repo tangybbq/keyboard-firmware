@@ -13,6 +13,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_steno::dict::Joined;
+use keyminder::Minder;
 use leds::manager::Indication;
 use leds::LedSet;
 use zephyr::sync::{Arc, Mutex};
@@ -56,6 +57,7 @@ use crate::leds::manager::LedManager;
 
 mod devices;
 mod inter;
+mod keyminder;
 mod leds;
 mod matrix;
 mod translate;
@@ -109,7 +111,7 @@ extern "C" fn rust_main() {
     printkln!("Our side: {:?}", side);
 
     // Initialize USB HID.
-    let usb = devices::usb::Usb::new().unwrap();
+    let usb = Arc::new(devices::usb::Usb::new().unwrap());
 
     // Is this the best way to do this?  These aren't that big.
     let rows = zephyr::devicetree::aliases::matrix::get_rows();
@@ -131,6 +133,8 @@ extern "C" fn rust_main() {
 
     let mut acm = zephyr::devicetree::labels::acm_uart_0::get_instance().unwrap();
     let mut acm_active;
+
+    let _minder = Minder::new(stats.clone(), usb.clone());
 
     let mut eq_send = SendWrap(equeue_send.clone());
     let mut keys = VecDeque::new();
@@ -237,11 +241,18 @@ extern "C" fn rust_main() {
                     _ => &leds::manager::QWERTY_SELECT_INDICATOR,
                 };
                 leds.set_base(0, next);
+
+                // For now, debug the minder, with a very simple packet, showing that change.
+                let mut minder = [0u8; 64];
+                minder[0] = 0x37;
+                minder[1] = 0x34;
+                minder[2] = mode as u8;
+                usb.send_minder_report(&minder);
             }
 
             // Mode select and mode affect the LEDs.
             Event::Mode(mode) => {
-                info!("modeselect: {:?}", mode);
+                info!("mode: {:?}", mode);
                 let next = match mode {
                     LayoutMode::Steno => get_steno_indicator(raw_mode),
                     LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,

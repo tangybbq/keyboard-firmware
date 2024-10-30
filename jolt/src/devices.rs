@@ -38,11 +38,9 @@ pub mod usb {
     use core::{ffi::CStr, ptr, sync::atomic::Ordering};
 
     use alloc::{collections::vec_deque::VecDeque, vec::Vec};
-    use log::{error, warn};
+    use log::{error, info, warn};
     use zephyr::{
-        raw,
-        sync::{atomic::AtomicPtr, Arc, Mutex},
-        Error, Result,
+        error::to_result_void, raw, sync::{atomic::AtomicPtr, Arc, Mutex}, sys::sync::Semaphore, time::Timeout, Error, Result
     };
 
     use crate::rust_usb_status;
@@ -52,12 +50,14 @@ pub mod usb {
     pub struct Usb {
         hid0: Arc<HidWrap>,
         hid1: Arc<HidWrap>,
+        hid2: Arc<HidWrap>,
     }
 
     impl Usb {
         pub fn new() -> Result<Usb> {
-            let hid0 = Self::setup_hid(c"HID_0", &HID0);
-            let hid1 = Self::setup_hid(c"HID_1", &HID1);
+            let hid0 = Self::setup_hid(c"HID_0", &HID0, Semaphore::new(0, u32::MAX).unwrap());
+            let hid1 = Self::setup_hid(c"HID_1", &HID1, Semaphore::new(0, u32::MAX).unwrap());
+            let hid2 = Self::setup_hid(c"HID_2", &HID2, Semaphore::new(0, u32::MAX).unwrap());
 
             let kbd_desc = unsafe { hid_get_kbd_desc() };
             unsafe {
@@ -70,16 +70,22 @@ pub mod usb {
                                              &USB_OPS);
                 raw::usb_hid_init(hid1.device);
 
+                raw::usb_hid_register_device(hid2.device,
+                                             MINDER_HID_DESC.as_ptr(),
+                                             MINDER_HID_DESC.len(),
+                                             &USB_OPS);
+                raw::usb_hid_init(hid2.device);
+
                 if raw::usb_enable(Some(status_cb)) != 0 {
                     error!("Failed to enable USB");
                     return Err(Error(raw::ENODEV));
                 }
             }
 
-            Ok(Usb { hid0, hid1 })
+            Ok(Usb { hid0, hid1, hid2 })
         }
 
-        fn setup_hid(cname: &CStr, global: &AtomicPtr<HidWrap>) -> Arc<HidWrap> {
+        fn setup_hid(cname: &CStr, global: &AtomicPtr<HidWrap>, out_sem: Semaphore) -> Arc<HidWrap> {
             let dev = unsafe { raw::device_get_binding(cname.as_ptr()) };
             if dev.is_null() {
                 panic!("Cannot get USB {:?} device", cname);
@@ -87,6 +93,7 @@ pub mod usb {
 
             let hid = Arc::new(HidWrap {
                 device: dev,
+                out_sem,
                 state: Mutex::new(HidIn {
                     ready: true,
                     additional: VecDeque::new(),
@@ -160,6 +167,46 @@ pub mod usb {
                 state.additional.push_back(report.to_vec());
             }
         }
+
+        // TODO: Ideally, some minder protocols should be able to be dropped if the queue gets too
+        // large, so that should probably be an argument here.
+        pub fn send_minder_report(&self, report: &[u8]) {
+            let mut state = self.hid2.state.lock().unwrap();
+
+            // Todo, this is repeated, perhaps in the HidWrap as a method.
+            if state.ready {
+                unsafe {
+                    info!("Send report {:02x?}", report);
+                    raw::hid_int_ep_write(
+                        self.hid2.device,
+                        report.as_ptr(),
+                        report.len() as u32,
+                        ptr::null_mut(),
+                    );
+                }
+                state.ready = false;
+            } else {
+                state.additional.push_back(report.to_vec());
+            }
+        }
+
+        /// Try reading a minder packet.  Might return a timeout if the timeout isn't met.
+        pub fn minder_read_out<T>(&self, timeout: T, buf: &mut [u8]) -> Result<usize>
+            where T: Into<Timeout>,
+        {
+            self.hid2.out_sem.take(timeout)?;
+
+            let mut count: u32 = 0;
+            unsafe {
+                to_result_void(raw::hid_int_ep_read(
+                        self.hid2.device,
+                        buf.as_mut_ptr(),
+                        buf.len() as u32,
+                        &mut count))?;
+            }
+
+            Ok(count as usize)
+        }
     }
 
     // For now, go ahead and just allocate for events that are too large.  They aren't really
@@ -179,16 +226,22 @@ pub mod usb {
     /// Condvar later) to be able to match these without having to take each Mutex.
     struct HidWrap {
         device: *const raw::device,
+        out_sem: Semaphore,
         state: Mutex<HidIn>,
     }
 
+    // There is a raw device that keeps this from automatically being Send, so just allow that.
+    unsafe impl Send for HidWrap {}
+    unsafe impl Sync for HidWrap {}
+
     static HID0: AtomicPtr<HidWrap> = AtomicPtr::new(ptr::null_mut());
     static HID1: AtomicPtr<HidWrap> = AtomicPtr::new(ptr::null_mut());
+    static HID2: AtomicPtr<HidWrap> = AtomicPtr::new(ptr::null_mut());
 
     static USB_OPS: raw::hid_ops = raw::hid_ops {
         get_report: None,
         int_in_ready: Some(hid_in_ready),
-        int_out_ready: None,
+        int_out_ready: Some(hid_out_ready),
         on_idle: None,
         protocol_change: None,
         set_report: None,
@@ -201,6 +254,9 @@ pub mod usb {
             return;
         }
         if check_hid_in_ready(device, &HID1) {
+            return;
+        }
+        if check_hid_in_ready(device, &HID2) {
             return;
         }
         panic!("hid callback from unknown device");
@@ -244,6 +300,34 @@ pub mod usb {
         true
     }
 
+    extern "C" fn hid_out_ready(device: *const raw::device) {
+        if check_hid_out_ready(device, &HID0) {
+            return;
+        }
+        if check_hid_out_ready(device, &HID1) {
+            return;
+        }
+        if check_hid_out_ready(device, &HID2) {
+            return;
+        }
+        panic!("hid out callback from unknown device");
+    }
+
+    fn check_hid_out_ready(device: *const raw::device, global: &AtomicPtr<HidWrap>) -> bool {
+        let wrap = global.load(Ordering::Acquire);
+        if wrap.is_null() {
+            panic!("USB callback before initialization");
+        }
+        let wrap = unsafe { &*wrap };
+        if device != wrap.device {
+            return false;
+        }
+
+        wrap.out_sem.give();
+
+        return true;
+    }
+
     extern "C" fn status_cb(status: raw::usb_dc_status_code, _param: *const u8) {
         // There is some slightly redundant use of types here.
         match status {
@@ -280,5 +364,33 @@ pub mod usb {
         0x29, 0x3f,                    //     UsageMaximum (Ordinal(63))
         0x81, 0x02,                    //     Input (Variable)
         0xc0,                          // EndCollection
+    ];
+
+    /// Minder HID descriptor.
+    ///
+    /// Generated by ChatGPT, with comments.
+    static MINDER_HID_DESC: [u8; 35] = [
+        0x06, 0x4d, 0xFF,  // Usage Page (Vendor Defined 0xFF4D)
+        0x0a, 0x4e, 0x44,  // Usage (Vendor Defined Usage 0x4E44)
+        0xA1, 0x02,        // Collection (Application)
+
+        // Input Report (64 bytes)
+        0x09, 0x02,        // Usage (Vendor Defined Usage 0x02)
+        // 0x85, 0x01,
+        0x15, 0x00,        // Logical Minimum (0)
+        0x26, 0xFF, 0x00,  // Logical Maximum (255)
+        0x75, 0x08,        // Report Size (8 bits)
+        0x95, 0x40,        // Report Count (64)
+        0x81, 0x02,        // Input (Data, Var, Abs)
+
+        // Output Report (64 bytes)
+        0x09, 0x03,        // Usage (Vendor Defined Usage 0x03)
+        0x15, 0x00,        // Logical Minimum (0)
+        0x26, 0xFF, 0x00,  // Logical Maximum (255)
+        0x75, 0x08,        // Report Size (8 bits)
+        0x95, 0x40,        // Report Count (64)
+        0x91, 0x02,        // Output (Data, Var, Abs)
+
+        0xC0               // End Collection
     ];
 }
