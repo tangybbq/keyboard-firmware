@@ -163,6 +163,8 @@ pub trait ActionHandler {
 
 /// Enqueue an action as keypresses.
 pub fn enqueue_action<H: ActionHandler>(usb: &mut H, text: &str) {
+    let mut last_action = None;
+
     for ch in text.chars() {
         if ch < (128 as char) {
             let code = KEY_TABLE[ch as usize];
@@ -173,7 +175,17 @@ pub fn enqueue_action<H: ActionHandler>(usb: &mut H, text: &str) {
             let code: Keyboard = ((code & 0xFF) as u8).into();
             let action = KeyAction::KeyPress(code, if shifted {Mods::SHIFT} else {Mods::empty()});
 
+            // We only need to send an explicit KeyRelease when the last thing sent was the same as
+            // the current.  TODO: There is excess copying here.
+            if last_action == Some(action.clone()) {
+                usb.enqueue_actions([KeyAction::KeyRelease].iter().cloned());
+            }
             usb.enqueue_actions([action.clone()].iter().cloned());
+            last_action = Some(action);
+        }
+
+        // Send a release at the end.
+        if last_action.is_some() {
             usb.enqueue_actions([KeyAction::KeyRelease].iter().cloned());
         }
     }

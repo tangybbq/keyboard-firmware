@@ -111,7 +111,7 @@ impl KeyEvent {
 }
 
 /// Indicates keypress that should be sent to the host.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum KeyAction {
     KeyPress(Keyboard, Mods),
     ModOnly(Mods),
