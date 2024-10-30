@@ -25,8 +25,10 @@ use alloc::string::String;
 
 use minicbor::{Decode, Encode};
 
+mod decode;
 mod encode;
 
+pub use decode::HidDecoder;
 pub use encode::{HidWrite, hid_encode};
 
 pub const PACKET_SIZE: usize = 64;
@@ -34,7 +36,7 @@ pub const PACKET_SIZE: usize = 64;
 // The version of the protocol described here.
 pub static VERSION: &'static str = "2024-10-03a";
 
-#[derive(Debug, Encode, Decode)]
+#[derive(Debug, Encode, Decode, Eq, PartialEq)]
 pub enum Request {
     #[n(1)]
     Hello {
@@ -60,7 +62,7 @@ pub enum Reply {
 mod tests {
     use core::convert::Infallible;
 
-    use crate::{hid_encode, HidWrite, Request};
+    use crate::{hid_encode, HidDecoder, HidWrite, Request};
 
     struct HidBuf(Vec<Vec<u8>>);
 
@@ -81,15 +83,32 @@ mod tests {
 
     #[test]
     fn test_encode() {
-        let item = vec![
+        check_roundtrip(&[
             Request::Hello {
                 version: "This is a string long enough to make it just 64 bytes.12".to_string(),
             },
-        ];
+        ]);
+        check_roundtrip(&[
+            Request::Hello {
+                version: "This is a string long enough to make it just 64 bytes.123".to_string(),
+            },
+        ]);
+    }
+
+    fn check_roundtrip(item: &[Request]) {
         let mut buf = HidBuf::new();
         hid_encode(&item, &mut buf).unwrap();
 
-        let exp: Vec<Vec<u8>> = vec![];
-        assert_eq!(buf.0, exp);
+        // Make sure we can decode this.
+        let mut dec = HidDecoder::new();
+
+        for packet in &buf.0 {
+            assert!(!dec.is_ready());
+            dec.add_packet(packet.as_slice());
+        }
+        assert!(dec.is_ready());
+
+        let resp: Vec<Request> = dec.decode().unwrap();
+        assert_eq!(item, resp);
     }
 }
