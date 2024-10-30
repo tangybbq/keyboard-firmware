@@ -209,6 +209,9 @@ pub mod usb {
     // Handle the endpoint returning true if this is the right device.
     fn check_hid_in_ready(device: *const raw::device, global: &AtomicPtr<HidWrap>) -> bool {
         let wrap = global.load(Ordering::Acquire);
+        if wrap.is_null() {
+            panic!("USB callback before initializatoin");
+        }
         let wrap = unsafe { &*wrap };
         if device != wrap.device {
             return false;
