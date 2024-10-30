@@ -19,6 +19,8 @@
 //! request and reply that can be used to learn various information about the devices, but this
 //! shouldn't prevent mismatched versions from being able to communicate.
 
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
+
 extern crate alloc;
 
 use alloc::string::String;
