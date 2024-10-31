@@ -1,0 +1,11 @@
+[package]
+name = "keyminder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.91"
+clap = { version = "4.5.20", features = ["derive"] }
+minder = { version = "0.1.0", path = "../minder" }
+rusb = "0.9.4"
+serialport = "4.6.0"
