@@ -1,48 +1,55 @@
 //! Handle keyminder requests.
 
-use alloc::vec::Vec;
-use log::{info, warn};
-use minder::{HidDecoder, Request};
-use zephyr::{kobj_define, sync::Arc, time::Forever};
+use log::info;
+use minder::{Request, SerialDecoder};
+use zephyr::{device::uart::UartIrq, kobj_define, sync::Arc, time::Duration};
 
-use crate::{devices::usb::Usb, Stats};
+use crate::Stats;
 
 /// The minder.
 pub struct Minder();
 
 impl Minder {
-    pub fn new(stats: Arc<Stats>, usb: Arc<Usb>) -> Minder {
+    pub fn new(stats: Arc<Stats>, uart: UartIrq) -> Minder {
         let mut thread = MINDER_THREAD.init_once(MINDER_STACK.init_once(()).unwrap()).unwrap();
         thread.set_priority(6);
         thread.set_name(c"minder");
         thread.spawn(move || {
-            minder_thread(stats, usb);
+            minder_thread(stats, uart);
         });
 
         Minder()
     }
 }
 
-fn minder_thread(_stats: Arc<Stats>, usb: Arc<Usb>) {
+fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq) {
+
     let mut minder_packet = [0u8; 64];
-    let mut decoder = HidDecoder::new();
+    let mut decoder = SerialDecoder::new();
 
+    // TODO: This should be better than just counting, as it would print way more frequently with
+    // more messages.
+
+    let mut stat_count = 0;
     loop {
-        match usb.minder_read_out(Forever, &mut minder_packet) {
-            Ok(len) => {
-                // info!("Minder: {:02x?}", &minder_packet[..len]);
-                decoder.add_packet(&minder_packet[..len]);
+        let count = unsafe { uart.try_read(&mut minder_packet, Duration::millis_at_least(1_000)) };
 
-                if decoder.is_ready() {
-                    let req: Result<Vec<Request>, _> = decoder.decode();
-                    if let Ok(req) = req {
-                        info!("Minder Request: {:?}", req);
-                    } else {
-                        warn!("Invalid minder request");
-                    }
+        stats.start("minder");
+        if count > 0 {
+            for &byte in &minder_packet[..count] {
+                if let Some(packet) = decoder.add_decode::<Request>(byte) {
+                    info!("Minder: {:?}", packet);
                 }
             }
-            Err(_) => (),
+        }
+        stats.stop("minder");
+
+        stat_count += 1;
+        if stat_count >= 60 {
+            stat_count = 0;
+            stats.start("stats");
+            stats.show();
+            stats.stop("stats");
         }
     }
 }

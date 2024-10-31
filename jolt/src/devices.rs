@@ -191,6 +191,7 @@ pub mod usb {
         }
 
         /// Try reading a minder packet.  Might return a timeout if the timeout isn't met.
+        #[allow(dead_code)]
         pub fn minder_read_out<T>(&self, timeout: T, buf: &mut [u8]) -> Result<usize>
             where T: Into<Timeout>,
         {

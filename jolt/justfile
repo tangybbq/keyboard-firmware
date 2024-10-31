@@ -51,5 +51,11 @@ gdb:
 rtt:
 	socat - TCP4:localhost:19021
 
+uart0:
+	picocom -l /dev/cu.usbmodem11401 -b 115200 -e e
+
+uart1:
+	picocom -l /dev/cu.usbmodem11404 -b 115200 -e e
+
 clean:
 	rm -rf build

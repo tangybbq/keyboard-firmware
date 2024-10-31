@@ -134,7 +134,11 @@ extern "C" fn rust_main() {
     let mut acm = zephyr::devicetree::labels::acm_uart_0::get_instance().unwrap();
     let mut acm_active;
 
-    let _minder = Minder::new(stats.clone(), usb.clone());
+    let minder_uart = zephyr::devicetree::labels::acm_uart_1::get_instance().unwrap();
+
+    let minder_uart = unsafe { minder_uart.into_irq().unwrap() };
+
+    let _minder = Minder::new(stats.clone(), minder_uart);
 
     let mut eq_send = SendWrap(equeue_send.clone());
     let mut keys = VecDeque::new();
@@ -348,9 +352,6 @@ extern "C" fn rust_main() {
         stat_counter += 1;
         if stat_counter >= 60_000 {
             stat_counter = 0;
-            stats.start("stats");
-            stats.show();
-            stats.stop("stats");
 
             #[cfg(CONFIG_THREAD_ANALYZER)]
             {
