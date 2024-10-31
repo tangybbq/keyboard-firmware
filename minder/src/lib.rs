@@ -30,8 +30,8 @@ use minicbor::{Decode, Encode};
 mod decode;
 mod encode;
 
-pub use decode::HidDecoder;
-pub use encode::{HidWrite, hid_encode};
+pub use decode::{HidDecoder, SerialDecoder};
+pub use encode::{HidWrite, hid_encode, SerialWrite, serial_encode};
 
 pub const PACKET_SIZE: usize = 64;
 
@@ -61,7 +61,7 @@ pub enum Reply {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests_hid {
     use core::convert::Infallible;
 
     use crate::{hid_encode, HidDecoder, HidWrite, Request};
@@ -112,5 +112,31 @@ mod tests {
 
         let resp: Vec<Request> = dec.decode().unwrap();
         assert_eq!(item, resp);
+    }
+}
+
+#[cfg(test)]
+mod tests_serial {
+    use crate::{serial_encode, Request, SerialDecoder};
+
+    #[test]
+    fn test_encode() {
+        check_roundtrip(&Request::Hello {
+            version: "This is a string".to_string(),
+        });
+    }
+
+    fn check_roundtrip(item: &Request) {
+        let mut buf = Vec::new();
+        serial_encode(item, &mut buf).unwrap();
+
+        // println!("buf: {:02x?}", buf);
+        
+        let mut dec = SerialDecoder::new();
+        for &byte in &buf {
+            if let Some(resp) = dec.add_decode::<Request>(byte) {
+                assert_eq!(item, &resp);
+            }
+        }
     }
 }
