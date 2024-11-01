@@ -16,6 +16,7 @@ use bbq_steno::dict::Joined;
 use keyminder::Minder;
 use leds::manager::Indication;
 use leds::LedSet;
+use logging::Logger;
 use zephyr::sync::{Arc, Mutex};
 
 use core::cell::RefCell;
@@ -59,6 +60,7 @@ mod devices;
 mod inter;
 mod keyminder;
 mod leds;
+mod logging;
 mod matrix;
 mod translate;
 
@@ -67,7 +69,7 @@ extern "C" fn rust_main() {
     printkln!("Hello world from Rust on {}",
               zephyr::kconfig::CONFIG_BOARD);
 
-    zephyr::set_logger();
+    let logger = Logger::new();
 
     // Initialize the main event queue.
     let (equeue_send, equeue_recv) = channel::unbounded::<Event>();
@@ -138,7 +140,7 @@ extern "C" fn rust_main() {
 
     let minder_uart = unsafe { minder_uart.into_irq().unwrap() };
 
-    let _minder = Minder::new(stats.clone(), minder_uart);
+    let _minder = Minder::new(stats.clone(), minder_uart, logger);
 
     let mut eq_send = SendWrap(equeue_send.clone());
     let mut keys = VecDeque::new();

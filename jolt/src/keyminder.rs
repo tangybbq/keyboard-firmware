@@ -5,27 +5,27 @@ use core::convert::Infallible;
 
 use log::info;
 use minder::{Reply, Request, SerialDecoder, SerialWrite};
-use zephyr::{device::uart::UartIrq, kobj_define, sync::Arc, time::Duration};
+use zephyr::{device::uart::UartIrq, kobj_define, printkln, sync::{Arc, Mutex}, time::Duration};
 
-use crate::Stats;
+use crate::{logging::Logger, Stats};
 
 /// The minder.
 pub struct Minder();
 
 impl Minder {
-    pub fn new(stats: Arc<Stats>, uart: UartIrq) -> Minder {
+    pub fn new(stats: Arc<Stats>, uart: UartIrq, log: Arc<Mutex<Logger>>) -> Minder {
         let mut thread = MINDER_THREAD.init_once(MINDER_STACK.init_once(()).unwrap()).unwrap();
         thread.set_priority(6);
         thread.set_name(c"minder");
         thread.spawn(move || {
-            minder_thread(stats, uart);
+            minder_thread(stats, uart, log);
         });
 
         Minder()
     }
 }
 
-fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq) {
+fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq, log: Arc<Mutex<Logger>>) {
 
     let mut minder_packet = [0u8; 64];
     let mut decoder = SerialDecoder::new();
@@ -60,6 +60,12 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq) {
         }
 
         stats.stop("minder");
+
+        // Try printing out log messages.  We intentionall only lock for each message to avoid
+        // locking anything too long.
+        while let Some(msg) = log.lock().unwrap().pop() {
+            printkln!("log: {}", msg);
+        }
 
         stat_count += 1;
         if stat_count >= 60 {
