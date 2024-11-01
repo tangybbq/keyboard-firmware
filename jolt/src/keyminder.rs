@@ -1,7 +1,10 @@
 //! Handle keyminder requests.
 
+use alloc::string::ToString;
+use core::convert::Infallible;
+
 use log::info;
-use minder::{Request, SerialDecoder};
+use minder::{Reply, Request, SerialDecoder, SerialWrite};
 use zephyr::{device::uart::UartIrq, kobj_define, sync::Arc, time::Duration};
 
 use crate::Stats;
@@ -31,6 +34,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq) {
     // more messages.
 
     let mut stat_count = 0;
+    let mut reply_hello = false;
     loop {
         let count = unsafe { uart.try_read(&mut minder_packet, Duration::millis_at_least(1_000)) };
 
@@ -39,9 +43,22 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq) {
             for &byte in &minder_packet[..count] {
                 if let Some(packet) = decoder.add_decode::<Request>(byte) {
                     info!("Minder: {:?}", packet);
+                    reply_hello = true;
                 }
             }
         }
+
+        // If we got a hello, send a reply.
+        if reply_hello {
+            reply_hello = false;
+
+            let reply = Reply::Hello {
+                version: minder::VERSION.to_string(),
+                info: "todo: put build information here".to_string(),
+            };
+            minder::serial_encode(&reply, WritePort(&mut uart)).unwrap();
+        }
+
         stats.stop("minder");
 
         stat_count += 1;
@@ -51,6 +68,16 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq) {
             stats.show();
             stats.stop("stats");
         }
+    }
+}
+
+struct WritePort<'a>(&'a mut UartIrq);
+
+impl<'a> SerialWrite for WritePort<'a> {
+    type Error = Infallible;
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
+        Ok(unsafe { self.0.write(buf) })
     }
 }
 
