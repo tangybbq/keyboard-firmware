@@ -1,9 +1,9 @@
 //! Keyminder.
 
-use std::io::{Error, Write};
+use std::{io::{Error, Write}, time::Duration};
 
 use anyhow::Result;
-use minder::{Request, SerialWrite};
+use minder::{Reply, Request, SerialDecoder, SerialWrite};
 
 fn main() -> Result<()> {
     let mut port = serialport::new("/dev/cu.usbmodem11404", 115200).open()?;
@@ -13,6 +13,25 @@ fn main() -> Result<()> {
     };
 
     minder::serial_encode(&req, WritePort(&mut port))?;
+
+    port.set_timeout(Duration::from_secs(5))?;
+
+    let mut dec = SerialDecoder::new();
+
+    let mut buffer = vec![0u8; 256];
+    loop {
+        let count = match port.read(&mut buffer) {
+            Ok(count) => count,
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => break,
+            Err(e) => Err(e)?
+        };
+
+        for &byte in &buffer[..count] {
+            if let Some(packet) = dec.add_decode::<Reply>(byte) {
+                println!("{:?}", packet);
+            }
+        }
+    }
 
     Ok(())
 }
