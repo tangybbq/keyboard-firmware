@@ -36,7 +36,7 @@ pub use encode::{HidWrite, hid_encode, SerialWrite, serial_encode};
 pub const PACKET_SIZE: usize = 64;
 
 // The version of the protocol described here.
-pub static VERSION: &'static str = "2024-10-03a";
+pub static VERSION: &'static str = "2024-11-01a";
 
 #[derive(Debug, Encode, Decode, Eq, PartialEq)]
 pub enum Request {
@@ -57,7 +57,13 @@ pub enum Reply {
         /// Version information about this device.
         #[n(2)]
         info: String,
-    }
+    },
+    #[n(2)]
+    Log {
+        /// The message to log.
+        #[n(1)]
+        message: String,
+    },
 }
 
 #[cfg(test)]

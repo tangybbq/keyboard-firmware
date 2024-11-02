@@ -14,7 +14,7 @@ fn main() -> Result<()> {
 
     minder::serial_encode(&req, WritePort(&mut port))?;
 
-    port.set_timeout(Duration::from_secs(5))?;
+    port.set_timeout(Duration::from_secs(120 * 60 * 60 * 24))?;
 
     let mut dec = SerialDecoder::new();
 
@@ -28,12 +28,24 @@ fn main() -> Result<()> {
 
         for &byte in &buffer[..count] {
             if let Some(packet) = dec.add_decode::<Reply>(byte) {
-                println!("{:?}", packet);
+                // println!("{:?}", packet);
+                show(&packet);
             }
         }
     }
 
     Ok(())
+}
+
+fn show(msg: &Reply) {
+    match msg {
+        Reply::Hello { version, info } => {
+            println!("Hello: {}, {}", version, info);
+        }
+        Reply::Log { message } => {
+            println!("{}", message);
+        }
+    }
 }
 
 // Write wrapper.

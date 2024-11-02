@@ -61,11 +61,49 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq, log: Arc<Mutex<Logger>>) 
 
         stats.stop("minder");
 
-        // Try printing out log messages.  We intentionall only lock for each message to avoid
+        // Try printing out log messages.  We intentionally only lock for each message to avoid
         // locking anything too long.
-        while let Some(msg) = log.lock().unwrap().pop() {
-            printkln!("log: {}", msg);
+        loop {
+            let mut inner = log.lock().unwrap();
+            let msg = inner.pop(0);
+            drop(inner);
+
+            if let Some(msg) = msg {
+                printkln!("log: {}", msg);
+            } else {
+                break;
+            }
         }
+
+        // Also try sending a message over the minder port.  Unsure how data will be handled if
+        // there is no listener.
+        loop {
+            // Don't do any of this unless something is actually connected.
+            if unsafe { !uart.inner().is_dtr_set().unwrap() } {
+                break;
+            }
+
+            let mut inner = log.lock().unwrap();
+            let msg = inner.pop(1);
+            drop(inner);
+
+            if let Some(msg) = msg {
+                let reply = Reply::Log {
+                    message: msg,
+                };
+                minder::serial_encode(&reply, WritePort(&mut uart)).unwrap();
+            } else {
+                break;
+            }
+        }
+        /*
+        while let Some(msg) = log.lock().unwrap().pop(1) {
+            let reply = Reply::Log {
+                message: msg,
+            };
+            minder::serial_encode(&reply, WritePort(&mut uart)).unwrap();
+        }
+        */
 
         stat_count += 1;
         if stat_count >= 60 {
@@ -83,7 +121,10 @@ impl<'a> SerialWrite for WritePort<'a> {
     type Error = Infallible;
 
     fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
-        Ok(unsafe { self.0.write(buf) })
+        unsafe {
+            self.0.write(buf, Duration::millis(250));
+        }
+        Ok(())
     }
 }
 
