@@ -43,7 +43,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
     let mut stat_count = 0;
     let mut reply_hello = false;
     loop {
-        match uart.read_wait(Duration::millis_at_least(1_000)) {
+        match uart.read_wait(Duration::millis_at_least(100)) {
             Ok(buf) => {
                 for &byte in buf.as_slice() {
                     if let Some(packet) = decoder.add_decode::<Request>(byte) {
@@ -138,7 +138,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
         */
 
         stat_count += 1;
-        if stat_count >= 60 {
+        if stat_count >= 600 {
             stat_count = 0;
             stats.start("stats");
             stats.show();
