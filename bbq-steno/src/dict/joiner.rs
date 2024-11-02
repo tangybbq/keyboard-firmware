@@ -93,6 +93,7 @@ pub enum Joined {
 
 /// This describes the states in the process of computing the set of actions based on the
 /// translation.
+#[derive(Debug)]
 struct Next {
     // How much is being removed by this action.
     remove: usize,
@@ -171,6 +172,8 @@ impl Joiner {
 
         self.typed.push_str(&next.append);
         // println!("Typed: {:?}", self.typed);
+
+        next.simplify();
 
         // Push to the history.
         self.history.push_back(Add {
@@ -427,6 +430,26 @@ impl Next {
         self.append.push('$');
         while let Some(ch) = buf.pop() {
             self.append.push(ch);
+        }
+    }
+
+    /// Optimize next by removing backspaces that are followed by retyping the same characters.
+    ///
+    /// We start at the beginning of "append", and at the end of 'removed' and as long as characters
+    /// match, we can remove the redundancy.
+    fn simplify(&mut self) {
+        // Determine how many character at the prefix of "append" match those of "removed", but in
+        // reverse.
+        let count = self.append
+            .chars()
+            .zip(self.removed.chars().rev())
+            .take_while(|(a, b)| a == b)
+            .count();
+
+        if count > 0 {
+            self.remove -= count;
+            self.removed.truncate(self.removed.len() - count);
+            self.append.replace_range(..count, "");
         }
     }
 }
