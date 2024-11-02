@@ -4,8 +4,6 @@
 //! - Steno dictionary conversion
 //! - All of the interaction between these.
 
-use crate::log::info;
-
 use crate::{KeyEvent, EventQueue, Event};
 
 use self::qwerty::QwertyManager;
@@ -227,7 +225,7 @@ impl ModeSelector {
                 self.seen = 0;
                 self.selecting = false;
                 events.push(Event::Mode(self.mode));
-                info!("Mode change: {:?}", self.mode);
+                // info!("Mode change: {:?}", self.mode);
             } else {
                 // Check for a specific selection to possibly change the
                 // indicator.

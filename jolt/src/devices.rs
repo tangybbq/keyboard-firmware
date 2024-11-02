@@ -170,6 +170,7 @@ pub mod usb {
 
         // TODO: Ideally, some minder protocols should be able to be dropped if the queue gets too
         // large, so that should probably be an argument here.
+        #[allow(dead_code)]
         pub fn send_minder_report(&self, report: &[u8]) {
             let mut state = self.hid2.state.lock().unwrap();
 

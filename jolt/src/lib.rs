@@ -238,7 +238,7 @@ extern "C" fn rust_main() {
 
             // Mode select and mode affect the LEDs.
             Event::ModeSelect(mode) => {
-                info!("modeselect: {:?}", mode);
+                // info!("modeselect: {:?}", mode);
                 let next = match mode {
                     LayoutMode::Steno => get_steno_select_indicator(raw_mode),
                     LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
@@ -247,13 +247,6 @@ extern "C" fn rust_main() {
                     _ => &leds::manager::QWERTY_SELECT_INDICATOR,
                 };
                 leds.set_base(0, next);
-
-                // For now, debug the minder, with a very simple packet, showing that change.
-                let mut minder = [0u8; 64];
-                minder[0] = 0x37;
-                minder[1] = 0x34;
-                minder[2] = mode as u8;
-                usb.send_minder_report(&minder);
             }
 
             // Mode select and mode affect the LEDs.
