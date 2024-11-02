@@ -1,6 +1,7 @@
 //! Handle keyminder requests.
 
 use alloc::{string::ToString, vec::Vec};
+use alloc::vec;
 
 use log::info;
 use minder::{Reply, Request, SerialDecoder};
@@ -13,6 +14,9 @@ pub struct Minder();
 
 /// Our uart, with fixed sized rings.
 type Uart = UartIrq<2, 2>;
+
+/// The size of the read buffers.
+const READ_BUFSIZE: usize = 256;
 
 impl Minder {
     pub fn new(stats: Arc<Stats>, uart: Uart, log: Arc<Mutex<Logger>>) -> Minder {
@@ -28,9 +32,10 @@ impl Minder {
 }
 
 fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
-
-    let mut minder_packet = [0u8; 64];
     let mut decoder = SerialDecoder::new();
+
+    // Add two buffers for reading.
+    uart.read_enqueue(vec![0u8; READ_BUFSIZE]).unwrap();
 
     // TODO: This should be better than just counting, as it would print way more frequently with
     // more messages.
@@ -38,16 +43,20 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
     let mut stat_count = 0;
     let mut reply_hello = false;
     loop {
-        let count = unsafe { uart.try_read(&mut minder_packet, Duration::millis_at_least(1_000)) };
-
-        stats.start("minder");
-        if count > 0 {
-            for &byte in &minder_packet[..count] {
-                if let Some(packet) = decoder.add_decode::<Request>(byte) {
-                    info!("Minder: {:?}", packet);
-                    reply_hello = true;
+        match uart.read_wait(Duration::millis_at_least(1_000)) {
+            Ok(buf) => {
+                for &byte in buf.as_slice() {
+                    if let Some(packet) = decoder.add_decode::<Request>(byte) {
+                        info!("Minder: {:?}", packet);
+                        reply_hello = true;
+                    }
                 }
+
+                // Put the buffer back.
+                uart.read_enqueue(buf.into_inner()).unwrap();
             }
+            // Timeout, just go on.
+            Err(_) => (),
         }
 
         // If we got a hello, send a reply.
