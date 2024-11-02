@@ -1,19 +1,21 @@
 //! Handle keyminder requests.
 
-use alloc::string::ToString;
-use core::convert::Infallible;
+use alloc::{string::ToString, vec::Vec};
 
 use log::info;
-use minder::{Reply, Request, SerialDecoder, SerialWrite};
-use zephyr::{device::uart::UartIrq, kobj_define, printkln, sync::{Arc, Mutex}, time::Duration};
+use minder::{Reply, Request, SerialDecoder};
+use zephyr::{device::uart::UartIrq, kobj_define, printkln, sync::{Arc, Mutex}, time::{Duration, NoWait}};
 
 use crate::{logging::Logger, Stats};
 
 /// The minder.
 pub struct Minder();
 
+/// Our uart, with fixed sized rings.
+type Uart = UartIrq<2, 2>;
+
 impl Minder {
-    pub fn new(stats: Arc<Stats>, uart: UartIrq, log: Arc<Mutex<Logger>>) -> Minder {
+    pub fn new(stats: Arc<Stats>, uart: Uart, log: Arc<Mutex<Logger>>) -> Minder {
         let mut thread = MINDER_THREAD.init_once(MINDER_STACK.init_once(()).unwrap()).unwrap();
         thread.set_priority(6);
         thread.set_name(c"minder");
@@ -25,7 +27,7 @@ impl Minder {
     }
 }
 
-fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq, log: Arc<Mutex<Logger>>) {
+fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
 
     let mut minder_packet = [0u8; 64];
     let mut decoder = SerialDecoder::new();
@@ -52,11 +54,16 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq, log: Arc<Mutex<Logger>>) 
         if reply_hello {
             reply_hello = false;
 
+            let mut buffer = Vec::new();
             let reply = Reply::Hello {
                 version: minder::VERSION.to_string(),
                 info: "todo: put build information here".to_string(),
             };
-            minder::serial_encode(&reply, WritePort(&mut uart)).unwrap();
+            minder::serial_encode(&reply, &mut buffer).unwrap();
+
+            // Attempt to write it, but just ignore the error if we can't.
+            let len = buffer.len();
+            let _ = uart.write_enqueue(buffer, 0..len);
         }
 
         stats.stop("minder");
@@ -78,8 +85,18 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq, log: Arc<Mutex<Logger>>) 
         // Also try sending a message over the minder port.  Unsure how data will be handled if
         // there is no listener.
         loop {
+            // Handle any completed writes.
+            // For now, just discard the buffer, as we'll dynamically allocate new ones.
+            while let Ok(_) = uart.write_wait(NoWait) {
+            }
+
             // Don't do any of this unless something is actually connected.
             if unsafe { !uart.inner().is_dtr_set().unwrap() } {
+                break;
+            }
+
+            // Also don't try to write if there isn't any space.
+            if uart.write_is_full() {
                 break;
             }
 
@@ -88,10 +105,16 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq, log: Arc<Mutex<Logger>>) 
             drop(inner);
 
             if let Some(msg) = msg {
+                // Encode the message to a new Vec<u8> so we can write it as a single unit.
+                let mut buffer = Vec::new();
                 let reply = Reply::Log {
                     message: msg,
                 };
-                minder::serial_encode(&reply, WritePort(&mut uart)).unwrap();
+                minder::serial_encode(&reply, &mut buffer).unwrap();
+
+                // Write the entire thing.
+                let len = buffer.len();
+                uart.write_enqueue(buffer, 0..len).expect("Queue full, despite check");
             } else {
                 break;
             }
@@ -112,19 +135,6 @@ fn minder_thread(stats: Arc<Stats>, mut uart: UartIrq, log: Arc<Mutex<Logger>>) 
             stats.show();
             stats.stop("stats");
         }
-    }
-}
-
-struct WritePort<'a>(&'a mut UartIrq);
-
-impl<'a> SerialWrite for WritePort<'a> {
-    type Error = Infallible;
-
-    fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
-        unsafe {
-            self.0.write(buf, Duration::millis(250));
-        }
-        Ok(())
     }
 }
 
