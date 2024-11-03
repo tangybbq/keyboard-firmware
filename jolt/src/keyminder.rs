@@ -45,6 +45,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
     loop {
         match uart.read_wait(Duration::millis_at_least(100)) {
             Ok(buf) => {
+                stats.start("minder.read");
                 for &byte in buf.as_slice() {
                     if let Some(packet) = decoder.add_decode::<Request>(byte) {
                         info!("Minder: {:?}", packet);
@@ -54,6 +55,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
 
                 // Put the buffer back.
                 uart.read_enqueue(buf.into_inner()).unwrap();
+                stats.stop("minder.read");
             }
             // Timeout, just go on.
             Err(_) => (),
@@ -63,6 +65,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
         if reply_hello {
             reply_hello = false;
 
+            stats.start("minder.reply");
             let mut buffer = Vec::new();
             let reply = Reply::Hello {
                 version: minder::VERSION.to_string(),
@@ -73,12 +76,13 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
             // Attempt to write it, but just ignore the error if we can't.
             let len = buffer.len();
             let _ = uart.write_enqueue(buffer, 0..len);
+            stats.stop("minder.reply");
         }
 
-        stats.stop("minder");
 
         // Try printing out log messages.  We intentionally only lock for each message to avoid
         // locking anything too long.
+        stats.start("minder.locallog");
         loop {
             let mut inner = log.lock().unwrap();
             let msg = inner.pop(0);
@@ -90,9 +94,11 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
                 break;
             }
         }
+        stats.stop("minder.locallog");
 
         // Also try sending a message over the minder port.  Unsure how data will be handled if
         // there is no listener.
+        stats.start("minder.acm");
         loop {
             // Handle any completed writes.
             // For now, just discard the buffer, as we'll dynamically allocate new ones.
@@ -128,6 +134,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
                 break;
             }
         }
+        stats.stop("minder.acm");
         /*
         while let Some(msg) = log.lock().unwrap().pop(1) {
             let reply = Reply::Log {
