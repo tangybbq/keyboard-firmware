@@ -1,23 +1,12 @@
 //! Inter keyboard communication.
 
-use alloc::vec::Vec;
-use alloc::vec;
 use bbq_keyboard::{Side, serialize::{Decoder, Packet, KeyBits, PacketBuffer}, InterState, Event, KeyEvent};
 
-use zephyr::{device::uart::UartIrq, sync::channel::Sender, time::NoWait};
+use zephyr::device::uart::Uart;
+use zephyr::sync::channel::Sender;
 use log::{warn, info};
 
 use crate::devices::leds::LedRgb;
-
-/// Our local IRQ.
-///
-/// We queue up two read buffers to get full double buffering.
-/// Write doesn't need to be very deep, as long as the packets are always small enough to be fully
-/// transmitted each frame.
-type Uart = UartIrq<2, 2>;
-
-/// Buffer size for read.  Probably best if this is larger than our largest packet.
-const READ_BUFSIZE: usize = 32;
 
 pub struct InterHandler {
     xmit_buffer: PacketBuffer,
@@ -38,12 +27,7 @@ pub struct InterHandler {
 
 impl InterHandler {
     #[allow(dead_code)]
-    pub fn new(side: Side, mut uart: Uart, events: Sender<Event>) -> Self {
-        // Give two read buffers to the uart reader.
-        for _ in 0..2 {
-            uart.read_enqueue(vec![0u8; READ_BUFSIZE]).unwrap();
-        }
-
+    pub fn new(side: Side, uart: Uart, events: Sender<Event>) -> Self {
         Self {
             xmit_buffer: PacketBuffer::new(),
             receiver: Decoder::new(),
@@ -65,9 +49,8 @@ impl InterHandler {
         // tick we have.  Zephyr doesn't have a non-blocking polling write, so
         // this would block, and if it gets stuck would block lots of things.
         loop {
-            if let Ok(buf) = self.uart.read_wait(NoWait) {
-                // Process all of the bytes.
-                for &ch in buf.as_slice() {
+            match self.uart_read() {
+                Ok(Some(ch)) => {
                     if let Some(packet) = self.receiver.add_byte(ch) {
                         match packet {
                             Packet::Idle { side } => {
@@ -99,12 +82,8 @@ impl InterHandler {
                         }
                     }
                 }
-
-                // Push buffer back.
-                self.uart.read_enqueue(buf.into_inner()).unwrap();
-            } else {
-                // Once we get a timeout, stop.
-                break;
+                Ok(None) => break,
+                Err(e) => panic!("Uart driver error: {}", e),
             }
         }
 
@@ -130,18 +109,18 @@ impl InterHandler {
             }
         }
 
-        // Free up any writes.
-        while let Ok(_) = self.uart.write_wait(NoWait) {
-        }
+        self.try_send();
+    }
 
-        // Not exactly the cleanest.
-        if !self.xmit_buffer.is_empty() {
-            let tmp: Vec<u8> = self.xmit_buffer.iter().cloned().collect();
-            self.xmit_buffer.clear();
-
-            // Transmit, ignoring any overflow.
-            let len = tmp.len();
-            let _ = self.uart.write_enqueue(tmp, 0..len);
+    fn try_send(&mut self) {
+        // TODO: Buffer this better.
+        while let Some(ch) = self.xmit_buffer.pop_front() {
+            let buf = [ch];
+            match unsafe { self.uart.fifo_fill(&buf) } {
+                Ok(1) => (),
+                Ok(_) => (), // TODO: warn?
+                Err(_) => (),
+            }
         }
     }
 
@@ -195,6 +174,18 @@ impl InterHandler {
             }
         }
         self.last_keys = keys;
+    }
+
+    /// Try to read a single byte from the UART.
+    /// TODO: Buffer this better.
+    fn uart_read(&mut self) -> zephyr::Result<Option<u8>> {
+        let mut buf = [0u8];
+        match unsafe { self.uart.fifo_read(&mut buf) } {
+            Ok(1) => Ok(Some(buf[0])),
+            Ok(0) => Ok(None),
+            Ok(_) => unreachable!(),
+            Err(e) => Err(e),
+        }
     }
 
     /*
