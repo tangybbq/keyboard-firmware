@@ -35,7 +35,9 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
     let mut decoder = SerialDecoder::new();
 
     // Add two buffers for reading.
-    uart.read_enqueue(vec![0u8; READ_BUFSIZE]).unwrap();
+    for _ in 0..2 {
+        uart.read_enqueue(vec![0u8; READ_BUFSIZE]).unwrap();
+    }
 
     // TODO: This should be better than just counting, as it would print way more frequently with
     // more messages.
