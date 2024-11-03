@@ -84,7 +84,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
 
         // Try printing out log messages.  We intentionally only lock for each message to avoid
         // locking anything too long.
-        stats.start("minder.locallog");
+        stats.start("minder.log");
         loop {
             let mut inner = log.lock().unwrap();
             let msg = inner.pop(0);
@@ -96,7 +96,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
                 break;
             }
         }
-        stats.stop("minder.locallog");
+        stats.stop("minder.log");
 
         // Also try sending a message over the minder port.  Unsure how data will be handled if
         // there is no listener.
