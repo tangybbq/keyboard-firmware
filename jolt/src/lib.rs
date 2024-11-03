@@ -382,6 +382,7 @@ fn get_steno_select_indicator(raw: bool) -> &'static Indication {
 #[cfg(CONFIG_JOLT_INTER)]
 fn get_inter(side: Side, equeue_send: Sender<Event>) -> Option<InterHandler> {
     let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance().unwrap();
+    let uart = unsafe { uart.into_irq().unwrap() };
     Some(InterHandler::new(side, uart, equeue_send))
 }
 
