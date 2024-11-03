@@ -168,9 +168,12 @@ extern "C" fn rust_main() {
             acm_active = false;
         }
 
+        stats.start("recv");
         let ev = equeue_recv.recv().unwrap();
+        stats.stop("recv");
 
         let mut is_tick = false;
+        stats.start("event");
         match ev {
             Event::Tick => is_tick = true,
             Event::Matrix(key) => {
@@ -308,6 +311,7 @@ extern "C" fn rust_main() {
                 printkln!("Event: {:?}", ev);
             }
         }
+        stats.stop("event");
 
         // Only continue when the tick is received.
         if !is_tick {
