@@ -318,6 +318,12 @@ extern "C" fn rust_main() {
             continue;
         }
 
+        // Read in the HID out report if we have been sent one.
+        let mut buf = [0u8; 8];
+        if let Ok(Some(count)) = usb.get_keyboard_report(&mut buf) {
+            info!("Keyboard out: {} bytes: {:?}", count, &buf[..count]);
+        }
+
         stats.start("matrix");
         scanner.scan();
         stats.stop("matrix");

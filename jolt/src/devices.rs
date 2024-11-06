@@ -40,7 +40,7 @@ pub mod usb {
     use alloc::{collections::vec_deque::VecDeque, vec::Vec};
     use log::{error, info, warn};
     use zephyr::{
-        error::to_result_void, raw, sync::{atomic::AtomicPtr, Arc, Mutex}, sys::sync::Semaphore, time::Timeout, Error, Result
+        error::to_result_void, raw, sync::{atomic::AtomicPtr, Arc, Mutex}, sys::sync::Semaphore, time::{NoWait, Timeout}, Error, Result
     };
 
     use crate::rust_usb_status;
@@ -146,6 +146,26 @@ pub mod usb {
             } else {
                 // Queue it up to be sent as the prior reports are read.
                 state.additional.push_back(report.to_vec());
+            }
+        }
+
+        /// Read a HID out report from the keyboard, or None, if there is none available.
+        /// TODO: We really want to be able to sleep on this, or have it send an event, but for now,
+        /// polling should at least keep the keyboard from freezing.
+        pub fn get_keyboard_report(&self, data: &mut [u8]) -> Result<Option<usize>> {
+            if self.hid0.out_sem.take(NoWait).is_ok() {
+                let mut count: u32 = 0;
+                unsafe {
+                    to_result_void(raw::hid_int_ep_read(
+                            self.hid0.device,
+                            data.as_mut_ptr(),
+                            data.len() as u32,
+                            &mut count))?;
+                }
+
+                Ok(Some(count as usize))
+            } else {
+                Ok(None)
             }
         }
 
