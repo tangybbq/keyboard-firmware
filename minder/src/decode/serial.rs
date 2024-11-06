@@ -34,7 +34,8 @@ impl SerialDecoder {
     /// makes it easier to deal with packate boundaries not lining up with the boundaries of the
     /// received data.
     pub fn add_decode<'a, T>(&'a mut self, byte: u8) -> Option<T>
-        where T: Decode<'a, ()>,
+    where
+        T: Decode<'a, ()>,
     {
         // If the buffer is overflow, discard the rest of this packet.
         if self.buffer.len() >= MAX_PACKET {

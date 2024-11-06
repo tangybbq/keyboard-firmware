@@ -40,11 +40,7 @@ struct VecWrite {
 
 impl VecWrite {
     fn new(use_crc: bool) -> VecWrite {
-        let crc = if use_crc {
-            Some(CRC.digest())
-        } else {
-            None
-        };
+        let crc = if use_crc { Some(CRC.digest()) } else { None };
         VecWrite {
             buffer: Vec::new(),
             crc,
@@ -76,7 +72,11 @@ impl SerialWrite for VecWrite {
 // same kinds of constraints as HID, there is little reason to encode more than one top-level
 // Request or Reply, so this generally isn't an issue.
 
-pub fn serial_encode<T: Encode<()>, W: SerialWrite>(item: T, mut write: W, use_crc: bool) -> Result<(), W::Error> {
+pub fn serial_encode<T: Encode<()>, W: SerialWrite>(
+    item: T,
+    mut write: W,
+    use_crc: bool,
+) -> Result<(), W::Error> {
     let mut buf = VecWrite::new(use_crc);
     buf.buffer.push(START);
     minicbor::encode(item, &mut buf).unwrap();
