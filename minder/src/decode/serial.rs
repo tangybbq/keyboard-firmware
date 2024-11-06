@@ -8,7 +8,9 @@ const MAX_PACKET: usize = 4096;
 use alloc::vec::Vec;
 use minicbor::Decode;
 
-use crate::encode::serial::{START, END, QUOTE, QUOTE_FLIP};
+use crate::encode::serial::{CRC, END, END_CRC, QUOTE, QUOTE_FLIP, START};
+
+pub const CORRECT_CRC: u16 = 0x0f47;
 
 pub struct SerialDecoder {
     /// Indicates we have seen a valid start of packet.
@@ -57,13 +59,32 @@ impl SerialDecoder {
                 }
                 self.quoting = true;
             }
-            END => {
+            END | END_CRC => {
                 // If quoting, this is an error.
                 if !self.inside || self.quoting {
                     self.inside = false;
                     self.quoting = false;
                     return None;
                 }
+
+                // If this is supposed to be a CRC, validate the CRC, and then pop the bytes.
+                if byte == END_CRC {
+                    let mut crc = CRC.digest();
+                    crc.update(&self.buffer);
+                    let digest = crc.finalize();
+
+                    if digest == CORRECT_CRC && self.buffer.len() > 2 {
+                        // Pop off the two CRC bytes.
+                        self.buffer.pop();
+                        self.buffer.pop();
+                    } else {
+                        // CRC mismatch, discard the packet.
+                        self.inside = false;
+                        self.buffer.clear();
+                        return None;
+                    }
+                }
+
                 let res = minicbor::decode(&self.buffer).ok();
                 self.inside = false;
                 // We can't clear the buffer yet, because the returned data can have references to

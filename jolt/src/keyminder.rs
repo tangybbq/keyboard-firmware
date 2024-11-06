@@ -73,7 +73,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
                 version: minder::VERSION.to_string(),
                 info: "todo: put build information here".to_string(),
             };
-            minder::serial_encode(&reply, &mut buffer).unwrap();
+            minder::serial_encode(&reply, &mut buffer, true).unwrap();
 
             // Attempt to write it, but just ignore the error if we can't.
             let len = buffer.len();
@@ -127,7 +127,7 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
                 let reply = Reply::Log {
                     message: msg,
                 };
-                minder::serial_encode(&reply, &mut buffer).unwrap();
+                minder::serial_encode(&reply, &mut buffer, true).unwrap();
 
                 // Write the entire thing.
                 let len = buffer.len();

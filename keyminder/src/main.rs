@@ -6,13 +6,16 @@ use anyhow::Result;
 use minder::{Reply, Request, SerialDecoder, SerialWrite};
 
 fn main() -> Result<()> {
-    let mut port = serialport::new("/dev/cu.usbmodem11404", 115200).open()?;
+    // let mut port = serialport::new("/dev/cu.usbmodem11404", 115200).open()?;
+    // let mut port = serialport::new("/dev/cu.usbmodem112104", 115200).open()?;
+    let mut port = serialport::new("/dev/cu.usbmodem104", 115200).open()?;
+    // let mut port = serialport::new("/dev/cu.usbmodem1104", 115200).open()?;
 
     let req = Request::Hello {
         version: minder::VERSION.to_string(),
     };
 
-    minder::serial_encode(&req, WritePort(&mut port))?;
+    minder::serial_encode(&req, WritePort(&mut port), true)?;
 
     port.set_timeout(Duration::from_secs(120 * 60 * 60 * 24))?;
 

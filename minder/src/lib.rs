@@ -129,20 +129,27 @@ mod tests_serial {
     fn test_encode() {
         check_roundtrip(&Request::Hello {
             version: "This is a string".to_string(),
-        });
+        }, false);
+
+        check_roundtrip(&Request::Hello {
+            version: "This b is a string".to_string(),
+        }, true);
     }
 
-    fn check_roundtrip(item: &Request) {
+    fn check_roundtrip(item: &Request, use_crc: bool) {
         let mut buf = Vec::new();
-        serial_encode(item, &mut buf).unwrap();
+        serial_encode(item, &mut buf, use_crc).unwrap();
 
         // println!("buf: {:02x?}", buf);
         
         let mut dec = SerialDecoder::new();
+        let mut count = 0;
         for &byte in &buf {
             if let Some(resp) = dec.add_decode::<Request>(byte) {
+                count += 1;
                 assert_eq!(item, &resp);
             }
         }
+        assert_eq!(count, 1);
     }
 }

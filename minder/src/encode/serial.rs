@@ -9,6 +9,7 @@
 use core::convert::Infallible;
 
 use alloc::vec::Vec;
+use crc::{Crc, Digest, CRC_16_IBM_SDLC};
 use minicbor::Encode;
 
 /// Write trait for our data.  Just borrows the minicbor trait, as it is exactly what we want, and
@@ -29,15 +30,24 @@ pub const END_CRC: u8 = 0xfb;
 
 pub const QUOTE_FLIP: u8 = 0x80;
 
+pub const CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_IBM_SDLC);
+
 /// Implements Write for a destination vector, applying the given quoting.
 struct VecWrite {
     buffer: Vec<u8>,
+    crc: Option<Digest<'static, u16>>,
 }
 
 impl VecWrite {
-    fn new() -> VecWrite {
+    fn new(use_crc: bool) -> VecWrite {
+        let crc = if use_crc {
+            Some(CRC.digest())
+        } else {
+            None
+        };
         VecWrite {
             buffer: Vec::new(),
+            crc,
         }
     }
 }
@@ -46,6 +56,10 @@ impl SerialWrite for VecWrite {
     type Error = Infallible;
 
     fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
+        if let Some(crc) = &mut self.crc {
+            crc.update(buf);
+        }
+
         for &b in buf {
             if b == START || b == END || b == QUOTE || b == END_CRC {
                 self.buffer.push(QUOTE);
@@ -62,11 +76,19 @@ impl SerialWrite for VecWrite {
 // same kinds of constraints as HID, there is little reason to encode more than one top-level
 // Request or Reply, so this generally isn't an issue.
 
-pub fn serial_encode<T: Encode<()>, W: SerialWrite>(item: T, mut write: W) -> Result<(), W::Error> {
-    let mut buf = VecWrite::new();
+pub fn serial_encode<T: Encode<()>, W: SerialWrite>(item: T, mut write: W, use_crc: bool) -> Result<(), W::Error> {
+    let mut buf = VecWrite::new(use_crc);
     buf.buffer.push(START);
     minicbor::encode(item, &mut buf).unwrap();
-    buf.buffer.push(END);
+    if use_crc {
+        // Compute the CRC, not on the CRC value itself.
+        let res = buf.crc.take().unwrap().finalize();
+        let res = [(res & 0xff) as u8, (res >> 8) as u8];
+        buf.write_all(&res).unwrap();
+        buf.buffer.push(END_CRC);
+    } else {
+        buf.buffer.push(END);
+    }
 
     write.write_all(&buf.buffer)
 }

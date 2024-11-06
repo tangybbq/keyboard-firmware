@@ -8,6 +8,7 @@ log = { version = "0.4.20" }
 
 minicbor = { version = "0.25.1", features = ["alloc", "derive"] }
 bbq-steno = { version = "0.1", default-features = false, path = "../bbq-steno" }
+crc = "3.2"
 
 [features]
 default = ["std"]
