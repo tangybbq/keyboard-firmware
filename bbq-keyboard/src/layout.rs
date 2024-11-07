@@ -265,8 +265,9 @@ impl LayoutMode {
     fn next(self) -> Self {
         match self {
             // Direct cycling between these modes.
-            LayoutMode::Steno => LayoutMode::StenoDirect,
+            LayoutMode::Steno => LayoutMode::Taipo,
             LayoutMode::StenoDirect => LayoutMode::Taipo,
+
             LayoutMode::Taipo => LayoutMode::Steno,
 
             // These move to another mode, but cannot be entered directly.
@@ -281,7 +282,7 @@ impl LayoutMode {
     fn next(self) -> Self {
         match self {
             // Direct cycling is between these modes.
-            LayoutMode::Steno => LayoutMode::StenoDirect,
+            LayoutMode::Steno => LayoutMode::Taipo,
             LayoutMode::StenoDirect => LayoutMode::Taipo,
             LayoutMode::Taipo => LayoutMode::Qwerty,
             LayoutMode::Qwerty => LayoutMode::Steno,
