@@ -389,13 +389,13 @@ fn get_steno_select_indicator(raw: bool) -> &'static Indication {
 }
 
 /// Conditionally return the inter-board code.
-#[cfg(CONFIG_JOLT_INTER)]
+#[cfg(dt = "chosen::inter_board_uart")]
 fn get_inter(side: Side, equeue_send: Sender<Event>) -> Option<InterHandler> {
     let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance().unwrap();
     Some(InterHandler::new(side, uart, equeue_send))
 }
 
-#[cfg(not(CONFIG_JOLT_INTER))]
+#[cfg(not(dt = "chosen::inter_board_uart"))]
 fn get_inter(_side: Side, _equeue_send: Sender<Event>) -> Option<InterHandler> {
     None
 }
