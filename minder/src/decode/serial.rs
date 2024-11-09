@@ -6,6 +6,7 @@
 const MAX_PACKET: usize = 4096;
 
 use alloc::vec::Vec;
+use log::warn;
 use minicbor::Decode;
 
 use crate::encode::serial::{CRC, END, END_CRC, QUOTE, QUOTE_FLIP, START};
@@ -80,13 +81,18 @@ impl SerialDecoder {
                         self.buffer.pop();
                     } else {
                         // CRC mismatch, discard the packet.
+                        warn!("crc mismatch");
                         self.inside = false;
                         self.buffer.clear();
                         return None;
                     }
                 }
 
-                let res = minicbor::decode(&self.buffer).ok();
+                let res = minicbor::decode(&self.buffer);
+                if let Err(ref e) = res {
+                    warn!("cbor decode: {:?}", e);
+                }
+                let res = res.ok();
                 self.inside = false;
                 // We can't clear the buffer yet, because the returned data can have references to
                 // it.  Instead clear it on the next packet received.
