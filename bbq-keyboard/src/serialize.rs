@@ -374,7 +374,7 @@ fn test_serialize() {
     }
     assert_eq!(Some(b), bb);
 
-    let keys = [5, 2, 0, 1, 7, 41];
+    let keys = [5, 2, 0, 1, 7, 41, 2];
     let c = Packet::Secondary {
         side: Side::Left,
         keys,
