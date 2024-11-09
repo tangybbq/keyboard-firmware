@@ -1,18 +1,22 @@
 //! Inter keyboard communication.
 
-use bbq_keyboard::{Side, serialize::{Decoder, Packet, KeyBits, PacketBuffer}, InterState, Event, KeyEvent};
+use arraydeque::ArrayDeque;
+use bbq_keyboard::{ser2::{KeyBits, Packet, Role}, Event, InterState, KeyEvent, Side};
 
+use minder::{serial_encode, SerialDecoder, SerialWrite};
 use zephyr::device::uart::Uart;
 use zephyr::sync::channel::Sender;
 use log::{warn, info};
 
 use crate::devices::leds::LedRgb;
 
+/// A buffer large enough to hold a single packet.
+type PacketBuffer = ArrayDeque<u8, 32>;
+
 pub struct InterHandler {
     xmit_buffer: PacketBuffer,
-    receiver: Decoder,
+    receiver: SerialDecoder,
     side: Side,
-    seq: u8,
     state: InterState,
     /// Keys being sent.
     keys: KeyBits,
@@ -30,8 +34,7 @@ impl InterHandler {
     pub fn new(side: Side, uart: Uart, events: Sender<Event>) -> Self {
         Self {
             xmit_buffer: PacketBuffer::new(),
-            receiver: Decoder::new(),
-            seq: 1,
+            receiver: SerialDecoder::new(),
             leds: LedRgb::default(),
             side,
             state: InterState::Idle,
@@ -51,33 +54,24 @@ impl InterHandler {
         loop {
             match self.uart_read() {
                 Ok(Some(ch)) => {
-                    if let Some(packet) = self.receiver.add_byte(ch) {
-                        match packet {
-                            Packet::Idle { side } => {
-                                // info!("Idle packet");
-                                if side == self.side && !self.side_warn {
+                    if let Some(packet) = self.receiver.add_decode::<Packet>(ch) {
+                        // info!("rcv: {:?}", packet);
+                        match packet.role {
+                            Role::Idle => {
+                                if packet.side == self.side && !self.side_warn {
                                     warn!("Both parts are same side");
                                     self.side_warn = true;
                                 }
                             }
-                            Packet::Primary { side: _, led } => {
-                                let _ = led;
-                                // Upon receiving a primary message, this tells us we
-                                // are secondary.
-                                // info!("Primary");
-                                // ...
+                            Role::Primary => {
+                                // Upon receiving a primary message, this tells us we are secondary.
                                 self.set_state(InterState::Secondary);
                             }
-                            Packet::Secondary { side: _, keys } => {
-                                // info!("Secondary: {:?}", keys);
+                            Role::Secondary => {
                                 self.events.send(Event::Heartbeat).unwrap();
-                                self.update_keys(keys);
-                                /*
-                                for key in &keys {
-                                    // info!("interkey: {:?}", key);
-                                    self.events.send(Event::InterKey(*key)).unwrap();
+                                if let Some(keys) = packet.keys {
+                                    self.update_keys(keys);
                                 }
-                                */
                             }
                         }
                     }
@@ -88,26 +82,23 @@ impl InterHandler {
         }
 
         // Transmit our state packet.
+        let mut packet;
         match self.state {
             InterState::Idle => {
-                Packet::Idle { side: self.side }.encode(&mut self.xmit_buffer, &mut self.seq);
+                packet = Packet::new(Role::Idle, self.side);
+                // Packet::Idle { side: self.side }.encode(&mut self.xmit_buffer, &mut self.seq);
             }
             InterState::Primary => {
-                Packet::Primary {
-                    side: self.side,
-                    led: self.leds.to_rgb8(),
-                }
-                .encode(&mut self.xmit_buffer, &mut self.seq);
+                packet = Packet::new(Role::Primary, self.side);
+                packet.set_leds(self.leds.to_rgb8());
             }
             InterState::Secondary => {
-                let keys = self.keys;
-                Packet::Secondary {
-                    side: self.side,
-                    keys,
-                }
-                .encode(&mut self.xmit_buffer, &mut self.seq);
+                packet = Packet::new(Role::Secondary, self.side);
+                packet.set_keys(self.keys);
             }
         }
+        self.xmit_buffer.clear();
+        serial_encode(&packet, PacketWrap(&mut self.xmit_buffer), true).unwrap();
 
         self.try_send();
     }
@@ -139,8 +130,8 @@ impl InterHandler {
     }
 
     pub fn add_key(&mut self, key: KeyEvent) {
-        let index = key.key() / 7;
-        let bit = 1u8 << (key.key() % 7);
+        let index = key.key() / 8;
+        let bit = 1u8 << (key.key() % 8);
         if key.is_press() {
             self.keys[index as usize] |= bit;
         } else {
@@ -159,7 +150,7 @@ impl InterHandler {
 
         let mut key = 0;
         for byte in 0..keys.len() {
-            for bit in 0..7 {
+            for bit in 0..8 {
                 let bnum = 1 << bit;
                 if (keys[byte] & bnum) != (self.last_keys[byte] & bnum) {
                     let ev = if (keys[byte] & bnum) != 0 {
@@ -193,4 +184,17 @@ impl InterHandler {
         self.leds = leds;
     }
     */
+}
+
+struct PacketWrap<'a>(&'a mut PacketBuffer);
+
+impl<'a> SerialWrite for PacketWrap<'a> {
+    type Error = ();
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
+        // Note that this evicts from the front, which is a different failure than would be seen
+        // with repeated push_back.
+        self.0.extend_back(buf.into_iter().cloned());
+        Ok(())
+    }
 }
