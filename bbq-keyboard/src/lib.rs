@@ -20,6 +20,8 @@ pub use layout::LayoutMode;
 
 pub mod dict;
 pub mod boardinfo;
+pub mod keys;
+pub mod ser2;
 pub mod serialize;
 pub mod modifiers;
 pub mod usb_typer;
@@ -46,6 +48,7 @@ mod log {
 /// Which side of the keyboard are we.
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(ValueEnum))]
+#[cbor(index_only)]
 pub enum Side {
     #[n(0)]
     Left,
