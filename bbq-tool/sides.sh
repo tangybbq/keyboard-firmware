@@ -74,3 +74,17 @@ $uf2conv \
 	-c \
 	-o proto4.uf2 \
 	proto4.bin
+
+$uf2conv \
+	-b 0x101fff00 \
+	-f 0xe48bff56 \
+	-c \
+	-o jolt1-left.uf2 \
+	jolt1-left.bin
+
+$uf2conv \
+	-b 0x101fff00 \
+	-f 0xe48bff56 \
+	-c \
+	-o jolt1-right.uf2 \
+	jolt1-right.bin
