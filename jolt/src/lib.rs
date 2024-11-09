@@ -110,7 +110,7 @@ extern "C" fn rust_main() {
     // For now, if we are a single setup, consider that the "left" side,
     // which will avoid any bias of the scancodes.
     let side = info.side.unwrap_or(Side::Left);
-    printkln!("Our side: {:?}", side);
+    info!("Our side: {:?}", side);
 
     // Initialize USB HID.
     let usb = Arc::new(devices::usb::Usb::new().unwrap());
