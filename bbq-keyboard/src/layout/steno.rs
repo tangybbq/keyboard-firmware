@@ -118,62 +118,74 @@ static STENO_KEYS: &[Option<Stroke>] = &[
 #[cfg(feature = "proto3")]
 static STENO_KEYS: &[Option<Stroke>] = &[
     // Left
+    // 0
     Some(Stroke::empty()),
     Some(stroke!("#")),
     Some(Stroke::empty()),
     Some(Stroke::empty()),
 
+    // 4
     Some(stroke!("*")),
     Some(stroke!("S")),
     Some(stroke!("#")),
     Some(Stroke::empty()),
 
+    // 8
     Some(stroke!("T")),
     Some(stroke!("K")),
     Some(stroke!("#")),
     Some(Stroke::empty()),
 
+    // 12
     Some(stroke!("P")),
     Some(stroke!("W")),
     Some(stroke!("#")),
     Some(stroke!("#")),
 
+    // 16
     Some(stroke!("H")),
     Some(stroke!("R")),
     Some(stroke!("#")),
     Some(stroke!("A")),
 
+    // 20
     Some(stroke!("^")),
     Some(stroke!("^")),
     Some(stroke!("^")),
     Some(stroke!("O")),
 
     // Right
+    // 24
     Some(stroke!("-D")),
     Some(stroke!("-Z")),
     Some(stroke!("#")), // What should this be?
     Some(Stroke::empty()),
 
+    // 28
     Some(stroke!("-T")),
     Some(stroke!("-S")),
     Some(stroke!("#")),
     Some(Stroke::empty()),
 
+    // 32
     Some(stroke!("-L")),
     Some(stroke!("-G")),
     Some(stroke!("#")),
     Some(Stroke::empty()),
 
+    // 36
     Some(stroke!("-P")),
     Some(stroke!("-B")),
     Some(stroke!("#")),
     Some(stroke!("#")),
 
+    // 40
     Some(stroke!("-F")),
     Some(stroke!("-R")),
     Some(stroke!("#")),
     Some(stroke!("U")),
 
+    // 44
     Some(stroke!("+")),
     Some(stroke!("+")),
     Some(stroke!("+")),
