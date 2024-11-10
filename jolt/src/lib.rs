@@ -126,7 +126,12 @@ extern "C" fn rust_main() {
     let matrix = Matrix::new(rows, cols, side);
     let mut scanner = Scanner::new(matrix, equeue_send.clone(), &info);
 
-    let mut layout = LayoutManager::new();
+    // TODO: When we have definable DT properties, use the DT.  For now, just match names.
+    let two_row = match info.name.as_str() {
+        "proto4" => true,
+        _ => false,
+    };
+    let mut layout = LayoutManager::new(two_row);
 
     let leds = LedSet::get_all();
     let mut leds = LedManager::new(leds, stats.clone());

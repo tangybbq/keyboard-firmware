@@ -15,12 +15,6 @@ mod qwerty;
 mod steno;
 mod taipo;
 
-// TODO: Generalize this a bit better.
-#[cfg(feature = "proto2")]
-const MODE_KEY: u8 = 13;
-
-// TODO: Generalize this a bit better.
-#[cfg(feature = "proto3")]
 const MODE_KEY: u8 = 2;
 
 // Keyboards are complicated things, and small keyboards are even more
@@ -77,17 +71,21 @@ pub struct LayoutManager {
 
     // Set to true for the first tick.
     first_tick: bool,
+
+    // Flag indicating this is a two-row keyboard.  Skips qwerty mode when selected.
+    two_row: bool,
 }
 
 impl LayoutManager {
-    pub fn new() -> Self {
+    pub fn new(two_row: bool) -> Self {
         LayoutManager {
             raw: RawStenoHandler::new(),
             artsey: artsey::ArtseyManager::default(),
-            mode: ModeSelector::default(),
+            mode: ModeSelector::new(two_row),
             qwerty: QwertyManager::default(),
             taipo: TaipoManager::default(),
             first_tick: true,
+            two_row,
         }
     }
 
@@ -113,7 +111,7 @@ impl LayoutManager {
 
     /// Handle a single key event.
     pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) {
-        if self.mode.event(event, events) {
+        if self.mode.event(event, events, self.two_row) {
             match self.mode.get() {
                 LayoutMode::Artsey => {
                     self.artsey.handle_event(event, events);
@@ -149,11 +147,7 @@ pub enum LayoutMode {
 impl Default for LayoutMode {
     /// The initial mode we're starting in.
     fn default() -> Self {
-        if cfg!(feature = "proto3") {
-            LayoutMode::Qwerty
-        } else {
-            LayoutMode::Taipo
-        }
+        LayoutMode::Qwerty
     }
 }
 
@@ -172,25 +166,24 @@ struct ModeSelector {
     seen: u64,
 }
 
-impl Default for ModeSelector {
-    fn default() -> Self {
+impl ModeSelector {
+    fn new(two_row: bool) -> Self {
+        let mode = if two_row { LayoutMode::Taipo } else { LayoutMode::Qwerty };
         ModeSelector {
-            mode: LayoutMode::default(),
+            mode,
             selecting: false,
             pressed: 0,
             seen: 0,
         }
     }
-}
 
-impl ModeSelector {
     /// Get the current mode.
     fn get(&self) -> LayoutMode {
         self.mode
     }
 
     /// Handle a keyevent, and return 'true' if the key even should be passed down to lower layers.
-    fn event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) -> bool {
+    fn event(&mut self, event: KeyEvent, events: &mut dyn EventQueue, two_row: bool) -> bool {
         // Update the mask of keys that have been pressed.
         match event {
             KeyEvent::Press(k) => self.pressed |= 1 << k,
@@ -203,7 +196,7 @@ impl ModeSelector {
             // keys have been pressed.
             if self.selecting || (self.pressed & !(1 << (MODE_KEY as usize))) == 0 {
                 // Toggle the mode.
-                self.mode = self.mode.next();
+                self.mode = self.mode.next(two_row);
                 self.selecting = true;
                 events.push(crate::Event::ModeSelect(self.mode));
             }
@@ -216,7 +209,7 @@ impl ModeSelector {
 
             // When evertything is released, pick our next mode.
             if self.pressed == 0 {
-                if let Some(new_mode) = self.new_mode() {
+                if let Some(new_mode) = self.new_mode(two_row) {
                     self.mode = new_mode;
                 }
 
@@ -229,7 +222,7 @@ impl ModeSelector {
             } else {
                 // Check for a specific selection to possibly change the
                 // indicator.
-                if let Some(new_mode) = self.new_mode() {
+                if let Some(new_mode) = self.new_mode(two_row) {
                     if self.mode != new_mode {
                         events.push(Event::ModeSelect(new_mode));
                     }
@@ -244,10 +237,16 @@ impl ModeSelector {
 
     /// Determine if there is a mode update based on pressed keys while selecting.
     /// TODO: These are based on the 3-row keyboard.
-    fn new_mode(&self) -> Option<LayoutMode> {
+    fn new_mode(&self, two_row: bool) -> Option<LayoutMode> {
         match self.seen & !(1 << (MODE_KEY)) {
             // qwerty 'f' or 'j' select qwerty.
-            m if m == (1 << 17) || m == (1 << 41) => Some(LayoutMode::Qwerty),
+            m if m == (1 << 17) || m == (1 << 41) => {
+                if two_row {
+                    Some(LayoutMode::Taipo)
+                } else {
+                    Some(LayoutMode::Qwerty)
+                }
+            }
             // qwerty 'd' or 'k' select StenoDirect.
             m if m == (1 << 13) || m == (1 << 37) => Some(LayoutMode::StenoDirect),
             // qwerty 's' or 'l' select steno raw.
@@ -258,38 +257,32 @@ impl ModeSelector {
 }
 
 impl LayoutMode {
-    /// Move to the next mode.  For Proto2, we have the two steno modes, and
-    /// artsey, and don't bother with either nkro or qwerty.  nkro for proto2 is
-    /// a todo.
-    #[cfg(feature = "proto2")]
-    fn next(self) -> Self {
-        match self {
-            // Direct cycling between these modes.
-            LayoutMode::Steno => LayoutMode::Taipo,
-            LayoutMode::StenoDirect => LayoutMode::Taipo,
-
-            LayoutMode::Taipo => LayoutMode::Steno,
-
-            // These move to another mode, but cannot be entered directly.
-            LayoutMode::Artsey => LayoutMode::Steno,
-            LayoutMode::Qwerty => LayoutMode::NKRO,
-            LayoutMode::NKRO => LayoutMode::Steno,
-        }
-    }
-
     /// Move to the next mode.
-    #[cfg(feature = "proto3")]
-    fn next(self) -> Self {
-        match self {
-            // Direct cycling is between these modes.
-            LayoutMode::Steno => LayoutMode::Taipo,
-            LayoutMode::StenoDirect => LayoutMode::Taipo,
-            LayoutMode::Taipo => LayoutMode::Qwerty,
-            LayoutMode::Qwerty => LayoutMode::Steno,
+    fn next(self, two_row: bool) -> Self {
+        if two_row {
+            match self {
+                // Direct cycling is between these modes.
+                LayoutMode::Steno => LayoutMode::Taipo,
+                LayoutMode::Taipo => LayoutMode::Steno,
 
-            // These move to another mode, but can only be entered directly.
-            LayoutMode::Artsey => LayoutMode::Qwerty,
-            LayoutMode::NKRO => LayoutMode::Steno,
+                // These move to another mode, but can only be entered directly.
+                LayoutMode::Qwerty => LayoutMode::Steno,
+                LayoutMode::StenoDirect => LayoutMode::Taipo,
+                LayoutMode::Artsey => LayoutMode::Qwerty,
+                LayoutMode::NKRO => LayoutMode::Steno,
+            }
+        } else {
+            match self {
+                // Direct cycling is between these modes.
+                LayoutMode::Steno => LayoutMode::Taipo,
+                LayoutMode::StenoDirect => LayoutMode::Taipo,
+                LayoutMode::Taipo => LayoutMode::Qwerty,
+                LayoutMode::Qwerty => LayoutMode::Steno,
+
+                // These move to another mode, but can only be entered directly.
+                LayoutMode::Artsey => LayoutMode::Qwerty,
+                LayoutMode::NKRO => LayoutMode::Steno,
+            }
         }
     }
 }
