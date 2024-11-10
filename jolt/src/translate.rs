@@ -18,43 +18,48 @@ fn id(code: u8) -> u8 {
     code
 }
 
+/// The Proto4 is a 2-row keyboard.  We used to have a separate set of scancodes for the 2 row
+/// keyboards.  Instead, we use a separate attribute to enable/disable qwerty mode.  The key here is
+/// that the upper left key becomes the "Fn" key so that the lower left can be "#".
+/// The Proto4 layout is a bit chaotic, due to needing to get the inter connector to only need 8
+/// pins. As such, each column typically will have some keys on each side.
 static PROTO4: [u8; 30] = [
     // 0
-    13,    // L-F1
-    14,    // L-F2
-    11,    // L-Star
-    11+15, // R-T
-    14+15, // R-Z
+    2,     // L-Grave
+    1,     // L-Fn
+    4,     // L-Star
+    28,    // R-T
+    25,    // R-Z
     // 5
-    13+15, // R-D
-    12,    // L-S
-    9,     // L-T
-    10,    // L-K
-    10+15, // R-G
+    24,    // R-D
+    5,     // L-S
+    8,     // L-T
+    9,     // L-K
+    33,    // R-G
     // 10
-    9+15,  // R-L
-    12+15, // R-S
-    8,     // L-P
-    7,     // L-W
-    6,     // L-H
+    32,    // R-L
+    29,    // R-S
+    12,    // L-P
+    13,    // L-W
+    16,    // L-H
     // 15
-    6+15,  // R-F
-    7+15,  // R-B
-    8+15,  // R-P
-    5,     // L-R
-    3,     // L-S1
+    40,    // R-F
+    37,    // R-B
+    36,    // R-P
+    17,    // L-R
+    20,    // L-S1
     // 20
-    4,     // L-S2
-    4+15,  // R-S4
-    3+15,  // R-S3
-    5+15,  // R-R
-    2,     // L-num
+    21,    // L-S2
+    45,    // R-S4
+    44,    // R-S3
+    41,    // R-R
+    18,    // L-num
     // 25
-    1,     // L-A
-    0,     // L-O
-    0+15,  // R-E
-    1+15,  // R-U
-    2+15,  // R-Num
+    19,    // L-A
+    23,    // L-O
+    47,    // R-E
+    43,    // R-U
+    42,    // R-Num
 ];
 
 fn proto4(code: u8) -> u8 {
