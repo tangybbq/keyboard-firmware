@@ -12,7 +12,9 @@ cargo run -- build -o dicts.bin \
 	~/plover/phoenix.rtf \
 	~/plover/phoenix_fix.json \
 	+emily-symbols \
-	~/plover/taipo.json \
+	~/plover/taipo.json
+
+cargo run -- build -o user-dict.bin \
 	~/plover/user.json \
 	~/plover/rust.yaml
 
@@ -23,9 +25,22 @@ $uf2conv \
 	-o dicts.uf2 \
 	dicts.bin
 
+$uf2conv \
+	-b 0x10700000 \
+	-f 0xe48bf556 \
+	-c \
+	-o user-dict.uf2 \
+	user-dict.bin
+
 # The elf file can be loaded with gdb, though.
 arm-zephyr-eabi-objcopy \
 	-I binary \
 	-O elf32-littlearm \
 	--change-section-address .data=0x10200000 \
 	dicts.bin dicts.elf
+
+arm-zephyr-eabi-objcopy \
+	-I binary \
+	-O elf32-littlearm \
+	--change-section-address .data=0x10700000 \
+	user-dict.bin user-dict.elf
