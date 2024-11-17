@@ -151,7 +151,7 @@ static CODES: [Entry; 34] = [
         Kind::Raw("AudioMute"), Kind::Raw("AudioLowerVolume"), Kind::Raw("AudioRaiseVolume"), Kind::Raw("Eject"),
     ]},
     Entry { from: CODE_SPACE, to: [
-        Kind::Text(""), Kind::Text("{*!}"), Kind::Text("{:*}"), Kind::Text("Space"),
+        Kind::Text(""), Kind::Text("{*!}"), Kind::Text("{:*}"), Kind::Text(" "),
     ]},
     Entry { from: CODE_CAPS, to: [
         Kind::Text("{*-|}"), Kind::Text("{*<}"), Kind::Text("{<}"), Kind::Text("*>"),
