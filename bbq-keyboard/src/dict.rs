@@ -27,10 +27,10 @@ impl Dict {
             // MemDict::from_raw_ptr(0x10200000 as *const u8)
             // With the 8MB devices, move the dictionary down to 1MB, as the
             // dictionaries seem to be about 6.5MB.
-            MemDict::from_raw_ptr(0x10200000 as *const u8)
+            MemDict::from_raw_ptr(0x10300000 as *const u8)
         };
         let mut user = unsafe {
-            MemDict::from_raw_ptr(0x10700000 as *const u8)
+            MemDict::from_raw_ptr(0x10200000 as *const u8)
         };
         xlat.append(&mut user);
         info!("Found {} steno dictionaries", xlat.len());
