@@ -40,6 +40,7 @@ const RETRO_BREAK: char = '\u{e007}';
 const BREAK: char = '\u{e008}';
 const RETRO_NUM: char = '\u{e00a}';
 const RETRO_CURRENCY: char = '\u{e00b}';
+const NOCAP_NEXT: char = '\u{e00c}';
 
 const TERM_TEXT: char = '\u{0000}';
 
@@ -51,6 +52,8 @@ pub enum Replacement {
     DeleteSpace,
     /// Cap Next
     CapNext,
+    /// Don't cap next
+    NoCapNext,
     /// Stitch
     Stitch,
     /// Force a space, overrides adjacent deletion of space
@@ -92,6 +95,7 @@ impl Replacement {
                 STITCH => result.push(Replacement::Stitch),
                 FORCE_SPACE => result.push(Replacement::ForceSpace),
                 UPCASE_NEXT => result.push(Replacement::UpNext),
+                NOCAP_NEXT => result.push(Replacement::NoCapNext),
                 CAP_PREV => {
                     let count = chars.next()?;
                     result.push(Replacement::Previous(count as u32, Previous::Capitalize));
@@ -164,6 +168,7 @@ impl Replacement {
             match elt {
                 Replacement::DeleteSpace => result.push(DELETE_SPACE),
                 Replacement::CapNext => result.push(CAP_NEXT),
+                Replacement::NoCapNext => result.push(NOCAP_NEXT),
                 Replacement::Stitch => result.push(STITCH),
                 Replacement::ForceSpace => result.push(FORCE_SPACE),
                 Replacement::RetroBreak => result.push(RETRO_BREAK),

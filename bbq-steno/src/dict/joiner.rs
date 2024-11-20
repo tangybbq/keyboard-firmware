@@ -313,6 +313,7 @@ impl Next {
                 self.next_state.space = false;
             }
             Replacement::CapNext => self.next_state.cap = true,
+            Replacement::NoCapNext => self.next_state.cap = false,
             Replacement::ForceSpace => {
                 // Same ambiguity as above.
                 self.state.force_space = true;

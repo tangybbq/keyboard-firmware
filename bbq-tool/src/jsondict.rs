@@ -126,6 +126,11 @@ impl JsonFixer {
             return;
         }
 
+        if text == "{>}" {
+            work.push(Replacement::NoCapNext);
+            return;
+        }
+
         if text == "{?}" {
             work.push(Replacement::DeleteSpace);
             work.push(Replacement::Text("?".to_string()));
