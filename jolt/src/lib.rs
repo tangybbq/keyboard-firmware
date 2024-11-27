@@ -6,7 +6,6 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::format;
 use alloc::string::String;
@@ -18,8 +17,9 @@ use leds::manager::Indication;
 use leds::LedSet;
 use logging::Logger;
 use zephyr::sync::{Arc, Mutex};
+use zephyr::sys::sync::Semaphore;
+use zephyr::time::NoWait;
 
-use core::cell::RefCell;
 use core::{mem, slice};
 
 use log::info;
@@ -31,7 +31,6 @@ use zephyr::sync::channel::{
     self,
     Sender,
     Receiver,
-    Message,
 };
 
 use bbq_keyboard::{
@@ -72,12 +71,19 @@ extern "C" fn rust_main() {
     let logger = Logger::new();
 
     // Initialize the main event queue.
-    let (equeue_send, equeue_recv) = channel::unbounded::<Event>();
+    let (equeue_send, equeue_recv) = channel::bounded::<Event>(32);
 
     // This is the steno queue.
-    let (stenoq_send, stenoq_recv) = channel::unbounded::<Stroke>();
+    let (stenoq_send, stenoq_recv) = channel::bounded::<Stroke>(32);
 
     let stats = Arc::new(Stats::new());
+
+    // The heartbeat semaphore.
+    let heart = Arc::new(Semaphore::new(1, 1).unwrap());
+
+    unsafe {
+        HEARTBEAT_SEM = Some(heart.clone());
+    }
 
     // Spawn the steno thread.
     // TODO: This needs to be lower priority.
@@ -96,8 +102,6 @@ extern "C" fn rust_main() {
         // Store a sender for the Heartbeat callback.
         HEARTBEAT_MAIN_SEND = Some(equeue_send.clone());
     }
-
-    add_heartbeat_box();
 
     // After the callbacks have the queue handles, we can start the heartbeat.
     setup_heartbeat();
@@ -371,9 +375,10 @@ extern "C" fn rust_main() {
             }
         }
 
-        // After processing the main loop, generate a message for the tick irq handler.  This will
-        // allow ticks to be missed if processing takes too long.
-        add_heartbeat_box();
+        // After we process the heartbeat, give to the semaphore so we will get the next tick.  This
+        // keeps ticks from building up and only enqueues a tick if the main loop made it through
+        // everything.
+        heart.give();
     }
 }
 
@@ -537,30 +542,24 @@ pub fn rust_usb_status(state: u32) {
     send.send(Event::UsbState(state)).unwrap();
 }
 
+/// A reference into the main event loop for the heartbeat irq to use.
 static mut HEARTBEAT_MAIN_SEND: Option<Sender<Event>> = None;
-static HEARTBEAT_BOX: critical_section::Mutex<RefCell<Option<Box<Message<Event>>>>> =
-    critical_section::Mutex::new(RefCell::new(None));
 
+/// A semaphore so sync the heartbeat with the processing.
+static mut HEARTBEAT_SEM: Option<Arc<Semaphore>> = None;
+ 
 #[no_mangle]
 extern "C" fn rust_heartbeat() {
     let send = unsafe { HEARTBEAT_MAIN_SEND.as_ref().unwrap() };
-    let boxed = critical_section::with(|cs| {
-        HEARTBEAT_BOX.borrow_ref_mut(cs).take()
-    });
-    // Send it, if there was one there to send.
-    if let Some(boxed) = boxed {
-        unsafe {
-            send.send_boxed(boxed).unwrap();
-        }
-    }
-}
 
-/// Give the heartbeat IRQ a box holding a message it can send.
-fn add_heartbeat_box() {
-    let tick = Box::new(Message::new(Event::Tick));
-    critical_section::with(|cs| {
-        HEARTBEAT_BOX.borrow(cs).replace(Some(tick));
-    });
+    // If we can get the sem, then it is safe to send another tick.
+    // Otherwise, skip this tick.
+    let sem = unsafe { HEARTBEAT_SEM.as_ref().unwrap() };
+    if sem.take(NoWait).is_err() {
+        return;
+    }
+
+    let _ = send.try_send(Event::Tick);
 }
 
 /// Initialize the heartbeat.
