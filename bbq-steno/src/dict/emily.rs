@@ -35,7 +35,6 @@ use alloc::vec::Vec;
 // dependency.  Instead, these constants are auto-generated, and placed in the consts module beneath
 // this one.
 use consts::*;
-use log::warn;
 
 use crate::{Replacement, Stroke};
 
@@ -253,18 +252,18 @@ enum Kind {
 impl Selector for Decoded {
     fn lookup_step(&self, _key: Stroke) -> Option<(Box<dyn Selector>, Option<String>)> {
         // There are never additional strokes.
-        warn!("Decoded lookup step");
+        // warn!("Decoded lookup step");
         None
     }
 
     fn unique(&self) -> bool {
-        warn!("Decoded lookup");
+        // warn!("Decoded lookup");
         // There is always a single result
         true
     }
 
     fn count(&self) -> usize {
-        warn!("Decoded count");
+        // warn!("Decoded count");
         // And always 1 result.
         1
     }
