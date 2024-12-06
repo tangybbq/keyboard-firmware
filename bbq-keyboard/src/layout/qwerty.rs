@@ -820,7 +820,7 @@ static NAV_MAP: [Mapping; NKEYS + 24] = [
     // 44
     Mapping::Key(KeyMapping { key: Keyboard::Home, mods: Mods::empty() }),
     Mapping::Key(KeyMapping { key: Keyboard::LeftArrow, mods: Mods::empty() }),
-    Mapping::Dead,
+    Mapping::Key(KeyMapping { key: Keyboard::Insert, mods: Mods::empty() }),
     Mapping::Dead,
 
     // Left hand upper combos

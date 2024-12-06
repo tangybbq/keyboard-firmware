@@ -447,7 +447,7 @@ struct Entry {
     action: Action,
 }
 
-static TAIPO_ACTIONS: [Entry; 125] = [
+static TAIPO_ACTIONS: [Entry; 126] = [
     // The thumb keys by themselves.
     Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
@@ -458,8 +458,7 @@ static TAIPO_ACTIONS: [Entry; 125] = [
     // Tab and variants.
     Entry { code: 0x0e0, action: Action::Simple(Keyboard::Tab), },
     Entry { code: 0x1e0, action: Action::Simple(Keyboard::DeleteForward), },
-    // This is the Fn key, which is a TODO
-    // Entry { code: 0x2e0, action: Action::Simple(Keyboard::Tab), },
+    Entry { code: 0x2e0, action: Action::Simple(Keyboard::Insert), },
 
     // Enter and variants
     Entry { code: 0x00e, action: Action::Simple(Keyboard::ReturnEnter), },
