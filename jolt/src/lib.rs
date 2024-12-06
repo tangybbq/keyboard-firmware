@@ -4,6 +4,19 @@
 #![no_std]
 #![allow(unexpected_cfgs)]
 
+// As of Rust 1.83, Rust warns about shared references to mutable statics.  Technically, it is
+// correct about this, but as I'm doing the initialization once at the start, and then using them
+// read only later, it is actually fine.  Well, really, there is a problem that there should be a
+// memory barrier after the write.
+//
+// But, this should be changed to something actually shared, perhaps an atomic pointer, or such,
+// just to make it clearer what is going on.
+//
+// TODO:
+// For now, suppress the warning, although this will probably become an error in future Rust
+// versions.
+#![allow(static_mut_refs)]
+
 extern crate alloc;
 
 use alloc::collections::{BTreeMap, VecDeque};
