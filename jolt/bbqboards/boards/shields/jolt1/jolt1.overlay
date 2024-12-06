@@ -58,5 +58,5 @@
         status = "okay";
         pinctrl-0 = <&uart0_inter>;
         pinctrl-names = "default";
-        current-speed = <390625>;
+        current-speed = <460800>;
 };
