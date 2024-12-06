@@ -20,6 +20,15 @@ cargo run -- build -o user-dict.bin \
 	~/plover/user.json \
 	~/plover/rust.yaml
 
+# Full is used by host tools.
+cargo run -- build -o full.bin \
+	~/plover/phoenix.rtf \
+	~/plover/phoenix_fix.json \
+	+emily-symbols \
+	~/plover/taipo.json \
+	~/plover/user.json \
+	~/plover/rust.yaml
+
 $uf2conv \
 	-b $main_addr \
 	-f 0xe48bf556 \
