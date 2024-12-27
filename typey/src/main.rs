@@ -207,7 +207,7 @@ fn exbuild(cmd: &ExbuildCommand) -> Result<()> {
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode()?;
 
-    println!("Begin\r");
+    println!("--- Begin ---\r");
     let mut word = String::new();
     for key in stdin.keys() {
         let key = key?;
