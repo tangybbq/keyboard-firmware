@@ -14,6 +14,7 @@
 		zephyr,matrix = &kbd_matrix;
 		bbq,pwm-leds = &pwm_leds;
 		bbq,led-strip = &ws2812;
+		bbq,two-row;
 	};
 
 	kbd_matrix: kbd-matrix {
