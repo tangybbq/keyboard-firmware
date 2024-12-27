@@ -24,6 +24,7 @@
 extern crate alloc;
 
 use alloc::string::String;
+use alloc::vec::Vec;
 
 use minicbor::{Decode, Encode};
 
@@ -44,7 +45,14 @@ pub enum Request {
     Hello {
         #[n(1)]
         version: String,
-    }
+    },
+    #[n(2)]
+    ReadFlash {
+        #[n(0)]
+        offset: u32,
+        #[n(1)]
+        size: u32,
+    },
 }
 
 #[derive(Debug, Encode, Decode)]
@@ -64,6 +72,15 @@ pub enum Reply {
         #[n(1)]
         message: String,
     },
+    #[n(3)]
+    FlashData {
+        /// Offset the data came from.
+        #[n(0)]
+        offset: u32,
+        /// The data itself.
+        #[n(1)]
+        data: Vec<u8>,
+    }
 }
 
 #[cfg(test)]
