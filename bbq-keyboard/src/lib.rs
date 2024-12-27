@@ -111,6 +111,14 @@ impl KeyEvent {
             KeyEvent::Release(_) => true,
         }
     }
+
+    // We use 255 for invalid keys.
+    pub fn is_valid(&self) -> bool {
+        match self {
+            KeyEvent::Press(k) => *k < 255,
+            KeyEvent::Release(k) => *k < 255,
+        }
+    }
 }
 
 /// Indicates keypress that should be sent to the host.

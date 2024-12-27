@@ -208,7 +208,9 @@ extern "C" fn rust_main() {
                     }
                     InterState::Secondary => {
                         if let Some(ref mut inter) = inter {
-                            inter.add_key(key);
+                            if key.is_valid() {
+                                inter.add_key(key);
+                            }
                         }
                     }
                 }

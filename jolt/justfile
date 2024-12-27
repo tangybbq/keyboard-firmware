@@ -1,8 +1,8 @@
 
 # The proto2 is a 30-key built around the sparkfun pro micro rp2040, one on each side.
-#target := "sparkfun_pro_micro_rp2040"
-#shield := "proto2"
-#flags := ""
+# target := "sparkfun_pro_micro_rp2040"
+# shield := "proto2"
+# flags := ""
 
 # The proto3 is a 30-key split built around the sparkfun_pro_micro_rp2040.
 # target := "sparkfun_pro_micro_rp2040"
@@ -20,8 +20,14 @@
 # flags := "-DCONFIG_JOLT_INTER=n"
 
 # The jolt1 is a 42-key built around the pimoroni tiny 2040 board.
+# target := "pimoroni_tiny_2040"
+# shield := "jolt1"
+# flags := "-DCONFIG_JOLT_INTER=y"
+
+# The jolt2 is a 42-key built around the pimoroni tiny 2040 board.
+# It has columns staggered along both Y and Z.
 target := "pimoroni_tiny_2040"
-shield := "jolt1"
+shield := "jolt2"
 flags := "-DCONFIG_JOLT_INTER=y"
 
 toolopt := "--tool-opt=\"/Applications/SEGGER/JLink/GDBServer/RTOSPlugin_Zephyr.dylib\""

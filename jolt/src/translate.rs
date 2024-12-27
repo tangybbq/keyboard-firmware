@@ -10,6 +10,7 @@ pub fn get_translation(board: &str) -> fn (u8) -> u8 {
         "proto3" => id,
         "proto4" => proto4,
         "jolt1" => id,
+        "jolt2" => jolt2,
         xlate => panic!("Unsupported translation table {:?}", xlate),
     }
 }
@@ -64,4 +65,37 @@ static PROTO4: [u8; 30] = [
 
 fn proto4(code: u8) -> u8 {
     *PROTO4.get(code as usize).unwrap_or(&255)
+}
+
+/// The Jolt4 has a different scan order that puts the keys allnicely in order.
+static JOLT4: [u8; 21] = [
+    // The main part is just a span of 3 instead of 4.
+    0, 1, 2,
+    4, 5, 6,
+    8, 9, 10,
+    12, 13, 14,
+    16, 17, 18,
+    20, 21, 22,
+    // And the thumbs are after this, but from right to left.
+    23, 19, 15,
+];
+
+fn jolt2(code: u8) -> u8 {
+    if (code as usize) < JOLT4.len() {
+        JOLT4[code as usize]
+    } else if code >= 24 && ((code - 24) as usize) < JOLT4.len() {
+        let code = code as usize;
+
+        // The thumb keys on the right side are reversed.
+        let code = match code - 24 {
+            18 => 20,
+            20 => 18,
+            code => code,
+        } + 24;
+
+        // The right half is mirrored on the left.  But, we shift by 24 for the right side.
+        JOLT4[code - 24] + 24
+    } else {
+        255
+    }
 }
