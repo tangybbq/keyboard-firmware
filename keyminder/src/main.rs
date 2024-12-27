@@ -3,41 +3,135 @@
 use std::{io::{Error, Write}, time::Duration};
 
 use anyhow::Result;
+use clap::{Parser, Subcommand};
 use minder::{Reply, Request, SerialDecoder, SerialWrite};
+use serialport::SerialPort;
+
+#[derive(Parser)]
+#[command(name = "keyminder")]
+#[command(about = "Utility for speaking with bbq keyboards")]
+struct Cli {
+    /// The uart port to use.
+    #[arg(long)]
+    port: String,
+
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Read log packets, printing any messages.
+    Log,
+    /// Read the dictionary out of flash.
+    Read,
+}
 
 fn main() -> Result<()> {
-    // let mut port = serialport::new("/dev/cu.usbmodem11404", 115200).open()?;
-    // let mut port = serialport::new("/dev/cu.usbmodem112104", 115200).open()?;
-    let mut port = serialport::new("/dev/cu.usbmodem104", 115200).open()?;
-    // let mut port = serialport::new("/dev/cu.usbmodem1104", 115200).open()?;
+    let cli = Cli::parse();
 
-    let req = Request::Hello {
-        version: minder::VERSION.to_string(),
-    };
-
-    minder::serial_encode(&req, WritePort(&mut port), true)?;
-
-    port.set_timeout(Duration::from_secs(120 * 60 * 60 * 24))?;
-
-    let mut dec = SerialDecoder::new();
-
-    let mut buffer = vec![0u8; 256];
-    loop {
-        let count = match port.read(&mut buffer) {
-            Ok(count) => count,
-            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => break,
-            Err(e) => Err(e)?
-        };
-
-        for &byte in &buffer[..count] {
-            if let Some(packet) = dec.add_decode::<Reply>(byte) {
-                // println!("{:?}", packet);
-                show(&packet);
-            }
+    match &cli.command {
+        Commands::Log => {
+            cli.do_log()?;
+        }
+        Commands::Read => {
+            cli.do_read()?;
         }
     }
 
     Ok(())
+}
+
+impl Cli {
+    fn do_log(&self) -> Result<()> {
+        let mut port = Port::new(&self.port)?;
+
+        port.set_timeout(Duration::from_secs(120 * 60 * 60 * 24))?;
+
+        let req = Request::Hello {
+            version: minder::VERSION.to_string(),
+        };
+
+        port.send(&req)?;
+
+        loop {
+            match port.read() {
+                Ok(None) => break,
+                Ok(Some(packet)) => show(&packet),
+                Err(e) => Err(e)?,
+            }
+        }
+        Ok(())
+    }
+
+    fn do_read(&self) -> Result<()> {
+        todo!()
+    }
+}
+
+/// A port that can communicate with the device.
+struct Port {
+    port: Box<dyn SerialPort>,
+    buffer: Vec<u8>,
+    offset: usize,
+    len: usize,
+    dec: SerialDecoder,
+}
+
+impl Port {
+    pub fn new(port: &str) -> Result<Port> {
+        Ok(Port {
+            port: serialport::new(port, 115200).open()?,
+            buffer: vec![0u8; 256],
+            offset: 0,
+            len: 0,
+            dec: SerialDecoder::new(),
+        })
+    }
+
+    pub fn send(&mut self, req: &Request) -> Result<()> {
+        minder::serial_encode(req, self, true)?;
+        Ok(())
+    }
+
+    pub fn set_timeout(&mut self, timeout: Duration) -> Result<()> {
+        self.port.set_timeout(timeout)?;
+        Ok(())
+    }
+
+    /// Try to read. Returns Ok(None) on timeout.
+    pub fn read(&mut self) -> Result<Option<Reply>> {
+        loop {
+            if self.offset >= self.len {
+                let count = match self.port.read(&mut self.buffer) {
+                    Ok(count) => count,
+                    Err(e) if e.kind() == std::io::ErrorKind::TimedOut => return Ok(None),
+                    Err(e) => Err(e)?,
+                };
+
+                if count == 0 {
+                    panic!("Serial returned 0 bytes, but didn't timeout");
+                }
+
+                self.offset = 0;
+                self.len = count;
+            }
+
+            let byte = self.buffer[self.offset];
+            self.offset += 1;
+            if let Some(packet) = self.dec.add_decode::<Reply>(byte) {
+                return Ok(Some(packet));
+            }
+        }
+    }
+}
+
+impl SerialWrite for Port {
+    type Error = Error;
+
+    fn write_all(&mut self, buf: &[u8]) -> std::result::Result<(), Self::Error> {
+        self.port.write_all(buf)
+    }
 }
 
 fn show(msg: &Reply) {
@@ -48,17 +142,9 @@ fn show(msg: &Reply) {
         Reply::Log { message } => {
             println!("{}", message);
         }
-    }
-}
-
-// Write wrapper.
-struct WritePort<W>(W);
-
-impl<W: Write> SerialWrite for WritePort<W> {
-    type Error = Error;
-
-    fn write_all(&mut self, buf: &[u8]) -> std::result::Result<(), Self::Error> {
-        self.0.write_all(buf)
+        Reply::FlashData { offset, data } => {
+            println!("Read: 0x{:x}, 0x{:x} bytes", offset, data.len());
+        }
     }
 }
 
