@@ -4,7 +4,7 @@ use arraydeque::ArrayDeque;
 use bbq_keyboard::{ser2::{KeyBits, Packet, Role}, Event, InterState, KeyEvent, Side};
 
 use minder::{serial_encode, SerialDecoder, SerialWrite};
-use zephyr::device::uart::Uart;
+use zephyr::{device::uart::Uart, sync::channel::{self, Receiver}, time::{self, Duration}};
 use zephyr::sync::channel::Sender;
 use log::{warn, info};
 
@@ -12,6 +12,14 @@ use crate::devices::leds::LedRgb;
 
 /// A buffer large enough to hold a single packet.
 type PacketBuffer = ArrayDeque<u8, 32>;
+
+/// Updates to the inter state from the rest of the system are sent as these messages.
+pub enum InterUpdate {
+    /// Indicate to the system what our state is now.
+    SetState(InterState),
+    /// Add a key event to inform the other side.
+    AddKey(KeyEvent),
+}
 
 pub struct InterHandler {
     xmit_buffer: PacketBuffer,
@@ -25,14 +33,17 @@ pub struct InterHandler {
     leds: LedRgb,
     events: Sender<Event>,
     uart: Uart,
+    requests: Receiver<InterUpdate>,
 
     side_warn: bool,
 }
 
 impl InterHandler {
     #[allow(dead_code)]
-    pub fn new(side: Side, uart: Uart, events: Sender<Event>) -> Self {
-        Self {
+    pub fn new(side: Side, uart: Uart, events: Sender<Event>) -> (Self, Sender<InterUpdate>) {
+        let (req_send, req_recv) = channel::bounded(32);
+
+        (Self {
             xmit_buffer: PacketBuffer::new(),
             receiver: SerialDecoder::new(),
             leds: LedRgb::default(),
@@ -43,10 +54,36 @@ impl InterHandler {
             side_warn: false,
             uart,
             events,
+            requests: req_recv,
+        }, req_send)
+    }
+
+    /// Consume self, returning an async thread that runs the queue processing.
+    pub async fn run(mut self) {
+        // 'next' represents 5ms in the future, and when we cross it, a time that we should do the
+        // harder work.
+        let mut next = time::now() + Duration::millis_at_least(5);
+        loop {
+            if let Ok(ev) = self.requests.recv_timeout_async(next).await {
+                match ev {
+                    InterUpdate::SetState(st) => self.set_state(st),
+                    InterUpdate::AddKey(key) => self.add_key(key),
+                }
+                continue;
+            }
+
+            // Process one batch of our main loop.
+            self.tick().await;
+
+            // Calculate a new 'next' time.  The loop is to compensate for missed ticks.
+            let now = time::now();
+            while next <= now {
+                next += Duration::millis_at_least(5);
+            }
         }
     }
 
-    pub fn tick(&mut self) {
+    pub async fn tick(&mut self) {
         // Make an assumption that the uart fifo is large enough to hold an
         // entire packet, and that this packet can be sent entirely in the 1ms
         // tick we have.  Zephyr doesn't have a non-blocking polling write, so
@@ -80,6 +117,9 @@ impl InterHandler {
                 Err(e) => panic!("Uart driver error: {}", e),
             }
         }
+
+        // Add this yield to give a chance for the matrix scan to happen in between.
+        zephyr::kio::yield_now().await;
 
         // Transmit our state packet.
         let mut packet;

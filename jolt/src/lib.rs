@@ -19,6 +19,7 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::format;
 use alloc::string::String;
@@ -29,9 +30,12 @@ use keyminder::Minder;
 use leds::manager::Indication;
 use leds::LedSet;
 use logging::Logger;
+use zephyr::kio::yield_now;
 use zephyr::sync::{Arc, Mutex};
 use zephyr::sys::sync::Semaphore;
-use zephyr::time::NoWait;
+use zephyr::time::{Duration, NoWait};
+use zephyr::work::futures::sleep;
+use zephyr::work::WorkQueueBuilder;
 
 use core::{mem, slice};
 
@@ -65,7 +69,7 @@ use bbq_keyboard::{
 use bbq_steno::Stroke;
 
 #[allow(unused_imports)]
-use crate::inter::InterHandler;
+use crate::inter::{InterHandler, InterUpdate};
 use crate::leds::manager::LedManager;
 
 mod devices;
@@ -109,6 +113,15 @@ extern "C" fn rust_main() {
         steno_thread(stenoq_recv, sc, statsc);
     });
 
+    // Create a thread to run the main worker.
+    // No yield saves a trip through the scheduler, as this is the only thread running at this
+    // priority.
+    let main_worker = Box::new(WorkQueueBuilder::new()
+                               .set_priority(2)
+                               .set_name(c"mainloop")
+                               .set_no_yield(true)
+                               .start(MAIN_LOOP_STACK.init_once(()).unwrap()));
+
     unsafe {
         // Store a sender for the USB callback.
         USB_CB_MAIN_SEND = Some(equeue_send.clone());
@@ -141,7 +154,7 @@ extern "C" fn rust_main() {
     let cols: Vec<_> = cols.into_iter().map(|p| p.unwrap()).collect();
 
     let matrix = Matrix::new(rows, cols, side);
-    let mut scanner = Scanner::new(matrix, equeue_send.clone(), &info);
+    let scanner = Scanner::new(matrix, equeue_send.clone(), &info);
 
     // TODO: When we have definable DT properties, use the DT.  For now, just match names.
     let two_row = match info.name.as_str() {
@@ -153,10 +166,9 @@ extern "C" fn rust_main() {
     let leds = LedSet::get_all();
     let mut leds = LedManager::new(leds, stats.clone());
 
-    let mut inter = get_inter(side, equeue_send.clone());
+    let (inter_task, inter) = get_inter(side, equeue_send.clone()).unzip();
 
     let mut acm = zephyr::devicetree::labels::acm_uart_0::get_instance().unwrap();
-    let mut acm_active;
 
     let minder_uart = zephyr::devicetree::labels::acm_uart_1::get_instance().unwrap();
 
@@ -180,221 +192,241 @@ extern "C" fn rust_main() {
 
     let mut led_counter = 0;
 
-    loop {
-        // Update the state of the Gemini indicator.
-        if let Ok(1) =  unsafe { acm.line_ctrl_get(LineControl::DTR) } {
-            leds.set_base(2, &leds::manager::GEMINI_INDICATOR);
-            acm_active = true;
-        } else {
-            leds.set_base(2, &leds::manager::OFF_INDICATOR);
-            acm_active = false;
-        }
+    // The scanner just runs periodically to scan the matrix.
+    let scannerw = zephyr::kio::spawn(scanner.run(), &main_worker);
 
-        stats.start("recv");
-        let ev = equeue_recv.recv().unwrap();
-        stats.stop("recv");
+    // Startup the inter-update, if it exists.
+    let inter_task = inter_task.map(|inter_task| {
+        zephyr::kio::spawn(inter_task.run(), &main_worker)
+    });
 
-        let mut is_tick = false;
-        stats.start("event");
-        match ev {
-            Event::Tick => is_tick = true,
-            Event::Matrix(key) => {
-                // info!("Matrix: {:?}", key);
-                match state {
-                    InterState::Primary | InterState::Idle => {
-                        stats.start("layout");
-                        layout.handle_event(key, &mut eq_send);
-                        stats.stop("layout");
-                    }
-                    InterState::Secondary => {
-                        if let Some(ref mut inter) = inter {
-                            if key.is_valid() {
-                                inter.add_key(key);
+    let main_loop = async move {
+        let mut acm_active;
+        loop {
+            // Update the state of the Gemini indicator.
+            if let Ok(1) =  unsafe { acm.line_ctrl_get(LineControl::DTR) } {
+                leds.set_base(2, &leds::manager::GEMINI_INDICATOR);
+                acm_active = true;
+            } else {
+                leds.set_base(2, &leds::manager::OFF_INDICATOR);
+                acm_active = false;
+            }
+
+            stats.start("recv");
+            let ev = equeue_recv.recv_async().await.unwrap();
+            stats.stop("recv");
+
+            let mut is_tick = false;
+            stats.start("event");
+            match ev {
+                Event::Tick => is_tick = true,
+                Event::Matrix(key) => {
+                    // info!("Matrix: {:?}", key);
+                    match state {
+                        InterState::Primary | InterState::Idle => {
+                            stats.start("layout");
+                            layout.handle_event(key, &mut eq_send);
+                            stats.stop("layout");
+                        }
+                        InterState::Secondary => {
+                            if let Some(inter) = &inter {
+                                if key.is_valid() {
+                                    inter.send(InterUpdate::AddKey(key)).unwrap();
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Event::Key(key) => {
-                // Keypresses are queued up, to be sent to the hid layer.
-                keys.push_back(key);
-            }
-
-            Event::InterKey(key) => {
-                if state == InterState::Primary {
-                    stats.start("layout");
-                    layout.handle_event(key, &mut eq_send);
-                    stats.stop("layout");
+                Event::Key(key) => {
+                    // Keypresses are queued up, to be sent to the hid layer.
+                    keys.push_back(key);
                 }
-            }
 
-            Event::RawSteno(stroke) => {
-                if current_mode == LayoutMode::Steno {
-                    // TODO: Send a steno stroke
-                    stenoq_send.send(stroke).unwrap();
-                } else {
-                    // Send Gemini data if possible.
-                    if acm_active {
-                        // Put as much as we can in the FIFO.  This should be drained if active.
-                        // TODO: Better management.
-                        // TODO: Do the tx enable tx disable stuff.
-                        let packet = stroke.to_gemini();
-                        // Deal with errors and such.
-                        match unsafe { acm.fifo_fill(&packet) } {
-                            Ok(_) => (),
-                            Err(_) => (),
+                Event::InterKey(key) => {
+                    if state == InterState::Primary {
+                        stats.start("layout");
+                        layout.handle_event(key, &mut eq_send);
+                        stats.stop("layout");
+                    }
+                }
+
+                Event::RawSteno(stroke) => {
+                    if current_mode == LayoutMode::Steno {
+                        // TODO: Send a steno stroke
+                        stenoq_send.send(stroke).unwrap();
+                    } else {
+                        // Send Gemini data if possible.
+                        if acm_active {
+                            // Put as much as we can in the FIFO.  This should be drained if active.
+                            // TODO: Better management.
+                            // TODO: Do the tx enable tx disable stuff.
+                            let packet = stroke.to_gemini();
+                            // Deal with errors and such.
+                            match unsafe { acm.fifo_fill(&packet) } {
+                                Ok(_) => (),
+                                Err(_) => (),
+                            }
+                        }
+                        // Also, send to the HID Report descriptor.
+                        usb.send_plover_report(&stroke.to_plover_hid());
+                        usb.send_plover_report(&Stroke::empty().to_plover_hid());
+                    }
+                }
+
+                // Once the steno layer has translated the strokes, it gives us a TypeAction to send
+                // off to HID.
+                Event::StenoText(Joined::Type { remove, append }) => {
+                    for _ in 0..remove {
+                        keys.push_back(KeyAction::KeyPress(Keyboard::DeleteBackspace, Mods::empty()));
+                        keys.push_back(KeyAction::KeyRelease);
+                    }
+                    // Then, just send the text.
+                    enqueue_action(&mut KeyActionWrap(&mut keys), &append);
+                }
+
+                // Mode select and mode affect the LEDs.
+                Event::ModeSelect(mode) => {
+                    // info!("modeselect: {:?}", mode);
+                    let next = match mode {
+                        LayoutMode::Steno => get_steno_select_indicator(raw_mode),
+                        LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
+                        LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
+                        LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
+                        _ => &leds::manager::QWERTY_SELECT_INDICATOR,
+                    };
+                    leds.set_base(0, next);
+                }
+
+                // Mode select and mode affect the LEDs.
+                Event::Mode(mode) => {
+                    info!("mode: {:?}", mode);
+                    let next = match mode {
+                        LayoutMode::Steno => get_steno_indicator(raw_mode),
+                        LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
+                        LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
+                        LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
+                        _ => &leds::manager::QWERTY_INDICATOR,
+                    };
+                    leds.set_base(0, next);
+                    current_mode = mode;
+                }
+
+                Event::RawMode(raw) => {
+                    info!("Switch raw: {:?}", raw);
+                    raw_mode = raw;
+                    if current_mode == LayoutMode::Steno {
+                        leds.set_base(0, get_steno_indicator(raw_mode))
+                    }
+                }
+
+                // Handle the USB becoming configured.
+                Event::UsbState(UsbDeviceState::Configured) | Event::UsbState(UsbDeviceState::Resume) => {
+                    if has_global {
+                        leds.clear_global(0);
+                        has_global = false;
+                    }
+                    // suspended = false;
+                    if let Some(inter) = &inter {
+                        inter.send(InterUpdate::SetState(bbq_keyboard::InterState::Primary)).unwrap();
+                    }
+                }
+
+                Event::UsbState(UsbDeviceState::Suspend) => {
+                    leds.set_global(0, &leds::manager::SLEEP_INDICATOR);
+                    has_global = true;
+                    // suspended = true;
+                    // woken = false;
+                }
+
+                Event::BecomeState(new_state) => {
+                    if state != new_state {
+                        if new_state == InterState::Secondary {
+                            leds.clear_global(0);
+                        } else if new_state == InterState::Idle {
+                            leds.clear_global(0);
                         }
                     }
-                    // Also, send to the HID Report descriptor.
-                    usb.send_plover_report(&stroke.to_plover_hid());
-                    usb.send_plover_report(&Stroke::empty().to_plover_hid());
+                    state = new_state;
+                }
+
+                Event::Heartbeat => {
+                }
+
+                ev => {
+                    printkln!("Event: {:?}", ev);
                 }
             }
+            stats.stop("event");
 
-            // Once the steno layer has translated the strokes, it gives us a TypeAction to send
-            // off to HID.
-            Event::StenoText(Joined::Type { remove, append }) => {
-                for _ in 0..remove {
-                    keys.push_back(KeyAction::KeyPress(Keyboard::DeleteBackspace, Mods::empty()));
-                    keys.push_back(KeyAction::KeyRelease);
-                }
-                // Then, just send the text.
-                enqueue_action(&mut KeyActionWrap(&mut keys), &append);
+            yield_now().await;
+
+            // Only continue when the tick is received.
+            if !is_tick {
+                continue;
             }
 
-            // Mode select and mode affect the LEDs.
-            Event::ModeSelect(mode) => {
-                // info!("modeselect: {:?}", mode);
-                let next = match mode {
-                    LayoutMode::Steno => get_steno_select_indicator(raw_mode),
-                    LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
-                    LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
-                    LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
-                    _ => &leds::manager::QWERTY_SELECT_INDICATOR,
-                };
-                leds.set_base(0, next);
+            // Read in the HID out report if we have been sent one.
+            let mut buf = [0u8; 8];
+            if let Ok(Some(count)) = usb.get_keyboard_report(&mut buf) {
+                info!("Keyboard out: {} bytes: {:?}", count, &buf[..count]);
             }
 
-            // Mode select and mode affect the LEDs.
-            Event::Mode(mode) => {
-                info!("mode: {:?}", mode);
-                let next = match mode {
-                    LayoutMode::Steno => get_steno_indicator(raw_mode),
-                    LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
-                    LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
-                    LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
-                    _ => &leds::manager::QWERTY_INDICATOR,
-                };
-                leds.set_base(0, next);
-                current_mode = mode;
+            yield_now().await;
+
+            stats.start("layout.tick");
+            layout.tick(&mut eq_send);
+            stats.stop("layout.tick");
+            usb_hid_push(&usb, &mut keys);
+
+            // Update the LEDs every 100ms.
+            led_counter += 1;
+            if led_counter >= 100 {
+                led_counter = 0;
+                leds.tick();
             }
 
-            Event::RawMode(raw) => {
-                info!("Switch raw: {:?}", raw);
-                raw_mode = raw;
-                if current_mode == LayoutMode::Steno {
-                    leds.set_base(0, get_steno_indicator(raw_mode))
-                }
+            // Print out heap stats every few minutes.
+            heap_counter += 1;
+            if heap_counter >= 120_000 {
+                heap_counter = 0;
+                show_heap_stats();
             }
 
-            // Handle the USB becoming configured.
-            Event::UsbState(UsbDeviceState::Configured) | Event::UsbState(UsbDeviceState::Resume) => {
-                if has_global {
-                    leds.clear_global(0);
-                    has_global = false;
-                }
-                // suspended = false;
-                if let Some(ref mut inter) = inter {
-                    inter.set_state(bbq_keyboard::InterState::Primary);
-                }
-            }
+            // Print out other stats periodically as well.
+            stat_counter += 1;
+            if stat_counter >= 60_000 {
+                stat_counter = 0;
 
-            Event::UsbState(UsbDeviceState::Suspend) => {
-                leds.set_global(0, &leds::manager::SLEEP_INDICATOR);
-                has_global = true;
-                // suspended = true;
-                // woken = false;
-            }
-
-            Event::BecomeState(new_state) => {
-                if state != new_state {
-                    if new_state == InterState::Secondary {
-                        leds.clear_global(0);
-                    } else if new_state == InterState::Idle {
-                        leds.clear_global(0);
+                #[cfg(CONFIG_THREAD_ANALYZER)]
+                {
+                    unsafe {
+                        zephyr::raw::thread_analyzer_print(0);
                     }
                 }
-                state = new_state;
             }
 
-            Event::Heartbeat => {
-            }
+            // After we process the heartbeat, give to the semaphore so we will get the next tick.  This
+            // keeps ticks from building up and only enqueues a tick if the main loop made it through
+            // everything.
+            heart.give();
 
-            ev => {
-                printkln!("Event: {:?}", ev);
-            }
+            // Yield to reschedule the work.
+            yield_now().await;
         }
-        stats.stop("event");
+    };
 
-        // Only continue when the tick is received.
-        if !is_tick {
-            continue;
-        }
+    let main_loop = zephyr::kio::spawn(main_loop, &main_worker);
 
-        // Read in the HID out report if we have been sent one.
-        let mut buf = [0u8; 8];
-        if let Ok(Some(count)) = usb.get_keyboard_report(&mut buf) {
-            info!("Keyboard out: {} bytes: {:?}", count, &buf[..count]);
-        }
+    // Wait for the main loop.  This should never happen.
+    let () = main_loop.join();
 
-        stats.start("matrix");
-        scanner.scan();
-        stats.stop("matrix");
+    // And wait for the others.
+    let () = scannerw.join();
+    inter_task.into_iter().for_each(|t| t.join());
 
-        stats.start("layout.tick");
-        layout.tick(&mut eq_send);
-        stats.stop("layout.tick");
-        usb_hid_push(&usb, &mut keys);
-
-        if let Some(ref mut inter) = inter {
-            stats.start("inter");
-            inter.tick();
-            stats.stop("inter");
-        }
-
-        // Update the LEDs every 100ms.
-        led_counter += 1;
-        if led_counter >= 100 {
-            led_counter = 0;
-            leds.tick();
-        }
-
-        // Print out heap stats every few minutes.
-        heap_counter += 1;
-        if heap_counter >= 120_000 {
-            heap_counter = 0;
-            show_heap_stats();
-        }
-
-        // Print out other stats periodically as well.
-        stat_counter += 1;
-        if stat_counter >= 60_000 {
-            stat_counter = 0;
-
-            #[cfg(CONFIG_THREAD_ANALYZER)]
-            {
-                unsafe {
-                    zephyr::raw::thread_analyzer_print(0);
-                }
-            }
-        }
-
-        // After we process the heartbeat, give to the semaphore so we will get the next tick.  This
-        // keeps ticks from building up and only enqueues a tick if the main loop made it through
-        // everything.
-        heart.give();
-    }
+    // Leak the box so the worker is never freed.
+    let _ = Box::leak(main_worker);
 }
 
 fn get_steno_indicator(raw: bool) -> &'static Indication {
@@ -415,7 +447,7 @@ fn get_steno_select_indicator(raw: bool) -> &'static Indication {
 
 /// Conditionally return the inter-board code.
 #[cfg(dt = "chosen::inter_board_uart")]
-fn get_inter(side: Side, equeue_send: Sender<Event>) -> Option<InterHandler> {
+fn get_inter(side: Side, equeue_send: Sender<Event>) -> Option<(InterHandler, Sender<InterUpdate>)> {
     let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance().unwrap();
     Some(InterHandler::new(side, uart, equeue_send))
 }
@@ -451,6 +483,15 @@ impl Scanner {
             };
             self.events.send(Event::Matrix(event)).unwrap();
         });
+    }
+
+    async fn run(mut self) {
+        loop {
+            // TODO: Use an absolute timer here.
+            sleep(Duration::millis_at_least(1)).await;
+
+            self.scan();
+        }
     }
 }
 
@@ -720,4 +761,7 @@ kobj_define! {
     // The steno thread.
     static STENO_THREAD: StaticThread;
     static STENO_STACK: ThreadStack<4096>;
+
+    // The main loop thread.
+    static MAIN_LOOP_STACK: ThreadStack<8192>;
 }

@@ -13,7 +13,7 @@ license = "Apache-2.0 or MIT"
 crate-type = ["staticlib"]
 
 [dependencies]
-zephyr = "3.7.0"
+zephyr = "0.1.0"
 critical-section = "1.1.2"
 log = "0.4.22"
 rgb = "0.8.50"
@@ -39,12 +39,12 @@ path = "../minder"
 opt-level = 1
 
 [profile.release]
-debug-assertions = true
-overflow-checks = true
+# debug-assertions = true
+# overflow-checks = true
 debug = true
 
 [build-dependencies]
-zephyr-build = "3.7.0"
+zephyr-build = "0.1.0"
 
 [features]
 proto2 = ["bbq-keyboard/proto2"]
