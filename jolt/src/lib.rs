@@ -33,13 +33,13 @@ use logging::Logger;
 use zephyr::kio::yield_now;
 use zephyr::sync::{Arc, Mutex};
 use zephyr::sys::sync::Semaphore;
-use zephyr::time::{Duration, NoWait};
+use zephyr::time::{self, Duration, NoWait};
 use zephyr::work::futures::sleep;
 use zephyr::work::WorkQueueBuilder;
 
 use core::{mem, slice};
 
-use log::info;
+use log::{info, warn};
 
 use matrix::Matrix;
 use zephyr::{kobj_define, printkln};
@@ -161,7 +161,13 @@ extern "C" fn rust_main() {
         "proto4" => true,
         _ => false,
     };
-    let mut layout = LayoutManager::new(two_row);
+    let layout = LayoutManager::new(two_row);
+
+    // Queue for layout events.  These should be processed readily, so this doesn't need to be
+    // large.
+    let (lm_send, lm_recv) = channel::bounded(2);
+
+    let _ = zephyr::kio::spawn(layout_task(layout, lm_recv, equeue_send.clone()), &main_worker);
 
     let leds = LedSet::get_all();
     let mut leds = LedManager::new(leds, stats.clone());
@@ -176,7 +182,6 @@ extern "C" fn rust_main() {
 
     let _minder = Minder::new(stats.clone(), minder_uart, logger);
 
-    let mut eq_send = SendWrap(equeue_send.clone());
     let mut keys = VecDeque::new();
 
     // TODO: We should really ask for the current mode, instead of hoping to align them.
@@ -224,9 +229,9 @@ extern "C" fn rust_main() {
                     // info!("Matrix: {:?}", key);
                     match state {
                         InterState::Primary | InterState::Idle => {
-                            stats.start("layout");
-                            layout.handle_event(key, &mut eq_send);
-                            stats.stop("layout");
+                            if lm_send.try_send(key).is_err() {
+                                warn!("Key event dropped {:?}", key);
+                            }
                         }
                         InterState::Secondary => {
                             if let Some(inter) = &inter {
@@ -245,9 +250,9 @@ extern "C" fn rust_main() {
 
                 Event::InterKey(key) => {
                     if state == InterState::Primary {
-                        stats.start("layout");
-                        layout.handle_event(key, &mut eq_send);
-                        stats.stop("layout");
+                        if lm_send.try_send(key).is_err() {
+                            warn!("Key even dropped {:?}", key);
+                        }
                     }
                 }
 
@@ -374,9 +379,6 @@ extern "C" fn rust_main() {
 
             yield_now().await;
 
-            stats.start("layout.tick");
-            layout.tick(&mut eq_send);
-            stats.stop("layout.tick");
             usb_hid_push(&usb, &mut keys);
 
             // Update the LEDs every 100ms.
@@ -438,6 +440,55 @@ fn get_steno_select_indicator(raw: bool) -> &'static Indication {
         &leds::manager::STENO_RAW_SELECT_INDICATOR
     } else {
         &leds::manager::STENO_SELECT_INDICATOR
+    }
+}
+
+/// The layout task.
+///
+/// Waits for events to be sent to the layout task, invoking the handler for those, and running the
+/// periodic tick to handle various timeouts.
+///
+/// This task never returns.
+///
+/// TODO: A better versions of this would be able to know when to wake up instead of having to run
+/// every tick, only to do nothing.
+///
+/// TODO: This still sends things back to the main event queue, just to be forwarded on to something
+/// else.
+async fn layout_task(
+    // The layout manager to manage.
+    mut layout: LayoutManager,
+    // A receiver for the queue that processes layout events.
+    keys: Receiver<KeyEvent>,
+    // The main event queue.
+    events: Sender<Event>,
+) {
+    // 'next' represents 1ms in the future.
+    // TODO Abstract this idea of an event loop with a periodic "tick".
+    let mut next = time::now() + Duration::millis_at_least(1);
+    let mut events = SendWrap(events);
+    let mut warned = false;
+    loop {
+        if let Ok(ev) = keys.recv_timeout_async(next).await {
+            layout.handle_event(ev, &mut events);
+            continue;
+        }
+
+        // Process the "tick".
+        layout.tick(&mut events);
+
+        // Calculate the next time.
+        next += Duration::millis_at_least(1);
+
+        // Detect dropped ticks.
+        let now = time::now();
+        while next <= now {
+            next += Duration::millis_at_least(1);
+            if !warned {
+                warn!("Dropped tick for layout manager");
+                warned = true;
+            }
+        }
     }
 }
 
