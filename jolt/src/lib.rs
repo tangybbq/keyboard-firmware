@@ -197,7 +197,6 @@ extern "C" fn rust_main() {
     let mut has_global = true;
 
     let mut heap_counter = 0;
-    let mut stat_counter = 0;
 
     let mut led_counter = 0;
 
@@ -393,19 +392,6 @@ extern "C" fn rust_main() {
             if heap_counter >= 120_000 {
                 heap_counter = 0;
                 show_heap_stats();
-            }
-
-            // Print out other stats periodically as well.
-            stat_counter += 1;
-            if stat_counter >= 60_000 {
-                stat_counter = 0;
-
-                #[cfg(CONFIG_THREAD_ANALYZER)]
-                {
-                    unsafe {
-                        zephyr::raw::thread_analyzer_print(0);
-                    }
-                }
             }
 
             // After we process the heartbeat, give to the semaphore so we will get the next tick.  This
