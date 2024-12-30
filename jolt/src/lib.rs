@@ -193,10 +193,10 @@ extern "C" fn rust_main() {
     let mut led_counter = 0;
 
     // The scanner just runs periodically to scan the matrix.
-    let scannerw = zephyr::kio::spawn(scanner.run(), &main_worker);
+    let _ = zephyr::kio::spawn(scanner.run(), &main_worker);
 
     // Startup the inter-update, if it exists.
-    let inter_task = inter_task.map(|inter_task| {
+    let _ = inter_task.map(|inter_task| {
         zephyr::kio::spawn(inter_task.run(), &main_worker)
     });
 
@@ -420,10 +420,6 @@ extern "C" fn rust_main() {
 
     // Wait for the main loop.  This should never happen.
     let () = main_loop.join();
-
-    // And wait for the others.
-    let () = scannerw.join();
-    inter_task.into_iter().for_each(|t| t.join());
 
     // Leak the box so the worker is never freed.
     let _ = Box::leak(main_worker);
