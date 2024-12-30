@@ -122,6 +122,15 @@ extern "C" fn rust_main() {
                                .set_no_yield(true)
                                .start(MAIN_LOOP_STACK.init_once(()).unwrap()));
 
+    // The 'inter' worker runs on its own thread, lower priority than the main loop.  As this
+    // computation takes longer than a frame, this allows the regular periodic work to continue to
+    // run, as the inter work takes several frames.
+    let inter_worker = Box::new(WorkQueueBuilder::new()
+                                .set_priority(3)
+                                .set_name(c"interwork")
+                                .set_no_yield(true)
+                                .start(INTER_STACK.init_once(()).unwrap()));
+
     unsafe {
         // Store a sender for the USB callback.
         USB_CB_MAIN_SEND = Some(equeue_send.clone());
@@ -202,7 +211,7 @@ extern "C" fn rust_main() {
 
     // Startup the inter-update, if it exists.
     let _ = inter_task.map(|inter_task| {
-        zephyr::kio::spawn(inter_task.run(), &main_worker)
+        zephyr::kio::spawn(inter_task.run(), &inter_worker)
     });
 
     let main_loop = async move {
@@ -425,6 +434,7 @@ extern "C" fn rust_main() {
 
     // Leak the box so the worker is never freed.
     let _ = Box::leak(main_worker);
+    let _ = Box::leak(inter_worker);
 }
 
 fn get_steno_indicator(raw: bool) -> &'static Indication {
@@ -810,5 +820,8 @@ kobj_define! {
     static STENO_STACK: ThreadStack<4096>;
 
     // The main loop thread.
-    static MAIN_LOOP_STACK: ThreadStack<8192>;
+    static MAIN_LOOP_STACK: ThreadStack<2048>;
+
+    // A thread for the inter-worker.  Allows this to run at lower priority to prevent stalls.
+    static INTER_STACK: ThreadStack<2048>;
 }
