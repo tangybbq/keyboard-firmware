@@ -31,7 +31,7 @@ use logging::Logger;
 use zephyr::kio::yield_now;
 use zephyr::sync::Arc;
 use zephyr::sys::sync::Semaphore;
-use zephyr::time::{self, Duration, NoWait};
+use zephyr::time::{Duration, NoWait};
 use zephyr::work::futures::sleep;
 use zephyr::work::WorkQueueBuilder;
 
@@ -450,33 +450,11 @@ async fn layout_task(
     // The main event queue.
     events: Sender<Event>,
 ) {
-    // 'next' represents 1ms in the future.
-    // TODO Abstract this idea of an event loop with a periodic "tick".
-    let mut next = time::now() + Duration::millis_at_least(1);
     let mut events = SendWrap(events);
-    let mut warned = false;
-    loop {
-        if let Ok(ev) = keys.recv_timeout_async(next).await {
-            layout.handle_event(ev, &mut events);
-            continue;
-        }
-
-        // Process the "tick".
-        layout.tick(&mut events);
-
-        // Calculate the next time.
-        next += Duration::millis_at_least(1);
-
-        // Detect dropped ticks.
-        let now = time::now();
-        while next <= now {
-            next += Duration::millis_at_least(1);
-            if !warned {
-                warn!("Dropped tick for layout manager");
-                warned = true;
-            }
-        }
-    }
+    zephyr::event_loop!(keys, Duration::millis_at_least(1),
+                        Some(ev) => { layout.handle_event(ev, &mut events) },
+                        None => { layout.tick(&mut events) },
+    );
 }
 
 /// Conditionally return the inter-board code.
