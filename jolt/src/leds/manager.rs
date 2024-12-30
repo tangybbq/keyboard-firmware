@@ -10,8 +10,6 @@ use rgb::RGB8;
 use zephyr::kobj_define;
 use zephyr::sync::{Arc, Condvar, Mutex};
 
-use crate::Stats;
-
 use super::LedSet;
 
 const OFF: RGB8 = RGB8::new(0, 0, 0);
@@ -268,7 +266,7 @@ struct LedState {
 }
 
 impl LedManager {
-    pub fn new(leds: LedSet, stats: Arc<Stats>) -> Self {
+    pub fn new(leds: LedSet) -> Self {
         let len = leds.len();
 
         let condvar = Condvar::new();
@@ -283,7 +281,7 @@ impl LedManager {
         thread.set_priority(10);
         thread.set_name(c"leds");
         thread.spawn(move || {
-            led_thread(leds, info2, stats);
+            led_thread(leds, info2);
         });
 
         let states: Vec<_> = (0..len).map(|i| {
@@ -467,13 +465,11 @@ struct LedInfo {
     leds: Option<Vec<RGB8>>,
 }
 
-fn led_thread(mut all_leds: LedSet, info: Arc<InfoPair>, stats: Arc<Stats>) -> ! {
+fn led_thread(mut all_leds: LedSet, info: Arc<InfoPair>) -> ! {
     let limit = all_leds.len();
     loop {
         let info = get_info(&*info);
-        stats.start("led");
         all_leds.update(&info);
-        stats.stop("led");
     }
 }
 

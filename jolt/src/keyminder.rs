@@ -7,7 +7,7 @@ use log::info;
 use minder::{Reply, Request, SerialDecoder};
 use zephyr::{device::uart::UartIrq, kobj_define, printkln, sync::{Arc, Mutex}, time::{Duration, NoWait}};
 
-use crate::{logging::Logger, Stats};
+use crate::logging::Logger;
 
 /// The minder.
 pub struct Minder();
@@ -19,19 +19,19 @@ type Uart = UartIrq<2, 2>;
 const READ_BUFSIZE: usize = 256;
 
 impl Minder {
-    pub fn new(stats: Arc<Stats>, uart: Uart, log: Arc<Mutex<Logger>>) -> Minder {
+    pub fn new(uart: Uart, log: Arc<Mutex<Logger>>) -> Minder {
         let mut thread = MINDER_THREAD.init_once(MINDER_STACK.init_once(()).unwrap()).unwrap();
         thread.set_priority(6);
         thread.set_name(c"minder");
         thread.spawn(move || {
-            minder_thread(stats, uart, log);
+            minder_thread(uart, log);
         });
 
         Minder()
     }
 }
 
-fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
+fn minder_thread(mut uart: Uart, log: Arc<Mutex<Logger>>) {
     let mut decoder = SerialDecoder::new();
 
     // Add two buffers for reading.
@@ -42,12 +42,10 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
     // TODO: This should be better than just counting, as it would print way more frequently with
     // more messages.
 
-    let mut stat_count = 0;
     let mut reply_hello = false;
     loop {
         match uart.read_wait(Duration::millis_at_least(100)) {
             Ok(buf) => {
-                stats.start("minder.read");
                 for &byte in buf.as_slice() {
                     if let Some(packet) = decoder.add_decode::<Request>(byte) {
                         info!("Minder: {:?}", packet);
@@ -57,7 +55,6 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
 
                 // Put the buffer back.
                 uart.read_enqueue(buf.into_inner()).unwrap();
-                stats.stop("minder.read");
             }
             // Timeout, just go on.
             Err(_) => (),
@@ -67,7 +64,6 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
         if reply_hello {
             reply_hello = false;
 
-            stats.start("minder.reply");
             let mut buffer = Vec::new();
             let reply = Reply::Hello {
                 version: minder::VERSION.to_string(),
@@ -78,13 +74,11 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
             // Attempt to write it, but just ignore the error if we can't.
             let len = buffer.len();
             let _ = uart.write_enqueue(buffer, 0..len);
-            stats.stop("minder.reply");
         }
 
 
         // Try printing out log messages.  We intentionally only lock for each message to avoid
         // locking anything too long.
-        stats.start("minder.log");
         loop {
             let mut inner = log.lock().unwrap();
             let msg = inner.pop(0);
@@ -96,11 +90,9 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
                 break;
             }
         }
-        stats.stop("minder.log");
 
         // Also try sending a message over the minder port.  Unsure how data will be handled if
         // there is no listener.
-        stats.start("minder.acm");
         loop {
             // Handle any completed writes.
             // For now, just discard the buffer, as we'll dynamically allocate new ones.
@@ -136,7 +128,6 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
                 break;
             }
         }
-        stats.stop("minder.acm");
         /*
         while let Some(msg) = log.lock().unwrap().pop(1) {
             let reply = Reply::Log {
@@ -145,14 +136,6 @@ fn minder_thread(stats: Arc<Stats>, mut uart: Uart, log: Arc<Mutex<Logger>>) {
             minder::serial_encode(&reply, WritePort(&mut uart)).unwrap();
         }
         */
-
-        stat_count += 1;
-        if stat_count >= 600 {
-            stat_count = 0;
-            stats.start("stats");
-            stats.show();
-            stats.stop("stats");
-        }
     }
 }
 

@@ -20,9 +20,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use alloc::collections::{BTreeMap, VecDeque};
-use alloc::format;
-use alloc::string::String;
+use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_steno::dict::Joined;
@@ -31,13 +29,13 @@ use leds::manager::Indication;
 use leds::LedSet;
 use logging::Logger;
 use zephyr::kio::yield_now;
-use zephyr::sync::{Arc, Mutex};
+use zephyr::sync::Arc;
 use zephyr::sys::sync::Semaphore;
 use zephyr::time::{self, Duration, NoWait};
 use zephyr::work::futures::sleep;
 use zephyr::work::WorkQueueBuilder;
 
-use core::{mem, slice};
+use core::slice;
 
 use log::{info, warn};
 
@@ -93,8 +91,6 @@ extern "C" fn rust_main() {
     // This is the steno queue.
     let (stenoq_send, stenoq_recv) = channel::bounded::<Stroke>(32);
 
-    let stats = Arc::new(Stats::new());
-
     // The heartbeat semaphore.
     let heart = Arc::new(Semaphore::new(1, 1).unwrap());
 
@@ -105,12 +101,11 @@ extern "C" fn rust_main() {
     // Spawn the steno thread.
     // TODO: This needs to be lower priority.
     let sc = equeue_send.clone();
-    let statsc = stats.clone();
     let mut thread = STENO_THREAD.init_once(STENO_STACK.init_once(()).unwrap()).unwrap();
     thread.set_priority(5);
     thread.set_name(c"steno");
     thread.spawn(move || {
-        steno_thread(stenoq_recv, sc, statsc);
+        steno_thread(stenoq_recv, sc);
     });
 
     // Create a thread to run the main worker.
@@ -179,7 +174,7 @@ extern "C" fn rust_main() {
     let _ = zephyr::kio::spawn(layout_task(layout, lm_recv, equeue_send.clone()), &main_worker);
 
     let leds = LedSet::get_all();
-    let mut leds = LedManager::new(leds, stats.clone());
+    let mut leds = LedManager::new(leds);
 
     let (inter_task, inter) = get_inter(side, equeue_send.clone()).unzip();
 
@@ -189,7 +184,7 @@ extern "C" fn rust_main() {
 
     let minder_uart = unsafe { minder_uart.into_irq().unwrap() };
 
-    let _minder = Minder::new(stats.clone(), minder_uart, logger);
+    let _minder = Minder::new(minder_uart, logger);
 
     let mut keys = VecDeque::new();
 
@@ -226,12 +221,9 @@ extern "C" fn rust_main() {
                 acm_active = false;
             }
 
-            stats.start("recv");
             let ev = equeue_recv.recv_async().await.unwrap();
-            stats.stop("recv");
 
             let mut is_tick = false;
-            stats.start("event");
             match ev {
                 Event::Tick => is_tick = true,
                 Event::Matrix(key) => {
@@ -371,7 +363,6 @@ extern "C" fn rust_main() {
                     printkln!("Event: {:?}", ev);
                 }
             }
-            stats.stop("event");
 
             yield_now().await;
 
@@ -606,18 +597,16 @@ impl<'a> ActionHandler for KeyActionWrap<'a> {
 }
 
 /// The lower priority steno lookup thread.
-fn steno_thread(recv: Receiver<Stroke>, events: Sender<Event>, stats: Arc<Stats>) {
+fn steno_thread(recv: Receiver<Stroke>, events: Sender<Event>) {
     printkln!("Steno thread running");
     let mut eq_send = SendWrap(events.clone());
     let mut dict = Dict::new();
     loop {
         let stroke = recv.recv().unwrap();
-        stats.start("steno");
         for action in dict.handle_stroke(stroke, &mut eq_send, &WrapTimer) {
             // Enqueue the action, and the actual typing will be queued up by the main thread.
             events.send(Event::StenoText(action)).unwrap();
         }
-        stats.stop("steno");
     }
 }
 
@@ -694,123 +683,6 @@ fn show_heap_stats() {
         }
 
         show_heap_stats();
-    }
-}
-
-/// Statistics gathered.
-pub struct Stats(Mutex<BTreeMap<&'static str, StatInfo>>);
-
-#[derive(Debug)]
-struct StatInfo {
-    start: Option<u64>,
-    samples: usize,
-    best: u64,
-    worst: u64,
-    total: u64,
-}
-
-impl Default for StatInfo {
-    fn default() -> Self {
-        StatInfo {
-            start: None,
-            samples: 0,
-            best: u64::MAX,
-            worst: 0,
-            total: 0,
-        }
-    }
-}
-
-impl Stats {
-    fn new() -> Stats {
-        Stats(Mutex::new(BTreeMap::new()))
-    }
-
-    pub fn start(&self, name: &'static str) {
-        let mut lock = self.0.lock().unwrap();
-        let entry = lock.entry(name).or_default();
-        if entry.start.is_some() {
-            panic!("Stats::start double use");
-        }
-        entry.start = Some(Self::get_ticks());
-    }
-
-    pub fn stop(&self, name: &'static str) {
-        let mut lock = self.0.lock().unwrap();
-        let entry = lock.entry(name).or_default();
-        if let Some(start) = entry.start {
-            let elapsed = Self::get_ticks() - start;
-
-            entry.samples += 1;
-            entry.best = entry.best.min(elapsed);
-            entry.worst = entry.worst.max(elapsed);
-            entry.total += elapsed;
-
-            entry.start = None;
-        } else {
-            // Ignore this.  This happens if the stats are printed while something is performing.
-        }
-    }
-
-    fn show(&self) {
-        let state = {
-            let mut lock = self.0.lock().unwrap();
-            // Swap the tree out, allowing other threads to run with the fresh stats.  The drop should
-            let state = mem::replace(&mut *lock, BTreeMap::new());
-
-            // Capture any entries that have a "start", so we don't lose that.
-            for (k, v) in &state {
-                if let Some(start) = v.start {
-                    lock.insert(k, StatInfo {
-                        start: Some(start),
-                        ..Default::default()
-                    });
-                }
-            }
-
-            state
-        };
-
-        info!("Stats:");
-        for (k, v) in state.iter() {
-            if v.samples == 0 {
-                // Don't try to print stats if there aren't any.  This happens if the stats print
-                // while an operation is running for the first time.  For example, this always
-                // happens when calculating the stats for stats.
-                continue;
-            }
-            info!(": {:<12}: best:{}, worst:{}, avg:{}",
-                  k,
-                  StatInfo::humanize(v.best as f64),
-                  StatInfo::humanize(v.worst as f64),
-                  StatInfo::humanize(v.total as f64 / v.samples as f64),
-                  );
-        }
-    }
-
-    /// Read the current cycle count.
-    fn get_ticks() -> u64 {
-        unsafe {
-            zephyr::raw::k_cycle_get_64()
-        }
-    }
-}
-
-impl StatInfo {
-    fn humanize(time: f64) -> String {
-        const TICKS: f64 = zephyr::kconfig::CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC as f64;
-
-        let time = time / TICKS;
-
-        if time >= 1.0 {
-            format!("{:8.03}s ", time)
-        } else if time >= 1.0e-3 {
-            format!("{:8.03}ms", time * 1.0e3)
-        } else if time >= 1.0e-6 {
-            format!("{:8.03}us", time * 1.0e6)
-        } else {
-            format!("{:8.03}ns", time * 1.0e9)
-        }
     }
 }
 
