@@ -235,7 +235,7 @@ extern "C" fn rust_main() {
                 }
 
                 Event::Key(key) => {
-                    usb_hid_push(&usb, key);
+                    usb_hid_push(&usb, key).await;
                 }
 
                 Event::InterKey(key) => {
@@ -276,11 +276,11 @@ extern "C" fn rust_main() {
                         usb_hid_push(&usb, KeyAction::KeyPress(
                             Keyboard::DeleteBackspace,
                             Mods::empty(),
-                        ));
-                        usb_hid_push(&usb, KeyAction::KeyRelease);
+                        )).await;
+                        usb_hid_push(&usb, KeyAction::KeyRelease).await;
                     }
                     // Then, just send the text.
-                    enqueue_action(&mut KeyActionWrap(&usb), &append);
+                    enqueue_action(&mut KeyActionWrap(&usb), &append).await;
                 }
 
                 // Mode select and mode affect the LEDs.
@@ -508,23 +508,23 @@ impl Scanner {
 }
 
 /// Push usb-hid events to the USB stack, when possible.
-fn usb_hid_push(usb: &devices::usb::Usb, key: KeyAction) {
+async fn usb_hid_push(usb: &devices::usb::Usb, key: KeyAction) {
     match key {
         KeyAction::KeyPress(code, mods) => {
             let code = code as u8;
-            usb.send_keyboard_report(mods.bits(), slice::from_ref(&code));
+            usb.send_keyboard_report(mods.bits(), slice::from_ref(&code)).await;
         }
         KeyAction::KeyRelease => {
-            usb.send_keyboard_report(0, &[]);
+            usb.send_keyboard_report(0, &[]).await;
         }
         KeyAction::KeySet(keys) => {
             // TODO We don't handle more than 6 keys, which qwerty mode can do.  For now, just
             // report if we can.
             let (mods, keys) = keyset_to_hid(keys);
-            usb.send_keyboard_report(mods.bits(), &keys);
+            usb.send_keyboard_report(mods.bits(), &keys).await;
         }
         KeyAction::ModOnly(mods) => {
-            usb.send_keyboard_report(mods.bits(), &[]);
+            usb.send_keyboard_report(mods.bits(), &[]).await;
         }
         KeyAction::Stall => (),
     }
@@ -547,12 +547,12 @@ fn keyset_to_hid(keys: Vec<Keyboard>) -> (Mods, Vec<u8>) {
     (mods, result)
 }
 
-struct KeyActionWrap<'a>(&'a mut VecDeque<KeyAction>);
+struct KeyActionWrap<'a>(&'a Usb);
 
 impl<'a> ActionHandler for KeyActionWrap<'a> {
-    fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
+    async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
         for act in events {
-            self.0.push_back(act);
+            usb_hid_push(self.0, act).await;
         }
     }
 }

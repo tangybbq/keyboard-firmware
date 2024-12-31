@@ -158,11 +158,13 @@ static KEY_TABLE: [u16; 128] = [
 
 /// An ActionHandler is something that is able to take actions.
 pub trait ActionHandler {
-    fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I);
+    // For now, suppress the warning.
+    #[allow(async_fn_in_trait)]
+    async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I);
 }
 
 /// Enqueue an action as keypresses.
-pub fn enqueue_action<H: ActionHandler>(usb: &mut H, text: &str) {
+pub async fn enqueue_action<H: ActionHandler>(usb: &mut H, text: &str) {
     let mut last_action = None;
 
     for ch in text.chars() {
@@ -178,15 +180,15 @@ pub fn enqueue_action<H: ActionHandler>(usb: &mut H, text: &str) {
             // We only need to send an explicit KeyRelease when the last thing sent was the same as
             // the current.  TODO: There is excess copying here.
             if last_action == Some(action.clone()) {
-                usb.enqueue_actions([KeyAction::KeyRelease].iter().cloned());
+                usb.enqueue_actions([KeyAction::KeyRelease].iter().cloned()).await;
             }
-            usb.enqueue_actions([action.clone()].iter().cloned());
+            usb.enqueue_actions([action.clone()].iter().cloned()).await;
             last_action = Some(action);
         }
 
         // Send a release at the end.
         if last_action.is_some() {
-            usb.enqueue_actions([KeyAction::KeyRelease].iter().cloned());
+            usb.enqueue_actions([KeyAction::KeyRelease].iter().cloned()).await;
         }
     }
 }

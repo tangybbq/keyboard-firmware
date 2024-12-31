@@ -8,12 +8,7 @@ use core::{ffi::CStr, ptr, sync::atomic::Ordering};
 use alloc::{collections::vec_deque::VecDeque, vec::Vec};
 use log::{error, info, warn};
 use zephyr::{
-    error::to_result_void,
-    raw,
-    sync::{atomic::AtomicPtr, Arc, Mutex},
-    sys::sync::Semaphore,
-    time::{NoWait, Timeout},
-    Error, Result,
+    error::to_result_void, kio::sync::Mutex, raw, sync::{atomic::AtomicPtr, Arc}, sys::sync::Semaphore, time::{NoWait, Timeout}, Error, Result
 };
 
 use crate::rust_usb_status;
@@ -94,7 +89,7 @@ impl Usb {
         hid
     }
 
-    pub fn send_keyboard_report(&self, mods: u8, keys: &[u8]) {
+    pub async fn send_keyboard_report(&self, mods: u8, keys: &[u8]) {
         if keys.len() > 6 {
             // Ignore ones that have too many keys down?
             return;
@@ -106,7 +101,7 @@ impl Usb {
             report[i + 2] = *key;
         }
 
-        let mut state = self.hid0.state.lock().unwrap();
+        let mut state = self.hid0.state.lock_async().await.unwrap();
 
         if state.ready {
             // We can directly send it.  We have the mutex which avoids the race with it getting
