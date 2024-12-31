@@ -27,6 +27,7 @@ use keyminder::Minder;
 use leds::manager::Indication;
 use leds::LedSet;
 use logging::Logger;
+use zephyr::kio::sync::Mutex;
 use zephyr::kio::yield_now;
 use zephyr::sync::Arc;
 use zephyr::sys::sync::Semaphore;
@@ -169,7 +170,7 @@ extern "C" fn rust_main() {
     );
 
     let leds = LedSet::get_all();
-    let mut leds = LedManager::new(leds);
+    let leds = Arc::new(Mutex::new(LedManager::new(leds)));
 
     let (inter_task, inter) = get_inter(side, equeue_send.clone()).unzip();
 
@@ -203,12 +204,15 @@ extern "C" fn rust_main() {
         let mut acm_active;
         loop {
             // Update the state of the Gemini indicator.
-            if let Ok(1) = unsafe { acm.line_ctrl_get(LineControl::DTR) } {
-                leds.set_base(2, &leds::manager::GEMINI_INDICATOR);
-                acm_active = true;
-            } else {
-                leds.set_base(2, &leds::manager::OFF_INDICATOR);
-                acm_active = false;
+            {
+                let mut leds = leds.lock().unwrap();
+                if let Ok(1) = unsafe { acm.line_ctrl_get(LineControl::DTR) } {
+                    leds.set_base(2, &leds::manager::GEMINI_INDICATOR);
+                    acm_active = true;
+                } else {
+                    leds.set_base(2, &leds::manager::OFF_INDICATOR);
+                    acm_active = false;
+                }
             }
 
             let ev = equeue_recv.recv_async().await.unwrap();
@@ -293,7 +297,7 @@ extern "C" fn rust_main() {
                         LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
                         _ => &leds::manager::QWERTY_SELECT_INDICATOR,
                     };
-                    leds.set_base(0, next);
+                    leds.lock().unwrap().set_base(0, next);
                 }
 
                 // Mode select and mode affect the LEDs.
@@ -306,7 +310,7 @@ extern "C" fn rust_main() {
                         LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
                         _ => &leds::manager::QWERTY_INDICATOR,
                     };
-                    leds.set_base(0, next);
+                    leds.lock().unwrap().set_base(0, next);
                     current_mode = mode;
                 }
 
@@ -314,7 +318,7 @@ extern "C" fn rust_main() {
                     info!("Switch raw: {:?}", raw);
                     raw_mode = raw;
                     if current_mode == LayoutMode::Steno {
-                        leds.set_base(0, get_steno_indicator(raw_mode))
+                        leds.lock().unwrap().set_base(0, get_steno_indicator(raw_mode))
                     }
                 }
 
@@ -322,7 +326,7 @@ extern "C" fn rust_main() {
                 Event::UsbState(UsbDeviceState::Configured)
                 | Event::UsbState(UsbDeviceState::Resume) => {
                     if has_global {
-                        leds.clear_global(0);
+                        leds.lock().unwrap().clear_global(0);
                         has_global = false;
                     }
                     // suspended = false;
@@ -334,7 +338,7 @@ extern "C" fn rust_main() {
                 }
 
                 Event::UsbState(UsbDeviceState::Suspend) => {
-                    leds.set_global(0, &leds::manager::SLEEP_INDICATOR);
+                    leds.lock().unwrap().set_global(0, &leds::manager::SLEEP_INDICATOR);
                     has_global = true;
                     // suspended = true;
                     // woken = false;
@@ -343,9 +347,9 @@ extern "C" fn rust_main() {
                 Event::BecomeState(new_state) => {
                     if state != new_state {
                         if new_state == InterState::Secondary {
-                            leds.clear_global(0);
+                            leds.lock().unwrap().clear_global(0);
                         } else if new_state == InterState::Idle {
-                            leds.clear_global(0);
+                            leds.lock().unwrap().clear_global(0);
                         }
                     }
                     state = new_state;
@@ -377,7 +381,7 @@ extern "C" fn rust_main() {
             led_counter += 1;
             if led_counter >= 100 {
                 led_counter = 0;
-                leds.tick();
+                leds.lock().unwrap().tick();
             }
 
             // Print out heap stats every few minutes.
