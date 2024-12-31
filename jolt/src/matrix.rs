@@ -6,13 +6,9 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use zephyr::sys::busy_wait;
 use zephyr::device::gpio::{GpioPin, GpioToken};
-use zephyr::raw::{
-    GPIO_OUTPUT_INACTIVE,
-    GPIO_INPUT,
-    GPIO_PULL_DOWN,
-};
+use zephyr::raw::{GPIO_INPUT, GPIO_OUTPUT_INACTIVE, GPIO_PULL_DOWN};
+use zephyr::sys::busy_wait;
 
 use bbq_keyboard::Side;
 
@@ -21,27 +17,44 @@ pub struct Matrix {
     rows: Vec<GpioPin>,
     cols: Vec<GpioPin>,
     state: Vec<Debouncer>,
-    side: Side
+    side: Side,
 }
 
 impl Matrix {
     pub fn new(rows: Vec<GpioPin>, cols: Vec<GpioPin>, side: Side) -> Matrix {
-        let state = (0 .. rows.len() * cols.len()).map(|_| Debouncer::new()).collect();
+        let state = (0..rows.len() * cols.len())
+            .map(|_| Debouncer::new())
+            .collect();
         let token = unsafe { GpioToken::get_instance().unwrap() };
-        let mut result = Matrix { token, rows, cols, state, side };
+        let mut result = Matrix {
+            token,
+            rows,
+            cols,
+            state,
+            side,
+        };
         Self::pin_setup(&mut result.token, &mut result.cols, &mut result.rows);
         result
     }
 
     /// Perform a single scan of the matrix, calling `act` for every key that changes.
     pub fn scan<F>(&mut self, mut act: F)
-        where F: FnMut(u8, bool),
+    where
+        F: FnMut(u8, bool),
     {
-        let bias = if self.side.is_left() { 0 } else { self.state.len() };
+        let bias = if self.side.is_left() {
+            0
+        } else {
+            self.state.len()
+        };
         let mut states = self.state.iter_mut().enumerate();
         for col in &mut self.cols {
-            unsafe { col.set(&mut self.token, true); }
-            unsafe { busy_wait(5); }
+            unsafe {
+                col.set(&mut self.token, true);
+            }
+            unsafe {
+                busy_wait(5);
+            }
             for row in &mut self.rows {
                 let (code, state) = states.next().unwrap();
                 match state.react(unsafe { row.get(&mut self.token) }) {
@@ -54,7 +67,9 @@ impl Matrix {
                     _ => (),
                 }
             }
-            unsafe { col.set(&mut self.token, false); }
+            unsafe {
+                col.set(&mut self.token, false);
+            }
             // busy_wait(5);
         }
     }
@@ -130,7 +145,11 @@ impl Debouncer {
                     self.counter += 1;
                     if self.counter == DEBOUNCE_COUNT {
                         self.state = KeyState::Stable(target);
-                        if target { KeyAction::Press } else { KeyAction::Release }
+                        if target {
+                            KeyAction::Press
+                        } else {
+                            KeyAction::Release
+                        }
                     } else {
                         KeyAction::None
                     }

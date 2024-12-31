@@ -11,8 +11,8 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use zephyr::{device::led_strip::LedStrip, raw::led_rgb};
 use super::LedGroup;
+use zephyr::{device::led_strip::LedStrip, raw::led_rgb};
 
 pub struct LedStripGroup {
     // Underlying device.
@@ -33,10 +33,8 @@ impl LedGroup for LedStripGroup {
                 g: led.g,
                 b: led.b,
             })
-        .collect();
-        unsafe {
-            self.strip.update(&leds).unwrap()
-        }
+            .collect();
+        unsafe { self.strip.update(&leds).unwrap() }
     }
 }
 

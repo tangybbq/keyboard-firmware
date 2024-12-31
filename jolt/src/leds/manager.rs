@@ -70,20 +70,16 @@ pub static USB_PRIMARY: Indication = Indication(&[
 ]);
 
 /// An indicator that just stays off.
-pub static OFF_INDICATOR: Indication = Indication(&[
-    Step {
-        color: OFF,
-        count: 10,
-    },
-]);
+pub static OFF_INDICATOR: Indication = Indication(&[Step {
+    color: OFF,
+    count: 10,
+}]);
 
 /// Indicates that something is connected to the gemini protocol.
-pub static GEMINI_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(0, 0, 8),
-        count: 10,
-    },
-]);
+pub static GEMINI_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(0, 0, 8),
+    count: 10,
+}]);
 
 /// Just off.
 /*
@@ -270,13 +266,13 @@ impl LedManager {
         let len = leds.len();
 
         let condvar = Condvar::new();
-        let info = LedInfo {
-            leds: None,
-        };
+        let info = LedInfo { leds: None };
         let info = Arc::new((Mutex::new(info), condvar));
 
         let info2 = info.clone();
-        let mut thread = LED_THREAD.init_once(LED_STACK.init_once(()).unwrap()).unwrap();
+        let mut thread = LED_THREAD
+            .init_once(LED_STACK.init_once(()).unwrap())
+            .unwrap();
         // Low priority for PWM, need high priority for WS2812
         thread.set_priority(10);
         thread.set_name(c"leds");
@@ -284,13 +280,15 @@ impl LedManager {
             led_thread(leds, info2);
         });
 
-        let states: Vec<_> = (0..len).map(|i| {
-            if i == 0 {
-                LedState::new(UNDEF_INDICATOR.0, Some(INIT_INDICATOR.0))
-            } else {
-                LedState::new(UNDEF_INDICATOR.0, None)
-            }
-        }).collect();
+        let states: Vec<_> = (0..len)
+            .map(|i| {
+                if i == 0 {
+                    LedState::new(UNDEF_INDICATOR.0, Some(INIT_INDICATOR.0))
+                } else {
+                    LedState::new(UNDEF_INDICATOR.0, None)
+                }
+            })
+            .collect();
 
         LedManager {
             states,
@@ -307,10 +305,7 @@ impl LedManager {
 
         // TODO: Is the double iteration costly? This could use MaybeUninit, but
         // that seems overkill here.
-        let colors: Vec<_> = self.states
-            .iter_mut()
-            .map(|st| st.tick())
-            .collect();
+        let colors: Vec<_> = self.states.iter_mut().map(|st| st.tick()).collect();
 
         self.set_state(colors);
     }
@@ -342,13 +337,8 @@ impl LedManager {
     pub fn set_other_side(&mut self, leds: RGB8) {
         self.other_side = true;
         let state: Vec<_> = (0..self.states.len())
-            .map(|n| {
-                if n == 0 {
-                    leds
-                } else {
-                    OFF
-                }
-            }).collect();
+            .map(|n| if n == 0 { leds } else { OFF })
+            .collect();
         self.set_state(state);
     }
 
@@ -394,7 +384,6 @@ impl LedState {
         }
 
         if self.count == 0 {
-
             if self.phase >= steps.len() {
                 self.phase = 0;
 
@@ -442,7 +431,7 @@ impl LedState {
         }
     }
 
-   fn set_base(&mut self, indicator: &Indication) {
+    fn set_base(&mut self, indicator: &Indication) {
         self.base = indicator.0;
         if self.oneshot.is_none() && self.global.is_none() {
             self.count = 0;

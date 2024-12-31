@@ -3,7 +3,6 @@
 
 #![no_std]
 #![allow(unexpected_cfgs)]
-
 // As of Rust 1.83, Rust warns about shared references to mutable statics.  Technically, it is
 // correct about this, but as I'm doing the initialization once at the start, and then using them
 // read only later, it is actually fine.  Well, really, there is a problem that there should be a
@@ -40,29 +39,16 @@ use core::slice;
 use log::{info, warn};
 
 use matrix::Matrix;
-use zephyr::{kobj_define, printkln};
 use zephyr::device::uart::LineControl;
-use zephyr::sync::channel::{
-    self,
-    Sender,
-    Receiver,
-};
+use zephyr::sync::channel::{self, Receiver, Sender};
+use zephyr::{kobj_define, printkln};
 
 use bbq_keyboard::{
     dict::Dict,
-    Event,
-    EventQueue,
-    InterState,
-    Keyboard,
-    KeyAction,
-    KeyEvent,
     layout::LayoutManager,
-    LayoutMode,
-    Mods,
-    Side,
-    Timable,
-    UsbDeviceState,
     usb_typer::{enqueue_action, ActionHandler},
+    Event, EventQueue, InterState, KeyAction, KeyEvent, Keyboard, LayoutMode, Mods, Side, Timable,
+    UsbDeviceState,
 };
 use bbq_steno::Stroke;
 
@@ -80,8 +66,7 @@ mod translate;
 
 #[no_mangle]
 extern "C" fn rust_main() {
-    printkln!("Hello world from Rust on {}",
-              zephyr::kconfig::CONFIG_BOARD);
+    printkln!("Hello world from Rust on {}", zephyr::kconfig::CONFIG_BOARD);
 
     let logger = Logger::new();
 
@@ -101,7 +86,9 @@ extern "C" fn rust_main() {
     // Spawn the steno thread.
     // TODO: This needs to be lower priority.
     let sc = equeue_send.clone();
-    let mut thread = STENO_THREAD.init_once(STENO_STACK.init_once(()).unwrap()).unwrap();
+    let mut thread = STENO_THREAD
+        .init_once(STENO_STACK.init_once(()).unwrap())
+        .unwrap();
     thread.set_priority(5);
     thread.set_name(c"steno");
     thread.spawn(move || {
@@ -111,20 +98,24 @@ extern "C" fn rust_main() {
     // Create a thread to run the main worker.
     // No yield saves a trip through the scheduler, as this is the only thread running at this
     // priority.
-    let main_worker = Box::new(WorkQueueBuilder::new()
-                               .set_priority(2)
-                               .set_name(c"mainloop")
-                               .set_no_yield(true)
-                               .start(MAIN_LOOP_STACK.init_once(()).unwrap()));
+    let main_worker = Box::new(
+        WorkQueueBuilder::new()
+            .set_priority(2)
+            .set_name(c"mainloop")
+            .set_no_yield(true)
+            .start(MAIN_LOOP_STACK.init_once(()).unwrap()),
+    );
 
     // The 'inter' worker runs on its own thread, lower priority than the main loop.  As this
     // computation takes longer than a frame, this allows the regular periodic work to continue to
     // run, as the inter work takes several frames.
-    let inter_worker = Box::new(WorkQueueBuilder::new()
-                                .set_priority(3)
-                                .set_name(c"interwork")
-                                .set_no_yield(true)
-                                .start(INTER_STACK.init_once(()).unwrap()));
+    let inter_worker = Box::new(
+        WorkQueueBuilder::new()
+            .set_priority(3)
+            .set_name(c"interwork")
+            .set_no_yield(true)
+            .start(INTER_STACK.init_once(()).unwrap()),
+    );
 
     unsafe {
         // Store a sender for the USB callback.
@@ -137,7 +128,8 @@ extern "C" fn rust_main() {
     setup_heartbeat();
 
     // Retrieve our information.
-    let side_data = (zephyr::kconfig::CONFIG_FLASH_BASE_ADDRESS + 2*1024*1024 - 256) as *const u8;
+    let side_data =
+        (zephyr::kconfig::CONFIG_FLASH_BASE_ADDRESS + 2 * 1024 * 1024 - 256) as *const u8;
     let info = unsafe { BoardInfo::decode_from_memory(side_data) }.expect("Board info not present");
 
     // Retrieve the side select.
@@ -171,7 +163,10 @@ extern "C" fn rust_main() {
     // large.
     let (lm_send, lm_recv) = channel::bounded(2);
 
-    let _ = zephyr::kio::spawn(layout_task(layout, lm_recv, equeue_send.clone()), &main_worker);
+    let _ = zephyr::kio::spawn(
+        layout_task(layout, lm_recv, equeue_send.clone()),
+        &main_worker,
+    );
 
     let leds = LedSet::get_all();
     let mut leds = LedManager::new(leds);
@@ -204,15 +199,13 @@ extern "C" fn rust_main() {
     let _ = zephyr::kio::spawn(scanner.run(), &main_worker);
 
     // Startup the inter-update, if it exists.
-    let _ = inter_task.map(|inter_task| {
-        zephyr::kio::spawn(inter_task.run(), &inter_worker)
-    });
+    let _ = inter_task.map(|inter_task| zephyr::kio::spawn(inter_task.run(), &inter_worker));
 
     let main_loop = async move {
         let mut acm_active;
         loop {
             // Update the state of the Gemini indicator.
-            if let Ok(1) =  unsafe { acm.line_ctrl_get(LineControl::DTR) } {
+            if let Ok(1) = unsafe { acm.line_ctrl_get(LineControl::DTR) } {
                 leds.set_base(2, &leds::manager::GEMINI_INDICATOR);
                 acm_active = true;
             } else {
@@ -283,7 +276,10 @@ extern "C" fn rust_main() {
                 // off to HID.
                 Event::StenoText(Joined::Type { remove, append }) => {
                     for _ in 0..remove {
-                        keys.push_back(KeyAction::KeyPress(Keyboard::DeleteBackspace, Mods::empty()));
+                        keys.push_back(KeyAction::KeyPress(
+                            Keyboard::DeleteBackspace,
+                            Mods::empty(),
+                        ));
                         keys.push_back(KeyAction::KeyRelease);
                     }
                     // Then, just send the text.
@@ -326,14 +322,17 @@ extern "C" fn rust_main() {
                 }
 
                 // Handle the USB becoming configured.
-                Event::UsbState(UsbDeviceState::Configured) | Event::UsbState(UsbDeviceState::Resume) => {
+                Event::UsbState(UsbDeviceState::Configured)
+                | Event::UsbState(UsbDeviceState::Resume) => {
                     if has_global {
                         leds.clear_global(0);
                         has_global = false;
                     }
                     // suspended = false;
                     if let Some(inter) = &inter {
-                        inter.send(InterUpdate::SetState(bbq_keyboard::InterState::Primary)).unwrap();
+                        inter
+                            .send(InterUpdate::SetState(bbq_keyboard::InterState::Primary))
+                            .unwrap();
                     }
                 }
 
@@ -355,8 +354,7 @@ extern "C" fn rust_main() {
                     state = new_state;
                 }
 
-                Event::Heartbeat => {
-                }
+                Event::Heartbeat => {}
 
                 ev => {
                     printkln!("Event: {:?}", ev);
@@ -459,7 +457,10 @@ async fn layout_task(
 
 /// Conditionally return the inter-board code.
 #[cfg(dt = "chosen::inter_board_uart")]
-fn get_inter(side: Side, equeue_send: Sender<Event>) -> Option<(InterHandler, Sender<InterUpdate>)> {
+fn get_inter(
+    side: Side,
+    equeue_send: Sender<Event>,
+) -> Option<(InterHandler, Sender<InterUpdate>)> {
     let uart = zephyr::devicetree::chosen::inter_board_uart::get_instance().unwrap();
     Some(InterHandler::new(side, uart, equeue_send))
 }
@@ -476,13 +477,17 @@ fn get_inter(_side: Side, _equeue_send: Sender<Event>) -> Option<InterHandler> {
 struct Scanner {
     matrix: Matrix,
     events: Sender<Event>,
-    translate: fn (u8) -> u8,
+    translate: fn(u8) -> u8,
 }
 
 impl Scanner {
     fn new(matrix: Matrix, events: Sender<Event>, info: &BoardInfo) -> Scanner {
         let translate = translate::get_translation(&info.name);
-        Scanner { matrix, events, translate }
+        Scanner {
+            matrix,
+            events,
+            translate,
+        }
     }
 
     fn scan(&mut self) {
@@ -509,7 +514,6 @@ impl Scanner {
 
 /// Push usb-hid events to the USB stack, when possible.
 fn usb_hid_push(usb: &devices::usb::Usb, keys: &mut VecDeque<KeyAction>) {
-
     while let Some(key) = keys.pop_front() {
         match key {
             KeyAction::KeyPress(code, mods) => {
@@ -613,7 +617,7 @@ static mut HEARTBEAT_MAIN_SEND: Option<Sender<Event>> = None;
 
 /// A semaphore so sync the heartbeat with the processing.
 static mut HEARTBEAT_SEM: Option<Arc<Semaphore>> = None;
- 
+
 #[no_mangle]
 extern "C" fn rust_heartbeat() {
     let send = unsafe { HEARTBEAT_MAIN_SEND.as_ref().unwrap() };

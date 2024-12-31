@@ -1,11 +1,16 @@
 //! Handle keyminder requests.
 
-use alloc::{string::ToString, vec::Vec};
 use alloc::vec;
+use alloc::{string::ToString, vec::Vec};
 
 use log::info;
 use minder::{Reply, Request, SerialDecoder};
-use zephyr::{device::uart::UartIrq, kobj_define, printkln, sync::{Arc, Mutex}, time::{Duration, NoWait}};
+use zephyr::{
+    device::uart::UartIrq,
+    kobj_define, printkln,
+    sync::{Arc, Mutex},
+    time::{Duration, NoWait},
+};
 
 use crate::logging::Logger;
 
@@ -20,7 +25,9 @@ const READ_BUFSIZE: usize = 256;
 
 impl Minder {
     pub fn new(uart: Uart, log: Arc<Mutex<Logger>>) -> Minder {
-        let mut thread = MINDER_THREAD.init_once(MINDER_STACK.init_once(()).unwrap()).unwrap();
+        let mut thread = MINDER_THREAD
+            .init_once(MINDER_STACK.init_once(()).unwrap())
+            .unwrap();
         thread.set_priority(6);
         thread.set_name(c"minder");
         thread.spawn(move || {
@@ -76,7 +83,6 @@ fn minder_thread(mut uart: Uart, log: Arc<Mutex<Logger>>) {
             let _ = uart.write_enqueue(buffer, 0..len);
         }
 
-
         // Try printing out log messages.  We intentionally only lock for each message to avoid
         // locking anything too long.
         loop {
@@ -96,8 +102,7 @@ fn minder_thread(mut uart: Uart, log: Arc<Mutex<Logger>>) {
         loop {
             // Handle any completed writes.
             // For now, just discard the buffer, as we'll dynamically allocate new ones.
-            while let Ok(_) = uart.write_wait(NoWait) {
-            }
+            while let Ok(_) = uart.write_wait(NoWait) {}
 
             // Don't do any of this unless something is actually connected.
             if unsafe { !uart.inner().is_dtr_set().unwrap() } {
@@ -116,14 +121,13 @@ fn minder_thread(mut uart: Uart, log: Arc<Mutex<Logger>>) {
             if let Some(msg) = msg {
                 // Encode the message to a new Vec<u8> so we can write it as a single unit.
                 let mut buffer = Vec::new();
-                let reply = Reply::Log {
-                    message: msg,
-                };
+                let reply = Reply::Log { message: msg };
                 minder::serial_encode(&reply, &mut buffer, true).unwrap();
 
                 // Write the entire thing.
                 let len = buffer.len();
-                uart.write_enqueue(buffer, 0..len).expect("Queue full, despite check");
+                uart.write_enqueue(buffer, 0..len)
+                    .expect("Queue full, despite check");
             } else {
                 break;
             }

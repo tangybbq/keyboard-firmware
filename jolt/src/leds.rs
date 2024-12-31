@@ -5,14 +5,14 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 use log::info;
 use rgb::RGB8;
 
+mod led_strip;
 pub mod manager;
 mod pwm;
-mod led_strip;
 
 /// Represents a driver for 1 or more RGB LEDs.
 pub trait LedGroup: Send + 'static {
@@ -43,7 +43,7 @@ impl LedSet {
         for group in &mut self.all {
             let len = group.len();
 
-            group.update(&values[base..base+len]);
+            group.update(&values[base..base + len]);
             base += len;
         }
 

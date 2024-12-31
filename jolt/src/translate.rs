@@ -5,7 +5,7 @@
 //! different scancodes.  This module provides a translation for scancodes
 //! that is based on a Kconfig value.
 
-pub fn get_translation(board: &str) -> fn (u8) -> u8 {
+pub fn get_translation(board: &str) -> fn(u8) -> u8 {
     match board {
         "proto3" => id,
         "proto4" => proto4,
@@ -26,41 +26,41 @@ fn id(code: u8) -> u8 {
 /// pins. As such, each column typically will have some keys on each side.
 static PROTO4: [u8; 30] = [
     // 0
-    2,     // L-Grave
-    1,     // L-Fn
-    4,     // L-Star
-    28,    // R-T
-    25,    // R-Z
+    2,  // L-Grave
+    1,  // L-Fn
+    4,  // L-Star
+    28, // R-T
+    25, // R-Z
     // 5
-    24,    // R-D
-    5,     // L-S
-    8,     // L-T
-    9,     // L-K
-    33,    // R-G
+    24, // R-D
+    5,  // L-S
+    8,  // L-T
+    9,  // L-K
+    33, // R-G
     // 10
-    32,    // R-L
-    29,    // R-S
-    12,    // L-P
-    13,    // L-W
-    16,    // L-H
+    32, // R-L
+    29, // R-S
+    12, // L-P
+    13, // L-W
+    16, // L-H
     // 15
-    40,    // R-F
-    37,    // R-B
-    36,    // R-P
-    17,    // L-R
-    20,    // L-S1
+    40, // R-F
+    37, // R-B
+    36, // R-P
+    17, // L-R
+    20, // L-S1
     // 20
-    21,    // L-S2
-    45,    // R-S4
-    44,    // R-S3
-    41,    // R-R
-    18,    // L-num
+    21, // L-S2
+    45, // R-S4
+    44, // R-S3
+    41, // R-R
+    18, // L-num
     // 25
-    19,    // L-A
-    23,    // L-O
-    47,    // R-E
-    43,    // R-U
-    42,    // R-Num
+    19, // L-A
+    23, // L-O
+    47, // R-E
+    43, // R-U
+    42, // R-Num
 ];
 
 fn proto4(code: u8) -> u8 {
@@ -70,12 +70,7 @@ fn proto4(code: u8) -> u8 {
 /// The Jolt4 has a different scan order that puts the keys allnicely in order.
 static JOLT4: [u8; 21] = [
     // The main part is just a span of 3 instead of 4.
-    0, 1, 2,
-    4, 5, 6,
-    8, 9, 10,
-    12, 13, 14,
-    16, 17, 18,
-    20, 21, 22,
+    0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22,
     // And the thumbs are after this, but from right to left.
     23, 19, 15,
 ];

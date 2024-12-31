@@ -92,10 +92,7 @@ impl Log for LogWrapper {
     }
 
     fn log(&self, record: &log::Record) {
-        let message = format!("{}:{}: {}",
-                              record.level(),
-                              record.target(),
-                              record.args());
+        let message = format!("{}:{}: {}", record.level(), record.target(), record.args());
 
         // TODO: Record dropped messages.
 
@@ -111,7 +108,6 @@ impl Log for LogWrapper {
         // Nothing to do here.
     }
 }
-
 
 #[cfg(target_has_atomic = "ptr")]
 fn set_logger<L: Log>(logger: &'static L) {

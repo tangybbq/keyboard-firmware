@@ -1,12 +1,19 @@
 //! Inter keyboard communication.
 
 use arraydeque::ArrayDeque;
-use bbq_keyboard::{ser2::{KeyBits, Packet, Role}, Event, InterState, KeyEvent, Side};
+use bbq_keyboard::{
+    ser2::{KeyBits, Packet, Role},
+    Event, InterState, KeyEvent, Side,
+};
 
+use log::{info, warn};
 use minder::{serial_encode, SerialDecoder, SerialWrite};
-use zephyr::{device::uart::Uart, sync::channel::{self, Receiver}, time::{self, Duration}};
 use zephyr::sync::channel::Sender;
-use log::{warn, info};
+use zephyr::{
+    device::uart::Uart,
+    sync::channel::{self, Receiver},
+    time::{self, Duration},
+};
 
 use crate::devices::leds::LedRgb;
 
@@ -43,19 +50,22 @@ impl InterHandler {
     pub fn new(side: Side, uart: Uart, events: Sender<Event>) -> (Self, Sender<InterUpdate>) {
         let (req_send, req_recv) = channel::bounded(32);
 
-        (Self {
-            xmit_buffer: PacketBuffer::new(),
-            receiver: SerialDecoder::new(),
-            leds: LedRgb::default(),
-            side,
-            state: InterState::Idle,
-            keys: KeyBits::default(),
-            last_keys: KeyBits::default(),
-            side_warn: false,
-            uart,
-            events,
-            requests: req_recv,
-        }, req_send)
+        (
+            Self {
+                xmit_buffer: PacketBuffer::new(),
+                receiver: SerialDecoder::new(),
+                leds: LedRgb::default(),
+                side,
+                state: InterState::Idle,
+                keys: KeyBits::default(),
+                last_keys: KeyBits::default(),
+                side_warn: false,
+                uart,
+                events,
+                requests: req_recv,
+            },
+            req_send,
+        )
     }
 
     /// Consume self, returning an async thread that runs the queue processing.
@@ -158,10 +168,7 @@ impl InterHandler {
     /// Set our current state.  This is generally either Primary or Idle, where
     /// Primary indicates we have become the primary in the communication, and
     /// Idle which indicates we have disconnected from USB.
-    pub(crate) fn set_state(
-        &mut self,
-        state: InterState,
-    ) {
+    pub(crate) fn set_state(&mut self, state: InterState) {
         if self.state != state {
             self.state = state;
             info!("Inter state change: {:?}", state);
