@@ -19,10 +19,10 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_steno::dict::Joined;
+use devices::usb::Usb;
 use keyminder::Minder;
 use leds::manager::Indication;
 use leds::LedSet;
@@ -181,8 +181,6 @@ extern "C" fn rust_main() {
 
     let _minder = Minder::new(minder_uart, logger);
 
-    let mut keys = VecDeque::new();
-
     // TODO: We should really ask for the current mode, instead of hoping to align them.
     let mut current_mode = LayoutMode::Steno;
     let mut state = InterState::Idle;
@@ -237,8 +235,7 @@ extern "C" fn rust_main() {
                 }
 
                 Event::Key(key) => {
-                    // Keypresses are queued up, to be sent to the hid layer.
-                    keys.push_back(key);
+                    usb_hid_push(&usb, key);
                 }
 
                 Event::InterKey(key) => {
@@ -276,14 +273,14 @@ extern "C" fn rust_main() {
                 // off to HID.
                 Event::StenoText(Joined::Type { remove, append }) => {
                     for _ in 0..remove {
-                        keys.push_back(KeyAction::KeyPress(
+                        usb_hid_push(&usb, KeyAction::KeyPress(
                             Keyboard::DeleteBackspace,
                             Mods::empty(),
                         ));
-                        keys.push_back(KeyAction::KeyRelease);
+                        usb_hid_push(&usb, KeyAction::KeyRelease);
                     }
                     // Then, just send the text.
-                    enqueue_action(&mut KeyActionWrap(&mut keys), &append);
+                    enqueue_action(&mut KeyActionWrap(&usb), &append);
                 }
 
                 // Mode select and mode affect the LEDs.
@@ -375,8 +372,6 @@ extern "C" fn rust_main() {
             }
 
             yield_now().await;
-
-            usb_hid_push(&usb, &mut keys);
 
             // Update the LEDs every 100ms.
             led_counter += 1;
@@ -513,27 +508,25 @@ impl Scanner {
 }
 
 /// Push usb-hid events to the USB stack, when possible.
-fn usb_hid_push(usb: &devices::usb::Usb, keys: &mut VecDeque<KeyAction>) {
-    while let Some(key) = keys.pop_front() {
-        match key {
-            KeyAction::KeyPress(code, mods) => {
-                let code = code as u8;
-                usb.send_keyboard_report(mods.bits(), slice::from_ref(&code));
-            }
-            KeyAction::KeyRelease => {
-                usb.send_keyboard_report(0, &[]);
-            }
-            KeyAction::KeySet(keys) => {
-                // TODO We don't handle more than 6 keys, which qwerty mode can do.  For now, just
-                // report if we can.
-                let (mods, keys) = keyset_to_hid(keys);
-                usb.send_keyboard_report(mods.bits(), &keys);
-            }
-            KeyAction::ModOnly(mods) => {
-                usb.send_keyboard_report(mods.bits(), &[]);
-            }
-            KeyAction::Stall => (),
+fn usb_hid_push(usb: &devices::usb::Usb, key: KeyAction) {
+    match key {
+        KeyAction::KeyPress(code, mods) => {
+            let code = code as u8;
+            usb.send_keyboard_report(mods.bits(), slice::from_ref(&code));
         }
+        KeyAction::KeyRelease => {
+            usb.send_keyboard_report(0, &[]);
+        }
+        KeyAction::KeySet(keys) => {
+            // TODO We don't handle more than 6 keys, which qwerty mode can do.  For now, just
+            // report if we can.
+            let (mods, keys) = keyset_to_hid(keys);
+            usb.send_keyboard_report(mods.bits(), &keys);
+        }
+        KeyAction::ModOnly(mods) => {
+            usb.send_keyboard_report(mods.bits(), &[]);
+        }
+        KeyAction::Stall => (),
     }
 }
 
