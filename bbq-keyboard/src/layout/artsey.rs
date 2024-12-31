@@ -422,12 +422,12 @@ impl ArtseyManager {
     }
 
     /// Tick is needed to track time for determining time.
-    pub fn tick(&mut self, events: &mut dyn EventQueue) {
+    pub fn tick(&mut self, events: &mut dyn EventQueue, ticks: usize) {
         // If we've seen keys, bump the age, and then when they have been down
         // sufficiently long to be considered together, process them as a send
         // event.
         if self.pressed != 0 {
-            self.age = self.age.saturating_add(1);
+            self.age = self.age.saturating_add(ticks as u32);
         }
 
         if self.seen != 0 && self.age >= 50 {

@@ -189,12 +189,12 @@ impl ComboHandler {
     /// Called as part of the tick handler. Ages potentially pressed keys, so
     /// they will be sent in a timely manner if not accompanied by their
     /// companion.  May cause an event to be queue.
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self, ticks: usize) {
         if self.pending.is_none() {
             return;
         }
 
-        self.pending_age += 1;
+        self.pending_age = self.pending_age.saturating_add(ticks);
 
         if self.pending_age >= 50 {
             self.push_pending();
@@ -258,8 +258,8 @@ impl QwertyManager {
         self.process_keys(events);
     }
 
-    pub fn tick(&mut self, events: &mut dyn EventQueue) {
-        self.combo.tick();
+    pub fn tick(&mut self, events: &mut dyn EventQueue, ticks: usize) {
+        self.combo.tick(ticks);
         self.process_keys(events);
     }
 

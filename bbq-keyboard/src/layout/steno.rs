@@ -42,7 +42,7 @@ impl RawStenoHandler {
 
     // For now, we don't do anything with the tick, but it will be needed when
     // trying to implement the hold modes.
-    pub fn tick(&mut self) {}
+    pub fn tick(&mut self, _ticks: usize) {}
     pub fn poll(&mut self) {}
 
     // Handle a single event.

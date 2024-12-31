@@ -65,9 +65,9 @@ impl TaipoManager {
     }
 
     /// Tick is needed to track time.
-    pub fn tick(&mut self, events: &mut dyn EventQueue) {
-        self.sides[0].tick(&mut self.keys);
-        self.sides[1].tick(&mut self.keys);
+    pub fn tick(&mut self, events: &mut dyn EventQueue, ticks: usize) {
+        self.sides[0].tick(&mut self.keys, ticks);
+        self.sides[1].tick(&mut self.keys, ticks);
 
         // After polling, handle any events.
         while let Some(tevent) = self.keys.pop_front() {
@@ -211,12 +211,12 @@ impl SideManager {
 
     }
 
-    fn tick(&mut self, keys: &mut TaipoEvents) {
+    fn tick(&mut self, keys: &mut TaipoEvents, ticks: usize) {
         // If we already sent, or just if nothing has been pressed.
         if self.down || self.seen == 0 {
             return;
         }
-        self.age = self.age.saturating_add(1);
+        self.age = self.age.saturating_add(ticks as u32);
         if self.age >= 50 {
             let _ = keys.push_back(TaipoEvent { is_press: true, code: self.seen });
             // info!("taipo: tpress {:x}", self.seen);
@@ -251,9 +251,7 @@ mod test_side_manager {
         }
 
         fn spin(&mut self, ticks: usize) {
-            for _ in 0..ticks {
-                self.manager.tick(&mut self.events);
-            }
+            self.manager.tick(&mut self.events, ticks);
         }
 
         fn events(&mut self, events: &[TaipoEvent]) {

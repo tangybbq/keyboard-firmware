@@ -60,6 +60,13 @@ const MODE_KEY: u8 = 2;
 // noeffect.
 
 /// The layout manager.
+///
+/// Some of the entrypoints take an EventQueue.  In the process of gradually separating out the
+/// events, the LayoutManager only sends the following events:
+/// - Mode
+/// - ModeSelect
+/// - KeyAction
+/// - RawSteno
 pub struct LayoutManager {
     raw: steno::RawStenoHandler,
     artsey: artsey::ArtseyManager,
@@ -90,11 +97,11 @@ impl LayoutManager {
     }
 
     // For now, just pass everything through.
-    pub fn tick(&mut self, events: &mut dyn EventQueue) {
-        self.raw.tick();
-        self.artsey.tick(events);
-        self.qwerty.tick(events);
-        self.taipo.tick(events);
+    pub fn tick(&mut self, events: &mut dyn EventQueue, ticks: usize) {
+        self.raw.tick(ticks);
+        self.artsey.tick(events, ticks);
+        self.qwerty.tick(events, ticks);
+        self.taipo.tick(events, ticks);
 
         // Inform the upper layer what our initial mode is.
         if self.first_tick {

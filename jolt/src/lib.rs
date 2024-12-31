@@ -31,7 +31,7 @@ use zephyr::kio::sync::Mutex;
 use zephyr::kio::yield_now;
 use zephyr::sync::Arc;
 use zephyr::sys::sync::Semaphore;
-use zephyr::time::{Duration, NoWait};
+use zephyr::time::{Duration, NoWait, Tick};
 use zephyr::work::futures::sleep;
 use zephyr::work::WorkQueueBuilder;
 
@@ -447,10 +447,11 @@ async fn layout_task(
     // The main event queue.
     events: Sender<Event>,
 ) {
+    const PERIOD_MS: usize = 10;
     let mut events = SendWrap(events);
-    zephyr::event_loop!(keys, Duration::millis_at_least(1),
+    zephyr::event_loop!(keys, Duration::millis_at_least(PERIOD_MS as Tick),
                         Some(ev) => { layout.handle_event(ev, &mut events) },
-                        None => { layout.tick(&mut events) },
+                        None => { layout.tick(&mut events, PERIOD_MS) },
     );
 }
 
