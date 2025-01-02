@@ -20,15 +20,22 @@
 # flags := "-DCONFIG_JOLT_INTER=n"
 
 # The jolt1 is a 42-key built around the pimoroni tiny 2040 board.
-target := "pimoroni_tiny_2040"
-shield := "jolt1"
-flags := "-DCONFIG_JOLT_INTER=y"
+# target := "pimoroni_tiny_2040"
+# shield := "jolt1"
+# flags := "-DCONFIG_JOLT_INTER=y"
 
 # The jolt2 is a 42-key built around the pimoroni tiny 2040 board.
 # It has columns staggered along both Y and Z.
-#target := "pimoroni_tiny_2040"
-#shield := "jolt2"
-#flags := "-DCONFIG_JOLT_INTER=y"
+target := "pimoroni_tiny_2040"
+shield := "jolt2"
+flags := "-DCONFIG_JOLT_INTER=y"
+
+# The jolt2dir is similar to the jolt2, but instead of actually using the pimoroni, the rp2040 is
+# designed directly on to the board.  It is largely the same, but with different gpio pin mappings.
+# Also, it has ws2812 leds on it instead of the discrete RGB on the Pimoroni board.
+# target := "pimoroni_tiny_2040"
+# shield := "jolt2dir"
+# flags := "-DCONFIG_JOLT_INTER=y"
 
 toolopt := "--tool-opt=\"/Applications/SEGGER/JLink/GDBServer/RTOSPlugin_Zephyr.dylib\""
 
