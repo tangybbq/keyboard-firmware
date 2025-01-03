@@ -23,6 +23,7 @@ use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_steno::dict::Joined;
 use devices::usb::Usb;
+use dispatch::DispatchBuilder;
 use keyminder::Minder;
 use leds::manager::Indication;
 use leds::LedSet;
@@ -45,7 +46,6 @@ use zephyr::sync::channel::{self, Receiver, Sender};
 use zephyr::{kobj_define, printkln};
 
 use bbq_keyboard::{
-    dict::Dict,
     layout::LayoutManager,
     usb_typer::{enqueue_action, ActionHandler},
     Event, EventQueue, InterState, KeyAction, KeyEvent, Keyboard, LayoutMode, Mods, Side, Timable,
@@ -58,6 +58,7 @@ use crate::inter::{InterHandler, InterUpdate};
 use crate::leds::manager::LedManager;
 
 mod devices;
+mod dispatch;
 mod inter;
 mod keyminder;
 mod leds;
@@ -74,38 +75,12 @@ extern "C" fn rust_main() {
     // Initialize the main event queue.
     let (equeue_send, equeue_recv) = channel::bounded::<Event>(32);
 
-    // This is the steno queue.
-    let (stenoq_send, stenoq_recv) = channel::bounded::<Stroke>(32);
-
     // The heartbeat semaphore.
     let heart = Arc::new(Semaphore::new(1, 1).unwrap());
 
     unsafe {
         HEARTBEAT_SEM = Some(heart.clone());
     }
-
-    // Spawn the steno thread.
-    // TODO: This needs to be lower priority.
-    let sc = equeue_send.clone();
-    let mut thread = STENO_THREAD
-        .init_once(STENO_STACK.init_once(()).unwrap())
-        .unwrap();
-    thread.set_priority(5);
-    thread.set_name(c"steno");
-    thread.spawn(move || {
-        steno_thread(stenoq_recv, sc);
-    });
-
-    // Create a thread to run the main worker.
-    // No yield saves a trip through the scheduler, as this is the only thread running at this
-    // priority.
-    let main_worker = Box::new(
-        WorkQueueBuilder::new()
-            .set_priority(2)
-            .set_name(c"mainloop")
-            .set_no_yield(true)
-            .start(MAIN_LOOP_STACK.init_once(()).unwrap()),
-    );
 
     // The 'inter' worker runs on its own thread, lower priority than the main loop.  As this
     // computation takes longer than a frame, this allows the regular periodic work to continue to
@@ -164,9 +139,14 @@ extern "C" fn rust_main() {
     // large.
     let (lm_send, lm_recv) = channel::bounded(2);
 
+    let dispatch = DispatchBuilder {
+        equeue_send: equeue_send.clone(),
+    }.build();
+
     let _ = zephyr::kio::spawn(
         layout_task(layout, lm_recv, equeue_send.clone()),
-        &main_worker,
+        &dispatch.main_worker,
+        c"w:layout",
     );
 
     let leds = LedSet::get_all();
@@ -195,10 +175,13 @@ extern "C" fn rust_main() {
     let mut led_counter = 0;
 
     // The scanner just runs periodically to scan the matrix.
-    let _ = zephyr::kio::spawn(scanner.run(), &main_worker);
+    let _ = zephyr::kio::spawn(scanner.run(), &dispatch.main_worker, c"w:scanner");
 
     // Startup the inter-update, if it exists.
-    let _ = inter_task.map(|inter_task| zephyr::kio::spawn(inter_task.run(), &inter_worker));
+    let _ = inter_task.map(|inter_task| zephyr::kio::spawn(inter_task.run(), &inter_worker, c"w:inter"));
+
+    // Temp, need a copy to spawn this main loop.
+    let dispatch2 = dispatch.clone();
 
     let main_loop = async move {
         let mut acm_active;
@@ -253,7 +236,7 @@ extern "C" fn rust_main() {
                 Event::RawSteno(stroke) => {
                     if current_mode == LayoutMode::Steno {
                         // TODO: Send a steno stroke
-                        stenoq_send.send(stroke).unwrap();
+                        dispatch.translate_steno(stroke);
                     } else {
                         // Send Gemini data if possible.
                         if acm_active {
@@ -401,14 +384,10 @@ extern "C" fn rust_main() {
         }
     };
 
-    let main_loop = zephyr::kio::spawn(main_loop, &main_worker);
+    let main_loop = zephyr::kio::spawn(main_loop, &dispatch2.main_worker, c"w:main");
 
     // Wait for the main loop.  This should never happen.
     let () = main_loop.join();
-
-    // Leak the box so the worker is never freed.
-    let _ = Box::leak(main_worker);
-    let _ = Box::leak(inter_worker);
 }
 
 fn get_steno_indicator(raw: bool) -> &'static Indication {
@@ -562,20 +541,6 @@ impl<'a> ActionHandler for KeyActionWrap<'a> {
     }
 }
 
-/// The lower priority steno lookup thread.
-fn steno_thread(recv: Receiver<Stroke>, events: Sender<Event>) {
-    printkln!("Steno thread running");
-    let mut eq_send = SendWrap(events.clone());
-    let mut dict = Dict::new();
-    loop {
-        let stroke = recv.recv().unwrap();
-        for action in dict.handle_stroke(stroke, &mut eq_send, &WrapTimer) {
-            // Enqueue the action, and the actual typing will be queued up by the main thread.
-            events.send(Event::StenoText(action)).unwrap();
-        }
-    }
-}
-
 struct WrapTimer;
 
 impl Timable for WrapTimer {
@@ -656,9 +621,6 @@ kobj_define! {
     // The steno thread.
     static STENO_THREAD: StaticThread;
     static STENO_STACK: ThreadStack<4096>;
-
-    // The main loop thread.
-    static MAIN_LOOP_STACK: ThreadStack<2048>;
 
     // A thread for the inter-worker.  Allows this to run at lower priority to prevent stalls.
     static INTER_STACK: ThreadStack<2048>;
