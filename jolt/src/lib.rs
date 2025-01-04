@@ -22,8 +22,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_steno::dict::Joined;
-use devices::usb::Usb;
-use dispatch::DispatchBuilder;
+use dispatch::{Dispatch, DispatchBuilder};
 use keyminder::Minder;
 use leds::manager::Indication;
 use leds::LedSet;
@@ -35,8 +34,6 @@ use zephyr::sys::sync::Semaphore;
 use zephyr::time::{Duration, NoWait, Tick};
 use zephyr::work::futures::sleep;
 use zephyr::work::WorkQueueBuilder;
-
-use core::slice;
 
 use log::{info, warn};
 
@@ -112,10 +109,10 @@ extern "C" fn rust_main() {
     // For now, if we are a single setup, consider that the "left" side,
     // which will avoid any bias of the scancodes.
     let side = info.side.unwrap_or(Side::Left);
-    info!("Our side: {:?}", side);
+    info!("Our side: {:?}, name: {:?}", side, info.name);
 
     // Initialize USB HID.
-    let usb = Arc::new(devices::usb::Usb::new().unwrap());
+    let usb = devices::usb::Usb::new().unwrap();
 
     // Is this the best way to do this?  These aren't that big.
     let rows = zephyr::devicetree::aliases::matrix::get_rows();
@@ -141,6 +138,7 @@ extern "C" fn rust_main() {
 
     let dispatch = DispatchBuilder {
         equeue_send: equeue_send.clone(),
+        usb,
     }.build();
 
     let _ = zephyr::kio::spawn(
@@ -222,7 +220,7 @@ extern "C" fn rust_main() {
                 }
 
                 Event::Key(key) => {
-                    usb_hid_push(&usb, key).await;
+                    dispatch.usb_hid_push(key).await;
                 }
 
                 Event::InterKey(key) => {
@@ -251,8 +249,8 @@ extern "C" fn rust_main() {
                             }
                         }
                         // Also, send to the HID Report descriptor.
-                        usb.send_plover_report(&stroke.to_plover_hid());
-                        usb.send_plover_report(&Stroke::empty().to_plover_hid());
+                        dispatch.send_plover_report(&stroke.to_plover_hid());
+                        dispatch.send_plover_report(&Stroke::empty().to_plover_hid());
                     }
                 }
 
@@ -260,14 +258,14 @@ extern "C" fn rust_main() {
                 // off to HID.
                 Event::StenoText(Joined::Type { remove, append }) => {
                     for _ in 0..remove {
-                        usb_hid_push(&usb, KeyAction::KeyPress(
+                        dispatch.usb_hid_push(KeyAction::KeyPress(
                             Keyboard::DeleteBackspace,
                             Mods::empty(),
                         )).await;
-                        usb_hid_push(&usb, KeyAction::KeyRelease).await;
+                        dispatch.usb_hid_push(KeyAction::KeyRelease).await;
                     }
                     // Then, just send the text.
-                    enqueue_action(&mut KeyActionWrap(&usb), &append).await;
+                    enqueue_action(&mut KeyActionWrap(&dispatch), &append).await;
                 }
 
                 // Mode select and mode affect the LEDs.
@@ -351,14 +349,6 @@ extern "C" fn rust_main() {
             if !is_tick {
                 continue;
             }
-
-            // Read in the HID out report if we have been sent one.
-            let mut buf = [0u8; 8];
-            if let Ok(Some(count)) = usb.get_keyboard_report(&mut buf) {
-                info!("Keyboard out: {} bytes: {:?}", count, &buf[..count]);
-            }
-
-            yield_now().await;
 
             // Update the LEDs every 100ms.
             led_counter += 1;
@@ -491,52 +481,12 @@ impl Scanner {
     }
 }
 
-/// Push usb-hid events to the USB stack, when possible.
-async fn usb_hid_push(usb: &devices::usb::Usb, key: KeyAction) {
-    match key {
-        KeyAction::KeyPress(code, mods) => {
-            let code = code as u8;
-            usb.send_keyboard_report(mods.bits(), slice::from_ref(&code)).await;
-        }
-        KeyAction::KeyRelease => {
-            usb.send_keyboard_report(0, &[]).await;
-        }
-        KeyAction::KeySet(keys) => {
-            // TODO We don't handle more than 6 keys, which qwerty mode can do.  For now, just
-            // report if we can.
-            let (mods, keys) = keyset_to_hid(keys);
-            usb.send_keyboard_report(mods.bits(), &keys).await;
-        }
-        KeyAction::ModOnly(mods) => {
-            usb.send_keyboard_report(mods.bits(), &[]).await;
-        }
-        KeyAction::Stall => (),
-    }
-}
-
-// Qwerty mode just sends scan codes, but not the mod bits as expected by the HID layer.  To fix
-// this, convert the codes from QWERTY into a proper formatted data for a report.
-fn keyset_to_hid(keys: Vec<Keyboard>) -> (Mods, Vec<u8>) {
-    let mut result = Vec::new();
-    let mut mods = Mods::empty();
-    for key in keys {
-        match key {
-            Keyboard::LeftControl => mods |= Mods::CONTROL,
-            Keyboard::LeftShift => mods |= Mods::SHIFT,
-            Keyboard::LeftAlt => mods |= Mods::ALT,
-            Keyboard::LeftGUI => mods |= Mods::GUI,
-            key => result.push(key as u8),
-        }
-    }
-    (mods, result)
-}
-
-struct KeyActionWrap<'a>(&'a Usb);
+struct KeyActionWrap<'a>(&'a Dispatch);
 
 impl<'a> ActionHandler for KeyActionWrap<'a> {
     async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
         for act in events {
-            usb_hid_push(self.0, act).await;
+            self.0.usb_hid_push(act).await;
         }
     }
 }

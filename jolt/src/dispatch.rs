@@ -21,13 +21,15 @@
 //! As Dispatch holds the handles for the worker threads, it must not be dropped.  Main can exit,
 //! but must leak a reference to the Dispatch to prevent it from being freed.
 
-use core::ffi::c_int;
+use core::{ffi::c_int, slice};
 
-use bbq_keyboard::{dict::Dict, Event};
+use alloc::vec::Vec;
+use bbq_keyboard::{dict::Dict, Event, KeyAction, Keyboard, Mods};
 use bbq_steno::Stroke;
-use zephyr::{kio, kobj_define, printkln, sync::{channel::{self, Receiver, Sender}, Arc}, work::{WorkQueue, WorkQueueBuilder}};
+use log::{info, warn};
+use zephyr::{kio, kobj_define, printkln, sync::{channel::{self, Receiver, Sender}, Arc}, time::{self, Duration}, work::{WorkQueue, WorkQueueBuilder}, sys::sync::Semaphore};
 
-use crate::{SendWrap, WrapTimer};
+use crate::{devices::usb::Usb, SendWrap, WrapTimer};
 
 /// Priority of main work queue.
 const MAIN_PRIORITY: c_int = 2;
@@ -42,6 +44,9 @@ pub struct DispatchBuilder {
     ///
     /// This should eventually go away.
     pub equeue_send: Sender<Event>,
+
+    /// The USB manager.
+    pub usb: Usb,
 }
 
 impl DispatchBuilder {
@@ -80,6 +85,9 @@ pub struct Dispatch {
     /// should use more specific types, or, when running on the same worker, just call what needs
     /// the work.
     pub equeue_send: Sender<Event>,
+
+    /// The USB handler.
+    usb: Usb,
 }
 
 impl Dispatch {
@@ -104,6 +112,7 @@ impl Dispatch {
             steno_worker,
             steno_send,
             equeue_send: builder.equeue_send,
+            usb: builder.usb,
         });
 
         // Fire off the steno main thread.
@@ -117,6 +126,13 @@ impl Dispatch {
             },
             &this.main_worker,
             c"w:steno-start",
+        );
+
+        // The loop_1ms task periodically checks for things that happen every 1ms.
+        let _ = kio::spawn(
+            Self::loop_1ms(this.clone()),
+            &this.main_worker,
+            c"w:1ms_loop",
         );
 
         // We need to hold onto the various workers, but don't want them to be visible.  This
@@ -146,7 +162,79 @@ impl Dispatch {
             }
         }
     }
+
+    /// Push USB-hid events to the USB stack.
+    pub async fn usb_hid_push(&self, key: KeyAction) {
+        match key {
+            KeyAction::KeyPress(code, mods) => {
+                let code = code as u8;
+                self.usb.send_keyboard_report(mods.bits(), slice::from_ref(&code)).await;
+            }
+            KeyAction::KeyRelease => {
+                self.usb.send_keyboard_report(0, &[]).await;
+            }
+            KeyAction::KeySet(keys) => {
+                // TODO We don't handle more than 6 keys, which qwerty mode can do.  For now, just
+                // report if we can.
+                let (mods, keys) = keyset_to_hid(keys);
+                self.usb.send_keyboard_report(mods.bits(), &keys).await;
+            }
+            KeyAction::ModOnly(mods) => {
+                self.usb.send_keyboard_report(mods.bits(), &[]).await;
+            }
+            KeyAction::Stall => (),
+        }
+    }
+
+    /// Send a report over the plover protocol.  Or at least attempt to.
+    pub fn send_plover_report(&self, report: &[u8]) {
+        // TODO: This seems to block and should become async.
+        self.usb.send_plover_report(report);
+    }
+
+    /// Once a ms loop.  This runs every 1ms, performing various tasks.
+    async fn loop_1ms(this: Arc<Self>) {
+        // TODO: Need to implement sleep that works with an Instant instead of just a duration.
+        // As a workaround, we'll just make a semaphore that will never be available.
+        let never = Semaphore::new(0, 1).unwrap();
+        let period = Duration::millis_at_least(1);
+        let mut next = time::now() + period;
+        loop {
+            let _ = never.take_async(next).await;
+
+            // Read a USB keyboard report.
+            let mut buf = [0u8; 8];
+            if let Ok(Some(count)) = this.usb.get_keyboard_report(&mut buf) {
+                info!("Keyboard out: {} bytes: {:?}", count, &buf[..count]);
+            }
+
+            next += period;
+            let now = time::now();
+            if next < now {
+                warn!("Periodic 1m overflow: {} ticks", (now - next).ticks());
+                next = now + period;
+            }
+        }
+    }
 }
+
+// Qwerty mode just sends scan codes, but not the mod bits as expected by the HID layer.  To fix
+// this, convert the codes from QWERTY into a proper formatted data for a report.
+fn keyset_to_hid(keys: Vec<Keyboard>) -> (Mods, Vec<u8>) {
+    let mut result = Vec::new();
+    let mut mods = Mods::empty();
+    for key in keys {
+        match key {
+            Keyboard::LeftControl => mods |= Mods::CONTROL,
+            Keyboard::LeftShift => mods |= Mods::SHIFT,
+            Keyboard::LeftAlt => mods |= Mods::ALT,
+            Keyboard::LeftGUI => mods |= Mods::GUI,
+            key => result.push(key as u8),
+        }
+    }
+    (mods, result)
+}
+
 
 kobj_define! {
     // The main loop thread's stack.
