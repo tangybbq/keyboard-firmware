@@ -27,7 +27,16 @@ use alloc::vec::Vec;
 use bbq_keyboard::{dict::Dict, Event, KeyAction, Keyboard, Mods};
 use bbq_steno::Stroke;
 use log::{info, warn};
-use zephyr::{kio, kobj_define, printkln, sync::{channel::{self, Receiver, Sender}, Arc}, time::{self, Duration}, work::{WorkQueue, WorkQueueBuilder}, sys::sync::Semaphore};
+use zephyr::{
+    kio, kobj_define, printkln,
+    sync::{
+        channel::{self, Receiver, Sender},
+        Arc,
+    },
+    sys::sync::Semaphore,
+    time::{self, Duration},
+    work::{WorkQueue, WorkQueueBuilder},
+};
 
 use crate::{devices::usb::Usb, SendWrap, WrapTimer};
 
@@ -119,10 +128,7 @@ impl Dispatch {
         let this2 = this.clone();
         let _ = kio::spawn(
             async {
-                kio::spawn_local(
-                    Self::steno_main(this2, steno_recv),
-                    c"w:steno",
-                );
+                kio::spawn_local(Self::steno_main(this2, steno_recv), c"w:steno");
             },
             &this.main_worker,
             c"w:steno-start",
@@ -168,7 +174,9 @@ impl Dispatch {
         match key {
             KeyAction::KeyPress(code, mods) => {
                 let code = code as u8;
-                self.usb.send_keyboard_report(mods.bits(), slice::from_ref(&code)).await;
+                self.usb
+                    .send_keyboard_report(mods.bits(), slice::from_ref(&code))
+                    .await;
             }
             KeyAction::KeyRelease => {
                 self.usb.send_keyboard_report(0, &[]).await;
@@ -234,7 +242,6 @@ fn keyset_to_hid(keys: Vec<Keyboard>) -> (Mods, Vec<u8>) {
     }
     (mods, result)
 }
-
 
 kobj_define! {
     // The main loop thread's stack.

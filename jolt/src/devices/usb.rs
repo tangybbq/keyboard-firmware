@@ -8,7 +8,13 @@ use core::{ffi::CStr, ptr, sync::atomic::Ordering};
 use alloc::{collections::vec_deque::VecDeque, vec::Vec};
 use log::{error, info, warn};
 use zephyr::{
-    error::to_result_void, kio::sync::Mutex, raw, sync::{atomic::AtomicPtr, Arc}, sys::sync::Semaphore, time::{NoWait, Timeout}, Error, Result
+    error::to_result_void,
+    kio::sync::Mutex,
+    raw,
+    sync::{atomic::AtomicPtr, Arc},
+    sys::sync::Semaphore,
+    time::{NoWait, Timeout},
+    Error, Result,
 };
 
 use crate::rust_usb_status;

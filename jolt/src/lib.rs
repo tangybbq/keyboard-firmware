@@ -139,7 +139,8 @@ extern "C" fn rust_main() {
     let dispatch = DispatchBuilder {
         equeue_send: equeue_send.clone(),
         usb,
-    }.build();
+    }
+    .build();
 
     let _ = zephyr::kio::spawn(
         layout_task(layout, lm_recv, equeue_send.clone()),
@@ -176,7 +177,8 @@ extern "C" fn rust_main() {
     let _ = zephyr::kio::spawn(scanner.run(), &dispatch.main_worker, c"w:scanner");
 
     // Startup the inter-update, if it exists.
-    let _ = inter_task.map(|inter_task| zephyr::kio::spawn(inter_task.run(), &inter_worker, c"w:inter"));
+    let _ = inter_task
+        .map(|inter_task| zephyr::kio::spawn(inter_task.run(), &inter_worker, c"w:inter"));
 
     // Temp, need a copy to spawn this main loop.
     let dispatch2 = dispatch.clone();
@@ -258,10 +260,12 @@ extern "C" fn rust_main() {
                 // off to HID.
                 Event::StenoText(Joined::Type { remove, append }) => {
                     for _ in 0..remove {
-                        dispatch.usb_hid_push(KeyAction::KeyPress(
-                            Keyboard::DeleteBackspace,
-                            Mods::empty(),
-                        )).await;
+                        dispatch
+                            .usb_hid_push(KeyAction::KeyPress(
+                                Keyboard::DeleteBackspace,
+                                Mods::empty(),
+                            ))
+                            .await;
                         dispatch.usb_hid_push(KeyAction::KeyRelease).await;
                     }
                     // Then, just send the text.
@@ -299,7 +303,9 @@ extern "C" fn rust_main() {
                     info!("Switch raw: {:?}", raw);
                     raw_mode = raw;
                     if current_mode == LayoutMode::Steno {
-                        leds.lock().unwrap().set_base(0, get_steno_indicator(raw_mode))
+                        leds.lock()
+                            .unwrap()
+                            .set_base(0, get_steno_indicator(raw_mode))
                     }
                 }
 
@@ -319,7 +325,9 @@ extern "C" fn rust_main() {
                 }
 
                 Event::UsbState(UsbDeviceState::Suspend) => {
-                    leds.lock().unwrap().set_global(0, &leds::manager::SLEEP_INDICATOR);
+                    leds.lock()
+                        .unwrap()
+                        .set_global(0, &leds::manager::SLEEP_INDICATOR);
                     has_global = true;
                     // suspended = true;
                     // woken = false;
