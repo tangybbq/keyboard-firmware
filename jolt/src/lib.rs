@@ -27,9 +27,9 @@ use keyminder::Minder;
 use leds::manager::Indication;
 use leds::LedSet;
 use logging::Logger;
-use zephyr::kio::sync::Mutex;
 use zephyr::kio::yield_now;
-use zephyr::sync::Arc;
+use zephyr::sync::channel::{Receiver, Sender};
+use zephyr::sync::{channel, Arc};
 use zephyr::sys::sync::Semaphore;
 use zephyr::time::{Duration, NoWait, Tick};
 use zephyr::work::futures::sleep;
@@ -38,8 +38,6 @@ use zephyr::work::WorkQueueBuilder;
 use log::{info, warn};
 
 use matrix::Matrix;
-use zephyr::device::uart::LineControl;
-use zephyr::sync::channel::{self, Receiver, Sender};
 use zephyr::{kobj_define, printkln};
 
 use bbq_keyboard::{
@@ -132,15 +130,19 @@ extern "C" fn rust_main() {
     };
     let layout = LayoutManager::new(two_row);
 
-    // Queue for layout events.  These should be processed readily, so this doesn't need to be
-    // large.
-    let (lm_send, lm_recv) = channel::bounded(2);
+    let leds = LedSet::get_all();
+    let leds = LedManager::new(leds);
 
     let dispatch = DispatchBuilder {
         equeue_send: equeue_send.clone(),
         usb,
+        leds,
     }
     .build();
+
+    // Queue for layout events.  These should be processed readily, so this doesn't need to be
+    // large.
+    let (lm_send, lm_recv) = channel::bounded(32);
 
     let _ = zephyr::kio::spawn(
         layout_task(layout, lm_recv, equeue_send.clone()),
@@ -148,12 +150,11 @@ extern "C" fn rust_main() {
         c"w:layout",
     );
 
-    let leds = LedSet::get_all();
-    let leds = Arc::new(Mutex::new(LedManager::new(leds)));
-
     let (inter_task, inter) = get_inter(side, equeue_send.clone()).unzip();
 
+    /*
     let mut acm = zephyr::devicetree::labels::acm_uart_0::get_instance().unwrap();
+    */
 
     let minder_uart = zephyr::devicetree::labels::acm_uart_1::get_instance().unwrap();
 
@@ -162,9 +163,7 @@ extern "C" fn rust_main() {
     let _minder = Minder::new(minder_uart, logger);
 
     // TODO: We should really ask for the current mode, instead of hoping to align them.
-    let mut current_mode = LayoutMode::Steno;
     let mut state = InterState::Idle;
-    let mut raw_mode = false;
     // let mut suspended = true;
     // let mut woken = false;
     let mut has_global = true;
@@ -184,8 +183,11 @@ extern "C" fn rust_main() {
     let dispatch2 = dispatch.clone();
 
     let main_loop = async move {
-        let mut acm_active;
+        // let mut acm_active;
         loop {
+            /*
+            // TODO: We currently aren't using Gemini, but this would be nice to have if it ever
+            // returns.
             // Update the state of the Gemini indicator.
             {
                 let mut leds = leds.lock().unwrap();
@@ -197,6 +199,7 @@ extern "C" fn rust_main() {
                     acm_active = false;
                 }
             }
+            */
 
             let ev = equeue_recv.recv_async().await.unwrap();
 
@@ -234,11 +237,12 @@ extern "C" fn rust_main() {
                 }
 
                 Event::RawSteno(stroke) => {
-                    if current_mode == LayoutMode::Steno {
+                    if *dispatch.current_mode.lock().unwrap() == LayoutMode::Steno {
                         // TODO: Send a steno stroke
                         dispatch.translate_steno(stroke);
                     } else {
                         // Send Gemini data if possible.
+                        /*
                         if acm_active {
                             // Put as much as we can in the FIFO.  This should be drained if active.
                             // TODO: Better management.
@@ -250,6 +254,7 @@ extern "C" fn rust_main() {
                                 Err(_) => (),
                             }
                         }
+                        */
                         // Also, send to the HID Report descriptor.
                         dispatch.send_plover_report(&stroke.to_plover_hid());
                         dispatch.send_plover_report(&Stroke::empty().to_plover_hid());
@@ -276,36 +281,36 @@ extern "C" fn rust_main() {
                 Event::ModeSelect(mode) => {
                     // info!("modeselect: {:?}", mode);
                     let next = match mode {
-                        LayoutMode::Steno => get_steno_select_indicator(raw_mode),
+                        LayoutMode::Steno => get_steno_select_indicator(*dispatch.raw_mode.lock().unwrap()),
                         LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
                         LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
                         LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
                         _ => &leds::manager::QWERTY_SELECT_INDICATOR,
                     };
-                    leds.lock().unwrap().set_base(0, next);
+                    dispatch.leds.lock().unwrap().set_base(0, next);
                 }
 
                 // Mode select and mode affect the LEDs.
                 Event::Mode(mode) => {
                     info!("mode: {:?}", mode);
                     let next = match mode {
-                        LayoutMode::Steno => get_steno_indicator(raw_mode),
+                        LayoutMode::Steno => get_steno_indicator(*dispatch.raw_mode.lock().unwrap()),
                         LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
                         LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
                         LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
                         _ => &leds::manager::QWERTY_INDICATOR,
                     };
-                    leds.lock().unwrap().set_base(0, next);
-                    current_mode = mode;
+                    dispatch.leds.lock().unwrap().set_base(0, next);
+                    *dispatch.current_mode.lock().unwrap() = mode;
                 }
 
                 Event::RawMode(raw) => {
                     info!("Switch raw: {:?}", raw);
-                    raw_mode = raw;
-                    if current_mode == LayoutMode::Steno {
-                        leds.lock()
+                    *dispatch.raw_mode.lock().unwrap() = raw;
+                    if *dispatch.current_mode.lock().unwrap() == LayoutMode::Steno {
+                        dispatch.leds.lock()
                             .unwrap()
-                            .set_base(0, get_steno_indicator(raw_mode))
+                            .set_base(0, get_steno_indicator(raw))
                     }
                 }
 
@@ -313,7 +318,7 @@ extern "C" fn rust_main() {
                 Event::UsbState(UsbDeviceState::Configured)
                 | Event::UsbState(UsbDeviceState::Resume) => {
                     if has_global {
-                        leds.lock().unwrap().clear_global(0);
+                        dispatch.leds.lock().unwrap().clear_global(0);
                         has_global = false;
                     }
                     // suspended = false;
@@ -325,7 +330,7 @@ extern "C" fn rust_main() {
                 }
 
                 Event::UsbState(UsbDeviceState::Suspend) => {
-                    leds.lock()
+                    dispatch.leds.lock()
                         .unwrap()
                         .set_global(0, &leds::manager::SLEEP_INDICATOR);
                     has_global = true;
@@ -336,9 +341,9 @@ extern "C" fn rust_main() {
                 Event::BecomeState(new_state) => {
                     if state != new_state {
                         if new_state == InterState::Secondary {
-                            leds.lock().unwrap().clear_global(0);
+                            dispatch.leds.lock().unwrap().clear_global(0);
                         } else if new_state == InterState::Idle {
-                            leds.lock().unwrap().clear_global(0);
+                            dispatch.leds.lock().unwrap().clear_global(0);
                         }
                     }
                     state = new_state;
@@ -362,7 +367,7 @@ extern "C" fn rust_main() {
             led_counter += 1;
             if led_counter >= 100 {
                 led_counter = 0;
-                leds.lock().unwrap().tick();
+                dispatch.leds.lock().unwrap().tick();
             }
 
             // Print out heap stats every few minutes.

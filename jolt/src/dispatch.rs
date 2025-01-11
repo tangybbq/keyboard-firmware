@@ -24,21 +24,21 @@
 use core::{ffi::c_int, slice};
 
 use alloc::vec::Vec;
-use bbq_keyboard::{dict::Dict, Event, KeyAction, Keyboard, Mods};
+use bbq_keyboard::{dict::Dict, Event, KeyAction, Keyboard, LayoutMode, Mods};
 use bbq_steno::Stroke;
 use log::{info, warn};
 use zephyr::{
-    kio, kobj_define, printkln,
+    kio::{self, sync::Mutex}, kobj_define, printkln,
     sync::{
         channel::{self, Receiver, Sender},
-        Arc,
+        Arc, SpinMutex,
     },
     sys::sync::Semaphore,
     time::{self, Duration},
     work::{WorkQueue, WorkQueueBuilder},
 };
 
-use crate::{devices::usb::Usb, SendWrap, WrapTimer};
+use crate::{devices::usb::Usb, leds::manager::LedManager, SendWrap, WrapTimer};
 
 /// Priority of main work queue.
 const MAIN_PRIORITY: c_int = 2;
@@ -56,6 +56,9 @@ pub struct DispatchBuilder {
 
     /// The USB manager.
     pub usb: Usb,
+
+    /// The LED manager.
+    pub leds: LedManager,
 }
 
 impl DispatchBuilder {
@@ -95,8 +98,19 @@ pub struct Dispatch {
     /// the work.
     pub equeue_send: Sender<Event>,
 
+    /// Mode and raw mode.
+    ///
+    /// For transition, accessed outside.
+    pub raw_mode: SpinMutex<bool>,
+    pub current_mode: SpinMutex<LayoutMode>,
+
     /// The USB handler.
     usb: Usb,
+
+    /// The LED manager.
+    ///
+    /// TODO: pub is for transition.
+    pub leds: Mutex<LedManager>,
 }
 
 impl Dispatch {
@@ -122,6 +136,9 @@ impl Dispatch {
             steno_send,
             equeue_send: builder.equeue_send,
             usb: builder.usb,
+            leds: Mutex::new(builder.leds),
+            raw_mode: SpinMutex::new(false),
+            current_mode: SpinMutex::new(LayoutMode::Steno),
         });
 
         // Fire off the steno main thread.
