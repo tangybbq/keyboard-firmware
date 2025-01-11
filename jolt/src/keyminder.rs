@@ -28,7 +28,7 @@ impl Minder {
         let mut thread = MINDER_THREAD
             .init_once(MINDER_STACK.init_once(()).unwrap())
             .unwrap();
-        thread.set_priority(6);
+        thread.set_priority(4);
         thread.set_name(c"minder");
         thread.spawn(move || {
             minder_thread(uart, log);
