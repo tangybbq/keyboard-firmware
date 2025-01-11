@@ -29,9 +29,9 @@ impl LedGroup for LedStripGroup {
         let leds: Vec<_> = values
             .iter()
             .map(|led| led_rgb {
-                r: led.r,
-                g: led.g,
-                b: led.b,
+                r: led.r >> 2,
+                g: led.g >> 2,
+                b: led.b >> 2,
             })
             .collect();
         unsafe { self.strip.update(&leds).unwrap() }
