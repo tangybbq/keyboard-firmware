@@ -21,7 +21,6 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
-use bbq_steno::dict::Joined;
 use dispatch::{Dispatch, DispatchBuilder};
 use keyminder::Minder;
 use leds::manager::Indication;
@@ -42,8 +41,7 @@ use zephyr::{kobj_define, printkln};
 
 use bbq_keyboard::{
     layout::LayoutManager,
-    usb_typer::{enqueue_action, ActionHandler},
-    Event, EventQueue, InterState, KeyAction, KeyEvent, Keyboard, LayoutMode, Mods, Side, Timable,
+    Event, EventQueue, InterState, KeyEvent, LayoutMode, Side, Timable,
     UsbDeviceState,
 };
 
@@ -229,22 +227,6 @@ extern "C" fn rust_main() {
                             warn!("Key even dropped {:?}", key);
                         }
                     }
-                }
-
-                // Once the steno layer has translated the strokes, it gives us a TypeAction to send
-                // off to HID.
-                Event::StenoText(Joined::Type { remove, append }) => {
-                    for _ in 0..remove {
-                        dispatch
-                            .usb_hid_push(KeyAction::KeyPress(
-                                Keyboard::DeleteBackspace,
-                                Mods::empty(),
-                            ))
-                            .await;
-                        dispatch.usb_hid_push(KeyAction::KeyRelease).await;
-                    }
-                    // Then, just send the text.
-                    enqueue_action(&mut KeyActionWrap(&dispatch), &append).await;
                 }
 
                 Event::RawMode(raw) => {
@@ -438,16 +420,6 @@ impl Scanner {
             sleep(Duration::millis_at_least(1)).await;
 
             self.scan();
-        }
-    }
-}
-
-struct KeyActionWrap<'a>(&'a Dispatch);
-
-impl<'a> ActionHandler for KeyActionWrap<'a> {
-    async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
-        for act in events {
-            self.0.usb_hid_push(act).await;
         }
     }
 }

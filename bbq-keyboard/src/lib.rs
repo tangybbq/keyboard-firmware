@@ -10,7 +10,6 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use bbq_steno::dict::Joined;
 use minicbor::{Decode, Encode};
 pub use smart_leds::RGB8;
 pub use usbd_human_interface_device::page::Keyboard;
@@ -170,9 +169,6 @@ pub enum Event {
 
     /// Led value to be sent to the other side.
     SendLed(RGB8),
-
-    /// Steno text to be typed.
-    StenoText(Joined),
 
     /// Tick.  Happens every 1 ms.
     Tick,

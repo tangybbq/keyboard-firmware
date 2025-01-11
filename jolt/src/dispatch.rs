@@ -24,8 +24,8 @@
 use core::{ffi::c_int, slice};
 
 use alloc::vec::Vec;
-use bbq_keyboard::{dict::Dict, layout::LayoutActions, Event, KeyAction, Keyboard, LayoutMode, MinorMode, Mods};
-use bbq_steno::Stroke;
+use bbq_keyboard::{dict::Dict, layout::LayoutActions, usb_typer::{enqueue_action, ActionHandler}, Event, KeyAction, Keyboard, LayoutMode, MinorMode, Mods};
+use bbq_steno::{dict::Joined, Stroke};
 use log::{info, warn};
 use zephyr::{
     kio::{self, sync::Mutex}, kobj_define, printkln,
@@ -129,6 +129,7 @@ impl Dispatch {
             .start(STENO_STACK.init_once(()).unwrap());
 
         let (steno_send, steno_recv) = channel::bounded(10);
+        let (stenotype_send, stenotype_recv) = channel::unbounded();
 
         let this = Arc::new(Dispatch {
             main_worker,
@@ -145,13 +146,18 @@ impl Dispatch {
         let this2 = this.clone();
         let _ = kio::spawn(
             async {
-                kio::spawn_local(Self::steno_main(this2, steno_recv), c"w:steno");
+                kio::spawn_local(Self::steno_main(this2, steno_recv, stenotype_send), c"w:steno");
             },
             &this.main_worker,
             c"w:steno-start",
         );
 
-        // The loop_1ms task periodically checks for things that happen every 1ms.
+        // And a small thread to receive the events back, and enqueue them.  This small queue is
+        // needed to avoid priority inversion problems with the low priority steno worker holding
+        // the usb hid lock.
+        let this2 = this.clone();
+        let _ = kio::spawn(Self::steno_typer(this2, stenotype_recv), &this.main_worker, c"w:stenotype");
+
         let _ = kio::spawn(
             Self::loop_1ms(this.clone()),
             &this.main_worker,
@@ -170,18 +176,37 @@ impl Dispatch {
         self.steno_send.try_send(stroke).unwrap();
     }
 
+    /// Receive the translations back from the steno worker.
+    async fn steno_typer(this: Arc<Self>, typed: Receiver<Joined>) {
+        while let Ok(action) = typed.recv_async().await {
+            match action {
+                Joined::Type { remove, append } => {
+                    for _ in 0..remove {
+                        this.usb_hid_push(KeyAction::KeyPress(
+                                Keyboard::DeleteBackspace,
+                                Mods::empty()))
+                            .await;
+                        this.usb_hid_push(KeyAction::KeyRelease).await;
+                    }
+                    enqueue_action(&mut KeyActionWrap(&this), &append).await;
+                }
+            }
+        }
+        panic!("Steno typer exited");
+    }
+
     /// The main task on the steno thread.
     ///
     /// This loops forever, receiving strokes, processing them, and sending them back as 'StenoText'
     /// events.  Eventually, this should be dispatching USB events directly.
-    async fn steno_main(this: Arc<Self>, strokes: Receiver<Stroke>) {
+    async fn steno_main(this: Arc<Self>, strokes: Receiver<Stroke>, typed: Sender<Joined>) {
         printkln!("Steno thread running");
         let mut eq_send = SendWrap(this.equeue_send.clone());
         let mut dict = Dict::new();
         loop {
             let stroke = strokes.recv_async().await.unwrap();
             for action in dict.handle_stroke(stroke, &mut eq_send, &WrapTimer) {
-                this.equeue_send.send(Event::StenoText(action)).unwrap();
+                typed.send(action).unwrap();
             }
         }
     }
@@ -302,6 +327,16 @@ fn keyset_to_hid(keys: Vec<Keyboard>) -> (Mods, Vec<u8>) {
         }
     }
     (mods, result)
+}
+
+struct KeyActionWrap<'a>(&'a Dispatch);
+
+impl<'a> ActionHandler for KeyActionWrap<'a> {
+    async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
+        for act in events {
+            self.0.usb_hid_push(act).await;
+        }
+    }
 }
 
 kobj_define! {
