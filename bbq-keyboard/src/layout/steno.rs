@@ -1,9 +1,11 @@
 //! Steno key handling.
 
-use crate::{EventQueue, Event, KeyEvent};
+use crate::KeyEvent;
 
 pub use bbq_steno::Stroke;
 use bbq_steno_macros::stroke;
+
+use super::LayoutActions;
 
 // Normal steno mode operates in what is known as "last up", where when all keys
 // have finally been released, we send a stroke containing all of the keys that
@@ -46,7 +48,7 @@ impl RawStenoHandler {
     pub fn poll(&mut self) {}
 
     // Handle a single event.
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) {
+    pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT) {
         let key = event.key();
         if key as usize >= STENO_KEYS.len() {
             return;
@@ -60,7 +62,7 @@ impl RawStenoHandler {
                 // Expecting press, and got a release. This is our first
                 // release, so send what is seen.
                 (false, true) => {
-                    events.push(Event::RawSteno(self.down));
+                    actions.send_raw_steno(self.down).await;
                     self.down &= !st;
                     self.pressing = false;
                 }

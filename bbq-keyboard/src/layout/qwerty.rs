@@ -22,7 +22,9 @@ use crate::Mods;
 use crate::log::warn;
 use usbd_human_interface_device::page::Keyboard;
 
-use crate::{KeyEvent, EventQueue, Event, KeyAction};
+use crate::{KeyEvent, KeyAction};
+
+use super::LayoutActions;
 
 pub struct QwertyManager {
     down: BTreeMap<u8, Mapping>,
@@ -243,7 +245,7 @@ impl Default for QwertyManager {
 }
 
 impl QwertyManager {
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue, nkro: bool) {
+    pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT, nkro: bool) {
         // Skip out of bound events.
         if event.key() as usize >= NKEYS {
             return;
@@ -255,15 +257,15 @@ impl QwertyManager {
         } else {
             self.combo.handle(event, self.layer);
         }
-        self.process_keys(events);
+        self.process_keys(actions).await;
     }
 
-    pub fn tick(&mut self, events: &mut dyn EventQueue, ticks: usize) {
+    pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
         self.combo.tick(ticks);
-        self.process_keys(events);
+        self.process_keys(actions).await;
     }
 
-    fn process_keys(&mut self, events: &mut dyn EventQueue) {
+    async fn process_keys<ACT: LayoutActions>(&mut self, actions: &ACT) {
         while let Some(LayeredEvent { key: event, layer }) = self.combo.next() {
             // Skip out of bound events.
             if event.key() as usize >= layer.len() {
@@ -301,14 +303,14 @@ impl QwertyManager {
             // info!("Event: {}", event);
             if event.is_press() {
                 self.down.insert(event.key(), code);
-                self.show(events, Some(code));
+                self.show(actions, Some(code)).await;
             } else {
-                self.show(events, None);
+                self.show(actions, None).await;
             }
         }
     }
 
-    fn show(&self, events: &mut dyn EventQueue, code: Option<Mapping>) {
+    async fn show<ACT: LayoutActions>(&self, actions: &ACT, code: Option<Mapping>) {
         let mut keys: Vec<Keyboard> = Vec::new();
 
         // We first need to collect the modifiers from any keys that are
@@ -346,7 +348,7 @@ impl QwertyManager {
             }
         }
 
-        events.push(Event::Key(KeyAction::KeySet(keys)));
+        actions.send_key(KeyAction::KeySet(keys)).await;
     }
 }
 

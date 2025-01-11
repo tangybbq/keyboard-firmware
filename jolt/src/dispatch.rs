@@ -24,7 +24,7 @@
 use core::{ffi::c_int, slice};
 
 use alloc::vec::Vec;
-use bbq_keyboard::{dict::Dict, Event, KeyAction, Keyboard, LayoutMode, Mods};
+use bbq_keyboard::{dict::Dict, layout::LayoutActions, Event, KeyAction, Keyboard, LayoutMode, MinorMode, Mods};
 use bbq_steno::Stroke;
 use log::{info, warn};
 use zephyr::{
@@ -38,7 +38,7 @@ use zephyr::{
     work::{WorkQueue, WorkQueueBuilder},
 };
 
-use crate::{devices::usb::Usb, leds::manager::LedManager, SendWrap, WrapTimer};
+use crate::{devices::usb::Usb, get_steno_indicator, get_steno_select_indicator, leds::manager::{self, LedManager}, SendWrap, WrapTimer};
 
 /// Priority of main work queue.
 const MAIN_PRIORITY: c_int = 2;
@@ -239,6 +239,50 @@ impl Dispatch {
                 warn!("Periodic 1m overflow: {} ticks", (now - next).ticks());
                 next = now + period;
             }
+        }
+    }
+}
+
+impl LayoutActions for Dispatch {
+    async fn set_mode(&self, mode: LayoutMode) {
+        info!("mode: {:?}", mode);
+        let next = match mode {
+            LayoutMode::Steno => get_steno_indicator(*self.raw_mode.lock().unwrap()),
+            LayoutMode::StenoDirect => &manager::STENO_DIRECT_INDICATOR,
+            LayoutMode::Taipo => &manager::TAIPO_INDICATOR,
+            LayoutMode::Qwerty => &manager::QWERTY_INDICATOR,
+            _ => &manager::QWERTY_INDICATOR,
+        };
+        self.leds.lock().unwrap().set_base(0, next);
+        *self.current_mode.lock().unwrap() = mode;
+    }
+
+    async fn set_mode_select(&self, mode: LayoutMode) {
+        let next = match mode {
+            LayoutMode::Steno => get_steno_select_indicator(*self.raw_mode.lock().unwrap()),
+            LayoutMode::StenoDirect => &manager::STENO_DIRECT_SELECT_INDICATOR,
+            LayoutMode::Taipo => &manager::TAIPO_SELECT_INDICATOR,
+            LayoutMode::Qwerty => &manager::QWERTY_SELECT_INDICATOR,
+            _ => &manager::QWERTY_SELECT_INDICATOR,
+        };
+        self.leds.lock().unwrap().set_base(0, next);
+    }
+
+    async fn send_key(&self, key: KeyAction) {
+        self.usb_hid_push(key).await
+    }
+
+    async fn set_sub_mode(&self, _submode: MinorMode) {
+        // At this point, this doesn't do anything.
+    }
+
+    async fn send_raw_steno(&self, stroke: Stroke) {
+        if *self.current_mode.lock().unwrap() == LayoutMode::Steno {
+            self.translate_steno(stroke);
+        } else {
+            // TODO: Restore gemini
+            self.send_plover_report(&stroke.to_plover_hid());
+            self.send_plover_report(&Stroke::empty().to_plover_hid());
         }
     }
 }

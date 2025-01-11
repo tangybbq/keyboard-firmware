@@ -28,7 +28,9 @@ use usbd_human_interface_device::page::Keyboard;
 
 // use crate::log::info;
 
-use crate::{KeyEvent, EventQueue, KeyAction, Event, Mods, MinorMode};
+use crate::{KeyEvent, KeyAction, Mods, MinorMode};
+
+use super::LayoutActions;
 
 pub struct ArtseyManager {
     // Keys that are currently down.
@@ -422,7 +424,7 @@ impl ArtseyManager {
     }
 
     /// Tick is needed to track time for determining time.
-    pub fn tick(&mut self, events: &mut dyn EventQueue, ticks: usize) {
+    pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
         // If we've seen keys, bump the age, and then when they have been down
         // sufficiently long to be considered together, process them as a send
         // event.
@@ -447,19 +449,19 @@ impl ArtseyManager {
             }
 
             if self.seen != 0 {
-                self.handle_down(events);
+                self.handle_down(actions).await;
             }
         }
     }
 
-    fn handle_down(&mut self, events: &mut dyn EventQueue) {
+    async fn handle_down<ACT: LayoutActions>(&mut self, actions: &ACT) {
         let base_mods = self.locked | self.oneshot;
 
         match self.mapping.iter().find(|e| e.code == self.seen) {
             Some(Entry { value: Value::Simple(k), .. }) => {
                 self.sticky = Mods::empty();
                 self.down = true;
-                events.push(Event::Key(KeyAction::KeyPress(*k, base_mods)));
+                actions.send_key(KeyAction::KeyPress(*k, base_mods)).await;
                 self.oneshot = Mods::empty();
                 self.hold_sent = true;
                 // info!("Simple: {}", *k as u8);
@@ -467,7 +469,7 @@ impl ArtseyManager {
             Some(Entry { value: Value::Shifted(k), .. }) => {
                 self.sticky = Mods::empty();
                 self.down = true;
-                events.push(Event::Key(KeyAction::KeyPress(*k, base_mods | Mods::SHIFT)));
+                actions.send_key(KeyAction::KeyPress(*k, base_mods | Mods::SHIFT)).await;
                 self.oneshot = Mods::empty();
                 self.hold_sent = true;
                 // info!("Shifted: {}", *k as u8);
@@ -484,12 +486,12 @@ impl ArtseyManager {
             }
             Some(Entry { value: Value::Sticky(k), .. }) => {
                 self.sticky |= *k;
-                events.push(Event::Key(KeyAction::ModOnly(self.sticky)));
+                actions.send_key(KeyAction::ModOnly(self.sticky)).await;
             }
             Some(Entry { value: Value::Unstick, .. }) => {
                 // Release, if any are pressed.
                 if !self.sticky.is_empty() {
-                    events.push(Event::Key(KeyAction::KeyRelease));
+                    actions.send_key(KeyAction::KeyRelease).await;
                 }
                 self.sticky = Mods::empty();
             }
@@ -502,7 +504,7 @@ impl ArtseyManager {
                 } else {
                     MinorMode::ArtseyMain
                 };
-                events.push(Event::Indicator(ind));
+                actions.set_sub_mode(ind).await;
             }
             Some(Entry { value: Value::None, .. }) => (),
             None => (),
@@ -511,7 +513,7 @@ impl ArtseyManager {
     }
 
     /// Handle a single key event.
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) {
+    pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT) {
         // info!("Artsey {}", event);
         match event {
             KeyEvent::Press(k) => {
@@ -547,13 +549,13 @@ impl ArtseyManager {
                     // If we didn't actually do anything yet (due to age),
                     // actually send the key.
                     if !self.down {
-                        self.handle_down(events);
+                        self.handle_down(actions).await;
                     }
 
                     // If something caused it to go down, release all of it.
                     if self.down {
                         self.down = false;
-                        events.push(Event::Key(KeyAction::KeyRelease));
+                        actions.send_key(KeyAction::KeyRelease).await;
                         //info!("Release");
                     }
                 }

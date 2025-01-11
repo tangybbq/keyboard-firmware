@@ -4,7 +4,7 @@
 //! - Steno dictionary conversion
 //! - All of the interaction between these.
 
-use crate::{KeyEvent, EventQueue, Event};
+use crate::KeyEvent;
 
 use self::qwerty::QwertyManager;
 use self::steno::RawStenoHandler;
@@ -59,6 +59,46 @@ const MODE_KEY: u8 = 2;
 // to the lower layers. Press mode select while other keys are pressed will have
 // noeffect.
 
+mod async_traits {
+    // This is generally warned because it makes the API fragile.  This makes the API fragile, as
+    // Send is not propagated as a requirement.
+    #![allow(async_fn_in_trait)]
+
+    use bbq_steno::Stroke;
+
+    use crate::{KeyAction, MinorMode};
+
+    use super::LayoutMode;
+
+    /// The actions the layout manager is able to use.
+    ///
+    /// These were originally events from the event queue, but are now called directly.
+    /// It is intentional that these do not take a mutable self.  The handler is expected to be shared,
+    /// and will be responsible for protecting the data.
+    pub trait LayoutActions {
+        /// Set the LayoutMode.
+        ///
+        /// This generally will update indicators to show the current mode.
+        async fn set_mode(&self, mode: LayoutMode);
+
+        /// Indicate a mode is being selected.
+        ///
+        /// Update the indicators, but in a way to indicate the mode is being selected, for example, by
+        /// flashing the LED.
+        async fn set_mode_select(&self, mode: LayoutMode);
+
+        /// Send a keypress to the HID layer.
+        async fn send_key(&self, key: KeyAction);
+
+        /// A sub-mode indicator.
+        async fn set_sub_mode(&self, submode: MinorMode);
+
+        /// Send a RawSteno stroke.
+        async fn send_raw_steno(&self, stroke: Stroke);
+    }
+}
+pub use async_traits::LayoutActions;
+
 /// The layout manager.
 ///
 /// Some of the entrypoints take an EventQueue.  In the process of gradually separating out the
@@ -97,15 +137,15 @@ impl LayoutManager {
     }
 
     // For now, just pass everything through.
-    pub fn tick(&mut self, events: &mut dyn EventQueue, ticks: usize) {
+    pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
         self.raw.tick(ticks);
-        self.artsey.tick(events, ticks);
-        self.qwerty.tick(events, ticks);
-        self.taipo.tick(events, ticks);
+        self.artsey.tick(actions, ticks).await;
+        self.qwerty.tick(actions, ticks).await;
+        self.taipo.tick(actions, ticks).await;
 
         // Inform the upper layer what our initial mode is.
         if self.first_tick {
-            events.push(Event::Mode(self.mode.get()));
+            actions.set_mode(self.mode.get()).await;
             self.first_tick = false;
         }
     }
@@ -117,23 +157,23 @@ impl LayoutManager {
     }
 
     /// Handle a single key event.
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) {
-        if self.mode.event(event, events, self.two_row) {
+    pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT) {
+        if self.mode.event(event, actions, self.two_row).await {
             match self.mode.get() {
                 LayoutMode::Artsey => {
-                    self.artsey.handle_event(event, events);
+                    self.artsey.handle_event(event, actions).await;
                 }
                 LayoutMode::Taipo => {
-                    self.taipo.handle_event(event, events);
+                    self.taipo.handle_event(event, actions).await;
                 }
                 LayoutMode::Steno | LayoutMode::StenoDirect => {
-                    self.raw.handle_event(event, events);
+                    self.raw.handle_event(event, actions).await;
                 }
                 LayoutMode::Qwerty => {
-                    self.qwerty.handle_event(event, events, false);
+                    self.qwerty.handle_event(event, actions, false).await;
                 }
                 LayoutMode::NKRO => {
-                    self.qwerty.handle_event(event, events, true);
+                    self.qwerty.handle_event(event, actions, true).await;
                 }
             }
         }
@@ -190,7 +230,7 @@ impl ModeSelector {
     }
 
     /// Handle a keyevent, and return 'true' if the key even should be passed down to lower layers.
-    fn event(&mut self, event: KeyEvent, events: &mut dyn EventQueue, two_row: bool) -> bool {
+    async fn event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT, two_row: bool) -> bool {
         // Update the mask of keys that have been pressed.
         match event {
             KeyEvent::Press(k) => self.pressed |= 1 << k,
@@ -205,7 +245,7 @@ impl ModeSelector {
                 // Toggle the mode.
                 self.mode = self.mode.next(two_row);
                 self.selecting = true;
-                events.push(crate::Event::ModeSelect(self.mode));
+                actions.set_mode_select(self.mode).await;
             }
         }
 
@@ -224,14 +264,14 @@ impl ModeSelector {
                 // now, just do toggle.
                 self.seen = 0;
                 self.selecting = false;
-                events.push(Event::Mode(self.mode));
+                actions.set_mode(self.mode).await;
                 // info!("Mode change: {:?}", self.mode);
             } else {
                 // Check for a specific selection to possibly change the
                 // indicator.
                 if let Some(new_mode) = self.new_mode(two_row) {
                     if self.mode != new_mode {
-                        events.push(Event::ModeSelect(new_mode));
+                        actions.set_mode_select(new_mode).await;
                     }
                 }
             }

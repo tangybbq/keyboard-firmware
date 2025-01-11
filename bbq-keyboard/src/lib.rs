@@ -10,7 +10,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use bbq_steno::{dict::Joined, Stroke};
+use bbq_steno::dict::Joined;
 use minicbor::{Decode, Encode};
 pub use smart_leds::RGB8;
 pub use usbd_human_interface_device::page::Keyboard;
@@ -153,10 +153,6 @@ pub enum Event {
     /// Events from the inner layer indicating changes in key actions.
     InterKey(KeyEvent),
 
-    /// Indication of a "raw" steno stroke from the steno layer.  This is
-    /// untranslated and should just be typed.
-    RawSteno(Stroke),
-
     /// Change in USB status.
     UsbState(UsbDeviceState),
 
@@ -166,20 +162,8 @@ pub enum Event {
     /// Got heartbeat from secondary
     Heartbeat,
 
-    /// Major mode indication change.
-    Mode(LayoutMode),
-
-    /// We are doing a mode select, with the given mode being the next mode.
-    ModeSelect(LayoutMode),
-
     /// Message back from the layout code that steno raw mode is enabled.
     RawMode(bool),
-
-    /// A keypress (from a typical keyboard mode)
-    Key(KeyAction),
-
-    /// Set indicator to given mode.
-    Indicator(MinorMode),
 
     /// Message received from the primary side to set out LEDs.
     RecvLed(RGB8),

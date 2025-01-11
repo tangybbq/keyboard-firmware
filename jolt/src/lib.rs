@@ -46,7 +46,6 @@ use bbq_keyboard::{
     Event, EventQueue, InterState, KeyAction, KeyEvent, Keyboard, LayoutMode, Mods, Side, Timable,
     UsbDeviceState,
 };
-use bbq_steno::Stroke;
 
 #[allow(unused_imports)]
 use crate::inter::{InterHandler, InterUpdate};
@@ -145,7 +144,7 @@ extern "C" fn rust_main() {
     let (lm_send, lm_recv) = channel::bounded(32);
 
     let _ = zephyr::kio::spawn(
-        layout_task(layout, lm_recv, equeue_send.clone()),
+        layout_task(layout, lm_recv, dispatch.clone()),
         &dispatch.main_worker,
         c"w:layout",
     );
@@ -224,40 +223,11 @@ extern "C" fn rust_main() {
                     }
                 }
 
-                Event::Key(key) => {
-                    dispatch.usb_hid_push(key).await;
-                }
-
                 Event::InterKey(key) => {
                     if state == InterState::Primary {
                         if lm_send.try_send(key).is_err() {
                             warn!("Key even dropped {:?}", key);
                         }
-                    }
-                }
-
-                Event::RawSteno(stroke) => {
-                    if *dispatch.current_mode.lock().unwrap() == LayoutMode::Steno {
-                        // TODO: Send a steno stroke
-                        dispatch.translate_steno(stroke);
-                    } else {
-                        // Send Gemini data if possible.
-                        /*
-                        if acm_active {
-                            // Put as much as we can in the FIFO.  This should be drained if active.
-                            // TODO: Better management.
-                            // TODO: Do the tx enable tx disable stuff.
-                            let packet = stroke.to_gemini();
-                            // Deal with errors and such.
-                            match unsafe { acm.fifo_fill(&packet) } {
-                                Ok(_) => (),
-                                Err(_) => (),
-                            }
-                        }
-                        */
-                        // Also, send to the HID Report descriptor.
-                        dispatch.send_plover_report(&stroke.to_plover_hid());
-                        dispatch.send_plover_report(&Stroke::empty().to_plover_hid());
                     }
                 }
 
@@ -275,33 +245,6 @@ extern "C" fn rust_main() {
                     }
                     // Then, just send the text.
                     enqueue_action(&mut KeyActionWrap(&dispatch), &append).await;
-                }
-
-                // Mode select and mode affect the LEDs.
-                Event::ModeSelect(mode) => {
-                    // info!("modeselect: {:?}", mode);
-                    let next = match mode {
-                        LayoutMode::Steno => get_steno_select_indicator(*dispatch.raw_mode.lock().unwrap()),
-                        LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
-                        LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
-                        LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
-                        _ => &leds::manager::QWERTY_SELECT_INDICATOR,
-                    };
-                    dispatch.leds.lock().unwrap().set_base(0, next);
-                }
-
-                // Mode select and mode affect the LEDs.
-                Event::Mode(mode) => {
-                    info!("mode: {:?}", mode);
-                    let next = match mode {
-                        LayoutMode::Steno => get_steno_indicator(*dispatch.raw_mode.lock().unwrap()),
-                        LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
-                        LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
-                        LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
-                        _ => &leds::manager::QWERTY_INDICATOR,
-                    };
-                    dispatch.leds.lock().unwrap().set_base(0, next);
-                    *dispatch.current_mode.lock().unwrap() = mode;
                 }
 
                 Event::RawMode(raw) => {
@@ -393,6 +336,7 @@ extern "C" fn rust_main() {
     let () = main_loop.join();
 }
 
+// TODO: Does this move to Dispatch?
 fn get_steno_indicator(raw: bool) -> &'static Indication {
     if raw {
         &leds::manager::STENO_RAW_INDICATOR
@@ -401,6 +345,7 @@ fn get_steno_indicator(raw: bool) -> &'static Indication {
     }
 }
 
+// TODO: Does this move to Dispatch?
 fn get_steno_select_indicator(raw: bool) -> &'static Indication {
     if raw {
         &leds::manager::STENO_RAW_SELECT_INDICATOR
@@ -426,14 +371,17 @@ async fn layout_task(
     mut layout: LayoutManager,
     // A receiver for the queue that processes layout events.
     keys: Receiver<KeyEvent>,
-    // The main event queue.
-    events: Sender<Event>,
+    // The dispatcher, for sending events to.
+    dispatch: Arc<Dispatch>,
 ) {
     const PERIOD_MS: usize = 10;
-    let mut events = SendWrap(events);
     zephyr::event_loop!(keys, Duration::millis_at_least(PERIOD_MS as Tick),
-                        Some(ev) => { layout.handle_event(ev, &mut events) },
-                        None => { layout.tick(&mut events, PERIOD_MS) },
+                        Some(ev) => {
+                            layout.handle_event(ev, dispatch.as_ref()).await;
+                        },
+                        None => {
+                            layout.tick(dispatch.as_ref(), PERIOD_MS).await;
+                        },
     );
 }
 

@@ -33,7 +33,9 @@ use usbd_human_interface_device::page::Keyboard;
 
 // use crate::log::info;
 
-use crate::{EventQueue, KeyEvent, Side, Mods, KeyAction, Event};
+use crate::{KeyEvent, Side, Mods, KeyAction};
+
+use super::LayoutActions;
 
 pub struct TaipoManager {
     /// Managing state for each side.
@@ -65,7 +67,7 @@ impl TaipoManager {
     }
 
     /// Tick is needed to track time.
-    pub fn tick(&mut self, events: &mut dyn EventQueue, ticks: usize) {
+    pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
         self.sides[0].tick(&mut self.keys, ticks);
         self.sides[1].tick(&mut self.keys, ticks);
 
@@ -76,7 +78,7 @@ impl TaipoManager {
                 // If a key is actually pressed, release it. This shouldn't
                 // really need to be conditional.
                 if self.down {
-                    events.push(Event::Key(KeyAction::KeyRelease));
+                    actions.send_key(KeyAction::KeyRelease).await;
                     self.down = false;
                 }
                 continue;
@@ -85,14 +87,14 @@ impl TaipoManager {
             // Look up the code to see if we have an action.
             match TAIPO_ACTIONS.iter().find(|e| e.code == tevent.code) {
                 Some(Entry { action: Action::Simple(k), .. }) => {
-                    self.release_nonmod(events);
-                    events.push(Event::Key(KeyAction::KeyPress(*k, self.oneshot)));
+                    self.release_nonmod(actions).await;
+                    actions.send_key(KeyAction::KeyPress(*k, self.oneshot)).await;
                     self.down = true;
                     self.oneshot = Mods::empty();
                 }
                 Some(Entry { action: Action::Shifted(k), .. }) => {
-                    self.release_nonmod(events);
-                    events.push(Event::Key(KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)));
+                    self.release_nonmod(actions).await;
+                    actions.send_key(KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)).await;
                     self.down = true;
                     self.oneshot = Mods::empty();
                 }
@@ -102,38 +104,37 @@ impl TaipoManager {
                     // If this modification adds any new modifiers, send a new
                     // event.
                     if new_mods != self.oneshot {
-                        self.release_nonmod(events);
-                        events.push(Event::Key(KeyAction::ModOnly(new_mods)))
+                        self.release_nonmod(actions).await;
+                        actions.send_key(KeyAction::ModOnly(new_mods)).await;
                     }
                     self.oneshot |= *m;
                 }
                 Some(Entry { action: Action::Release, .. }) => {
                     if !self.oneshot.is_empty() {
-                        events.push(Event::Key(KeyAction::KeyRelease));
+                        actions.send_key(KeyAction::KeyRelease).await;
                         self.oneshot = Mods::empty();
                     }
                 }
                 None => (),
             }
         }
-        let _ = events;
     }
 
     /// Release any non-modifier keys.  Because of the alternation, which could
     /// be for the same key, we simply don't do any rollover, releasing any
     /// pressed non-modifier keys when a new key needs to be pressed.
-    fn release_nonmod(&mut self, events: &mut dyn EventQueue) {
+    async fn release_nonmod<ACT: LayoutActions>(&mut self, actions: &ACT) {
         if self.down {
             if self.oneshot.is_empty() {
-                events.push(Event::Key(KeyAction::KeyRelease));
+                actions.send_key(KeyAction::KeyRelease).await;
             } else {
-                events.push(Event::Key(KeyAction::ModOnly(self.oneshot)));
+                actions.send_key(KeyAction::ModOnly(self.oneshot)).await;
             }
             self.down = false;
         }
     }
 
-    pub fn handle_event(&mut self, event: KeyEvent, events: &mut dyn EventQueue) {
+    pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT) {
         let (is_press, code) = match event {
             KeyEvent::Press(code) => (true, code),
             KeyEvent::Release(code) => (false, code),
@@ -157,7 +158,7 @@ impl TaipoManager {
         } else {
             self.sides[side.index()].release(*tcode, &mut self.keys);
         }
-        let _ = events;
+        let _ = actions;
     }
 }
 
