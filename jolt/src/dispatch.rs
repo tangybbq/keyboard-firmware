@@ -159,7 +159,7 @@ impl Dispatch {
         let _ = kio::spawn(Self::steno_typer(this2, stenotype_recv), &this.main_worker, c"w:stenotype");
 
         let _ = kio::spawn(
-            Self::loop_1ms(this.clone()),
+            Self::key_report_loop(this.clone()),
             &this.main_worker,
             c"w:1ms_loop",
         );
@@ -242,12 +242,17 @@ impl Dispatch {
         self.usb.send_plover_report(report);
     }
 
-    /// Once a ms loop.  This runs every 1ms, performing various tasks.
-    async fn loop_1ms(this: Arc<Self>) {
+    /// This loop is needed to read the USB HID report.
+    ///
+    /// Some platforms (e.g. MacOS) won't accept any keys from us without this.  But, it doesn't
+    /// actually need to happen very often.  Ideally, we could just make this triggered from the USB
+    /// stack.
+    /// TODO: Trigger keyboard report query instead of polling.
+    async fn key_report_loop(this: Arc<Self>) {
         // TODO: Need to implement sleep that works with an Instant instead of just a duration.
         // As a workaround, we'll just make a semaphore that will never be available.
         let never = Semaphore::new(0, 1).unwrap();
-        let period = Duration::millis_at_least(1);
+        let period = Duration::millis_at_least(100);
         let mut next = time::now() + period;
         loop {
             let _ = never.take_async(next).await;
