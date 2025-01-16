@@ -18,6 +18,8 @@
 
 extern crate alloc;
 
+use core::mem;
+
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use bbq_keyboard::boardinfo::BoardInfo;
@@ -27,6 +29,7 @@ use leds::manager::Indication;
 use leds::LedSet;
 use logging::Logger;
 use zephyr::kio::yield_now;
+use zephyr::raw::{sys_heap, sys_heap_runtime_stats_get, sys_memory_stats};
 use zephyr::sync::channel::{Receiver, Sender};
 use zephyr::sync::{channel, Arc};
 use zephyr::sys::sync::Semaphore;
@@ -493,10 +496,22 @@ fn setup_heartbeat() {
 fn show_heap_stats() {
     unsafe {
         extern "C" {
-            fn show_heap_stats();
+            static mut z_malloc_heap: sys_heap;
         }
 
-        show_heap_stats();
+        let mut stats: sys_memory_stats = mem::zeroed();
+        match sys_heap_runtime_stats_get(&mut z_malloc_heap, &mut stats) {
+            0 => (),
+            n => {
+                warn!("Unable to collect heap stats: {}", n);
+                return;
+            }
+        }
+
+        info!("Heap free: {}", stats.free_bytes);
+        info!("    alloc: {}", stats.allocated_bytes);
+        info!("max alloc: {}", stats.max_allocated_bytes);
+
     }
 }
 
