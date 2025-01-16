@@ -21,6 +21,7 @@ use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
+use log::info;
 
 use crate::replacements::Previous;
 use crate::Replacement;
@@ -34,6 +35,9 @@ const MIN_TYPED: usize = 256;
 /// value.  This should be larger than MIN_TYPED by at least the length of the longest typed entry
 /// in the dictionary.
 const MAX_TYPED: usize = MIN_TYPED * 2 + 64;
+
+/// The largest we allow the history to grow to.  This is in strokes.
+const MAX_HISTORY: usize = 50;
 
 /// A Joiner to join steno translations together.
 pub struct Joiner {
@@ -183,6 +187,17 @@ impl Joiner {
             state: next.next_state,
         });
 
+        // Clean old history.
+        // let old = self.history.len();
+        let mut adjusted = false;
+        while self.history.len() > MAX_HISTORY {
+            let _ = self.history.pop_front();
+            adjusted = true;
+        }
+        if adjusted {
+            // info!("Shrunk stroke history: {} to {}", old, self.history.len());
+        }
+
         // Push an action.
         self.actions.push_back((self.now, Joined::Type {
             remove: next.remove,
@@ -236,7 +251,9 @@ impl Joiner {
                 // This should warn somehow that we're running the count loop excessively.  As long
                 // as max is sufficiently larger than min, this shouldn't ever occur.
             }
+            let old = self.typed.len();
             self.typed.replace_range(0..(self.typed.len() - MIN_TYPED), "");
+            info!("Shrunk text history from {} to {}", old, self.typed.len());
         }
     }
 
