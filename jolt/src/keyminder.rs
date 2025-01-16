@@ -18,7 +18,9 @@ use crate::logging::Logger;
 pub struct Minder();
 
 /// Our uart, with fixed sized rings.
-type Uart = UartIrq<2, 2>;
+type Uart = UartIrq<2, READ_RINGS>;
+
+const READ_RINGS: usize = 8;
 
 /// The size of the read buffers.
 const READ_BUFSIZE: usize = 256;
@@ -42,7 +44,7 @@ fn minder_thread(mut uart: Uart, log: Arc<Mutex<Logger>>) {
     let mut decoder = SerialDecoder::new();
 
     // Add two buffers for reading.
-    for _ in 0..2 {
+    for _ in 0..READ_RINGS {
         uart.read_enqueue(vec![0u8; READ_BUFSIZE]).unwrap();
     }
 
