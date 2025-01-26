@@ -18,9 +18,10 @@ use crate::logging::Logger;
 pub struct Minder();
 
 /// Our uart, with fixed sized rings.
-type Uart = UartIrq<2, READ_RINGS>;
+type Uart = UartIrq<WRITE_RINGS, READ_RINGS>;
 
 const READ_RINGS: usize = 8;
+const WRITE_RINGS: usize = 8;
 
 /// The size of the read buffers.
 const READ_BUFSIZE: usize = 256;
