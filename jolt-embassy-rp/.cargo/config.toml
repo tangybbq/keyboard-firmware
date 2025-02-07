@@ -1,0 +1,10 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# runner = "probe-rs run --chip RP2040 --log-format \"{t} [{L}]: {s}\""
+runner = ["probe-rs", "run", "--chip", "RP2040", "--log-format", "{t} [{L}]: {s}", "--preverify"]
+
+[build]
+target = "thumbv6m-none-eabi"        # Cortex-M0 and Cortex-M0+
+
+[env]
+# DEFMT_LOG = "debug"
+DEFMT_LOG = "info"

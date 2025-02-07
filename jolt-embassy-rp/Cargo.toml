@@ -1,0 +1,104 @@
+[package]
+edition = "2021"
+name = "jolt-embassy-rp"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+
+[dependencies]
+embassy-embedded-hal = { version = "0.3.0", path = "../embassy/embassy-embedded-hal", features = ["defmt"] }
+embassy-sync = { version = "0.6.2", path = "../embassy/embassy-sync", features = ["defmt"] }
+# embassy-executor = { version = "0.7.0", path = "../embassy/embassy-executor", features = ["task-arena-size-98304", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "rtos-trace"] }
+embassy-time = { version = "0.4.0", path = "../embassy/embassy-time", features = ["defmt", "defmt-timestamp-uptime"] }
+embassy-rp = { version = "0.3.0", path = "../embassy/embassy-rp", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl", "rp2040"] }
+embassy-usb = { version = "0.4.0", path = "../embassy/embassy-usb", features = ["defmt"] }
+# embassy-net = { version = "0.6.0", path = "../embassy/embassy-net", features = ["defmt", "tcp", "udp", "raw", "dhcpv4", "medium-ethernet", "dns", "proto-ipv4", "proto-ipv6", "multicast"] }
+# embassy-net-wiznet = { version = "0.2.0", path = "../embassy/embassy-net-wiznet", features = ["defmt"] }
+embassy-futures = { version = "0.1.0", path = "../embassy/embassy-futures" }
+# embassy-usb-logger = { version = "0.4.0", path = "../embassy/embassy-usb-logger" }
+# cyw43 = { version = "0.3.0", path = "../../cyw43", features = ["defmt", "firmware-logs"] }
+# cyw43-pio = { version = "0.3.0", path = "../../cyw43-pio", features = ["defmt"] }
+
+embedded-alloc = "0.6.0"
+
+defmt = "0.3"
+defmt-rtt = "0.4"
+fixed = "1.23.1"
+fixed-macro = "1.2"
+
+# rtos-trace = "0.1"
+# systemview-target = { version = "0.1", features = ["callbacks-os", "callbacks-os-time"] }
+
+# for web request example
+# reqwless = { version = "0.13.0", features = ["defmt"] }
+# serde = { version = "1.0.203", default-features = false, features = ["derive"] }
+# serde-json-core = "0.5.1"
+
+# for assign resources example
+# assign-resources = { git = "https://github.com/adamgreig/assign-resources", rev = "94ad10e2729afdf0fd5a77cd12e68409a982f58a" }
+
+#cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
+cortex-m = { version = "0.7.6", features = ["inline-asm"] }
+cortex-m-rt = "0.7.0"
+critical-section = "1.1"
+panic-probe = { version = "0.3", features = ["print-defmt"] }
+# display-interface-spi = "0.5.0"
+# embedded-graphics = "0.8.1"
+# mipidsi = "0.8.0"
+# display-interface = "0.5.0"
+# byte-slice-cast = { version = "1.2.0", default-features = false }
+smart-leds = "0.4.0"
+heapless = "0.8"
+usbd-hid = "0.8.1"
+rand_core = "0.6.4"
+
+embedded-hal-1 = { package = "embedded-hal", version = "1.0" }
+embedded-hal-async = "1.0"
+embedded-hal-bus = { version = "0.1", features = ["async"] }
+embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
+embedded-storage = { version = "0.3" }
+static_cell = "2.1"
+portable-atomic = { version = "1.5", features = ["critical-section"] }
+
+portable-atomic-util = { version = "0.2.4", features = ["alloc"] }
+
+# log = "0.4"
+pio-proc = { git = "https://github.com/rp-rs/pio-rs", rev = "fa586448b0b223217eec8c92c19fe6823dd04cc4" }
+pio = { git = "https://github.com/rp-rs/pio-rs", rev = "fa586448b0b223217eec8c92c19fe6823dd04cc4" }
+rand = { version = "0.8.5", default-features = false }
+# embedded-sdmmc = "0.7.0"
+
+[dependencies.embassy-executor]
+version = "0.7.0"
+path = "../embassy/embassy-executor"
+features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"]
+
+[dependencies.bbq-keyboard]
+version = "0.1.0"
+default-features = false
+path = "../bbq-keyboard"
+# TODO: Need to be able to use defmt
+features = ["defmt", "proto3"]
+
+[dependencies.bbq-steno]
+version = "0.1.0"
+default-features = false
+path = "../bbq-steno"
+features = ["defmt"]
+
+[dependencies.minder]
+version = "0.1.0"
+default-features = false
+path = "../minder"
+
+[profile.release]
+debug = 2
+lto = true
+opt-level = 'z'
+
+[profile.dev]
+debug-assertions = true
+overflow-checks = true
+debug = 2
+lto = true
+opt-level = "z"

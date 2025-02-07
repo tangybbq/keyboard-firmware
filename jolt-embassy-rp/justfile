@@ -1,0 +1,27 @@
+tdir := "target/thumbv6m-none-eabi/debug"
+app := "jolt-embassy-rp"
+
+build:
+	cargo build --bin {{app}}
+
+serve:
+	JLinkGDBServer  \
+		-if swd \
+		-speed auto \
+		-device RP2040_M0_0 \
+		-endian little \
+		-nogui
+
+rtt:
+	defmt-print \
+		--log-format "{t} [{L}]: {s}" \
+		-e {{tdir}}/{{app}} \
+		-w \
+		tcp
+
+gdb:
+	arm-none-eabi-gdb {{tdir}}/{{app}}
+# -rtos /Applications/SEGGER/JLink_V812c/GDBServer/RTOSPlugin_Zephyr \
+# -rtttelnetport 19021
+# -select usb \
+# -port 2331 \
