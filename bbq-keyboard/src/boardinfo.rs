@@ -24,6 +24,7 @@ use crate::log::warn;
 /// This is information about the current board.  At this time, these are
 /// stored at a fixed offset in flash [`BOARD_INFO_OFFSET`].
 #[derive(Debug, Encode, Decode)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cbor(tag(0x626f617264696e66))]
 #[cbor(map)]
 pub struct BoardInfo {
@@ -68,8 +69,9 @@ impl BoardInfo {
         let buffer: &[u8] = from_raw_parts(addr, 256);
         match minicbor::decode(buffer) {
             Ok(info) => Some(info),
-            Err(e) => {
-                warn!("Fail to read BoardInfo: {:?}", e);
+            Err(_e) => {
+                // warn!("Fail to read BoardInfo: {:?}", e);
+                warn!("Fail to read BoardInfo");
                 None
             }
         }

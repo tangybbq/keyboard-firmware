@@ -46,6 +46,7 @@ mod log {
 
 /// Which side of the keyboard are we.
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Encode, Decode)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "std", derive(ValueEnum))]
 #[cbor(index_only)]
 pub enum Side {
@@ -122,6 +123,7 @@ impl KeyEvent {
 
 /// Indicates keypress that should be sent to the host.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum KeyAction {
     KeyPress(Keyboard, Mods),
     ModOnly(Mods),
@@ -139,6 +141,14 @@ bitflags! {
         const SHIFT = 0b0000_0010;
         const ALT = 0b0000_0100;
         const GUI = 0b0000_1000;
+    }
+}
+
+// Grumble.
+#[cfg(feature = "defmt")]
+impl defmt::Format for Mods {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(fmt, "Mods:{=u8:02x}", self.bits());
     }
 }
 

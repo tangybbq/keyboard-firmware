@@ -10,17 +10,17 @@ arraydeque = { version = "0.5", default-features = false }
 arrayvec = { version = "0.7", default-features = false }
 
 crc = "3.0"
-defmt = { version = "0.3", optional = true }
+defmt = { version = "0.3", features = ["alloc"], optional = false }
 log = { version = "0.4.20", optional = true }
 smart-leds = "0.3"
 usb-device = "0.2"
-usbd-human-interface-device = "0.4"
+usbd-human-interface-device = { version = "0.4", features = ["defmt"] }
 
 # We use serde and ciborium, which should support no-std.
 minicbor = { version = "0.25.1", features = ["alloc", "derive"] }
 minder = { version = "0.1.0", path = "../minder", default-features = false }
 
-bbq-steno = { version = "0.1", default-features = false, path = "../bbq-steno" }
+bbq-steno = { version = "0.1", features = [], default-features = false, path = "../bbq-steno" }
 bbq-steno-macros = { version = "0.1", path = "../bbq-steno-macros", default-features = false }
 bitflags = "2.4.1"
 
@@ -35,5 +35,6 @@ default = ["std", "proto3", "dep:log"]
 std = ["dep:clap"]
 proto2 = []
 proto3 = []
-defmt = ["dep:defmt"]
-log = ["dep:log"]
+# defmt = ["dep:defmt", "bbq-steno/defmt"]
+defmt = ["bbq-steno/defmt"]
+log = ["dep:log", "bbq-steno/log"]

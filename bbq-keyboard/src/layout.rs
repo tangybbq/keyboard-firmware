@@ -15,6 +15,7 @@ mod qwerty;
 mod steno;
 mod taipo;
 
+/// The mode key is the general key to switch modes.
 const MODE_KEY: u8 = 2;
 
 // Keyboards are complicated things, and small keyboards are even more

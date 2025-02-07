@@ -71,8 +71,7 @@ impl Dict {
         self.joiner.add(action);
         let stop = timer.get_ticks();
         while let Some(action) = self.joiner.pop(0) {
-            info!("Key: {:?} {}us", action,
-            stop - start);
+            info!("Key: {:?} {}us", action, stop - start);
             result.push(action);
         }
         result
