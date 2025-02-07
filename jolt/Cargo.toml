@@ -29,6 +29,7 @@ path = "../bbq-keyboard"
 version = "0.1.0"
 default-features = false
 path = "../bbq-steno"
+features = ["log"]
 
 [dependencies.minder]
 version = "0.1.0"
