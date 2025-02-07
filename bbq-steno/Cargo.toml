@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-defmt = "0.3"
 arrayvec = { version = "0.7", default-features = false }
 safe-regex = "0.2.5"
 heapless = "0.8"
 
 # TODO: Featurize log.
-log = "0.4.20"
+defmt = { version = "0.3", features = ["alloc"], optional = false }
+log = { version = "0.4.20", optional = false }
 
 minicbor = { version = "0.25.1", features = ["alloc", "derive"] }
 
@@ -25,6 +25,9 @@ env_logger = "0.11"
 [features]
 default = ["std"]
 std = []
+# defmt = ["dep:defmt"]
+defmt = []
+log = []
 
 # Optimize the tests so they don't take too long
 [profile.test]

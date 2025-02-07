@@ -21,7 +21,15 @@ use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
-use log::info;
+
+// #[cfg(feature = "log")]
+// use log::info;
+
+// #[cfg(feature = "log")]
+// compile_error!("Log selected");
+
+// #[cfg(feature = "defmt")]
+// use defmt::info;
 
 use crate::replacements::Previous;
 use crate::Replacement;
@@ -86,6 +94,7 @@ struct Add {
 
 /// The result of the Joiner's calculations.
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Joined {
     Type {
         /// How many times to press backspace.
@@ -251,9 +260,9 @@ impl Joiner {
                 // This should warn somehow that we're running the count loop excessively.  As long
                 // as max is sufficiently larger than min, this shouldn't ever occur.
             }
-            let old = self.typed.len();
+            //let old = self.typed.len();
             self.typed.replace_range(0..(self.typed.len() - MIN_TYPED), "");
-            info!("Shrunk text history from {} to {}", old, self.typed.len());
+            // info!("Shrunk text history from {} to {}", old, self.typed.len());
         }
     }
 
