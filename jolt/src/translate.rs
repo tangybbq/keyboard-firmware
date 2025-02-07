@@ -11,6 +11,7 @@ pub fn get_translation(board: &str) -> fn(u8) -> u8 {
         "proto4" => proto4,
         "jolt1" => id,
         "jolt2" => jolt2,
+        "jolt3" => jolt3,
         xlate => panic!("Unsupported translation table {:?}", xlate),
     }
 }
@@ -76,6 +77,26 @@ static JOLT4: [u8; 21] = [
 ];
 
 fn jolt2(code: u8) -> u8 {
+    if (code as usize) < JOLT4.len() {
+        JOLT4[code as usize]
+    } else if code >= 24 && ((code - 24) as usize) < JOLT4.len() {
+        let code = code as usize;
+
+        // The thumb keys on the right side are reversed.
+        let code = match code - 24 {
+            18 => 20,
+            20 => 18,
+            code => code,
+        } + 24;
+
+        // The right half is mirrored on the left.  But, we shift by 24 for the right side.
+        JOLT4[code - 24] + 24
+    } else {
+        255
+    }
+}
+
+fn jolt3(code: u8) -> u8 {
     if (code as usize) < JOLT4.len() {
         JOLT4[code as usize]
     } else if code >= 24 && ((code - 24) as usize) < JOLT4.len() {

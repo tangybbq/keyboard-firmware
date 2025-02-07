@@ -10,6 +10,8 @@ cargo run -- board-info -o jolt1-left.bin --name jolt1 --side left
 cargo run -- board-info -o jolt1-right.bin --name jolt1 --side right
 cargo run -- board-info -o jolt2-left.bin --name jolt2 --side left
 cargo run -- board-info -o jolt2-right.bin --name jolt2 --side right
+cargo run -- board-info -o jolt3-left.bin --name jolt3 --side left
+cargo run -- board-info -o jolt3-right.bin --name jolt3 --side right
 cargo run -- board-info -o proto4.bin --name proto4
 
 arm-zephyr-eabi-objcopy \
@@ -47,6 +49,18 @@ arm-zephyr-eabi-objcopy \
 	-O elf32-littlearm \
 	--change-section-address .data=0x101fff00 \
 	jolt2-right.bin jolt2-right.elf
+
+arm-zephyr-eabi-objcopy \
+	-I binary \
+	-O elf32-littlearm \
+	--change-section-address .data=0x101fff00 \
+	jolt3-left.bin jolt3-left.elf
+
+arm-zephyr-eabi-objcopy \
+	-I binary \
+	-O elf32-littlearm \
+	--change-section-address .data=0x101fff00 \
+	jolt3-right.bin jolt3-right.elf
 
 arm-zephyr-eabi-objcopy \
 	-I binary \
@@ -95,6 +109,20 @@ $uf2conv \
 	-c \
 	-o jolt2-right.uf2 \
 	jolt2-right.bin
+
+$uf2conv \
+	-b 0x101fff00 \
+	-f 0xe48bff56 \
+	-c \
+	-o jolt3-left.uf2 \
+	jolt3-left.bin
+
+$uf2conv \
+	-b 0x101fff00 \
+	-f 0xe48bff56 \
+	-c \
+	-o jolt3-right.uf2 \
+	jolt3-right.bin
 
 $uf2conv \
 	-b 0x101fff00 \
