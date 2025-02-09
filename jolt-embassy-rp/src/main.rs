@@ -14,8 +14,7 @@ use bbq_keyboard::layout::{LayoutActions, LayoutManager};
 use bbq_keyboard::ser2::Packet;
 use bbq_keyboard::KeyEvent;
 use bbq_steno::Stroke;
-use defmt::*;
-use embassy_executor::Spawner;
+use embassy_executor::{Executor, Spawner};
 use embassy_futures::select::select_array;
 use embassy_rp::{bind_interrupts, install_core0_stack_guard};
 use embassy_rp::gpio::{Input, Level, Output, Pin, Pull};
@@ -33,10 +32,18 @@ use minder::SerialDecoder;
 use portable_atomic_util::Arc;
 use smart_leds::RGB8;
 use static_cell::StaticCell;
-use {defmt_rtt as _, panic_probe as _};
-use cortex_m_rt;
+use cortex_m_rt::{self, entry};
 
 mod translate;
+
+#[cfg(not(any(feature = "defmt", feature = "log")))]
+compile_error!("One of the features \"defmt\" or \"log\" must be enabled");
+
+#[cfg_attr(feature = "defmt", path = "logging_defmt.rs")]
+#[cfg_attr(feature = "log", path = "logging_log.rs")]
+mod logging;
+
+use logging::*;
 
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
@@ -49,8 +56,6 @@ static HEAP: Heap = Heap::empty();
 /// For sharing context between tasks.  For now, we'll use protect with a full-thread-safe
 /// abstraction.
 type Holder<T> = Arc<Mutex<CriticalSectionRawMutex, T>>;
-
-// rtos_trace::global_trace!{SystemView}
 
 // const DIMMING: usize = 32;
 
@@ -69,15 +74,29 @@ fn wheel(mut wheel_pos: u8) -> RGB8 {
     (wheel_pos * 3, 255 - wheel_pos * 3, 0).into()
 }
 
-#[embassy_executor::main]
-async fn main(spawner: Spawner) {
-    info!("Start");
+#[entry]
+fn main() -> ! {
+    // When using SystemView, it must be initialized before starting the embassy executor.
+    log_init();
 
+    // Initialize the heap.
     {
         const HEAP_SIZE: usize = 65535;
         static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
         unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
     }
+
+    // For now, just fire up the thread mode executor.
+    static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
+    let executor = EXECUTOR_LOW.init(Executor::new());
+    executor.run(|spawner| {
+        unwrap!(spawner.spawn(main_task(spawner)));
+    })
+}
+
+#[embassy_executor::task]
+async fn main_task(spawner: Spawner) {
+    info!("Start");
 
     // Setup the MPU with a stack guard.
     install_core0_stack_guard().expect("MPU already configured)");
@@ -170,7 +189,7 @@ async fn main(spawner: Spawner) {
     let mut ws2812 = PioWs2812::new(&mut common, sm0, p.DMA_CH0, p.PIN_19, &program);
 
     // Loop forever making RGB values and pushing them out to the WS2812.
-    let mut ticker = Ticker::every(Duration::from_millis(10));
+    let mut ticker = Ticker::every(Duration::from_millis(11));
     let mut first = true;
     loop {
         for j in 0..(256 * 5) {
@@ -475,7 +494,7 @@ async fn inter_reader(mut rx: BufferedUartRx<'static, UART0>) {
         let buf = match rx.fill_buf().await {
             Ok(buf) => buf,
             Err(err) => {
-                info!("Uart error: {}", err);
+                info!("Uart error: {:?}", err);
                 continue;
             }
         };
