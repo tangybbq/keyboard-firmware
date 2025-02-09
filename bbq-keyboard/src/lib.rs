@@ -32,6 +32,9 @@ use clap::ValueEnum;
 #[cfg(test)]
 mod testlog;
 
+#[cfg(not(any(feature = "defmt", feature = "log")))]
+compile_error!("One of defmt or log must be selected");
+
 #[cfg(not(feature = "defmt"))]
 mod log {
     pub use log::warn;
