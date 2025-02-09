@@ -8,3 +8,5 @@ target = "thumbv6m-none-eabi"        # Cortex-M0 and Cortex-M0+
 [env]
 # DEFMT_LOG = "debug"
 DEFMT_LOG = "info"
+CC_thumbv6m_none_eabi = "clang"
+CFLAGS_thumbv6m_none_eabi = "--target=thumbv6m-none-eabi -march=armv6-m -mthumb"

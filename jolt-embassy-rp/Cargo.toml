@@ -26,6 +26,8 @@ log = { version = "0.4.25", optional = true }
 defmt-rtt = { version = "0.4", optional = true }
 fixed = "1.23.1"
 fixed-macro = "1.2"
+systemview-target = { version = "0.1.2", optional = true, features = ["log", "cortex-m", "callbacks-os", "callbacks-os-time" ], path = "../rtos-trace/systemview_target" }
+rtos-trace = { version = "0.1", optional = true }
 
 # rtos-trace = "0.1"
 # systemview-target = { version = "0.1", features = ["callbacks-os", "callbacks-os-time"] }
@@ -42,7 +44,8 @@ fixed-macro = "1.2"
 cortex-m = { version = "0.7.6", features = ["inline-asm"] }
 cortex-m-rt = "0.7.0"
 critical-section = "1.1"
-panic-probe = { version = "0.3", features = ["print-defmt"] }
+panic-probe = { version = "0.3", features = [], optional = true }
+panic-halt = { version = "1.0", optional = true }
 # display-interface-spi = "0.5.0"
 # embedded-graphics = "0.8.1"
 # mipidsi = "0.8.0"
@@ -56,7 +59,7 @@ rand_core = "0.6.4"
 embedded-hal-1 = { package = "embedded-hal", version = "1.0" }
 embedded-hal-async = "1.0"
 embedded-hal-bus = { version = "0.1", features = ["async"] }
-embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
+embedded-io-async = { version = "0.6.1", features = [] }
 embedded-storage = { version = "0.3" }
 static_cell = "2.1"
 portable-atomic = { version = "1.5", features = ["critical-section"] }
@@ -72,20 +75,20 @@ rand = { version = "0.8.5", default-features = false }
 [dependencies.embassy-executor]
 version = "0.7.0"
 path = "../embassy/embassy-executor"
-features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"]
+features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt"]
 
 [dependencies.bbq-keyboard]
 version = "0.1.0"
 default-features = false
 path = "../bbq-keyboard"
 # TODO: Need to be able to use defmt
-features = ["defmt", "proto3"]
+features = ["proto3"]
 
 [dependencies.bbq-steno]
 version = "0.1.0"
 default-features = false
 path = "../bbq-steno"
-features = ["defmt"]
+features = []
 
 [dependencies.minder]
 version = "0.1.0"
@@ -94,12 +97,25 @@ path = "../minder"
 
 [features]
 default = ["defmt"]
+# default = ["log"]
 
 defmt = [
   "dep:defmt", "embassy-embedded-hal/defmt", "embassy-sync/defmt", "embassy-executor/defmt",
   "embassy-time/defmt", "embassy-rp/defmt", "embassy-usb/defmt", "dep:defmt-rtt",
   "bbq-keyboard/defmt", "bbq-steno/defmt", "embassy-time/defmt-timestamp-uptime",
+  "embedded-io-async/defmt-03",
   "panic-probe/print-defmt",
+]
+log = [
+  "dep:log",
+  "dep:panic-halt",
+  "bbq-keyboard/log",
+  "embassy-executor/log",
+  "dep:systemview-target",
+  "dep:rtos-trace",
+  "systemview-target/log",
+  "embassy-executor/rtos-trace",
+  "embassy-rp/rtos-trace",
 ]
 
 [profile.release]
