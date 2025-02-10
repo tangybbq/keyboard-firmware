@@ -7,6 +7,7 @@
 extern crate alloc;
 
 use core::mem::MaybeUninit;
+use core::sync::atomic::Ordering;
 
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_keyboard::layout::{LayoutActions, LayoutManager};
@@ -28,6 +29,7 @@ use embedded_alloc::LlffHeap as Heap;
 use embedded_hal_1::delay::DelayNs;
 use embedded_io_async::BufRead;
 use minder::SerialDecoder;
+use portable_atomic::AtomicUsize;
 use portable_atomic_util::Arc;
 use smart_leds::RGB8;
 use static_cell::StaticCell;
@@ -172,7 +174,7 @@ async fn main_task(spawner: Spawner) {
 
     let (_tx, rx) = uart.split();
 
-    unwrap!(spawner.spawn(inter_reader(rx)));
+    unwrap!(spawner.spawn(inter_reader(spawner, rx)));
 
     let Pio { mut common, sm0, .. } = Pio::new(p.PIO0, Irqs);
 
@@ -487,7 +489,10 @@ impl Default for Debouncer {
 
 // Inter board UART management.
 #[embassy_executor::task]
-async fn inter_reader(mut rx: BufferedUartRx<'static, UART0>) {
+async fn inter_reader(spawner: Spawner, mut rx: BufferedUartRx<'static, UART0>) {
+    static COUNTER: StaticCell<AtomicUsize> = StaticCell::new();
+    let counter = COUNTER.init(AtomicUsize::new(0));
+    spawner.spawn(inter_stat(counter)).unwrap();
     let mut decoder = SerialDecoder::new();
     loop {
         let buf = match rx.fill_buf().await {
@@ -505,7 +510,9 @@ async fn inter_reader(mut rx: BufferedUartRx<'static, UART0>) {
         for ch in buf {
             if let Some(packet) = decoder.add_decode::<Packet>(*ch) {
                 // For now, just use format, and we can get formatting later.
-                info!("RX: {:?}", packet);
+                // info!("RX: {:?}", packet);
+                let _ = packet;
+                counter.fetch_add(1, Ordering::AcqRel);
             }
         }
 
@@ -513,7 +520,20 @@ async fn inter_reader(mut rx: BufferedUartRx<'static, UART0>) {
 
         // Allow enough of a delay to hold a buffer's worth.  There isn't much reason to not wait
         // for an the keyboard debounce interval to elapse.
-        Timer::after(Duration::from_millis(500)).await;
+        Timer::after(Duration::from_millis(1)).await;
+    }
+}
+
+// This task prints out the RX packet rate periodically.
+#[embassy_executor::task]
+async fn inter_stat(counter: &'static AtomicUsize) {
+    // Every n seconds, print out how many messages received.
+    let mut ticker = Ticker::every(Duration::from_secs(60));
+    loop {
+        ticker.next().await;
+
+        let n = counter.swap(0, Ordering::AcqRel);
+        info!("RX count: {}", n);
     }
 }
 
