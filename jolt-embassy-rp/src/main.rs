@@ -8,7 +8,6 @@ extern crate alloc;
 
 use core::mem::MaybeUninit;
 
-use alloc::format;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_keyboard::layout::{LayoutActions, LayoutManager};
 use bbq_keyboard::ser2::Packet;
@@ -109,7 +108,7 @@ async fn main_task(spawner: Spawner) {
     let info = INFO.init(unsafe { BoardInfo::decode_from_memory(_board_info.as_ptr()) }
         .expect("Board into not present"));
 
-    info!("Board info: {}", format!("{:?}", info).as_str());
+    info!("Board info: {:?}", info);
 
     // Setup a LayoutManager.
     let lm = Arc::new(Mutex::<CriticalSectionRawMutex, _>::new(LayoutManager::new(false)));
@@ -506,7 +505,7 @@ async fn inter_reader(mut rx: BufferedUartRx<'static, UART0>) {
         for ch in buf {
             if let Some(packet) = decoder.add_decode::<Packet>(*ch) {
                 // For now, just use format, and we can get formatting later.
-                info!("RX: {}", format!("{:?}", packet).as_str());
+                info!("RX: {:?}", packet);
             }
         }
 

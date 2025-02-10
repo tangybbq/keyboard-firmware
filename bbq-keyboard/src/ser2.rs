@@ -64,6 +64,16 @@ pub struct Packet {
     pub leds: Option<RGB8>,
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for Packet {
+    fn format(&self, fmt: defmt::Formatter<'_>) {
+        defmt::write!(fmt, "Packet(role:{}, size:{}, keys:{}, leds:TODO)",
+                      self.role,
+                      self.side,
+                      self.keys);
+    }
+}
+
 impl Packet {
     pub fn new(role: Role, side: Side) -> Packet {
         Packet {
@@ -87,6 +97,7 @@ impl Packet {
 
 /// What the transmitter knows about it's role in the communication.
 #[derive(Debug, Decode, Encode, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cbor(index_only)]
 pub enum Role {
     /// Idle, this device doesn't know its role.
