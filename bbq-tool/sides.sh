@@ -4,143 +4,40 @@
 
 uf2conv=$ZEPHYR_BASE/scripts/build/uf2conv.py
 
-cargo run -- board-info -o proto3-left.bin --name proto3 --side left
-cargo run -- board-info -o proto3-right.bin --name proto3 --side right
-cargo run -- board-info -o jolt1-left.bin --name jolt1 --side left
-cargo run -- board-info -o jolt1-right.bin --name jolt1 --side right
-cargo run -- board-info -o jolt2-left.bin --name jolt2 --side left
-cargo run -- board-info -o jolt2-right.bin --name jolt2 --side right
-cargo run -- board-info -o jolt3-left.bin --name jolt3 --side left
-cargo run -- board-info -o jolt3-right.bin --name jolt3 --side right
-cargo run -- board-info -o proto4.bin --name proto4
+# Generate the files for the given side.  Arguments are:
+# $1 - the name
+# $2.. - Arguments passed to the board-info command.
+gen_files() {
+  name=$1
+  shift
+  echo "info: $name" "$@"
 
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	proto3-left.bin proto3-left.elf
+  # Generate the image.
+  cargo run -- board-info -o data/$name.bin "$@"
 
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	proto3-right.bin proto3-right.elf
+  # And, generate a loadable elf file.  This works with 'load name.elf' in gdb.
+  arm-zephyr-eabi-objcopy \
+    -I binary \
+    -O elf32-littlearm \
+    --change-section-address .data=0x101fff00 \
+    data/$name.bin data/$name.elf
 
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	jolt1-left.bin jolt1-left.elf
+  # Also generate a uf2 file.  This could theoretically be loaded with the bootloader, but it
+  # doesn't seem to like data occurring too late.
+  $uf2conv \
+    -b 0x101fff00 \
+    -f 0xe48bff56 \
+    -c \
+    -o data/$name.uf2 \
+    data/$name.bin
+}
 
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	jolt1-right.bin jolt1-right.elf
-
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	jolt2-left.bin jolt2-left.elf
-
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	jolt2-right.bin jolt2-right.elf
-
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	jolt3-left.bin jolt3-left.elf
-
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	jolt3-right.bin jolt3-right.elf
-
-arm-zephyr-eabi-objcopy \
-	-I binary \
-	-O elf32-littlearm \
-	--change-section-address .data=0x101fff00 \
-	proto4.bin proto4.elf
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o proto3-left.uf2 \
-	proto3-left.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o proto3-right.uf2 \
-	proto3-right.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o jolt1-left.uf2 \
-	jolt1-left.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o jolt1-right.uf2 \
-	jolt1-right.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o jolt2-left.uf2 \
-	jolt2-left.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o jolt2-right.uf2 \
-	jolt2-right.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o jolt3-left.uf2 \
-	jolt3-left.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o jolt3-right.uf2 \
-	jolt3-right.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o proto4.uf2 \
-	proto4.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o jolt1-left.uf2 \
-	jolt1-left.bin
-
-$uf2conv \
-	-b 0x101fff00 \
-	-f 0xe48bff56 \
-	-c \
-	-o jolt1-right.uf2 \
-	jolt1-right.bin
+gen_files proto3-left --name proto3 --side left
+gen_files proto3-right --name proto3 --side right
+gen_files proto4 --name proto4
+gen_files jolt1-left --name jolt1 --side left
+gen_files jolt1-right --name jolt1 --side right
+gen_files jolt2-left --name jolt2 --side left
+gen_files jolt2-right --name jolt2 --side right
+gen_files jolt3-left --name jolt3 --side left
+gen_files jolt3-right --name jolt3 --side right

@@ -21,6 +21,7 @@ path = "../bbq-steno"
 [dependencies.bbq-keyboard]
 version = "0.1.0"
 path = "../bbq-keyboard"
+features = ["log"]
 
 [build-dependencies]
 build-data = "0"
