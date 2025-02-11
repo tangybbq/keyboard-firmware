@@ -12,11 +12,11 @@ use core::sync::atomic::Ordering;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_keyboard::layout::{LayoutActions, LayoutManager};
 use bbq_keyboard::ser2::Packet;
-use bbq_keyboard::KeyEvent;
+use bbq_keyboard::{KeyEvent, Side};
 use bbq_steno::Stroke;
 use embassy_executor::{Executor, Spawner};
 use embassy_futures::select::select_array;
-use embassy_rp::{bind_interrupts, install_core0_stack_guard};
+use embassy_rp::{bind_interrupts, i2c, i2c_slave, install_core0_stack_guard};
 use embassy_rp::gpio::{Input, Level, Output, Pin, Pull};
 use embassy_rp::peripherals::{PIO0, UART0};
 use embassy_rp::pio::{InterruptHandler, Pio};
@@ -25,7 +25,7 @@ use embassy_rp::uart::{BufferedInterruptHandler, BufferedUart, BufferedUartRx, C
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Delay, Duration, Instant, Ticker, Timer};
-use embedded_alloc::LlffHeap as Heap;
+use embedded_alloc::TlsfHeap as Heap;
 use embedded_hal_1::delay::DelayNs;
 use embedded_io_async::BufRead;
 use minder::SerialDecoder;
@@ -49,6 +49,8 @@ use logging::*;
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
     UART0_IRQ => BufferedInterruptHandler<UART0>;
+    USBCTRL_IRQ => embassy_rp::usb::InterruptHandler<embassy_rp::peripherals::USB>;
+    I2C1_IRQ => i2c::InterruptHandler<embassy_rp::peripherals::I2C1>;
 });
 
 #[global_allocator]
@@ -102,6 +104,26 @@ async fn main_task(spawner: Spawner) {
     // Setup the MPU with a stack guard.
     install_core0_stack_guard().expect("MPU already configured)");
     let p = embassy_rp::init(Default::default());
+
+    // https://github.com/knurling-rs/defmt/pull/683 suggests a delay of 10ms to avoid interference
+    // between the debug probe and can interfere with flash operations.
+    Timer::after_millis(10).await;
+
+    let unique_id = flash::get_unique(p.FLASH);
+
+    static UNIQUE: StaticCell<heapless::String<16>> = StaticCell::new();
+    let unique = UNIQUE.init(heapless::String::new());
+
+    let mut tmp = unique_id;
+    for _ in 0..16 {
+        unique.push((b'a' + ((tmp & 0x0f) as u8)) as char).unwrap();
+        // unique.push(b"0123456789abcdef"[(tmp & 0x0f) as usize] as char).unwrap();
+        tmp >>= 4;
+    }
+
+    let unique = unique.as_str();
+
+    info!("Unique ID: {}", unique);
 
     // Get the board info, panicing if not present.
     // SAFETY: This symbol should be in flash. The decoder uses a large specific CBOR tag to ensure
@@ -176,6 +198,25 @@ async fn main_task(spawner: Spawner) {
 
     unwrap!(spawner.spawn(inter_reader(spawner, rx)));
 
+    // Set up the inter-board code, appropriate for the side we are on.
+    match info.side {
+        None => panic!("TODO: Single sided not yet supported"),
+        Some(Side::Left) => {
+            let mut config = i2c::Config::default();
+            config.frequency = 100_000;
+            let device = i2c::I2c::new_async(p.I2C1, p.PIN_11, p.PIN_10, Irqs, config);
+            unwrap!(spawner.spawn(inter_controller::task(device)));
+        }
+        Some(Side::Right) => {
+            let mut config = i2c_slave::Config::default();
+            config.addr = 0x42;
+            let device = i2c_slave::I2cSlave::new(p.I2C1, p.PIN_11, p.PIN_10, Irqs, config);
+            unwrap!(spawner.spawn(inter_device::task(device)));
+        }
+    }
+
+    unwrap!(spawner.spawn(usb::setup_usb(p.USB, unique)));
+
     let Pio { mut common, sm0, .. } = Pio::new(p.PIO0, Irqs);
 
     // This is the number of leds in the string. Helpfully, the sparkfun thing plus and adafruit
@@ -220,7 +261,7 @@ async fn main_task(spawner: Spawner) {
         }
         
         if first {
-            info!("Heap used: {} free: {}", HEAP.used(), HEAP.free());
+            // info!("Heap used: {} free: {}", HEAP.used(), HEAP.free());
             first = false;
         }
     }
@@ -545,4 +586,244 @@ extern "C" {
 unsafe fn HardFault() -> ! {
     cortex_m::asm::bkpt();
     loop { }
+}
+
+mod flash {
+    use embassy_rp::{flash::{Blocking, Flash}, peripherals::FLASH};
+
+    // This can actually be quite a bit larger.
+    const FLASH_SIZE: usize = 2 * 1024 * 1024;
+
+    // TODO: This is a blocking interface (which I think is always the case anyway).
+    pub fn get_unique(flash: FLASH) -> u64 {
+        let mut flash = Flash::<_, Blocking, FLASH_SIZE>::new_blocking(flash);
+
+        /*
+        let jedec = flash.blocking_jedec_id().unwrap();
+        info!("jedec id: 0x{:x}", jedec);
+        */
+
+        let mut uid = [0; 8];
+        flash.blocking_unique_id(&mut uid).unwrap();
+        // info!("unique ID: {=[u8]:#02x}", uid);
+        u64::from_le_bytes(uid)
+    }
+}
+
+mod usb {
+    use alloc::boxed::Box;
+    use defmt::info;
+    use embassy_futures::join::join;
+    use embassy_rp::{peripherals::USB, usb::Driver};
+    use embassy_time::{Duration, Ticker};
+    use embassy_usb::{class::hid::{HidReaderWriter, ReportId, RequestHandler, State}, control::OutResponse, Builder, Config, Handler};
+    use usbd_hid::descriptor::{KeyboardReport, SerializedDescriptor};
+
+    use crate::Irqs;
+
+    /// Setup the USB driver.  We'll make things heap allocated just to simplify things, and because
+    /// there is no particular reason to go out of our way to avoid allocation.
+    #[embassy_executor::task]
+    pub async fn setup_usb(usb: USB, unique: &'static str) {
+        let driver = Driver::new(usb, Irqs);
+
+        let mut config = Config::new(0xc0de, 0xcafe);
+        config.manufacturer = Some("TangyBBQ");
+        config.product = Some("Jolt Keyboard");
+        config.serial_number = Some(unique);
+        config.max_power = 100;
+        config.max_packet_size_0 = 64;
+
+        let config_descriptor_buf = Box::new([0; 256]);
+        let bos_descriptor_buf = Box::new([0; 256]);
+        let msos_descriptor_buf = Box::new([0; 256]);
+        let control_buf = Box::new([0; 64]);
+        let mut request_handler = JoltRequestHandler::new();
+        let mut device_handler = JoltDeviceHandler::new();
+
+        let mut builder = Builder::new(
+            driver,
+            config,
+            Box::leak(config_descriptor_buf),
+            Box::leak(bos_descriptor_buf),
+            Box::leak(msos_descriptor_buf),
+            Box::leak(control_buf),
+        );
+        builder.handler(&mut device_handler);
+
+        let config = embassy_usb::class::hid::Config {
+            report_descriptor: KeyboardReport::desc(),
+            request_handler: None,
+            poll_ms: 10,
+            max_packet_size: 64,
+        };
+        let state = Box::leak(Box::new(State::new()));
+        let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, state, config);
+
+        let mut usb = builder.build();
+
+        let usb_fut = usb.run();
+
+        let (reader, mut writer) = hid.split();
+
+        let in_fut = async {
+            // TODO: channel of keystrokes to send.  For now, just press a key every 15 seconds.
+            let mut ticker = Ticker::every(Duration::from_secs(15));
+            loop {
+                ticker.next().await;
+
+                /*
+                let report = KeyboardReport {
+                    keycodes: [4, 0, 0, 0, 0, 0],
+                    leds: 0,
+                    modifier: 0,
+                    reserved: 0,
+                };
+                match writer.write_serialize(&report).await {
+                    Ok(()) => (),
+                    Err(e) => warn!("Failed to send report: {:?}", e),
+                }
+
+                // Just send the key up immediately.
+                let report = KeyboardReport {
+                    keycodes: [0, 0, 0, 0, 0, 0],
+                    leds: 0,
+                    modifier: 0,
+                    reserved: 0,
+                };
+                match writer.write_serialize(&report).await {
+                    Ok(()) => (),
+                    Err(e) => warn!("Failed to send report: {:?}", e),
+                }
+                */
+            }
+        };
+
+        let out_fut = async {
+            reader.run(false, &mut request_handler).await;
+        };
+
+        join(usb_fut, join(in_fut, out_fut)).await;
+    }
+
+    struct JoltRequestHandler;
+
+    impl JoltRequestHandler {
+        fn new() -> JoltRequestHandler {
+            JoltRequestHandler
+        }
+    }
+
+    impl RequestHandler for JoltRequestHandler {
+        fn get_report(&mut self, id: ReportId, buf: &mut [u8]) -> Option<usize> {
+            info!("HID get_report: id:{:?}, buf: {:x}", id, buf);
+            None
+        }
+
+        fn set_report(&mut self, id: ReportId, data: &[u8]) -> OutResponse {
+            info!("HID set_report: id:{:?}, data: {:x}", id, data);
+            OutResponse::Rejected
+        }
+    }
+
+    struct JoltDeviceHandler;
+
+    impl JoltDeviceHandler {
+        fn new() -> JoltDeviceHandler {
+            JoltDeviceHandler
+        }
+    }
+
+    impl Handler for JoltDeviceHandler {
+        fn enabled(&mut self, enabled: bool) {
+            info!("USB enabled: {:?}", enabled);
+        }
+
+        fn reset(&mut self) {
+            info!("USB Reset");
+        }
+
+        fn addressed(&mut self, addr: u8) {
+            info!("USB Addressed: {:x}", addr);
+        }
+
+        fn configured(&mut self, configured: bool) {
+            info!("USB configured: {:?}", configured);
+        }
+
+        fn suspended(&mut self, suspended: bool) {
+            info!("USB suspended: {:?}", suspended);
+        }
+
+        fn remote_wakeup_enabled(&mut self, enabled: bool) {
+            info!("USB remote wakeup enabled: {:?}", enabled);
+        }
+
+        // Control messages can be handled as well.
+    }
+}
+
+mod inter_device {
+    use defmt::{error, info};
+    use embassy_rp::{i2c_slave::{self, Error}, peripherals::I2C1};
+
+    // TODO: Generalize, so it isn't hard-coded to I2C1.
+    #[embassy_executor::task]
+    pub async fn task(mut dev: i2c_slave::I2cSlave<'static, I2C1>) -> ! {
+        info!("I2C device start");
+        let mut buf = [0u8; 16];
+        loop {
+            match dev.listen(&mut buf).await {
+                Ok(i2c_slave::Command::Read) => {
+                    read_reply(&mut dev).await.unwrap();
+                }
+                Ok(i2c_slave::Command::Write(len)) => {
+                    info!("Device received write: {:x}", buf[..len]);
+                }
+                Ok(i2c_slave::Command::WriteRead(len)) => {
+                    info!("Device write read: {:x}", buf[..len]);
+                    read_reply(&mut dev).await.unwrap();
+                }
+                Ok(i2c_slave::Command::GeneralCall(len)) => {
+                    info!("Device general call: {:x}", buf[..len]);
+                }
+                Err(e) => error!("{}", e),
+            }
+        }
+    }
+
+    async fn read_reply(dev: &mut i2c_slave::I2cSlave<'static, I2C1>) -> Result<(), Error> {
+        let buf = [0x12u8, 0x34, 0x56, 0x78];
+        match dev.respond_and_fill(&buf, 0xff).await? {
+            i2c_slave::ReadStatus::Done => (),
+            i2c_slave::ReadStatus::NeedMoreBytes => unreachable!(),
+            i2c_slave::ReadStatus::LeftoverBytes(x) => {
+                info!("Tried to write {} extra bytes", x);
+            }
+        }
+        Ok(())
+    }
+}
+
+mod inter_controller {
+    use defmt::{error, info};
+    use embassy_rp::{i2c, peripherals::I2C1};
+    use embassy_time::{Duration, Ticker};
+
+    #[embassy_executor::task]
+    pub async fn task(mut dev: i2c::I2c<'static, I2C1, i2c::Async>) {
+        let mut ticker = Ticker::every(Duration::from_secs(10));
+        let mut resp_buff = [0u8; 16];
+        loop {
+            ticker.next().await;
+
+            let message = [0x01u8, 8, 9, 10, 11];
+            match dev.write_read_async(0x42u16, message.iter().cloned(), &mut resp_buff).await {
+                Ok(_) => {
+                    info!("write_read_resp: {:x}", resp_buff);
+                }
+                Err(e) => error!("Error writing {}", e),
+            }
+        }
+    }
 }
