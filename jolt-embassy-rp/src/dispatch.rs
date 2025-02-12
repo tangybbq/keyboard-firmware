@@ -21,12 +21,11 @@ pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
     layout: Mutex<CriticalSectionRawMutex, LayoutManager>,
 
-    current_mode: Mutex<CriticalSectionRawMutex, LayoutMode>
+    current_mode: Mutex<CriticalSectionRawMutex, LayoutMode>,
 }
 
 impl Dispatch {
     pub fn new(spawn_high: SendSpawner, board: Board) -> &'static Dispatch {
-
         let mut leds = LedManager::new(board.leds);
 
         // TODO: This is a workaround until usb is present.  Until either USB connects, or the left

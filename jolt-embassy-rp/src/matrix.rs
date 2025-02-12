@@ -50,7 +50,7 @@ impl Matrix {
 
         // Create debouncers for each key.
         for _ in 0..size {
-            unwrap!{this.states.push(Debouncer::new())};
+            unwrap! {this.states.push(Debouncer::new())};
         }
 
         this
@@ -78,10 +78,7 @@ impl Matrix {
         Delay.delay_us(5);
 
         let mut row_wait: heapless::Vec<_, MAX_ROWS> =
-            self.rows
-            .iter_mut()
-            .map(|r| r.wait_for_high())
-            .collect();
+            self.rows.iter_mut().map(|r| r.wait_for_high()).collect();
         let row_wait = unsafe { Pin::new_unchecked(row_wait.as_mut_slice()) };
         select_slice(row_wait).await;
 
@@ -112,13 +109,17 @@ impl Matrix {
                     let (code, state) = unwrap!(states_iter.next());
                     match state.react(row.is_high()) {
                         KeyAction::Press => {
-                            action.handle_key(KeyEvent::Press((self.xlate)(code as u8))).await;
+                            action
+                                .handle_key(KeyEvent::Press((self.xlate)(code as u8)))
+                                .await;
                             // info!("Press: {}", code);
                             pressed += 1;
                             idle_count = 0;
                         }
                         KeyAction::Release => {
-                            action.handle_key(KeyEvent::Release((self.xlate)(code as u8))).await;
+                            action
+                                .handle_key(KeyEvent::Release((self.xlate)(code as u8)))
+                                .await;
                             // info!("Release: {}", code);
                             pressed -= 1;
                         }
@@ -218,4 +219,3 @@ impl Default for Debouncer {
         Self::new()
     }
 }
-

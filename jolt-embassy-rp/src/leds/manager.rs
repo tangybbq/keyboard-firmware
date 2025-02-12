@@ -261,7 +261,6 @@ impl LedManager {
     pub fn new(leds: LedSet) -> Self {
         let len = leds.len();
 
-
         let states: Vec<_, MAX_LEDS> = (0..len)
             .map(|i| {
                 if i == 0 {

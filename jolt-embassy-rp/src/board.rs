@@ -14,11 +14,24 @@ use crate::{leds::LedSet, matrix::Matrix};
 mod jolt3 {
     use assign_resources::assign_resources;
     use embassy_executor::SendSpawner;
-    use embassy_rp::{gpio::{Input, Level, Output, Pin, Pull}, peripherals::{self, PIO0}, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peripherals};
+    use embassy_rp::{
+        gpio::{Input, Level, Output, Pin, Pull},
+        peripherals::{self, PIO0},
+        pio::Pio,
+        pio_programs::ws2812::{PioWs2812, PioWs2812Program},
+        Peripherals,
+    };
     use static_cell::StaticCell;
 
-    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, translate, Irqs};
     use crate::logging::unwrap;
+    use crate::{
+        leds::{
+            led_strip::{LedStripGroup, LedStripHandle},
+            LedSet,
+        },
+        matrix::Matrix,
+        translate, Irqs,
+    };
 
     use super::Board;
 
@@ -64,24 +77,28 @@ mod jolt3 {
     fn matrix_init(r: MatrixResources) -> Matrix {
         // The keyboard matrix.
         static COLS: StaticCell<[Output<'static>; 4]> = StaticCell::new();
-        let cols = COLS.init([
-            r.pin_6.degrade(),
-            r.pin_7.degrade(),
-            r.pin_8.degrade(),
-            r.pin_9.degrade(),
-        ]
-        .map(|p| Output::new(p, Level::Low)));
+        let cols = COLS.init(
+            [
+                r.pin_6.degrade(),
+                r.pin_7.degrade(),
+                r.pin_8.degrade(),
+                r.pin_9.degrade(),
+            ]
+            .map(|p| Output::new(p, Level::Low)),
+        );
 
         static ROWS: StaticCell<[Input<'static>; 6]> = StaticCell::new();
-        let rows = ROWS.init([
-            r.pin_0.degrade(),
-            r.pin_2.degrade(),
-            r.pin_1.degrade(),
-            r.pin_3.degrade(),
-            r.pin_5.degrade(),
-            r.pin_4.degrade(),
-        ]
-        .map(|p| Input::new(p, Pull::Down)));
+        let rows = ROWS.init(
+            [
+                r.pin_0.degrade(),
+                r.pin_2.degrade(),
+                r.pin_1.degrade(),
+                r.pin_3.degrade(),
+                r.pin_5.degrade(),
+                r.pin_4.degrade(),
+            ]
+            .map(|p| Input::new(p, Pull::Down)),
+        );
 
         let xlate = translate::get_translation("jolt3");
 
@@ -90,7 +107,9 @@ mod jolt3 {
 
     fn leds_init(r: RgbResources, spawner: SendSpawner) -> LedSet {
         // The PIO and DMA are used for the LED driver.
-        let Pio { mut common, sm0, .. } = Pio::new(r.pio0, Irqs);
+        let Pio {
+            mut common, sm0, ..
+        } = Pio::new(r.pio0, Irqs);
         let program = PioWs2812Program::new(&mut common);
         let ws2812 = PioWs2812::new(&mut common, sm0, r.dma_ch0, r.pin_19, &program);
 
@@ -98,7 +117,7 @@ mod jolt3 {
 
         static STRIP: StaticCell<LedStripHandle> = StaticCell::new();
         let strip = STRIP.init(leds.get_handle());
-        unwrap!{spawner.spawn(led_task(leds))};
+        unwrap! {spawner.spawn(led_task(leds))};
 
         LedSet::new([strip])
     }
@@ -121,12 +140,18 @@ pub struct Board {
 impl Board {
     pub fn new(p: Peripherals, spawner: SendSpawner, info: &BoardInfo) -> Board {
         match info {
-            BoardInfo { name, side: Some(Side::Left) } if name == "jolt3" => {
+            BoardInfo {
+                name,
+                side: Some(Side::Left),
+            } if name == "jolt3" => {
                 let mut this = jolt3::new_left(p, spawner);
                 this.leds.update(&[RGB8::new(0, 8, 8), RGB8::new(8, 8, 0)]);
                 this
             }
-            BoardInfo { name, side: Some(Side::Right) } if name == "jolt3" => {
+            BoardInfo {
+                name,
+                side: Some(Side::Right),
+            } if name == "jolt3" => {
                 let mut this = jolt3::new_right(p, spawner);
                 this.leds.update(&[RGB8::new(0, 8, 8), RGB8::new(8, 8, 0)]);
                 this

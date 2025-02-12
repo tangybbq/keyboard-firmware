@@ -1,7 +1,7 @@
 use embassy_time::Instant;
 // For now, just use panic halt, as panic-probe still wants to use defmt.
-use panic_halt as _;
 pub use log::{debug, info};
+use panic_halt as _;
 use systemview_target::SystemView;
 rtos_trace::global_trace!(SystemView);
 

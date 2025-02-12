@@ -12,20 +12,20 @@ use core::sync::atomic::Ordering;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_keyboard::ser2::Packet;
 use board::Board;
+use cortex_m_rt::{self, entry};
 use dispatch::Dispatch;
 use embassy_executor::{Executor, InterruptExecutor, Spawner};
 use embassy_rp::interrupt::{InterruptExt, Priority};
-use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt};
 use embassy_rp::peripherals::{FLASH, PIO0, UART0};
 use embassy_rp::pio::InterruptHandler;
 use embassy_rp::uart::{BufferedInterruptHandler, BufferedUartRx};
+use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt};
 use embassy_time::{Duration, Ticker, Timer};
 use embedded_alloc::TlsfHeap as Heap;
 use embedded_io_async::BufRead;
 use minder::SerialDecoder;
 use portable_atomic::AtomicUsize;
 use static_cell::StaticCell;
-use cortex_m_rt::{self, entry};
 
 mod board;
 mod dispatch;
@@ -172,8 +172,7 @@ fn get_board_info() -> BoardInfo {
         static _board_info: [u8; 256];
     }
 
-    unsafe { BoardInfo::decode_from_memory(_board_info.as_ptr()) }
-    .expect("Board info not present")
+    unsafe { BoardInfo::decode_from_memory(_board_info.as_ptr()) }.expect("Board info not present")
 }
 
 /*
@@ -313,7 +312,7 @@ async fn main_task(spawner: Spawner) {
             }
             */
         }
-        
+
         if first {
             // info!("Heap used: {} free: {}", HEAP.used(), HEAP.free());
             first = false;
@@ -422,11 +421,14 @@ async fn inter_stat(counter: &'static AtomicUsize) {
 #[cortex_m_rt::exception(trampoline = false)]
 unsafe fn HardFault() -> ! {
     cortex_m::asm::bkpt();
-    loop { }
+    loop {}
 }
 
 mod flash {
-    use embassy_rp::{flash::{Blocking, Flash}, peripherals::FLASH};
+    use embassy_rp::{
+        flash::{Blocking, Flash},
+        peripherals::FLASH,
+    };
 
     // This can actually be quite a bit larger.
     const FLASH_SIZE: usize = 2 * 1024 * 1024;
