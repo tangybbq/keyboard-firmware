@@ -29,6 +29,7 @@ use cortex_m_rt::{self, entry};
 
 mod board;
 mod dispatch;
+mod leds;
 mod matrix;
 mod translate;
 
@@ -104,7 +105,10 @@ fn main() -> ! {
     let info = get_board_info();
     info!("Board information: {:?}", info);
 
-    let board = Board::new(p, &info);
+    interrupt::SWI_IRQ_0.set_priority(Priority::P2);
+    let high_spawner = EXECUTOR_HIGH.start(interrupt::SWI_IRQ_0);
+
+    let board = Board::new(p, high_spawner, &info);
     let _ = board;
 
     // All IRQs default to priority P0.
@@ -112,9 +116,6 @@ fn main() -> ! {
     // We will run one executor at P1, for most of the processing, setting up a P2 worker if
     // necessary if there are any slow processing aspects.
     // The steno thread will run in the user executor.
-
-    interrupt::SWI_IRQ_0.set_priority(Priority::P2);
-    let high_spawner = EXECUTOR_HIGH.start(interrupt::SWI_IRQ_0);
 
     let _dispatch = Dispatch::new(high_spawner, board);
 

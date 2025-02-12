@@ -37,9 +37,6 @@ rtos-trace = { version = "0.1", optional = true }
 # serde = { version = "1.0.203", default-features = false, features = ["derive"] }
 # serde-json-core = "0.5.1"
 
-# for assign resources example
-# assign-resources = { git = "https://github.com/adamgreig/assign-resources", rev = "94ad10e2729afdf0fd5a77cd12e68409a982f58a" }
-
 #cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
 cortex-m = { version = "0.7.6", features = ["inline-asm"] }
 cortex-m-rt = "0.7.0"
@@ -70,6 +67,7 @@ portable-atomic-util = { version = "0.2.4", features = ["alloc"] }
 pio-proc = { git = "https://github.com/rp-rs/pio-rs", rev = "fa586448b0b223217eec8c92c19fe6823dd04cc4" }
 pio = { git = "https://github.com/rp-rs/pio-rs", rev = "fa586448b0b223217eec8c92c19fe6823dd04cc4" }
 rand = { version = "0.8.5", default-features = false }
+assign-resources = "0.4.1"
 # embedded-sdmmc = "0.7.0"
 
 [dependencies.embassy-executor]

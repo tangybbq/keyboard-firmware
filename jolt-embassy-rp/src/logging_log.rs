@@ -5,6 +5,8 @@ pub use log::{debug, info};
 use systemview_target::SystemView;
 rtos_trace::global_trace!(SystemView);
 
+pub use core::panic;
+
 static LOGGER: SystemView = SystemView::new();
 
 macro_rules! unwrap {
