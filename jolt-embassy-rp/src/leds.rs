@@ -9,19 +9,22 @@ use heapless::Vec;
 use smart_leds::RGB8;
 
 pub mod led_strip;
-/*
 pub mod manager;
+/*
 mod pwm;
 */
 
 /// Max size of a set of LEDs.
-const MAX_SET_SIZE: usize = 2;
+const MAX_SET_SIZE: usize = 1;
 
 /// Maximum number of LEDs in a group.
 const MAX_GROUP_SIZE: usize = 4;
 
+/// Maximum number of leds total.
+pub(crate) const MAX_LEDS: usize = MAX_SET_SIZE * MAX_GROUP_SIZE;
+
 /// Represents a driver for 1 or more RGB LEDs.
-pub trait LedGroup: 'static {
+pub trait LedGroup: Send + 'static {
     /// How many RGB LED units are in this grouping.
     fn len(&self) -> usize;
 
