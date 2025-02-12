@@ -10,31 +10,26 @@ use core::mem::MaybeUninit;
 use core::sync::atomic::Ordering;
 
 use bbq_keyboard::boardinfo::BoardInfo;
-use bbq_keyboard::layout::{LayoutActions, LayoutManager};
 use bbq_keyboard::ser2::Packet;
-use bbq_keyboard::{KeyEvent, Side};
-use bbq_steno::Stroke;
-use embassy_executor::{Executor, Spawner};
-use embassy_futures::select::select_array;
-use embassy_rp::{bind_interrupts, i2c, i2c_slave, install_core0_stack_guard};
-use embassy_rp::gpio::{Input, Level, Output, Pin, Pull};
-use embassy_rp::peripherals::{PIO0, UART0};
-use embassy_rp::pio::{InterruptHandler, Pio};
-use embassy_rp::pio_programs::ws2812::{PioWs2812, PioWs2812Program};
-use embassy_rp::uart::{BufferedInterruptHandler, BufferedUart, BufferedUartRx, Config, DataBits, Parity, StopBits};
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::mutex::Mutex;
-use embassy_time::{Delay, Duration, Instant, Ticker, Timer};
+use board::Board;
+use dispatch::Dispatch;
+use embassy_executor::{Executor, InterruptExecutor, Spawner};
+use embassy_rp::interrupt::{InterruptExt, Priority};
+use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt};
+use embassy_rp::peripherals::{FLASH, PIO0, UART0};
+use embassy_rp::pio::InterruptHandler;
+use embassy_rp::uart::{BufferedInterruptHandler, BufferedUartRx};
+use embassy_time::{Duration, Ticker, Timer};
 use embedded_alloc::TlsfHeap as Heap;
-use embedded_hal_1::delay::DelayNs;
 use embedded_io_async::BufRead;
 use minder::SerialDecoder;
 use portable_atomic::AtomicUsize;
-use portable_atomic_util::Arc;
-use smart_leds::RGB8;
 use static_cell::StaticCell;
 use cortex_m_rt::{self, entry};
 
+mod board;
+mod dispatch;
+mod matrix;
 mod translate;
 
 #[cfg(not(any(feature = "defmt", feature = "log")))]
@@ -56,12 +51,18 @@ bind_interrupts!(struct Irqs {
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
 
-/// For sharing context between tasks.  For now, we'll use protect with a full-thread-safe
-/// abstraction.
-type Holder<T> = Arc<Mutex<CriticalSectionRawMutex, T>>;
+/// The High Priority executor.  This runs at P1.
+static EXECUTOR_HIGH: InterruptExecutor = InterruptExecutor::new();
 
-// const DIMMING: usize = 32;
+/// And the thread-mode executor.
+static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
 
+#[interrupt]
+unsafe fn SWI_IRQ_0() {
+    EXECUTOR_HIGH.on_interrupt()
+}
+
+/*
 /// Input a value 0 to 255 to get a color value
 /// The colours are a transition r - g - b - back to r.
 fn wheel(mut wheel_pos: u8) -> RGB8 {
@@ -76,6 +77,7 @@ fn wheel(mut wheel_pos: u8) -> RGB8 {
     wheel_pos -= 170;
     (wheel_pos * 3, 255 - wheel_pos * 3, 0).into()
 }
+*/
 
 #[entry]
 fn main() -> ! {
@@ -89,27 +91,67 @@ fn main() -> ! {
         unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
     }
 
-    // For now, just fire up the thread mode executor.
-    static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
-    let executor = EXECUTOR_LOW.init(Executor::new());
-    executor.run(|spawner| {
-        unwrap!(spawner.spawn(main_task(spawner)));
-    })
-}
-
-#[embassy_executor::task]
-async fn main_task(spawner: Spawner) {
-    info!("Start");
+    info!("TangyBBQ Jolt3 Keyboard Firmware");
 
     // Setup the MPU with a stack guard.
     install_core0_stack_guard().expect("MPU already configured)");
     let p = embassy_rp::init(Default::default());
 
+    // The get_unique only briefly uses the flash device.
+    let unique = get_unique(unsafe { FLASH::steal() });
+    info!("Unique ID: {}", unique);
+
+    let info = get_board_info();
+    info!("Board information: {:?}", info);
+
+    let board = Board::new(p, &info);
+    let _ = board;
+
+    // All IRQs default to priority P0.
+    // The GPIO and DMA drivers set their priority to P3.  These priorities are reasonable.
+    // We will run one executor at P1, for most of the processing, setting up a P2 worker if
+    // necessary if there are any slow processing aspects.
+    // The steno thread will run in the user executor.
+
+    interrupt::SWI_IRQ_0.set_priority(Priority::P2);
+    let high_spawner = EXECUTOR_HIGH.start(interrupt::SWI_IRQ_0);
+
+    let _dispatch = Dispatch::new(high_spawner, board);
+
+    /*
+    // Start by determining the priorities already in place.
+    info!("PIO0_IRQ_0: {:?}", interrupt::PIO0_IRQ_0.get_priority());
+    // info!("UART0_IRQ: {:?}", interrupt::UART0_IRQ.get_priority());
+    info!("USBCTRL_IRQ: {:?}", interrupt::USBCTRL_IRQ.get_priority());
+    info!("I2C1_IRQ: {:?}", interrupt::I2C1_IRQ.get_priority());
+    info!("DMA_IRQ_0: {:?}", interrupt::DMA_IRQ_0.get_priority());
+    info!("IO_IRQ_BANK0: {:?}", interrupt::IO_IRQ_BANK0.get_priority());
+    info!("TIMER_IRQ_0: {:?}", interrupt::TIMER_IRQ_0.get_priority());
+    info!("DMA_IRQ_0: {:?}", interrupt::DMA_IRQ_0.get_priority());
+    */
+
+    // For now, just fire up the thread mode executor.
+    let executor = EXECUTOR_LOW.init(Executor::new());
+    executor.run(|spawner| {
+        unwrap!(spawner.spawn(steno_task(spawner)));
+    })
+}
+
+#[embassy_executor::task]
+async fn steno_task(_spawner: Spawner) {
+    loop {
+        Timer::after(Duration::from_secs(60)).await;
+    }
+}
+
+/// Retrieve the unique ID from the flash device.  This will need to coordinate with future flash
+/// drivers, but for now, it is fine to just consume it.
+fn get_unique(flash: FLASH) -> &'static str {
     // https://github.com/knurling-rs/defmt/pull/683 suggests a delay of 10ms to avoid interference
     // between the debug probe and can interfere with flash operations.
-    Timer::after_millis(10).await;
+    // Delay.delay_ms(10);
 
-    let unique_id = flash::get_unique(p.FLASH);
+    let unique_id = flash::get_unique(flash);
 
     static UNIQUE: StaticCell<heapless::String<16>> = StaticCell::new();
     let unique = UNIQUE.init(heapless::String::new());
@@ -117,14 +159,25 @@ async fn main_task(spawner: Spawner) {
     let mut tmp = unique_id;
     for _ in 0..16 {
         unique.push((b'a' + ((tmp & 0x0f) as u8)) as char).unwrap();
-        // unique.push(b"0123456789abcdef"[(tmp & 0x0f) as usize] as char).unwrap();
         tmp >>= 4;
     }
 
-    let unique = unique.as_str();
+    unique.as_str()
+}
 
-    info!("Unique ID: {}", unique);
+/// Fetch the fixed location board info.
+fn get_board_info() -> BoardInfo {
+    extern "C" {
+        static _board_info: [u8; 256];
+    }
 
+    unsafe { BoardInfo::decode_from_memory(_board_info.as_ptr()) }
+    .expect("Board info not present")
+}
+
+/*
+#[embassy_executor::task]
+async fn main_task(spawner: Spawner) {
     // Get the board info, panicing if not present.
     // SAFETY: This symbol should be in flash. The decoder uses a large specific CBOR tag to ensure
     // this isn't representing something else.
@@ -267,152 +320,9 @@ async fn main_task(spawner: Spawner) {
     }
 
 }
+*/
 
-/// By hard-coding the sizes, we can avoid dynamic operations, as well as extra pinning.
-const NUM_ROWS: usize = 6;
-const NUM_COLS: usize = 4;
-
-/// Idle timeout for the matrix scanner.
-///
-/// Switching to idle mode does create a set of Futures that wait on the rows.  Not that much
-/// overhead, so this doesn't need to be too large.  In idle mode, no scanning happens, and the
-/// gpios are configured to interrupt.
-const IDLE_TIME_US: usize = 500;
-
-struct Scanner {
-    cols: [Output<'static>; NUM_COLS],
-    rows: [Input<'static>; NUM_ROWS],
-
-    states: [Debouncer; NUM_ROWS * NUM_COLS],
-    layout_manager: Holder<LayoutManager>,
-    xlate: fn(u8) -> u8,
-}
-
-impl Scanner {
-    /// Create a new Scanner, using the given cols and rows.
-    fn new(
-        cols: [Output<'static>; NUM_COLS],
-        rows: [Input<'static>; NUM_ROWS],
-        layout_manager: Holder<LayoutManager>,
-        xlate: fn(u8) -> u8,
-    ) -> Self {
-        Self {
-            cols,
-            rows,
-            states: Default::default(),
-            layout_manager,
-            xlate,
-        }
-    }
-
-    /// Wait for keys.
-    ///
-    /// The first phase of the scanner enables all columns, and wants for any row to become high.
-    /// This alleviates the need to scan when there are no keys down.
-    async fn key_wait(&mut self) {
-        // Assert all of the columns.
-        for col in self.cols.iter_mut() {
-            col.set_high();
-        }
-
-        // A short delay so we can avoid an interrupt if something is already pressed.
-        Delay.delay_us(5);
-
-        let row_wait = self.rows.each_mut().map(|r| r.wait_for_high());
-        select_array(row_wait).await;
-
-        // Desassert all of the columns, and return so we can begin scanning.
-        for col in self.cols.iter_mut() {
-            col.set_low();
-        }
-    }
-
-    /// Scan the matrix repeatedly.
-    ///
-    /// Run a once per ms scan of the matrix, responding to any events.  After a period of time that
-    /// everything has settled, returns, assuming the keyboard is idle.
-    async fn scan(&mut self) {
-        let mut ticker = Ticker::every(Duration::from_millis(1));
-        let mut pressed = 0;
-        let mut idle_count = 0;
-
-        info!("Scanner: active scanning");
-        loop {
-            let mut states_iter = self.states.iter_mut().enumerate();
-
-            for col in self.cols.iter_mut() {
-                col.set_high();
-                Delay.delay_us(5);
-
-                for row in self.rows.iter() {
-                    let (code, state) = unwrap!(states_iter.next());
-                    match state.react(row.is_high()) {
-                        KeyAction::Press => {
-                            self.layout_manager.lock().await.handle_event(
-                                KeyEvent::Press((self.xlate)(code as u8)),
-                                &LMAction).await;
-                            info!("Press: {}", code);
-                            pressed += 1;
-                            idle_count = 0;
-                        }
-                        KeyAction::Release => {
-                            self.layout_manager.lock().await.handle_event(
-                                KeyEvent::Release((self.xlate)(code as u8)),
-                                &LMAction).await;
-                            info!("Release: {}", code);
-                            pressed -= 1;
-                        }
-                        _ => (),
-                    }
-                }
-
-                col.set_low();
-            }
-
-            if pressed == 0 {
-                idle_count += 1;
-                if idle_count == IDLE_TIME_US {
-                    break;
-                }
-            }
-
-            ticker.next().await;
-        }
-
-        info!("Scanner: idle");
-
-        if false {
-            self.overflow_stack(1);
-        }
-    }
-
-    fn overflow_stack(&self, count: usize) -> usize {
-        if count == 1_000_000 {
-            count
-        } else {
-            1 + self.overflow_stack(count + 1)
-        }
-    }
-}
-
-#[embassy_executor::task]
-async fn matrix_scanner(
-    cols: [Output<'static>; NUM_COLS],
-    rows: [Input<'static>; NUM_ROWS],
-    layout_manager: Holder<LayoutManager>,
-    board_name: &'static str,
-) {
-    let xlate = translate::get_translation(board_name);
-
-    // Put in an Rc to see if the spawn can handle !Send.
-    let mut scanner = Scanner::new(cols, rows, layout_manager, xlate);
-
-    loop {
-        scanner.key_wait().await;
-        scanner.scan().await;
-    }
-}
-
+/*
 // TODO: This belongs in Dispatch, not here.
 #[embassy_executor::task]
 async fn layout_ticker(lm: Holder<LayoutManager>) {
@@ -423,7 +333,9 @@ async fn layout_ticker(lm: Holder<LayoutManager>) {
         ticker.next().await;
     }
 }
+*/
 
+/*
 // Placeholder until we have Dispatch ready.
 struct LMAction;
 
@@ -452,79 +364,7 @@ impl LayoutActions for LMAction {
         let _ = stroke;
     }
 }
-
-/// The state of an individual key.
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum KeyState {
-    /// Key is stable with the given pressed state.
-    Stable(bool),
-    /// We've detected the start of a transition to the dest, but need to see it stable before
-    /// considering it done.
-    Debounce(bool),
-}
-
-/// The action keys undergo.
-#[derive(Clone, Copy)]
-enum KeyAction {
-    None,
-    Press,
-    Release,
-}
-
-struct Debouncer {
-    /// State for this key.
-    state: KeyState,
-    /// Count how many times we've seen a given debounce state.
-    counter: usize,
-}
-
-const DEBOUNCE_COUNT: usize = 20;
-
-impl Debouncer {
-    fn new() -> Debouncer {
-        Debouncer {
-            state: KeyState::Stable(false),
-            counter: 0,
-        }
-    }
-
-    fn react(&mut self, pressed: bool) -> KeyAction {
-        match self.state {
-            KeyState::Stable(cur) => {
-                if cur != pressed {
-                    self.state = KeyState::Debounce(pressed);
-                    self.counter = 0;
-                }
-                KeyAction::None
-            }
-            KeyState::Debounce(target) => {
-                if target != pressed {
-                    // Reset the counter any time the state isn't our goal.
-                    self.counter = 0;
-                    KeyAction::None
-                } else {
-                    self.counter += 1;
-                    if self.counter == DEBOUNCE_COUNT {
-                        self.state = KeyState::Stable(target);
-                        if target {
-                            KeyAction::Press
-                        } else {
-                            KeyAction::Release
-                        }
-                    } else {
-                        KeyAction::None
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl Default for Debouncer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+*/
 
 // type PacketBuffer = Deque<u8, 32>;
 
@@ -578,10 +418,6 @@ async fn inter_stat(counter: &'static AtomicUsize) {
     }
 }
 
-extern "C" {
-    static _board_info: [u8; 256];
-}
-
 #[cortex_m_rt::exception(trampoline = false)]
 unsafe fn HardFault() -> ! {
     cortex_m::asm::bkpt();
@@ -610,6 +446,7 @@ mod flash {
     }
 }
 
+/*
 mod usb {
     use alloc::boxed::Box;
     use defmt::{info, warn};
@@ -838,3 +675,4 @@ mod inter_controller {
         }
     }
 }
+*/
