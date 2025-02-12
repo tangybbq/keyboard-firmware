@@ -496,6 +496,28 @@ impl alloc::fmt::Display for Stroke {
     }
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for Stroke {
+    fn format(&self, f: defmt::Formatter) {
+        // Print the '#' if the number is present, but none of the digits.
+        if self.has_any(NUM) && !self.has_any(DIGITS) {
+            defmt::write!(f, "#");
+        }
+        let need_hyphen = self.has_any(RIGHT) && !self.has_any(MID);
+        let chars = if self.has_any(NUM) { NUMS } else { NORMAL };
+        let mut bit = NUM.0 >> 1;
+        for ch in chars.chars() {
+            if ch == '*' && need_hyphen {
+                defmt::write!(f, "-");
+            }
+            if self.has_any(Stroke(bit)) {
+                defmt::write!(f, "{}", ch);
+            }
+            bit >>= 1;
+        }
+    }
+}
+
 // Like display, but sticks the result in an ArrayString to avoid needing allocation.
 impl Stroke {
     /// Append this stroke to the buffer.  Note that this will panic if the buffer overflows.
