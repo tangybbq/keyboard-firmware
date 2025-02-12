@@ -612,7 +612,7 @@ mod flash {
 
 mod usb {
     use alloc::boxed::Box;
-    use defmt::info;
+    use defmt::{info, warn};
     use embassy_futures::join::join;
     use embassy_rp::{peripherals::USB, usb::Driver};
     use embassy_time::{Duration, Ticker};
@@ -660,6 +660,17 @@ mod usb {
         let state = Box::leak(Box::new(State::new()));
         let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, state, config);
 
+        // Add a bulk endpoint.
+        let mut function = builder.function(0xFF, 0, 0);
+        let mut interface = function.interface();
+        let mut alt = interface.alt_setting(0xff, 0, 0, None);
+        let read_ep = alt.endpoint_bulk_out(64);
+        let write_ep = alt.endpoint_bulk_in(64);
+        drop(function);
+
+        let _ = read_ep;
+        let _ = write_ep;
+
         let mut usb = builder.build();
 
         let usb_fut = usb.run();
@@ -672,30 +683,30 @@ mod usb {
             loop {
                 ticker.next().await;
 
-                /*
-                let report = KeyboardReport {
-                    keycodes: [4, 0, 0, 0, 0, 0],
-                    leds: 0,
-                    modifier: 0,
-                    reserved: 0,
-                };
-                match writer.write_serialize(&report).await {
-                    Ok(()) => (),
-                    Err(e) => warn!("Failed to send report: {:?}", e),
-                }
+                if false {
+                    let report = KeyboardReport {
+                        keycodes: [4, 0, 0, 0, 0, 0],
+                        leds: 0,
+                        modifier: 0,
+                        reserved: 0,
+                    };
+                    match writer.write_serialize(&report).await {
+                        Ok(()) => (),
+                        Err(e) => warn!("Failed to send report: {:?}", e),
+                    }
 
-                // Just send the key up immediately.
-                let report = KeyboardReport {
-                    keycodes: [0, 0, 0, 0, 0, 0],
-                    leds: 0,
-                    modifier: 0,
-                    reserved: 0,
-                };
-                match writer.write_serialize(&report).await {
-                    Ok(()) => (),
-                    Err(e) => warn!("Failed to send report: {:?}", e),
+                    // Just send the key up immediately.
+                    let report = KeyboardReport {
+                        keycodes: [0, 0, 0, 0, 0, 0],
+                        leds: 0,
+                        modifier: 0,
+                        reserved: 0,
+                    };
+                    match writer.write_serialize(&report).await {
+                        Ok(()) => (),
+                        Err(e) => warn!("Failed to send report: {:?}", e),
+                    }
                 }
-                */
             }
         };
 
