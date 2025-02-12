@@ -3,7 +3,7 @@
 use core::pin::Pin;
 
 use bbq_keyboard::KeyEvent;
-use defmt::{info, unwrap};
+use defmt::unwrap;
 use embassy_futures::select::select_slice;
 use embassy_rp::gpio::{Input, Output};
 use embassy_time::{Delay, Duration, Ticker};
@@ -100,7 +100,7 @@ impl Matrix {
         let mut pressed = 0;
         let mut idle_count = 0;
 
-        info!("Scanner: active scanning");
+        // info!("Scanner: active scanning");
         loop {
             let mut states_iter = self.states.iter_mut().enumerate();
 
@@ -139,7 +139,7 @@ impl Matrix {
             ticker.next().await;
         }
 
-        info!("Scanner: idle");
+        // info!("Scanner: idle");
     }
 }
 

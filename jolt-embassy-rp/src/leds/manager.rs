@@ -286,7 +286,9 @@ impl LedManager {
         let colors: Vec<_, MAX_LEDS> = self
             .states
             .iter_mut()
-            .map(|st| st.tick())
+            // TODO: The divide by four makes the colors better on the ws2812, vs the PWM.  This
+            // needs to be elsewhere to work with both.
+            .map(|st| st.tick() / 4)
             .collect();
         self.set_state(&colors)
     }
