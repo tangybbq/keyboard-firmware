@@ -68,6 +68,7 @@ pio-proc = { git = "https://github.com/rp-rs/pio-rs", rev = "fa586448b0b223217ee
 pio = { git = "https://github.com/rp-rs/pio-rs", rev = "fa586448b0b223217eec8c92c19fe6823dd04cc4" }
 rand = { version = "0.8.5", default-features = false }
 assign-resources = "0.4.1"
+crc = "3.2.1"
 # embedded-sdmmc = "0.7.0"
 
 [dependencies.embassy-executor]

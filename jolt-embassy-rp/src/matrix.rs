@@ -2,7 +2,7 @@
 
 use core::pin::Pin;
 
-use bbq_keyboard::KeyEvent;
+use bbq_keyboard::{KeyEvent, Side};
 use defmt::unwrap;
 use embassy_futures::select::select_slice;
 use embassy_rp::gpio::{Input, Output};
@@ -31,6 +31,7 @@ pub struct Matrix {
 
     states: heapless::Vec<Debouncer, MAX_KEYS>,
     xlate: fn(u8) -> u8,
+    side: Side,
 }
 
 impl Matrix {
@@ -38,6 +39,7 @@ impl Matrix {
         cols: &'static mut [Output<'static>],
         rows: &'static mut [Input<'static>],
         xlate: fn(u8) -> u8,
+        side: Side,
     ) -> Self {
         let size = rows.len() * cols.len();
 
@@ -46,6 +48,7 @@ impl Matrix {
             rows,
             states: heapless::Vec::new(),
             xlate,
+            side,
         };
 
         // Create debouncers for each key.
@@ -97,6 +100,12 @@ impl Matrix {
         let mut pressed = 0;
         let mut idle_count = 0;
 
+        let bias = if self.side.is_left() {
+            0
+        } else {
+            self.states.len()
+        };
+
         // info!("Scanner: active scanning");
         loop {
             let mut states_iter = self.states.iter_mut().enumerate();
@@ -110,7 +119,7 @@ impl Matrix {
                     match state.react(row.is_high()) {
                         KeyAction::Press => {
                             action
-                                .handle_key(KeyEvent::Press((self.xlate)(code as u8)))
+                                .handle_key(KeyEvent::Press((self.xlate)((code + bias) as u8)))
                                 .await;
                             // info!("Press: {}", code);
                             pressed += 1;
@@ -118,7 +127,7 @@ impl Matrix {
                         }
                         KeyAction::Release => {
                             action
-                                .handle_key(KeyEvent::Release((self.xlate)(code as u8)))
+                                .handle_key(KeyEvent::Release((self.xlate)((code + bias) as u8)))
                                 .await;
                             // info!("Release: {}", code);
                             pressed -= 1;

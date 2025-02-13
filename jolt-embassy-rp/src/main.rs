@@ -30,6 +30,7 @@ use static_cell::StaticCell;
 mod board;
 mod dispatch;
 mod leds;
+mod inter;
 mod matrix;
 mod translate;
 

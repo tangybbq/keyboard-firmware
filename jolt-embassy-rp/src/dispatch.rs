@@ -12,6 +12,8 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Ticker};
 use static_cell::StaticCell;
 
+use crate::board::KeyChannel;
+use crate::inter::InterPassive;
 use crate::leds::manager::{self, LedManager};
 use crate::logging::{info, unwrap};
 use crate::matrix::Matrix;
@@ -19,7 +21,8 @@ use crate::{board::Board, matrix::MatrixAction};
 
 pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
-    layout: Mutex<CriticalSectionRawMutex, LayoutManager>,
+    layout: Option<Mutex<CriticalSectionRawMutex, LayoutManager>>,
+    passive: Option<InterPassive>,
 
     current_mode: Mutex<CriticalSectionRawMutex, LayoutMode>,
 }
@@ -36,18 +39,29 @@ impl Dispatch {
 
         // Hard code the "two row" parameter.  This will need to come from the board to add support
         // for 2 row keyboards.
-        let layout = Mutex::new(LayoutManager::new(false));
+        // The layout is present, as long as we aren't the passive side.
+        let layout = if board.passive.is_none() {
+            Some(Mutex::new(LayoutManager::new(false)))
+        } else {
+            None
+        };
 
         static THIS: StaticCell<Dispatch> = StaticCell::new();
         let this = THIS.init(Dispatch {
             leds,
             layout,
             current_mode: Mutex::new(LayoutMode::Steno),
+            passive: board.passive,
         });
 
         unwrap!(spawn_high.spawn(matrix_loop(this, board.matrix)));
         unwrap!(spawn_high.spawn(led_loop(&this.leds)));
-        unwrap!(spawn_high.spawn(layout_loop(this)));
+        if this.layout.is_some() {
+            unwrap!(spawn_high.spawn(layout_loop(this)));
+        }
+        if let Some(chan) = board.active_keys {
+            unwrap!(spawn_high.spawn(active_task(this, chan)));
+        }
 
         this
     }
@@ -70,16 +84,34 @@ async fn matrix_loop(dispatch: &'static Dispatch, mut matrix: Matrix) {
 #[embassy_executor::task]
 async fn layout_loop(dispatch: &'static Dispatch) -> ! {
     let mut ticker = Ticker::every(Duration::from_millis(10));
+    // The layout should always be set if we're runing.
+    let layout = dispatch.layout.as_ref().unwrap();
     loop {
         ticker.next().await;
-        dispatch.layout.lock().await.tick(dispatch, 10).await;
+        layout.lock().await.tick(dispatch, 10).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn active_task(dispatch: &'static Dispatch, chan: KeyChannel) -> ! {
+    // The layout should always be set if we're running.
+    let layout = dispatch.layout.as_ref().unwrap();
+    loop {
+        let event = chan.receive().await;
+        layout.lock().await.handle_event(event, dispatch).await;
     }
 }
 
 impl MatrixAction for Dispatch {
     async fn handle_key(&self, event: bbq_keyboard::KeyEvent) {
-        self.layout.lock().await.handle_event(event, self).await
         // info!("Matrix Key: {:?}", event);
+        if let Some(layout) = &self.layout {
+            layout.lock().await.handle_event(event, self).await
+        } else if let Some(passive) = &self.passive {
+            passive.update(event).await;
+        } else {
+            panic!("Matrix event with no destination");
+        }
     }
 }
 

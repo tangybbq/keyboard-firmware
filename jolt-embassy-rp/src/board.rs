@@ -3,27 +3,26 @@
 //! This module initializes all of the various hardware devices used by the keyboard firmware, as
 //! appropriate for the board information we have determined.
 
-use bbq_keyboard::{boardinfo::BoardInfo, Side};
+use bbq_keyboard::{boardinfo::BoardInfo, KeyEvent, Side};
 use embassy_executor::SendSpawner;
 use embassy_rp::Peripherals;
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Receiver};
 use smart_leds::RGB8;
 
-use crate::{leds::LedSet, matrix::Matrix};
+use crate::{inter::InterPassive, leds::LedSet, matrix::Matrix};
 
 // Board specific for the jolt3.
 mod jolt3 {
     use assign_resources::assign_resources;
+    use bbq_keyboard::{KeyEvent, Side};
     use embassy_executor::SendSpawner;
     use embassy_rp::{
-        gpio::{Input, Level, Output, Pin, Pull},
-        peripherals::{self, PIO0},
-        pio::Pio,
-        pio_programs::ws2812::{PioWs2812, PioWs2812Program},
-        Peripherals,
+        gpio::{Input, Level, Output, Pin, Pull}, i2c, i2c_slave, peripherals::{self, I2C1, PIO0}, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peripherals
     };
+    use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::{Channel, Sender}};
     use static_cell::StaticCell;
 
-    use crate::logging::unwrap;
+    use crate::{inter::{InterPassive, PassiveTask}, logging::unwrap};
     use crate::{
         leds::{
             led_strip::{LedStripGroup, LedStripHandle},
@@ -54,27 +53,78 @@ mod jolt3 {
             pio0: PIO0,
             dma_ch0: DMA_CH0,
         }
+        i2c: I2cResources {
+            pin_10: PIN_10,
+            pin_11: PIN_11,
+            pin_12: PIN_12,
+            pin_13: PIN_13,
+            i2c1: I2C1,
+        }
     }
 
     pub fn new_left(p: Peripherals, spawner: SendSpawner) -> Board {
         let r = split_resources!(p);
 
-        let matrix = matrix_init(r.matrix);
+        let matrix = matrix_init(r.matrix, Side::Left);
         let leds = leds_init(r.rgb, spawner);
 
-        Board { matrix, leds }
+        let mut config = i2c::Config::default();
+        config.frequency = 100_000;
+        let bus = i2c::I2c::new_async(r.i2c.i2c1, r.i2c.pin_11, r.i2c.pin_10, Irqs, config);
+        let irq = Input::new(r.i2c.pin_13, Pull::None);
+
+        static CHAN: StaticCell<Channel<CriticalSectionRawMutex, KeyEvent, 1>> = StaticCell::new();
+        let key_chan = CHAN.init(Channel::new());
+
+        unwrap!(spawner.spawn(active_task(bus, irq, key_chan.sender())));
+
+        Board {
+            matrix,
+            leds,
+            passive: None,
+            active_keys: Some(key_chan.receiver()),
+        }
+    }
+
+    #[embassy_executor::task]
+    async fn active_task(
+        bus: i2c::I2c<'static, I2C1, i2c::Async>,
+        irq: Input<'static>,
+        sender: Sender<'static, CriticalSectionRawMutex, KeyEvent, 1>,
+    ) -> ! {
+        crate::inter::active_task(irq, bus, sender).await;
     }
 
     pub fn new_right(p: Peripherals, spawner: SendSpawner) -> Board {
         let r = split_resources!(p);
 
-        let matrix = matrix_init(r.matrix);
+        let matrix = matrix_init(r.matrix, Side::Right);
         let leds = leds_init(r.rgb, spawner);
 
-        Board { matrix, leds }
+        let mut config = i2c_slave::Config::default();
+        config.addr = 0x42;
+        let bus = i2c_slave::I2cSlave::new(r.i2c.i2c1, r.i2c.pin_11, r.i2c.pin_10, Irqs, config);
+        let irq = Output::new(r.i2c.pin_12, Level::Low);
+
+        let (passive, task_data) = InterPassive::new(bus, irq);
+
+        unwrap!(spawner.spawn(passive_task(task_data)));
+
+        Board {
+            matrix,
+            leds,
+            passive: Some(passive),
+            active_keys: None,
+        }
     }
 
-    fn matrix_init(r: MatrixResources) -> Matrix {
+    #[embassy_executor::task]
+    async fn passive_task(task: PassiveTask<I2C1>) {
+        task.handler().await
+    }
+
+
+    fn matrix_init(r: MatrixResources, side: Side) -> Matrix {
         // The keyboard matrix.
         static COLS: StaticCell<[Output<'static>; 4]> = StaticCell::new();
         let cols = COLS.init(
@@ -102,7 +152,7 @@ mod jolt3 {
 
         let xlate = translate::get_translation("jolt3");
 
-        Matrix::new(cols, rows, xlate)
+        Matrix::new(cols, rows, xlate, side)
     }
 
     fn leds_init(r: RgbResources, spawner: SendSpawner) -> LedSet {
@@ -128,6 +178,9 @@ mod jolt3 {
     }
 }
 
+/// Channel type for key event messages.
+pub type KeyChannel = Receiver<'static, CriticalSectionRawMutex, KeyEvent, 1>;
+
 /// The Initialized board.  Some here are optional, as the different parts are not used in all
 /// configurations.
 pub struct Board {
@@ -135,6 +188,10 @@ pub struct Board {
     pub matrix: Matrix,
     /// The leds, always present
     pub leds: LedSet,
+    /// The passive handler, if that is the side we are on.
+    pub passive: Option<InterPassive>,
+    /// The channel where Matrix events will come from the other side.
+    pub active_keys: Option<KeyChannel>,
 }
 
 impl Board {
