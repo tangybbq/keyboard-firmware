@@ -74,7 +74,13 @@ crc = "3.2.1"
 [dependencies.embassy-executor]
 version = "0.7.0"
 path = "../embassy/embassy-executor"
-features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt"]
+features = [
+  # "task-arena-size-32768",
+  "task-arena-size-4096",
+  "arch-cortex-m",
+  "executor-thread",
+  "executor-interrupt",
+]
 
 [dependencies.bbq-keyboard]
 version = "0.1.0"
@@ -97,6 +103,8 @@ path = "../minder"
 [features]
 default = ["defmt"]
 # default = ["log"]
+
+nightly = ["embassy-executor/nightly"]
 
 defmt = [
   "dep:defmt", "embassy-embedded-hal/defmt", "embassy-sync/defmt", "embassy-executor/defmt",
@@ -128,3 +136,4 @@ overflow-checks = true
 debug = 2
 lto = true
 opt-level = "z"
+codegen-units = 1
