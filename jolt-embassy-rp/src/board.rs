@@ -69,7 +69,7 @@ mod jolt3 {
         let leds = leds_init(r.rgb, spawner);
 
         let mut config = i2c::Config::default();
-        config.frequency = 100_000;
+        config.frequency = 400_000;
         let bus = i2c::I2c::new_async(r.i2c.i2c1, r.i2c.pin_11, r.i2c.pin_10, Irqs, config);
         let irq = Input::new(r.i2c.pin_13, Pull::None);
 
