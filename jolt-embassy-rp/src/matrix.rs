@@ -3,11 +3,12 @@
 use core::pin::Pin;
 
 use bbq_keyboard::{KeyEvent, Side};
-use defmt::unwrap;
 use embassy_futures::select::select_slice;
 use embassy_rp::gpio::{Input, Output};
 use embassy_time::{Delay, Duration, Ticker};
 use embedded_hal_1::delay::DelayNs;
+
+use crate::logging::unwrap;
 
 const MAX_ROWS: usize = 6;
 const MAX_COLS: usize = 4;
