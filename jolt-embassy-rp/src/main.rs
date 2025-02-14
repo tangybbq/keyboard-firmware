@@ -13,7 +13,7 @@ use core::sync::atomic::Ordering;
 use bbq_keyboard::boardinfo::BoardInfo;
 use bbq_keyboard::dict::Dict;
 use bbq_keyboard::ser2::Packet;
-use bbq_keyboard::{Event, EventQueue, Timable};
+use bbq_keyboard::{Event, EventQueue, Side, Timable};
 use bbq_steno::dict::Joined;
 use bbq_steno::Stroke;
 use board::Board;
@@ -185,7 +185,12 @@ fn main() -> ! {
     // For now, just fire up the thread mode executor.
     let executor = EXECUTOR_LOW.init(Executor::new());
     executor.run(|spawner| {
-        unwrap!(spawner.spawn(steno_task(spawner, stroke_queue.receiver(), typed_queue.sender(), event_queue.sender())));
+        if let Some(Side::Right) = info.side {
+        } else {
+            unwrap!(spawner.spawn(steno_task(spawner, stroke_queue.receiver(), typed_queue.sender(), event_queue.sender())));
+        }
+
+        // It should be safe to just exit. We'll sleep if no task got spawned.
     })
 }
 
