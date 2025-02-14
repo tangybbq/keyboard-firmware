@@ -12,7 +12,7 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Ticker};
 use static_cell::StaticCell;
 
-use crate::board::KeyChannel;
+use crate::board::{KeyChannel, UsbHandler};
 use crate::inter::InterPassive;
 use crate::leds::manager::{self, LedManager};
 use crate::logging::{info, unwrap};
@@ -23,6 +23,7 @@ pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
     layout: Option<Mutex<CriticalSectionRawMutex, LayoutManager>>,
     passive: Option<InterPassive>,
+    usb: UsbHandler,
 
     current_mode: Mutex<CriticalSectionRawMutex, LayoutMode>,
 }
@@ -52,6 +53,7 @@ impl Dispatch {
             layout,
             current_mode: Mutex::new(LayoutMode::Steno),
             passive: board.passive,
+            usb: board.usb,
         });
 
         unwrap!(spawn_high.spawn(matrix_loop(this, board.matrix)));
@@ -140,7 +142,8 @@ impl LayoutActions for Dispatch {
     }
 
     async fn send_key(&self, key: KeyAction) {
-        info!("Key: {:?}", key);
+        self.usb.keys.send(key).await;
+        // info!("Key: {:?}", key);
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {

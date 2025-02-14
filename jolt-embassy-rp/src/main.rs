@@ -34,6 +34,7 @@ mod leds;
 mod inter;
 mod matrix;
 mod translate;
+mod usb;
 
 #[cfg(not(any(feature = "defmt", feature = "log")))]
 compile_error!("One of the features \"defmt\" or \"log\" must be enabled");
@@ -110,7 +111,7 @@ fn main() -> ! {
     interrupt::SWI_IRQ_0.set_priority(Priority::P2);
     let high_spawner = EXECUTOR_HIGH.start(interrupt::SWI_IRQ_0);
 
-    let board = Board::new(p, high_spawner, &info);
+    let board = Board::new(p, high_spawner, &info, unique);
     let _ = board;
 
     // All IRQs default to priority P0.

@@ -3,10 +3,10 @@
 //! This module initializes all of the various hardware devices used by the keyboard firmware, as
 //! appropriate for the board information we have determined.
 
-use bbq_keyboard::{boardinfo::BoardInfo, KeyEvent, Side};
+use bbq_keyboard::{boardinfo::BoardInfo, KeyAction, KeyEvent, Side};
 use embassy_executor::SendSpawner;
 use embassy_rp::Peripherals;
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Receiver};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::{Channel, Receiver}};
 use smart_leds::RGB8;
 
 use crate::{inter::InterPassive, leds::LedSet, matrix::Matrix};
@@ -14,7 +14,7 @@ use crate::{inter::InterPassive, leds::LedSet, matrix::Matrix};
 // Board specific for the jolt3.
 mod jolt3 {
     use assign_resources::assign_resources;
-    use bbq_keyboard::{KeyEvent, Side};
+    use bbq_keyboard::{KeyAction, KeyEvent, Side};
     use embassy_executor::SendSpawner;
     use embassy_rp::{
         gpio::{Input, Level, Output, Pin, Pull}, i2c, i2c_slave, peripherals::{self, I2C1, PIO0}, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peripherals
@@ -32,7 +32,7 @@ mod jolt3 {
         translate, Irqs,
     };
 
-    use super::Board;
+    use super::{Board, UsbHandler};
 
     // Split up the periperals for each init.
     assign_resources! {
@@ -60,9 +60,12 @@ mod jolt3 {
             pin_13: PIN_13,
             i2c1: I2C1,
         }
+        usb: UsbResources {
+            usb: USB,
+        }
     }
 
-    pub fn new_left(p: Peripherals, spawner: SendSpawner) -> Board {
+    pub fn new_left(p: Peripherals, spawner: SendSpawner, unique: &'static str) -> Board {
         let r = split_resources!(p);
 
         let matrix = matrix_init(r.matrix, Side::Left);
@@ -78,11 +81,14 @@ mod jolt3 {
 
         unwrap!(spawner.spawn(active_task(bus, irq, key_chan.sender())));
 
+        let usb = usb_init(r.usb, spawner, unique);
+
         Board {
             matrix,
             leds,
             passive: None,
             active_keys: Some(key_chan.receiver()),
+            usb,
         }
     }
 
@@ -95,7 +101,7 @@ mod jolt3 {
         crate::inter::active_task(irq, bus, sender).await;
     }
 
-    pub fn new_right(p: Peripherals, spawner: SendSpawner) -> Board {
+    pub fn new_right(p: Peripherals, spawner: SendSpawner, unique: &'static str) -> Board {
         let r = split_resources!(p);
 
         let matrix = matrix_init(r.matrix, Side::Right);
@@ -110,11 +116,14 @@ mod jolt3 {
 
         unwrap!(spawner.spawn(passive_task(task_data)));
 
+        let usb = usb_init(r.usb, spawner, unique);
+
         Board {
             matrix,
             leds,
             passive: Some(passive),
             active_keys: None,
+            usb,
         }
     }
 
@@ -176,10 +185,27 @@ mod jolt3 {
     async fn led_task(leds: LedStripGroup<'static, PIO0, 0, 2>) {
         leds.update_task().await;
     }
+
+    fn usb_init(r: UsbResources, spawner: SendSpawner, unique: &'static str) -> UsbHandler {
+        static KEYS: StaticCell<Channel<CriticalSectionRawMutex, KeyAction, 8>> = StaticCell::new();
+
+        let usb = UsbHandler {
+            keys: KEYS.init(Channel::new()),
+        };
+
+        unwrap!(spawner.spawn(crate::usb::setup_usb(r.usb, unique, usb.keys.receiver())));
+
+        usb
+    }
 }
 
 /// Channel type for key event messages.
 pub type KeyChannel = Receiver<'static, CriticalSectionRawMutex, KeyEvent, 1>;
+
+pub struct UsbHandler {
+    /// Channel for handling keys.  The USB task listens to this.
+    pub keys: &'static Channel<CriticalSectionRawMutex, KeyAction, 8>,
+}
 
 /// The Initialized board.  Some here are optional, as the different parts are not used in all
 /// configurations.
@@ -192,16 +218,18 @@ pub struct Board {
     pub passive: Option<InterPassive>,
     /// The channel where Matrix events will come from the other side.
     pub active_keys: Option<KeyChannel>,
+    /// The communication channels with the USB tasks
+    pub usb: UsbHandler,
 }
 
 impl Board {
-    pub fn new(p: Peripherals, spawner: SendSpawner, info: &BoardInfo) -> Board {
+    pub fn new(p: Peripherals, spawner: SendSpawner, info: &BoardInfo, unique: &'static str) -> Board {
         match info {
             BoardInfo {
                 name,
                 side: Some(Side::Left),
             } if name == "jolt3" => {
-                let mut this = jolt3::new_left(p, spawner);
+                let mut this = jolt3::new_left(p, spawner, unique);
                 this.leds.update(&[RGB8::new(0, 8, 8), RGB8::new(8, 8, 0)]);
                 this
             }
@@ -209,7 +237,7 @@ impl Board {
                 name,
                 side: Some(Side::Right),
             } if name == "jolt3" => {
-                let mut this = jolt3::new_right(p, spawner);
+                let mut this = jolt3::new_right(p, spawner, unique);
                 this.leds.update(&[RGB8::new(0, 8, 8), RGB8::new(8, 8, 0)]);
                 this
             }
