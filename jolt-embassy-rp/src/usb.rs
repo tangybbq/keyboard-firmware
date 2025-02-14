@@ -175,7 +175,7 @@ async fn send_usb(key: KeyAction, writer: &mut HidWriter<'static, Driver<'static
         KeyAction::Stall => return,
     };
 
-    info!("Report: {:?} {:x}", report.keycodes, report.modifier);
+    // info!("Report: {:?} {:x}", report.keycodes, report.modifier);
     match writer.write_serialize(&report).await {
         Ok(()) => (),
         Err(e) => warn!("Failed to send HID report: {:?}", e),
