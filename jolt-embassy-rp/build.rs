@@ -12,6 +12,7 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn main() {
     // Put `memory.x` in our output directory and ensure it's
@@ -27,10 +28,20 @@ fn main() {
     // any file in the project changes. By specifying `memory.x`
     // here, we ensure the build script is only re-run when
     // `memory.x` is changed.
-    println!("cargo:rerun-if-changed=memory.x");
+    // println!("cargo:rerun-if-changed=memory.x");
+    // With the BUILD_ID computed, we now actually want this to be the case.  This will regenerate
+    // the crate any time anything changes, so the BUILD_ID is updated.
 
     println!("cargo:rustc-link-arg-bins=--nmagic");
     println!("cargo:rustc-link-arg-bins=-Tlink.x");
     println!("cargo:rustc-link-arg-bins=-Tlink-rp.x");
     println!("cargo:rustc-link-arg-bins=-Tdefmt.x");
+
+    // Get the current build time, making it available to the build as a u64.
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+
+    println!("cargo:rustc-env=BUILD_ID={}", timestamp);
 }

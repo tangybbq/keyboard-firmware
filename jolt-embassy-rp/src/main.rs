@@ -61,6 +61,27 @@ static EXECUTOR_HIGH: InterruptExecutor = InterruptExecutor::new();
 /// And the thread-mode executor.
 static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
 
+pub const BUILD_ID: u64 = parse_u64_const(env!("BUILD_ID"));
+
+const fn parse_u64_const(s: &str) -> u64 {
+    let bytes = s.as_bytes();
+    let mut value: u64 = 0;
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let digit = bytes[i];
+
+        if digit < b'0' || digit > b'9' {
+            core::panic!("Invalid character in BUILD_ID, expecting only digits.");
+        }
+
+        value = value * 10 + ((digit - b'0') as u64);
+        i += 1;
+    }
+
+    value
+}
+
 #[interrupt]
 unsafe fn SWI_IRQ_0() {
     EXECUTOR_HIGH.on_interrupt()
@@ -96,6 +117,7 @@ fn main() -> ! {
     }
 
     info!("TangyBBQ Jolt3 Keyboard Firmware");
+    info!("Build: {}", BUILD_ID);
 
     // Setup the MPU with a stack guard.
     install_core0_stack_guard().expect("MPU already configured)");

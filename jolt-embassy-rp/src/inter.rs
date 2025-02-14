@@ -16,7 +16,7 @@ use embassy_time::{Duration, Timer};
 use smart_leds::RGB8;
 use static_cell::StaticCell;
 
-use crate::logging::info;
+use crate::{logging::info, BUILD_ID};
 
 const CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_IBM_SDLC);
 
@@ -318,12 +318,12 @@ impl<T: Instance + 'static> PassiveTask<T> {
                 }
                 Ok(i2c_slave::Command::WriteRead(len)) => {
                     if let Some(req) = Request::decode(&buf[..len]) {
-                        info!("WriteRead: {:?}", req);
+                        // info!("WriteRead: {:?}", req);
                         let reply = match req {
                             Request::Hello => {
                                 Reply::encode(
                                     &Reply::Hello {
-                                        version: [0, 1, 2, 3, 4, 5, 6, 7],
+                                        version: BUILD_ID.to_le_bytes(),
                                     }
                                 )
                             }
