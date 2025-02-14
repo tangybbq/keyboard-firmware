@@ -88,7 +88,7 @@ mod jolt3 {
             leds,
             passive: None,
             active_keys: Some(key_chan.receiver()),
-            usb,
+            usb: Some(usb),
         }
     }
 
@@ -101,7 +101,7 @@ mod jolt3 {
         crate::inter::active_task(irq, bus, sender).await;
     }
 
-    pub fn new_right(p: Peripherals, spawner: SendSpawner, unique: &'static str) -> Board {
+    pub fn new_right(p: Peripherals, spawner: SendSpawner) -> Board {
         let r = split_resources!(p);
 
         let matrix = matrix_init(r.matrix, Side::Right);
@@ -116,14 +116,12 @@ mod jolt3 {
 
         unwrap!(spawner.spawn(passive_task(task_data)));
 
-        let usb = usb_init(r.usb, spawner, unique);
-
         Board {
             matrix,
             leds,
             passive: Some(passive),
             active_keys: None,
-            usb,
+            usb: None,
         }
     }
 
@@ -219,7 +217,7 @@ pub struct Board {
     /// The channel where Matrix events will come from the other side.
     pub active_keys: Option<KeyChannel>,
     /// The communication channels with the USB tasks
-    pub usb: UsbHandler,
+    pub usb: Option<UsbHandler>,
 }
 
 impl Board {
@@ -237,7 +235,7 @@ impl Board {
                 name,
                 side: Some(Side::Right),
             } if name == "jolt3" => {
-                let mut this = jolt3::new_right(p, spawner, unique);
+                let mut this = jolt3::new_right(p, spawner);
                 this.leds.update(&[RGB8::new(0, 8, 8), RGB8::new(8, 8, 0)]);
                 this
             }

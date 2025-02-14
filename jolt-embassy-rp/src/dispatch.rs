@@ -18,7 +18,7 @@ use static_cell::StaticCell;
 use crate::board::{KeyChannel, UsbHandler};
 use crate::inter::InterPassive;
 use crate::leds::manager::{self, Indication, LedManager};
-use crate::logging::{info, unwrap};
+use crate::logging::unwrap;
 use crate::matrix::Matrix;
 use crate::{board::Board, matrix::MatrixAction};
 
@@ -26,7 +26,7 @@ pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
     layout: Option<Mutex<CriticalSectionRawMutex, LayoutManager>>,
     passive: Option<InterPassive>,
-    usb: UsbHandler,
+    usb: Option<UsbHandler>,
     stroke_sender: Sender<'static, CriticalSectionRawMutex, Stroke, 10>,
     event_receiver: Receiver<'static, CriticalSectionRawMutex, Event, 16>,
     typed_receiver: Receiver<'static, CriticalSectionRawMutex, Joined, 2>,
@@ -135,17 +135,18 @@ async fn event_loop(dispatch: &'static Dispatch) -> ! {
 /// Event handler of steno actions.
 #[embassy_executor::task]
 async fn typed_loop(dispatch: &'static Dispatch) -> ! {
+    let usb = &dispatch.usb.as_ref().unwrap();
     loop {
         match dispatch.typed_receiver.receive().await {
             Joined::Type { remove, append } => {
                 for _ in 0..remove {
-                    dispatch.usb.keys.send(KeyAction::KeyPress(
+                    usb.keys.send(KeyAction::KeyPress(
                             Keyboard::DeleteBackspace,
                             Mods::empty())).await;
-                    dispatch.usb.keys.send(KeyAction::KeyRelease).await;
+                    usb.keys.send(KeyAction::KeyRelease).await;
                 }
 
-                enqueue_action(&mut UsbAction(&dispatch.usb), &append).await;
+                enqueue_action(&mut UsbAction(usb), &append).await;
             }
         }
     }
@@ -157,7 +158,7 @@ struct UsbAction(&'static UsbHandler);
 impl ActionHandler for UsbAction {
     async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
         for ev in events {
-            info!("USB send: {:?}", ev);
+            // info!("USB send: {:?}", ev);
             self.0.keys.send(ev).await;
         }
     }
@@ -211,8 +212,8 @@ impl LayoutActions for Dispatch {
     }
 
     async fn send_key(&self, key: KeyAction) {
-        info!("Key: {:?}", key);
-        self.usb.keys.send(key).await;
+        // info!("Key: {:?}", key);
+        self.usb.as_ref().unwrap().keys.send(key).await;
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {
