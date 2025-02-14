@@ -11,7 +11,11 @@ use core::mem::MaybeUninit;
 use core::sync::atomic::Ordering;
 
 use bbq_keyboard::boardinfo::BoardInfo;
+use bbq_keyboard::dict::Dict;
 use bbq_keyboard::ser2::Packet;
+use bbq_keyboard::{Event, EventQueue, Timable};
+use bbq_steno::dict::Joined;
+use bbq_steno::Stroke;
 use board::Board;
 use cortex_m_rt::{self, entry};
 use dispatch::Dispatch;
@@ -21,7 +25,9 @@ use embassy_rp::peripherals::{FLASH, PIO0, UART0};
 use embassy_rp::pio::InterruptHandler;
 use embassy_rp::uart::{BufferedInterruptHandler, BufferedUartRx};
 use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt};
-use embassy_time::{Duration, Ticker, Timer};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::channel::{Channel, Receiver, Sender};
+use embassy_time::{Duration, Instant, Ticker, Timer};
 // use embedded_alloc::TlsfHeap as Heap;
 use embedded_alloc::LlffHeap as Heap;
 use embedded_io_async::BufRead;
@@ -142,8 +148,27 @@ fn main() -> ! {
     // We will run one executor at P1, for most of the processing, setting up a P2 worker if
     // necessary if there are any slow processing aspects.
     // The steno thread will run in the user executor.
+    
+    // The general event queue.
+    // TODO: This should go away.
+    static EVENT_QUEUE: StaticCell<Channel<CriticalSectionRawMutex, Event, 16>> = StaticCell::new();
+    let event_queue = EVENT_QUEUE.init(Channel::new());
 
-    let _dispatch = Dispatch::new(high_spawner, board);
+    // The channel for sending strokes to the steno task.
+    static STROKE_QUEUE: StaticCell<Channel<CriticalSectionRawMutex, Stroke, 10>> = StaticCell::new();
+    let stroke_queue = STROKE_QUEUE.init(Channel::new());
+
+    // The 'typed' channel sends actions back to dispatch to be typed.
+    static TYPED_QUEUE: StaticCell<Channel<CriticalSectionRawMutex, Joined, 2>> = StaticCell::new();
+    let typed_queue = TYPED_QUEUE.init(Channel::new());
+
+    let _dispatch = Dispatch::new(
+        high_spawner,
+        board,
+        event_queue.receiver(),
+        stroke_queue.sender(),
+        typed_queue.receiver(),
+    );
 
     /*
     // Start by determining the priorities already in place.
@@ -160,20 +185,57 @@ fn main() -> ! {
     // For now, just fire up the thread mode executor.
     let executor = EXECUTOR_LOW.init(Executor::new());
     executor.run(|spawner| {
-        unwrap!(spawner.spawn(steno_task(spawner)));
+        unwrap!(spawner.spawn(steno_task(spawner, stroke_queue.receiver(), typed_queue.sender(), event_queue.sender())));
     })
 }
 
+// TODO: Big one, this is the only use of `Event` remaining.  Improve this here (and in the zephyr
+// firmware) to use a callback for events and possibly actions.
 #[embassy_executor::task]
-async fn steno_task(_spawner: Spawner) {
-    let mut first = true;
-    loop {
-        Timer::after(Duration::from_secs(60)).await;
+async fn steno_task(
+    spawner: Spawner,
+    strokes: Receiver<'static, CriticalSectionRawMutex, Stroke, 10>,
+    typed: Sender<'static, CriticalSectionRawMutex, Joined, 2>,
+    events: Sender<'static, CriticalSectionRawMutex, Event, 16>,
+) -> ! {
+    unwrap!(spawner.spawn(heap_stats()));
 
-        if first {
-            info!("Heap used: {} free: {}", HEAP.used(), HEAP.free());
-            first = false;
+    let mut dict = Dict::new();
+    let mut eq_send = SendWrap(events);
+
+    loop {
+        let stroke = strokes.receive().await;
+        for action in dict.handle_stroke(stroke, &mut eq_send, &WrapTimer) {
+            typed.send(action).await;
+            // info!("Steno action: {:?}", action);
         }
+    }
+}
+
+struct SendWrap(Sender<'static, CriticalSectionRawMutex, Event, 16>);
+
+impl EventQueue for SendWrap {
+    fn push(&mut self, val: Event) {
+        // TODO: this is only try, hence the need to have the queue large enough.
+        let _ = self.0.try_send(val);
+    }
+}
+
+struct WrapTimer;
+
+impl Timable for WrapTimer {
+    fn get_ticks(&self) -> u64 {
+        Instant::now().as_ticks()
+    }
+}
+
+/// A small task to print out heap usage.
+#[embassy_executor::task]
+async fn heap_stats() -> ! {
+    let mut ticker = Ticker::every(Duration::from_secs(60));
+    loop {
+        ticker.next().await;
+        info!("Heap used: {}, free: {}", HEAP.used(), HEAP.free());
     }
 }
 

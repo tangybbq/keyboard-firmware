@@ -7,7 +7,7 @@ use embassy_rp::{peripherals::USB, usb::Driver};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Receiver};
 use embassy_usb::{class::hid::{HidReaderWriter, HidWriter, ReportId, RequestHandler, State}, control::OutResponse, Builder, Config, Handler};
 use static_cell::StaticCell;
-use usbd_hid::descriptor::{KeyboardReport, SerializedDescriptor};
+use usbd_hid::descriptor::KeyboardReport;
 
 use crate::Irqs;
 use crate::logging::{info, warn};
@@ -47,11 +47,13 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
     builder.handler(device_handler);
 
     let config = embassy_usb::class::hid::Config {
-        report_descriptor: KeyboardReport::desc(),
+        // report_descriptor: KeyboardReport::desc(),
+        report_descriptor: USB_KEYB_HID_DESC,
         request_handler: None,
         poll_ms: 10,
         max_packet_size: 64,
     };
+    // info!("Descriptor: {=[u8]:#02x}", config.report_descriptor);
     let state = Box::leak(Box::new(State::new()));
     let hid = HidReaderWriter::<_, 1, 8>::new(&mut builder, state, config);
 
@@ -116,6 +118,33 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
     join(usb_fut, join(in_fut, out_fut)).await;
 }
 
+// This is the standard BOOT keyboard report descriptor.
+static USB_KEYB_HID_DESC: &[u8] = &[
+    0x05, 0x01,   // Usage Page (Generic Desktop)
+    0x09, 0x06,   // Usage (Keyboard)
+    0xA1, 0x01,   // Collection (Application)
+    0x05, 0x07,   // Usage Page (Key Codes)
+    0x19, 0xE0,   // Usage Minimum (Left Control)
+    0x29, 0xE7,   // Usage Maximum (Right GUI)
+    0x15, 0x00,   // Logical Minimum (0)
+    0x25, 0x01,   // Logical Maximum (1)
+    0x75, 0x01,   // Report Size (1)
+    0x95, 0x08,   // Report Count (8)
+    0x81, 0x02,   // Input (Data, Variable, Absolute) - Modifier keys
+    0x95, 0x01,   // Report Count (1)
+    0x75, 0x08,   // Report Size (8)
+    0x81, 0x01,   // Input (Constant) - Reserved byte
+    0x95, 0x06,   // Report Count (6)
+    0x75, 0x08,   // Report Size (8)
+    0x15, 0x00,   // Logical Minimum (0)
+    0x25, 0x65,   // Logical Maximum (101)
+    0x05, 0x07,   // Usage Page (Key Codes)
+    0x19, 0x00,   // Usage Minimum (0)
+    0x29, 0x65,   // Usage Maximum (101)
+    0x81, 0x00,   // Input (Data, Array)
+    0xC0          // End Collection
+];
+
 async fn send_usb(key: KeyAction, writer: &mut HidWriter<'static, Driver<'static, USB>, 8>) {
     let report = match key {
         KeyAction::KeyPress(code, mods) => {
@@ -146,6 +175,7 @@ async fn send_usb(key: KeyAction, writer: &mut HidWriter<'static, Driver<'static
         KeyAction::Stall => return,
     };
 
+    info!("Report: {:?} {:x}", report.keycodes, report.modifier);
     match writer.write_serialize(&report).await {
         Ok(()) => (),
         Err(e) => warn!("Failed to send HID report: {:?}", e),
