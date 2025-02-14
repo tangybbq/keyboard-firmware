@@ -22,7 +22,8 @@ use embassy_rp::pio::InterruptHandler;
 use embassy_rp::uart::{BufferedInterruptHandler, BufferedUartRx};
 use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt};
 use embassy_time::{Duration, Ticker, Timer};
-use embedded_alloc::TlsfHeap as Heap;
+// use embedded_alloc::TlsfHeap as Heap;
+use embedded_alloc::LlffHeap as Heap;
 use embedded_io_async::BufRead;
 use minder::SerialDecoder;
 use portable_atomic::AtomicUsize;
@@ -165,8 +166,14 @@ fn main() -> ! {
 
 #[embassy_executor::task]
 async fn steno_task(_spawner: Spawner) {
+    let mut first = true;
     loop {
         Timer::after(Duration::from_secs(60)).await;
+
+        if first {
+            info!("Heap used: {} free: {}", HEAP.used(), HEAP.free());
+            first = false;
+        }
     }
 }
 
