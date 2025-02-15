@@ -13,13 +13,13 @@ use crate::{inter::InterPassive, leds::LedSet, matrix::Matrix};
 
 // Board specific for the jolt3.
 mod jolt3 {
-    use assign_resources::assign_resources;
     use bbq_keyboard::{KeyAction, KeyEvent, Side};
     use embassy_executor::SendSpawner;
     use embassy_rp::{
-        gpio::{Input, Level, Output, Pin, Pull}, i2c, i2c_slave, peripherals::{self, I2C1, PIO0}, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peripherals
+        gpio::{Input, Level, Output, Pin, Pull}, i2c, i2c_slave, peripherals::{self, PIO0}, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peripherals
     };
     use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::{Channel, Sender}};
+    use embedded_resources::resource_group;
     use static_cell::StaticCell;
 
     use crate::{inter::{InterPassive, PassiveTask}, logging::unwrap};
@@ -35,53 +35,57 @@ mod jolt3 {
     use super::{Board, UsbHandler};
 
     // Split up the periperals for each init.
-    assign_resources! {
-        matrix: MatrixResources {
-            pin_0: PIN_0,
-            pin_1: PIN_1,
-            pin_2: PIN_2,
-            pin_3: PIN_3,
-            pin_4: PIN_4,
-            pin_5: PIN_5,
-            pin_6: PIN_6,
-            pin_7: PIN_7,
-            pin_8: PIN_8,
-            pin_9: PIN_9,
-        }
-        rgb: RgbResources {
-            pin_19: PIN_19,
-            pio0: PIO0,
-            dma_ch0: DMA_CH0,
-        }
-        i2c: I2cResources {
-            pin_10: PIN_10,
-            pin_11: PIN_11,
-            pin_12: PIN_12,
-            pin_13: PIN_13,
-            i2c1: I2C1,
-        }
-        usb: UsbResources {
-            usb: USB,
-        }
+    #[resource_group]
+    struct MatrixResources {
+        pin_0: peripherals::PIN_0,
+        pin_1: peripherals::PIN_1,
+        pin_2: peripherals::PIN_2,
+        pin_3: peripherals::PIN_3,
+        pin_4: peripherals::PIN_4,
+        pin_5: peripherals::PIN_5,
+        pin_6: peripherals::PIN_6,
+        pin_7: peripherals::PIN_7,
+        pin_8: peripherals::PIN_8,
+        pin_9: peripherals::PIN_9,
+    }
+
+    #[resource_group]
+    struct RgbResources {
+        pin_19: peripherals::PIN_19,
+        pio0: peripherals::PIO0,
+        dma_ch0: peripherals::DMA_CH0,
+    }
+
+    #[resource_group]
+    struct I2cResources {
+        pin_10: peripherals::PIN_10,
+        pin_11: peripherals::PIN_11,
+        pin_12: peripherals::PIN_12,
+        pin_13: peripherals::PIN_13,
+        i2c1: peripherals::I2C1,
+    }
+
+    #[resource_group]
+    struct UsbResources {
+        usb: peripherals::USB,
     }
 
     pub fn new_left(p: Peripherals, spawner: SendSpawner, unique: &'static str) -> Board {
-        let r = split_resources!(p);
-
-        let matrix = matrix_init(r.matrix, Side::Left);
-        let leds = leds_init(r.rgb, spawner);
+        let matrix = matrix_init(matrix_resources!(p), Side::Left);
+        let leds = leds_init(rgb_resources!(p), spawner);
 
         let mut config = i2c::Config::default();
         config.frequency = 400_000;
-        let bus = i2c::I2c::new_async(r.i2c.i2c1, r.i2c.pin_11, r.i2c.pin_10, Irqs, config);
-        let irq = Input::new(r.i2c.pin_13, Pull::None);
+        let i2c = i_2c_resources!(p);
+        let bus = i2c::I2c::new_async(i2c.i2c1, i2c.pin_11, i2c.pin_10, Irqs, config);
+        let irq = Input::new(i2c.pin_13, Pull::None);
 
         static CHAN: StaticCell<Channel<CriticalSectionRawMutex, KeyEvent, 1>> = StaticCell::new();
         let key_chan = CHAN.init(Channel::new());
 
         unwrap!(spawner.spawn(active_task(bus, irq, key_chan.sender())));
 
-        let usb = usb_init(r.usb, spawner, unique);
+        let usb = usb_init(usb_resources!(p), spawner, unique);
 
         Board {
             matrix,
@@ -102,15 +106,14 @@ mod jolt3 {
     }
 
     pub fn new_right(p: Peripherals, spawner: SendSpawner) -> Board {
-        let r = split_resources!(p);
-
-        let matrix = matrix_init(r.matrix, Side::Right);
-        let leds = leds_init(r.rgb, spawner);
+        let matrix = matrix_init(matrix_resources!(p), Side::Right);
+        let leds = leds_init(rgb_resources!(p), spawner);
 
         let mut config = i2c_slave::Config::default();
         config.addr = 0x42;
-        let bus = i2c_slave::I2cSlave::new(r.i2c.i2c1, r.i2c.pin_11, r.i2c.pin_10, Irqs, config);
-        let irq = Output::new(r.i2c.pin_12, Level::Low);
+        let i2c = i_2c_resources!(p);
+        let bus = i2c_slave::I2cSlave::new(i2c.i2c1, i2c.pin_11, i2c.pin_10, Irqs, config);
+        let irq = Output::new(i2c.pin_12, Level::Low);
 
         let (passive, task_data) = InterPassive::new(bus, irq);
 
