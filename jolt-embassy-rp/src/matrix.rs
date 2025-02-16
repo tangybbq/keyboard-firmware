@@ -61,7 +61,7 @@ impl Matrix {
     }
 
     // /// The main scanning loop.  Scans the keyboard forever, performing the specified action.
-    pub async fn scanner(&mut self, action: &impl MatrixAction) {
+    pub async fn scanner(&mut self, action: &impl MatrixAction) -> ! {
         loop {
             self.key_wait().await;
             self.scan(action).await;
