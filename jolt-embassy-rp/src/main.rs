@@ -1,5 +1,11 @@
-//! This example shows powerful PIO module in the RP2040 chip to communicate with WS2812 LED modules.
-//! See (https://www.sparkfun.com/categories/tags/ws2812)
+//! Jolt Keyboard Firmware - Embassy/rp2040 version
+//!
+//! Most of the logic behind the keyboard firmware lives in a few other crates, include
+//! `bbq-keyboard` for the main keyboard code, and `bbq-steno` for the code related to Steno.
+//!
+//! This crate contains a main program, for various rp2040 keyboards, along with 'dispatch', which
+//! is specifically written for embassy-sync.  It is intended to be more general, and eventually
+//! made into its own crate, so that the HW-specific code is just that: hardware specific.
 
 #![no_std]
 #![no_main]
@@ -146,19 +152,8 @@ fn main() -> ! {
         typed_queue.receiver(),
     );
 
-    /*
-    // Start by determining the priorities already in place.
-    info!("PIO0_IRQ_0: {:?}", interrupt::PIO0_IRQ_0.get_priority());
-    // info!("UART0_IRQ: {:?}", interrupt::UART0_IRQ.get_priority());
-    info!("USBCTRL_IRQ: {:?}", interrupt::USBCTRL_IRQ.get_priority());
-    info!("I2C1_IRQ: {:?}", interrupt::I2C1_IRQ.get_priority());
-    info!("DMA_IRQ_0: {:?}", interrupt::DMA_IRQ_0.get_priority());
-    info!("IO_IRQ_BANK0: {:?}", interrupt::IO_IRQ_BANK0.get_priority());
-    info!("TIMER_IRQ_0: {:?}", interrupt::TIMER_IRQ_0.get_priority());
-    info!("DMA_IRQ_0: {:?}", interrupt::DMA_IRQ_0.get_priority());
-    */
-
-    // For now, just fire up the thread mode executor.
+    // The steno lookup runs in the lowest priority executor.  On the rp2040, typical steno
+    // dictionary lookup take around 1ms, depending on what else is happening.
     let executor = EXECUTOR_LOW.init(Executor::new());
     executor.run(|spawner| {
         if let Some(Side::Right) = info.side {
