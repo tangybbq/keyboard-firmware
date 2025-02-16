@@ -37,6 +37,7 @@ gen_files proto3-right --name proto3 --side right
 gen_files proto4 --name proto4
 gen_files jolt1-left --name jolt1 --side left
 gen_files jolt1-right --name jolt1 --side right
+gen_files jolt2dir-left --name jolt2dir --side left
 gen_files jolt2-left --name jolt2 --side left
 gen_files jolt2-right --name jolt2 --side right
 gen_files jolt3-left --name jolt3 --side left
