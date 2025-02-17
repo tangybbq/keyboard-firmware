@@ -31,6 +31,8 @@ use minicbor::{Decode, Encode};
 mod decode;
 mod encode;
 
+pub mod cobs;
+
 pub use decode::{HidDecoder, SerialDecoder};
 pub use encode::{HidWrite, hid_encode, SerialWrite, serial_encode};
 
