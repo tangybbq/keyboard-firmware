@@ -9,7 +9,7 @@ use embassy_rp::Peripherals;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::{Channel, Receiver}};
 use smart_leds::RGB8;
 
-use crate::{inter::InterPassive, leds::LedSet, matrix::Matrix};
+use crate::{inter::InterPassive, inter_uart::InterActive, leds::LedSet, matrix::Matrix};
 
 // Board specific for the jolt3.
 mod jolt3 {
@@ -92,6 +92,8 @@ mod jolt3 {
             leds,
             passive: None,
             active_keys: Some(key_chan.receiver()),
+            active_uart: None,
+            passive_uart: None,
             usb: Some(usb),
         }
     }
@@ -124,6 +126,8 @@ mod jolt3 {
             leds,
             passive: Some(passive),
             active_keys: None,
+            active_uart: None,
+            passive_uart: None,
             usb: None,
         }
     }
@@ -210,12 +214,12 @@ mod jolt2 {
 
     use bbq_keyboard::Side;
     use embassy_executor::SendSpawner;
-    use embassy_rp::{gpio::{Input, Level, Output, Pin, Pull}, peripherals, Peripherals};
+    use embassy_rp::{gpio::{Input, Level, Output, Pin, Pull}, peripherals, uart::{BufferedUart, BufferedUartRx, BufferedUartTx, DataBits, Parity, StopBits}, Peripherals};
     use embedded_resources::resource_group;
     use static_cell::StaticCell;
 
-    use crate::{matrix::{Matrix, MatrixAction}, translate};
-    use crate::logging::{info, unwrap};
+    use crate::{inter_uart::InterPassive, leds::LedSet, matrix::Matrix, translate, Irqs};
+    use crate::logging::unwrap;
 
     use super::Board;
 
@@ -234,29 +238,30 @@ mod jolt2 {
         pin_28: peripherals::PIN_28,
     }
 
+    #[resource_group]
+    struct UartResources {
+        #[alias = UART]
+        uart: peripherals::UART0,
+        tx: peripherals::PIN_0,
+        rx: peripherals::PIN_1,
+    }
+
     pub fn new_right(p: Peripherals, spawner: SendSpawner) -> Board {
         let _ = spawner;
 
+        // For now, construct an empty led, until we have something to write to the led.
+        let leds = LedSet::new([]);
         let matrix = matrix_init(matrix_resources!(p), Side::Right);
+        let uart = uart_init(uart_resources!(p), spawner);
 
-        // Testing, just scan the matrix.
-        unwrap!(spawner.spawn(matrix_loop(matrix)));
-
-        // We're at the lowest priority, so just spin.
-        loop { }
-    }
-
-    // Testing/debugging of the matrix.
-    #[embassy_executor::task]
-    async fn matrix_loop(mut matrix: Matrix) -> ! {
-        matrix.scanner(&MyAction).await
-    }
-
-    pub struct MyAction;
-
-    impl MatrixAction for MyAction {
-        async fn handle_key(&self, event: bbq_keyboard::KeyEvent) {
-            info!("Matrix key: {:?}", event);
+        Board {
+            matrix,
+            leds,
+            passive: None,
+            active_keys: None,
+            active_uart: None,
+            passive_uart: Some(uart),
+            usb: None,
         }
     }
 
@@ -289,6 +294,50 @@ mod jolt2 {
 
         Matrix::new(cols, rows, xlate, side)
     }
+
+    fn uart_init(r: UartResources, spawner: SendSpawner) -> &'static InterPassive {
+        // TODO: This is shared, don't duplicate.
+        let mut config = embassy_rp::uart::Config::default();
+        config.baudrate = 460800;
+        config.stop_bits = StopBits::STOP1;
+        config.data_bits = DataBits::DataBits8;
+        config.parity = Parity::ParityNone;
+
+        static TX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
+        let tx_buf = &mut TX_BUF.init([0; 64])[..];
+        static RX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
+        let rx_buf = &mut RX_BUF.init([0; 64])[..];
+
+        static UART: StaticCell<BufferedUart<'static, UART>> = StaticCell::new();
+        let uart = UART.init(BufferedUart::new(
+            r.uart,
+            Irqs,
+            r.tx,
+            r.rx,
+            tx_buf,
+            rx_buf,
+            config,
+        ));
+
+        let (tx, rx) = uart.split_ref();
+
+        static PASSIVE: StaticCell<InterPassive> = StaticCell::new();
+        let passive = PASSIVE.init(InterPassive::new());
+        unwrap!(spawner.spawn(passive_tx_task(passive, tx)));
+        unwrap!(spawner.spawn(passive_rx_task(passive, rx)));
+
+        passive
+    }
+
+    #[embassy_executor::task]
+    async fn passive_tx_task(passive: &'static InterPassive, tx: &'static mut BufferedUartTx<'static, UART>) -> ! {
+        passive.tx_task(tx).await
+    }
+
+    #[embassy_executor::task]
+    async fn passive_rx_task(passive: &'static InterPassive, rx: &'static mut BufferedUartRx<'static, UART>) -> ! {
+        passive.rx_task(rx).await
+    }
 }
 
 mod jolt2dir {
@@ -297,12 +346,12 @@ mod jolt2dir {
 
     use bbq_keyboard::{KeyAction, Side};
     use embassy_executor::SendSpawner;
-    use embassy_rp::{gpio::{Input, Level, Output, Pin, Pull}, peripherals, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peripherals};
+    use embassy_rp::{gpio::{Input, Level, Output, Pin, Pull}, peripherals, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, uart::{BufferedUart, BufferedUartRx, BufferedUartTx, DataBits, Parity, StopBits}, Peripherals};
     use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
     use embedded_resources::resource_group;
     use static_cell::StaticCell;
 
-    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, translate, Irqs};
+    use crate::{inter_uart::InterActive, leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, translate, Irqs};
     use crate::logging::unwrap;
 
     use super::{Board, UsbHandler};
@@ -335,25 +384,30 @@ mod jolt2dir {
         usb: peripherals::USB,
     }
 
+    #[resource_group]
+    struct UartResources {
+        #[alias = UART]
+        uart: peripherals::UART0,
+        tx: peripherals::PIN_28,
+        rx: peripherals::PIN_29,
+    }
+
     pub fn new_left(p: Peripherals, spawner: SendSpawner, unique: &'static str) -> Board {
         let matrix = matrix_init(matrix_resources!(p), Side::Left);
         let leds = leds_init(rgb_resources!(p), spawner);
 
         let usb = usb_init(usb_resources!(p), spawner, unique);
+        let uart = uart_init(uart_resources!(p), spawner);
 
         Board {
             matrix,
             leds,
             passive: None,
             active_keys: None,
+            active_uart: Some(uart),
+            passive_uart: None,
             usb: Some(usb),
         }
-    }
-
-    // Testing/debugging of the matrix.
-    #[embassy_executor::task]
-    async fn matrix_loop(mut matrix: Matrix) -> ! {
-        matrix.scanner(&super::jolt2::MyAction).await
     }
 
     fn matrix_init(r: MatrixResources, side: Side) -> Matrix {
@@ -419,6 +473,49 @@ mod jolt2dir {
 
         usb
     }
+
+    fn uart_init(r: UartResources, spawner: SendSpawner) -> &'static InterActive {
+        let mut config = embassy_rp::uart::Config::default();
+        config.baudrate = 460800;
+        config.stop_bits = StopBits::STOP1;
+        config.data_bits = DataBits::DataBits8;
+        config.parity = Parity::ParityNone;
+
+        static TX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
+        let tx_buf = &mut TX_BUF.init([0; 64])[..];
+        static RX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
+        let rx_buf = &mut RX_BUF.init([0; 64])[..];
+
+        static UART: StaticCell<BufferedUart<'static, UART>> = StaticCell::new();
+        let uart = UART.init(BufferedUart::new(
+            r.uart,
+            Irqs,
+            r.tx,
+            r.rx,
+            tx_buf,
+            rx_buf,
+            config,
+        ));
+
+        let (tx, rx) = uart.split_ref();
+
+        static ACTIVE: StaticCell<InterActive> = StaticCell::new();
+        let active = ACTIVE.init(InterActive::new());
+        unwrap!(spawner.spawn(active_tx_task(active, tx)));
+        unwrap!(spawner.spawn(active_rx_task(active, rx)));
+
+        active
+    }
+
+    #[embassy_executor::task]
+    async fn active_tx_task(active: &'static InterActive, tx: &'static mut BufferedUartTx<'static, UART>) -> ! {
+        active.tx_task(tx).await
+    }
+
+    #[embassy_executor::task]
+    async fn active_rx_task(active: &'static InterActive, rx: &'static mut BufferedUartRx<'static, UART>) -> ! {
+        active.rx_task(rx).await
+    }
 }
 
 /// Channel type for key event messages.
@@ -440,6 +537,10 @@ pub struct Board {
     pub passive: Option<InterPassive>,
     /// The channel where Matrix events will come from the other side.
     pub active_keys: Option<KeyChannel>,
+    /// UART based active
+    pub active_uart: Option<&'static InterActive>,
+    /// UART based passive side
+    pub passive_uart: Option<&'static crate::inter_uart::InterPassive>,
     /// The communication channels with the USB tasks
     pub usb: Option<UsbHandler>,
 }
@@ -467,8 +568,8 @@ impl Board {
                 name,
                 side: Some(Side::Right),
             } if name == "jolt2" => {
-                let mut this = jolt2::new_right(p, spawner);
-                this.leds.update(&[RGB8::new(8, 8, 0)]);
+                let this = jolt2::new_right(p, spawner);
+                // this.leds.update(&[RGB8::new(8, 8, 0)]);
                 this
             }
             BoardInfo {

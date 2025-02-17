@@ -18,7 +18,7 @@ use static_cell::StaticCell;
 
 use crate::{logging::info, BUILD_ID};
 
-const CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_IBM_SDLC);
+pub const CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_IBM_SDLC);
 
 /// Largest Request.
 const REQUEST_MAX: usize = 7 + 2;

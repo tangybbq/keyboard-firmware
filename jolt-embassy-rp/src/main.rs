@@ -27,6 +27,7 @@ use embassy_executor::{Executor, InterruptExecutor, Spawner};
 use embassy_rp::interrupt::{InterruptExt, Priority};
 use embassy_rp::peripherals::{FLASH, PIO0};
 use embassy_rp::pio::InterruptHandler;
+use embassy_rp::uart::BufferedInterruptHandler;
 use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::{Channel, Receiver, Sender};
@@ -39,6 +40,7 @@ mod board;
 mod dispatch;
 mod leds;
 mod inter;
+mod inter_uart;
 mod matrix;
 mod translate;
 mod usb;
@@ -56,6 +58,7 @@ bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
     USBCTRL_IRQ => embassy_rp::usb::InterruptHandler<embassy_rp::peripherals::USB>;
     I2C1_IRQ => i2c::InterruptHandler<embassy_rp::peripherals::I2C1>;
+    UART0_IRQ => BufferedInterruptHandler<embassy_rp::peripherals::UART0>;
 });
 
 #[global_allocator]
