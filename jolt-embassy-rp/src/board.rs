@@ -22,7 +22,7 @@ mod jolt3 {
     use embedded_resources::resource_group;
     use static_cell::StaticCell;
 
-    use crate::{inter::{InterPassive, PassiveTask}, logging::unwrap};
+    use crate::{board::Inter, inter::{InterPassive, PassiveTask}, logging::unwrap};
     use crate::{
         leds::{
             led_strip::{LedStripGroup, LedStripHandle},
@@ -90,10 +90,7 @@ mod jolt3 {
         Board {
             matrix,
             leds,
-            passive: None,
-            active_keys: Some(key_chan.receiver()),
-            active_uart: None,
-            passive_uart: None,
+            inter: Inter::ActiveI2C(key_chan.receiver()),
             usb: Some(usb),
         }
     }
@@ -124,10 +121,7 @@ mod jolt3 {
         Board {
             matrix,
             leds,
-            passive: Some(passive),
-            active_keys: None,
-            active_uart: None,
-            passive_uart: None,
+            inter: Inter::PassiveI2C(passive),
             usb: None,
         }
     }
@@ -221,7 +215,7 @@ mod jolt2 {
     use crate::{inter_uart::InterPassive, leds::LedSet, matrix::Matrix, translate, Irqs};
     use crate::logging::unwrap;
 
-    use super::Board;
+    use super::{Board, Inter};
 
     // Split up the peripherals.
     #[resource_group]
@@ -257,10 +251,7 @@ mod jolt2 {
         Board {
             matrix,
             leds,
-            passive: None,
-            active_keys: None,
-            active_uart: None,
-            passive_uart: Some(uart),
+            inter: Inter::PassiveUart(uart),
             usb: None,
         }
     }
@@ -354,7 +345,7 @@ mod jolt2dir {
     use crate::{inter_uart::InterActive, leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, translate, Irqs};
     use crate::logging::unwrap;
 
-    use super::{Board, UsbHandler};
+    use super::{Board, Inter, UsbHandler};
 
     // Split up the peripherals.
     #[resource_group]
@@ -402,10 +393,7 @@ mod jolt2dir {
         Board {
             matrix,
             leds,
-            passive: None,
-            active_keys: None,
-            active_uart: Some(uart),
-            passive_uart: None,
+            inter: Inter::ActiveUart(uart),
             usb: Some(usb),
         }
     }
@@ -526,6 +514,20 @@ pub struct UsbHandler {
     pub keys: &'static Channel<CriticalSectionRawMutex, KeyAction, 8>,
 }
 
+/// The inter-board connection should be one of these.
+pub enum Inter {
+    PassiveI2C(InterPassive),
+    ActiveI2C(KeyChannel),
+    PassiveUart(&'static crate::inter_uart::InterPassive),
+    ActiveUart(&'static InterActive),
+}
+
+impl Inter {
+    pub fn is_active(&self) -> bool {
+        matches!(self, Self::ActiveI2C(_) | Self::ActiveUart(_))
+    }
+}
+
 /// The Initialized board.  Some here are optional, as the different parts are not used in all
 /// configurations.
 pub struct Board {
@@ -533,14 +535,8 @@ pub struct Board {
     pub matrix: Matrix,
     /// The leds, always present
     pub leds: LedSet,
-    /// The passive handler, if that is the side we are on.
-    pub passive: Option<InterPassive>,
-    /// The channel where Matrix events will come from the other side.
-    pub active_keys: Option<KeyChannel>,
-    /// UART based active
-    pub active_uart: Option<&'static InterActive>,
-    /// UART based passive side
-    pub passive_uart: Option<&'static crate::inter_uart::InterPassive>,
+    /// How the inter-board handler is implemented.
+    pub inter: Inter,
     /// The communication channels with the USB tasks
     pub usb: Option<UsbHandler>,
 }

@@ -15,9 +15,7 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Ticker};
 use static_cell::StaticCell;
 
-use crate::board::{KeyChannel, UsbHandler};
-use crate::inter::InterPassive;
-use crate::inter_uart::InterActive;
+use crate::board::{Inter, KeyChannel, UsbHandler};
 use crate::leds::manager::{self, Indication, LedManager};
 use crate::logging::unwrap;
 use crate::matrix::Matrix;
@@ -26,8 +24,7 @@ use crate::{board::Board, matrix::MatrixAction};
 pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
     layout: Option<Mutex<CriticalSectionRawMutex, LayoutManager>>,
-    passive: Option<InterPassive>,
-    passive_uart: Option<&'static crate::inter_uart::InterPassive>,
+    inter: Inter,
     usb: Option<UsbHandler>,
     stroke_sender: Sender<'static, CriticalSectionRawMutex, Stroke, 10>,
     event_receiver: Receiver<'static, CriticalSectionRawMutex, Event, 16>,
@@ -56,7 +53,7 @@ impl Dispatch {
         // Hard code the "two row" parameter.  This will need to come from the board to add support
         // for 2 row keyboards.
         // The layout is present, as long as we aren't the passive side.
-        let layout = if board.passive.is_none() && board.passive_uart.is_none() {
+        let layout = if board.inter.is_active() {
             Some(Mutex::new(LayoutManager::new(false)))
         } else {
             None
@@ -68,8 +65,7 @@ impl Dispatch {
             layout,
             current_mode: Mutex::new(LayoutMode::Steno),
             raw_mode: Mutex::new(false),
-            passive: board.passive,
-            passive_uart: board.passive_uart,
+            inter: board.inter,
             usb: board.usb,
             stroke_sender,
             event_receiver,
@@ -83,10 +79,10 @@ impl Dispatch {
             unwrap!(spawn_high.spawn(event_loop(this)));
             unwrap!(spawn_high.spawn(typed_loop(this)));
         }
-        if let Some(chan) = board.active_keys {
+        if let Inter::ActiveI2C(chan) = this.inter {
             unwrap!(spawn_high.spawn(active_task(this, chan)));
         }
-        if let Some(active_uart) = board.active_uart {
+        if let Inter::ActiveUart(active_uart) = this.inter {
             unwrap!(spawn_high.spawn(active_uart_task(this, active_uart)));
         }
 
@@ -109,7 +105,7 @@ async fn matrix_loop(dispatch: &'static Dispatch, mut matrix: Matrix) {
 }
 
 #[embassy_executor::task]
-async fn active_uart_task(dispatch: &'static Dispatch, act: &'static InterActive) -> ! {
+async fn active_uart_task(dispatch: &'static Dispatch, act: &'static crate::inter_uart::InterActive) -> ! {
     loop {
         let event = act.get_key().await;
         dispatch.handle_key(event).await;
@@ -193,9 +189,9 @@ impl MatrixAction for Dispatch {
         // info!("Matrix Key: {:?}", event);
         if let Some(layout) = &self.layout {
             layout.lock().await.handle_event(event, self).await
-        } else if let Some(passive) = &self.passive {
+        } else if let Inter::PassiveI2C(passive) = &self.inter {
             passive.update(event).await;
-        } else if let Some(passive_uart) = self.passive_uart {
+        } else if let Inter::PassiveUart(passive_uart) = &self.inter {
             passive_uart.update_keys(event).await;
         } else {
             panic!("Matrix event with no destination");
