@@ -10,6 +10,7 @@ minicbor = { version = "0.25.1", features = ["alloc", "derive"] }
 bbq-steno = { version = "0.1", default-features = false, path = "../bbq-steno" }
 crc = "3.2"
 heapless = "0.8.0"
+defmt = { version = "0.3", optional = true }
 
 [features]
 default = ["std"]

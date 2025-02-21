@@ -26,7 +26,7 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use minicbor::{Decode, Encode};
+use minicbor::{bytes::ByteArray, Decode, Encode};
 
 mod decode;
 mod encode;
@@ -42,6 +42,7 @@ pub const PACKET_SIZE: usize = 64;
 pub static VERSION: &'static str = "2024-11-01a";
 
 #[derive(Debug, Encode, Decode, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Request {
     #[n(1)]
     Hello {
@@ -55,9 +56,19 @@ pub enum Request {
         #[n(1)]
         size: u32,
     },
+    #[n(4)]
+    Hash {
+        #[n(0)]
+        offset: u32,
+        #[n(1)]
+        size: u32,
+    },
+    #[n(255)]
+    Reset,
 }
 
 #[derive(Debug, Encode, Decode)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Reply {
     #[n(1)]
     Hello {
@@ -82,7 +93,20 @@ pub enum Reply {
         /// The data itself.
         #[n(1)]
         data: Vec<u8>,
-    }
+    },
+    #[n(4)]
+    Hash {
+        #[n(0)]
+        #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
+        hash: ByteArray<32>,
+    },
+    #[n(254)]
+    Error {
+        #[n(0)]
+        text: String,
+    },
+    #[n(255)]
+    Reset,
 }
 
 #[cfg(test)]

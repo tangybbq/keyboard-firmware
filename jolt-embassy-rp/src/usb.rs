@@ -9,7 +9,7 @@ use embassy_usb::{class::hid::{HidReaderWriter, HidWriter, ReportId, RequestHand
 use static_cell::StaticCell;
 use usbd_hid::descriptor::KeyboardReport;
 
-use crate::Irqs;
+use crate::{minder::Minder, Irqs};
 use crate::logging::{info, warn};
 
 /// Channel for receipt of key events to be sent over HID.
@@ -28,10 +28,14 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
     config.max_power = 100;
     config.max_packet_size_0 = 64;
 
-    let config_descriptor_buf = Box::new([0; 256]);
-    let bos_descriptor_buf = Box::new([0; 256]);
-    let msos_descriptor_buf = Box::new([0; 256]);
-    let control_buf = Box::new([0; 64]);
+    static CONFIG_DESCRIPTOR_BUF: StaticCell<[u8; 256]> = StaticCell::new();
+    let config_descriptor_buf = CONFIG_DESCRIPTOR_BUF.init([0; 256]);
+    static BOS_DESCRIPTOR_BUF: StaticCell<[u8; 256]> = StaticCell::new();
+    let bos_descriptor_buf = BOS_DESCRIPTOR_BUF.init([0; 256]);
+    static MSOS_DESCRIPTOR_BUF: StaticCell<[u8; 256]> = StaticCell::new();
+    let msos_descriptor_buf = MSOS_DESCRIPTOR_BUF.init([0; 256]);
+    static CONTROL_BUF: StaticCell<[u8; 64]> = StaticCell::new();
+    let control_buf = CONTROL_BUF.init([0; 64]);
     let mut request_handler = JoltRequestHandler::new();
     static DEVICE_HANDLER: StaticCell<JoltDeviceHandler> = StaticCell::new();
     let device_handler = DEVICE_HANDLER.init(JoltDeviceHandler::new());
@@ -39,10 +43,10 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
     let mut builder = Builder::new(
         driver,
         config,
-        Box::leak(config_descriptor_buf),
-        Box::leak(bos_descriptor_buf),
-        Box::leak(msos_descriptor_buf),
-        Box::leak(control_buf),
+        config_descriptor_buf,
+        bos_descriptor_buf,
+        msos_descriptor_buf,
+        control_buf,
     );
     builder.handler(device_handler);
 
@@ -50,7 +54,7 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
         // report_descriptor: KeyboardReport::desc(),
         report_descriptor: USB_KEYB_HID_DESC,
         request_handler: None,
-        poll_ms: 10,
+        poll_ms: 1,
         max_packet_size: 64,
     };
     // info!("Descriptor: {=[u8]:#02x}", config.report_descriptor);
@@ -65,8 +69,9 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
     let write_ep = alt.endpoint_bulk_in(64);
     drop(function);
 
-    let _ = read_ep;
-    let _ = write_ep;
+    let minder = Minder::new(read_ep, write_ep, unique);
+
+    let minder_fut = minder.main_loop();
 
     let mut usb = builder.build();
 
@@ -115,7 +120,8 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
         reader.run(false, &mut request_handler).await;
     };
 
-    join(usb_fut, join(in_fut, out_fut)).await;
+    join(minder_fut,
+         join(usb_fut, join(in_fut, out_fut))).await;
 }
 
 // This is the standard BOOT keyboard report descriptor.

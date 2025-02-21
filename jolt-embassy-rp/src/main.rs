@@ -41,6 +41,7 @@ mod dispatch;
 mod leds;
 mod inter;
 mod inter_uart;
+mod minder;
 mod matrix;
 mod translate;
 mod usb;
@@ -115,12 +116,12 @@ fn main() -> ! {
     install_core0_stack_guard().expect("MPU already configured)");
     let p = embassy_rp::init(Default::default());
 
-    // The get_unique only briefly uses the flash device.
-    let unique = get_unique(unsafe { FLASH::steal() });
-    info!("Unique ID: {}", unique);
-
     let info = get_board_info();
     info!("Board information: {:?}", info);
+
+    // The get_unique only briefly uses the flash device.
+    let unique = get_unique(unsafe { FLASH::steal() }, &info);
+    info!("Unique ID: {}", unique);
 
     interrupt::SWI_IRQ_0.set_priority(Priority::P2);
     let high_spawner = EXECUTOR_HIGH.start(interrupt::SWI_IRQ_0);
@@ -220,15 +221,19 @@ async fn heap_stats() -> ! {
 
 /// Retrieve the unique ID from the flash device.  This will need to coordinate with future flash
 /// drivers, but for now, it is fine to just consume it.
-fn get_unique(flash: FLASH) -> &'static str {
+fn get_unique(flash: FLASH, info: &BoardInfo) -> &'static str {
     // https://github.com/knurling-rs/defmt/pull/683 suggests a delay of 10ms to avoid interference
     // between the debug probe and can interfere with flash operations.
     // Delay.delay_ms(10);
 
     let unique_id = flash::get_unique(flash);
 
-    static UNIQUE: StaticCell<heapless::String<16>> = StaticCell::new();
+    // 16 is for the flash id, plus some extra to allow for the board name.
+    static UNIQUE: StaticCell<heapless::String<{16+20}>> = StaticCell::new();
     let unique = UNIQUE.init(heapless::String::new());
+
+    unique.push_str(&info.name).unwrap();
+    unique.push('-').unwrap();
 
     let mut tmp = unique_id;
     for _ in 0..16 {
