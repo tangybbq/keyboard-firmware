@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 #[command(about = "Utility for speaking with bbq keyboards")]
 struct Cli {
     /// The uart port to use.
-    #[arg(long, default_value="")]
+    #[arg(long, default_value = "")]
     port: String,
 
     #[command(subcommand)]
@@ -129,9 +129,11 @@ fn dict(args: &DictArgs) -> Result<()> {
         Dictionary::User => FlashImage::load("../bbq-tool/user-dict.bin", 0x1020_0000)?,
     };
 
-    println!("Checking {} bytes ({} pages)",
-    dicts.data.len(),
-    dicts.data.len().div_ceil(4096));
+    println!(
+        "Checking {} bytes ({} pages)",
+        dicts.data.len(),
+        dicts.data.len().div_ceil(4096)
+    );
 
     flasher.check(&dicts)?;
 
@@ -162,9 +164,7 @@ impl Flasher {
     fn new(serial: &str) -> Result<Self> {
         let mut minder = VendorMinder::new(serial)?;
         minder.drain()?;
-        Ok(Self {
-            minder,
-        })
+        Ok(Self { minder })
     }
 
     /// Ask the device to reset itself.
@@ -295,18 +295,22 @@ impl VendorMinder {
 
     /// Perform a round trip communication.
     pub fn call<'d, In, Out>(&'d mut self, req: &Out) -> Result<In>
-        where
-            In: Decode<'d, ()>,
-            Out: Encode<()>,
+    where
+        In: Decode<'d, ()>,
+        Out: Encode<()>,
     {
         let mut obuf = Vec::new();
         minicbor::encode(req, &mut obuf)?;
-        let count = self.handle.write_bulk(self.send, &obuf, Duration::from_secs(1))?;
+        let count = self
+            .handle
+            .write_bulk(self.send, &obuf, Duration::from_secs(1))?;
         if count != obuf.len() {
             panic!("Short write");
         }
 
-        let count = self.handle.read_bulk(self.recv, &mut self.rbuf, Duration::from_secs(15))?;
+        let count = self
+            .handle
+            .read_bulk(self.recv, &mut self.rbuf, Duration::from_secs(15))?;
         let inbuf = &self.rbuf[..count];
 
         Ok(minicbor::decode(inbuf)?)
@@ -315,7 +319,10 @@ impl VendorMinder {
     // Drain any pending data on the bulk endpoint.
     fn drain(&mut self) -> Result<()> {
         loop {
-            match self.handle.read_bulk(self.recv, &mut self.rbuf, Duration::from_millis(2)) {
+            match self
+                .handle
+                .read_bulk(self.recv, &mut self.rbuf, Duration::from_millis(2))
+            {
                 Ok(_) => (),
                 Err(_) => break,
             }
