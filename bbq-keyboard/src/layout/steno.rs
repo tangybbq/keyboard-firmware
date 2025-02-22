@@ -5,7 +5,7 @@ use crate::KeyEvent;
 pub use bbq_steno::Stroke;
 use bbq_steno_macros::stroke;
 
-use super::LayoutActions;
+use super::{taipo_map, LayoutActions};
 
 // Normal steno mode operates in what is known as "last up", where when all keys
 // have finally been released, we send a stroke containing all of the keys that
@@ -16,12 +16,20 @@ use super::LayoutActions;
 // start recording new keys for possible additional strokes. This relies on good
 // debouncing to avoid seeing sprious interleaved events.
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RawStenoHandler {
     // Keys that are still pressed.
     down: Stroke,
 
     // Have we enabled first-up mode.
     // first_up: bool,
+
+    /// Bits for the taipo keys that are pressed currently.
+    taipo_down: u8,
+
+    /// Latched flag indicating the next event send is actual taipo, and shouldn't be sent.
+    is_taipo: bool,
 
     // Toggle between pressing, and releasing.
     pressing: bool,
@@ -39,6 +47,8 @@ impl RawStenoHandler {
         RawStenoHandler {
             down: Stroke::empty(),
             pressing: true,
+            taipo_down: 0,
+            is_taipo: false,
         }
     }
 
@@ -53,7 +63,19 @@ impl RawStenoHandler {
         if key as usize >= STENO_KEYS.len() {
             return;
         }
-        if let Some(st) = STENO_KEYS[key as usize] {
+        // info!("Pre key {:?}: {:?}", event, self);
+        if let Some(bit) = taipo_map(key) {
+            if event.is_press() {
+                self.taipo_down |= bit;
+                self.is_taipo = true;
+            }
+            if event.is_release() {
+                self.taipo_down &= !bit;
+                if !self.pressing && self.down == Stroke::empty() {
+                    self.is_taipo = false;
+                }
+            }
+        } else if let Some(st) = STENO_KEYS[key as usize] {
             match (event.is_press(), self.pressing) {
                 // We are expecting keys to be pressed.  Add to those seen.
                 (true, true) => {
@@ -62,7 +84,10 @@ impl RawStenoHandler {
                 // Expecting press, and got a release. This is our first
                 // release, so send what is seen.
                 (false, true) => {
-                    actions.send_raw_steno(self.down).await;
+                    if !self.is_taipo {
+                        actions.send_raw_steno(self.down).await;
+                    }
+                    self.is_taipo = self.taipo_down != 0;
                     self.down &= !st;
                     self.pressing = false;
                 }
@@ -77,6 +102,7 @@ impl RawStenoHandler {
                 }
             }
         }
+        // info!("Post key: {:?}", self);
     }
 }
 
@@ -151,7 +177,7 @@ static STENO_KEYS: &[Option<Stroke>] = &[
     Some(stroke!("A")),
 
     // 20
-    Some(stroke!("^")),
+    None,
     Some(stroke!("^")),
     Some(stroke!("^")),
     Some(stroke!("O")),
@@ -188,7 +214,7 @@ static STENO_KEYS: &[Option<Stroke>] = &[
     Some(stroke!("U")),
 
     // 44
-    Some(stroke!("+")),
+    None,
     Some(stroke!("+")),
     Some(stroke!("+")),
     Some(stroke!("E")),

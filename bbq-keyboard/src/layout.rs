@@ -18,6 +18,30 @@ mod taipo;
 /// The mode key is the general key to switch modes.
 const MODE_KEY: u8 = 2;
 
+// Define the 'upper middle" keys.  This is the top key of '^' and '+', which are the traditional
+// '*' keys, but we have used the lower key as these other modifiers, and the upper keys are for
+// Taipo escaping.
+cfg_if::cfg_if! {
+    if #[cfg(feature = "proto2")] {
+        const TAIPO_1: u8 = 3;
+        const TAIPO_2: u8 = 18;
+    } else if #[cfg(feature = "proto3")] {
+        const TAIPO_1: u8 = 20;
+        const TAIPO_2: u8 = 44;
+    } else {
+        compiler_error!("Must enable one of proto2 or proto3");
+    }
+}
+
+/// If this key is one of the taipo keys, return it's bit, otherwise None.
+fn taipo_map(key: u8) -> Option<u8> {
+    match key {
+        TAIPO_1 => Some(1),
+        TAIPO_2 => Some(2),
+        _ => None,
+    }
+}
+
 // Keyboards are complicated things, and small keyboards are even more
 // complicated. We support numerous different ways of seeing the keyboard, ways
 // that are traditionally called "layers" in keyboard firmware. That term isn't
@@ -142,7 +166,8 @@ impl LayoutManager {
         self.raw.tick(ticks);
         self.artsey.tick(actions, ticks).await;
         self.qwerty.tick(actions, ticks).await;
-        self.taipo.tick(actions, ticks).await;
+
+        self.taipo.tick(actions, ticks, self.mode.is_steno()).await;
 
         // Inform the upper layer what our initial mode is.
         if self.first_tick {
@@ -169,6 +194,7 @@ impl LayoutManager {
                 }
                 LayoutMode::Steno | LayoutMode::StenoDirect => {
                     self.raw.handle_event(event, actions).await;
+                    self.taipo.handle_event(event, actions).await;
                 }
                 LayoutMode::Qwerty => {
                     self.qwerty.handle_event(event, actions, false).await;
@@ -301,6 +327,11 @@ impl ModeSelector {
             m if m == (1 << 9) || m == (1 << 33) => Some(LayoutMode::Steno),
             _ => None,
         }
+    }
+
+    /// Quick check if we are in steno mode.
+    fn is_steno(&self) -> bool {
+        matches!(self.mode, LayoutMode::Steno)
     }
 }
 

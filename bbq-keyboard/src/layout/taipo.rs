@@ -35,7 +35,7 @@ use usbd_human_interface_device::page::Keyboard;
 
 use crate::{KeyEvent, Side, Mods, KeyAction};
 
-use super::LayoutActions;
+use super::{taipo_map, LayoutActions};
 
 pub struct TaipoManager {
     /// Managing state for each side.
@@ -48,6 +48,13 @@ pub struct TaipoManager {
 
     /// Does the HID have a non-modifier key down?
     down: bool,
+
+    /// Which "Taipo keys" are pressed?  These indicate that typo events should be sent, even while
+    /// in Steno mode.
+    taipo_keys: u8,
+
+    /// A latch of the taipo keys, to allow these keys to be used like a layer shift.
+    taipo_latch: u8,
 }
 
 impl Default for TaipoManager {
@@ -57,6 +64,8 @@ impl Default for TaipoManager {
             keys: TaipoEvents::new(),
             oneshot: Mods::empty(),
             down: false,
+            taipo_keys: 0,
+            taipo_latch: 0,
         }
     }
 }
@@ -67,7 +76,11 @@ impl TaipoManager {
     }
 
     /// Tick is needed to track time.
-    pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
+    ///
+    /// The tick also tracks whether we are in steno mode at the time.  In steno mode, everything
+    /// works as before, except we don't actually send the resulting keys, unless the taipo modifier
+    /// key is pressed.
+    pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize, is_steno: bool) {
         self.sides[0].tick(&mut self.keys, ticks);
         self.sides[1].tick(&mut self.keys, ticks);
 
@@ -78,8 +91,9 @@ impl TaipoManager {
                 // If a key is actually pressed, release it. This shouldn't
                 // really need to be conditional.
                 if self.down {
-                    actions.send_key(KeyAction::KeyRelease).await;
+                    self.send(actions, is_steno, KeyAction::KeyRelease).await;
                     self.down = false;
+                    self.taipo_latch = 0;
                 }
                 continue;
             }
@@ -88,13 +102,13 @@ impl TaipoManager {
             match TAIPO_ACTIONS.iter().find(|e| e.code == tevent.code) {
                 Some(Entry { action: Action::Simple(k), .. }) => {
                     self.release_nonmod(actions).await;
-                    actions.send_key(KeyAction::KeyPress(*k, self.oneshot)).await;
+                    self.send(actions, is_steno, KeyAction::KeyPress(*k, self.oneshot)).await;
                     self.down = true;
                     self.oneshot = Mods::empty();
                 }
                 Some(Entry { action: Action::Shifted(k), .. }) => {
                     self.release_nonmod(actions).await;
-                    actions.send_key(KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)).await;
+                    self.send(actions, is_steno, KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)).await;
                     self.down = true;
                     self.oneshot = Mods::empty();
                 }
@@ -105,14 +119,15 @@ impl TaipoManager {
                     // event.
                     if new_mods != self.oneshot {
                         self.release_nonmod(actions).await;
-                        actions.send_key(KeyAction::ModOnly(new_mods)).await;
+                        self.send(actions, is_steno, KeyAction::ModOnly(new_mods)).await;
                     }
                     self.oneshot |= *m;
                 }
                 Some(Entry { action: Action::Release, .. }) => {
                     if !self.oneshot.is_empty() {
-                        actions.send_key(KeyAction::KeyRelease).await;
+                        self.send(actions, is_steno, KeyAction::KeyRelease).await;
                         self.oneshot = Mods::empty();
+                        self.taipo_latch = 0;
                     }
                 }
                 None => (),
@@ -142,7 +157,17 @@ impl TaipoManager {
         let (side, tcode) = if let Some(Some((side, tcode))) = SCAN_MAP.get(code as usize) {
             (side, tcode)
         } else {
-            // Dead keys can just return.
+            // The map indicates it is dead, check for the special taipo keys.
+            if let Some(bit) = taipo_map(code) {
+                if is_press {
+                    self.taipo_keys |= bit;
+                    self.taipo_latch |= bit;
+                } else {
+                    self.taipo_keys &= !bit;
+                }
+            }
+
+            // Regardless, just return.
             return;
         };
         /*
@@ -158,7 +183,25 @@ impl TaipoManager {
         } else {
             self.sides[side.index()].release(*tcode, &mut self.keys);
         }
+
+        // While presses are happing, make sure the latch is included.
+        if is_press {
+            self.taipo_latch |= self.taipo_keys;
+        }
+
         let _ = actions;
+    }
+
+    /// Actually perform a keypress action.  This is mitigated by whether we are actually in taipo
+    /// mode.  If we're in steno mode, and the taipo shift wasn't pressed, just ignore the event.
+    async fn send<ACT: LayoutActions>(&mut self, actions: &ACT, is_steno: bool, action: KeyAction) {
+        // info!("steno:{:?}, keys:{:?}, latch:{:?}", is_steno, self.taipo_keys, self.taipo_latch);
+        if is_steno && self.taipo_latch == 0 {
+            // Steno mode, and no latch, do nothing.
+            return;
+        }
+
+        actions.send_key(action).await;
     }
 }
 
