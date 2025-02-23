@@ -25,9 +25,11 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "proto2")] {
         const TAIPO_1: u8 = 3;
         const TAIPO_2: u8 = 18;
+        const TAIPO_MASK: u64 = (1u64 << 3) | (1 << 18);
     } else if #[cfg(feature = "proto3")] {
         const TAIPO_1: u8 = 20;
         const TAIPO_2: u8 = 44;
+        const TAIPO_MASK: u64 = (1u64 << 20) | (1 << 44);
     } else {
         compiler_error!("Must enable one of proto2 or proto3");
     }
@@ -184,7 +186,9 @@ impl LayoutManager {
 
     /// Handle a single key event.
     pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT) {
-        if self.mode.event(event, actions, self.two_row).await {
+        let next = self.mode.event(event, actions, self.two_row).await;
+
+        if !matches!(next, ModeNext::Discard) {
             match self.mode.get() {
                 LayoutMode::Artsey => {
                     self.artsey.handle_event(event, actions).await;
@@ -204,6 +208,8 @@ impl LayoutManager {
                 }
             }
         }
+
+        self.mode.after_event(actions, next).await;
     }
 }
 
@@ -225,6 +231,17 @@ impl Default for LayoutMode {
     }
 }
 
+/// Return value from ModeSelector::event.
+#[derive(Copy, Clone)]
+enum ModeNext {
+    /// This key should be handled normally, and given to the next layers.
+    Normal,
+    /// This key should be discarded.
+    Discard,
+    /// The key should be handled normally, but after processing, the mode should be set.
+    NewMode(LayoutMode),
+}
+
 /// A layout mode manager handles the behavior of the special key.
 struct ModeSelector {
     /// The current mode.  If this is None, then we waiting to determine the mode we're in.
@@ -238,6 +255,9 @@ struct ModeSelector {
 
     /// When we see the layout mode, pressed keys will register here.
     seen: u64,
+
+    /// Set when we have only the taipo key(s) down.
+    taipo: bool,
 }
 
 impl ModeSelector {
@@ -248,6 +268,7 @@ impl ModeSelector {
             selecting: false,
             pressed: 0,
             seen: 0,
+            taipo: false,
         }
     }
 
@@ -257,11 +278,40 @@ impl ModeSelector {
     }
 
     /// Handle a keyevent, and return 'true' if the key even should be passed down to lower layers.
-    async fn event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT, two_row: bool) -> bool {
+    async fn event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT, two_row: bool) -> ModeNext {
         // Update the mask of keys that have been pressed.
         match event {
             KeyEvent::Press(k) => self.pressed |= 1 << k,
             KeyEvent::Release(k) => self.pressed &= !(1 << k),
+        }
+
+        // Detect the taipo key being pressed by itself.
+        if let Some(_) = taipo_map(event.key()) {
+            if event.is_press() {
+                if self.pressed & !TAIPO_MASK == 0 {
+                    // Only the taipo key is pressed, start the detection.
+                    self.taipo = true;
+                }
+            } else {
+                if self.taipo && self.pressed == 0 {
+                    // Switch between taipo and steno only.  The challenge is that we want to change
+                    // the mode, but only after processing this "up" event, otherwise the old mode
+                    // doesn't yet see the up.
+                    match self.mode {
+                        LayoutMode::Steno => {
+                            return ModeNext::NewMode(LayoutMode::Taipo);
+                        }
+                        LayoutMode::Taipo => {
+                            return ModeNext::NewMode(LayoutMode::Steno);
+                        }
+                        _ => (),
+                    }
+                    self.taipo = false;
+                }
+            }
+        } else {
+            // Any other key thwarts taipo mode.
+            self.taipo = false;
         }
 
         // If we've pressed the mode selector, enter the funny mode.
@@ -302,10 +352,22 @@ impl ModeSelector {
                     }
                 }
             }
-            false
+            ModeNext::Discard
         } else {
             // If not selecting, just handle in layer below.
-            true
+            ModeNext::Normal
+        }
+    }
+
+    /// When 'event' returns the ModeNext, after processing, this call can be used to handle
+    /// NewMode.
+    async fn after_event<ACT: LayoutActions>(&mut self, actions: &ACT, next: ModeNext) {
+        match next {
+            ModeNext::NewMode(mode) => {
+                self.mode = mode;
+                actions.set_mode(mode).await;
+            }
+            _ => (),
         }
     }
 
