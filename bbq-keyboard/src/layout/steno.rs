@@ -179,7 +179,7 @@ static STENO_KEYS: &[Option<Stroke>] = &[
     // 20
     None,
     Some(stroke!("^")),
-    Some(stroke!("^")),
+    None,
     Some(stroke!("O")),
 
     // Right
@@ -216,7 +216,7 @@ static STENO_KEYS: &[Option<Stroke>] = &[
     // 44
     None,
     Some(stroke!("+")),
-    Some(stroke!("+")),
+    None,
     Some(stroke!("E")),
 
 ];

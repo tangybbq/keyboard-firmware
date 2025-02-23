@@ -29,7 +29,9 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "proto3")] {
         const TAIPO_1: u8 = 20;
         const TAIPO_2: u8 = 44;
-        const TAIPO_MASK: u64 = (1u64 << 20) | (1 << 44);
+        const TAIPO_3: u8 = 22;
+        const TAIPO_4: u8 = 46;
+        const TAIPO_MASK: u64 = (1u64 << 20) | (1 << 44) | (1 << 22) | (1 << 46);
     } else {
         compiler_error!("Must enable one of proto2 or proto3");
     }
@@ -40,6 +42,10 @@ fn taipo_map(key: u8) -> Option<u8> {
     match key {
         TAIPO_1 => Some(1),
         TAIPO_2 => Some(2),
+        #[cfg(feature = "proto3")]
+        TAIPO_3 => Some(4),
+        #[cfg(feature = "proto3")]
+        TAIPO_4 => Some(8),
         _ => None,
     }
 }
