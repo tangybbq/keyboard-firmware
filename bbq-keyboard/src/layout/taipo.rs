@@ -86,7 +86,8 @@ impl TaipoManager {
 
         // After polling, handle any events.
         while let Some(tevent) = self.keys.pop_front() {
-            // info!("ev: p:{}, code:{:x}", tevent.is_press, tevent.code);
+            //info!("ev: p:{}, code:{:x}, sten:{:?}, lat:{}", tevent.is_press, tevent.code, is_steno,
+            //      self.taipo_latch);
             if !tevent.is_press {
                 // If a key is actually pressed, release it. This shouldn't
                 // really need to be conditional.
@@ -164,6 +165,11 @@ impl TaipoManager {
                     self.taipo_latch |= bit;
                 } else {
                     self.taipo_keys &= !bit;
+
+                    // If the taipo key was pressed, just by itself, 
+                    if self.sides[0].pressed == 0 && self.sides[1].pressed == 0 {
+                        self.taipo_latch = 0;
+                    }
                 }
             }
 
