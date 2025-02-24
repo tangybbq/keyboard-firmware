@@ -7,16 +7,19 @@
 // The minder packets use alloc, and we use alloc to manage the write buffer.
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{format, vec::Vec};
 use embassy_executor::Spawner;
-use embassy_rp::{peripherals::WATCHDOG, watchdog::Watchdog};
+use embassy_rp::{flash::{Blocking, Flash}, peripherals::{FLASH, WATCHDOG}, watchdog::Watchdog};
 use embassy_time::{Duration, Timer};
 use embassy_usb::driver::{EndpointError, EndpointIn, EndpointOut};
+use embedded_storage::nor_flash::NorFlash;
 use minder::{Reply, Request, VERSION};
 use sha2::{Digest, Sha256};
 
 #[allow(unused_imports)]
 use crate::logging::{info, warn};
+
+type FlashType = Flash<'static, FLASH, Blocking, FLASH_DEV_SIZE>;
 
 pub struct Minder<Rd, Wr>
 where
@@ -28,6 +31,8 @@ where
     unique: &'static str,
 
     read_buf: [u8; 64],
+
+    flash: FlashType,
 }
 
 /// Size limit for read. Prevents memory loss from excessive data.
@@ -36,11 +41,14 @@ const SIZE_LIMIT: usize = 4200;
 
 impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
     pub fn new(reader: Rd, writer: Wr, unique: &'static str) -> Self {
+        let flash = Flash::new_blocking(unsafe { FLASH::steal() });
+
         Self {
             reader,
             writer,
             unique,
             read_buf: [0; 64],
+            flash,
         }
     }
 
@@ -64,6 +72,7 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
                 }
                 Ok(Request::Reset) => self.reset().await,
                 Ok(Request::Hash { offset, size }) => self.hash(offset, size),
+                Ok(Request::Program { offset, data }) => self.program(offset, data.into()),
                 Err(_) => {
                     warn!("Error decoding packet");
                     continue;
@@ -177,7 +186,52 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
         let digest: [u8; 32] = digest.into();
         Reply::Hash { hash: digest.into() }
     }
+
+    /// Program a single page of the flash.
+    fn program(&mut self, offset: u32, data: Vec<u8>) -> Reply {
+        let esize = FlashType::ERASE_SIZE;
+        let base = embassy_rp::flash::FLASH_BASE as u32;
+
+        // Ensure the offset falls on a page boundary.
+        if offset & (esize as u32 - 1) != 0 {
+            return Reply::Error { text: "Program not on erase boundary".into() };
+        }
+
+        // Ensure the size is equal or less than the erase size.
+        if data.len() > esize {
+            return Reply::Error { text: "Program larger than a single erase block".into() };
+        }
+
+        // Note that on the RP2040, since we are XIP, erase and write are both blocking operations
+        // (including masking interrupts).  This is likely to disrupt typing, but as this is user
+        // initiated, it shouldn't really be an issue.
+        // The USB controller should be able to handle the delay caused by this, as it will auto-nak
+        // queries.
+
+        // The offset needs to be adjusted by the start of the flash device.
+        let offset = if let Some(offset) = offset.checked_sub(base) {
+            offset
+        } else {
+            return Reply::Error { text: format!("Flash offset out of bounds") };
+        };
+
+        // At this point, we will just erase an full erase block, and then program whatever data
+        // we've been given.  The assumption being that the partial page at the end will just remain
+        // as the erased value.
+        if let Err(err) = self.flash.blocking_erase(offset, offset + esize as u32) {
+            return Reply::Error { text: format!("erase error: {:?}", err) };
+        }
+
+        if let Err(err) = self.flash.blocking_write(offset, &data) {
+            return Reply::Error { text: format!("program error: {:?}", err) };
+        }
+
+        Reply::ProgramDone
+    }
 }
+
+/// The size of the entire flash device.
+const FLASH_DEV_SIZE: usize = 8 * 1024 * 1024;
 
 /// The start address of valid flash.
 const FLASH_START: u32 = 0x10100000;

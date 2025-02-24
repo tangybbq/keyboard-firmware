@@ -135,12 +135,29 @@ fn dict(args: &DictArgs) -> Result<()> {
         dicts.data.len().div_ceil(4096)
     );
 
-    flasher.check(&dicts)?;
+    let updates = flasher.check(&dicts)?;
 
-    // flasher.reset()?;
-    // flasher.hash(0x10300000, 4096)?;
+    if updates.is_empty() {
+        return Ok(());
+    }
+
+    let len = updates.len();
+
+    for (i, update) in updates.iter().enumerate() {
+        println!("Update [{}/{}]", i, len);
+        flasher.write(update.data, update.offset)?;
+    }
+    println!("");
+
+    flasher.reset()?;
 
     Ok(())
+}
+
+/// A single page to update.
+struct Update<'a> {
+    data: &'a [u8],
+    offset: u32,
 }
 
 /// An image to be loaded into flash at a given offset.
@@ -186,12 +203,12 @@ impl Flasher {
     }
 
     /// Work through the image, building a map of what pages need to be updated.
-    fn check(&mut self, image: &FlashImage) -> Result<()> {
+    fn check<'a>(&mut self, image: &'a FlashImage) -> Result<Vec<Update<'a>>> {
         let mut offset = 0;
         let length = image.data.len();
         let total_blocks = length.div_ceil(4096);
         let mut block = 0;
-        let mut to_update = 0;
+        let mut updates = Vec::new();
 
         // Before getting too far, try hashing the entire image to see if anything needs to be done.
         let mut digest = Sha256::new();
@@ -201,14 +218,14 @@ impl Flasher {
         let thash = self.hash(image.offset, image.data.len() as u32)?;
         if digest == thash {
             println!("Image is up to date");
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         while offset < length {
             let count = (image.data.len() - offset).min(4096);
             let slice = &image.data[offset..offset + count];
 
-            print!("[{:4}/{:4}] {} dirty\r", block, total_blocks, to_update);
+            print!("[{:4}/{:4}] {} dirty\r", block, total_blocks, updates.len());
             let _ = std::io::stdout().flush();
 
             let mut digest = Sha256::new();
@@ -220,14 +237,33 @@ impl Flasher {
 
             if digest != thash {
                 // println!("differs: {:#08x} {:#04x}", offset + image.offset as usize, count);
-                to_update += 1;
+                updates.push(Update {
+                    data: slice,
+                    offset: offset as u32 + image.offset,
+                });
             }
 
             offset += count;
             block += 1;
         }
 
-        Ok(())
+        println!("");
+
+        Ok(updates)
+    }
+
+    fn write(&mut self, data: &[u8], offset: u32) -> Result<()> {
+        let data = data.to_vec();
+        match self.minder.call(&Request::Program {
+            data: data.into(),
+            offset,
+        }) {
+            Ok(Reply::ProgramDone) => Ok(()),
+            Ok(rep) => {
+                return Err(anyhow::anyhow!("Erronous reply: {:?}", rep));
+            }
+            Err(e) => Err(e)?,
+        }
     }
 }
 

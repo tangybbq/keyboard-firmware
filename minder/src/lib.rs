@@ -26,7 +26,7 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use minicbor::{bytes::ByteArray, Decode, Encode};
+use minicbor::{bytes::{ByteArray, ByteVec}, Decode, Encode};
 
 mod decode;
 mod encode;
@@ -62,6 +62,15 @@ pub enum Request {
         offset: u32,
         #[n(1)]
         size: u32,
+    },
+    #[n(5)]
+    /// Program a single page of the flash.
+    Program {
+        #[n(0)]
+        offset: u32,
+        #[n(1)]
+        #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
+        data: ByteVec,
     },
     #[n(255)]
     Reset,
@@ -100,6 +109,8 @@ pub enum Reply {
         #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
         hash: ByteArray<32>,
     },
+    #[n(5)]
+    ProgramDone,
     #[n(254)]
     Error {
         #[n(0)]
