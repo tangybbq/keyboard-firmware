@@ -137,6 +137,12 @@ impl JsonFixer {
             work.push(Replacement::CapNext);
             return;
         }
+        if text == "{.}" {
+            work.push(Replacement::DeleteSpace);
+            work.push(Replacement::Text(".".to_string()));
+            work.push(Replacement::CapNext);
+            return;
+        }
 
         if text == "{-|}" {
             work.push(Replacement::CapNext);
