@@ -385,6 +385,7 @@ pub async fn active_task<I: Instance>(
     let mut last_keys = 0;
 
     info!("Starting I2C active");
+    let mut delay = 1;
     loop {
         let message = Request::Hello.encode();
         let mut resp_buf = [0u8; HELLO_REPLY_SIZE];
@@ -398,11 +399,12 @@ pub async fn active_task<I: Instance>(
             }
             Err(e) => {
                 info!("Error reply: {:?}", e);
+                delay *= 2.min(600);
             }
         }
 
         // An error from the other side.  Just try again.
-        Timer::after(Duration::from_secs(1)).await;
+        Timer::after(Duration::from_secs(delay)).await;
     }
 
     loop {
