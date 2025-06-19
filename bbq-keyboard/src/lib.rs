@@ -10,6 +10,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
+use enumset::EnumSetType;
 use minicbor::{Decode, Encode};
 pub use smart_leds::RGB8;
 pub use usbd_human_interface_device::page::Keyboard;
@@ -227,10 +228,9 @@ impl defmt::Format for InterState {
     }
 }
 
-#[derive(Debug)]
+#[derive(EnumSetType, Debug)]
 pub enum MinorMode {
     // To start with, just distinguish artsy main from artsy nav mode.
-    ArtseyMain,
     ArtseyNav,
 }
 

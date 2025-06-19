@@ -499,12 +499,11 @@ impl ArtseyManager {
                 // Toggle nav mode.
                 self.nav = !self.nav;
                 self.set_normal();
-                let ind = if self.nav {
-                    MinorMode::ArtseyNav
+                if self.nav {
+                    actions.set_sub_mode(MinorMode::ArtseyNav).await;
                 } else {
-                    MinorMode::ArtseyMain
+                    actions.clear_sub_mode(MinorMode::ArtseyNav).await;
                 };
-                actions.set_sub_mode(ind).await;
             }
             Some(Entry { value: Value::None, .. }) => (),
             None => (),

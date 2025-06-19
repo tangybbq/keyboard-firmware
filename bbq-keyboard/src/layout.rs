@@ -123,8 +123,11 @@ mod async_traits {
         /// Send a keypress to the HID layer.
         async fn send_key(&self, key: KeyAction);
 
-        /// A sub-mode indicator.
+        /// Set one or more sub-mode indicator.
         async fn set_sub_mode(&self, submode: MinorMode);
+
+        /// Clear one of more sub-mode indicators.
+        async fn clear_sub_mode(&self, submode: MinorMode);
 
         /// Send a RawSteno stroke.
         async fn send_raw_steno(&self, stroke: Stroke);

@@ -233,6 +233,10 @@ impl LayoutActions for Dispatch {
         // At this point, this doesn't do anything.
     }
 
+    async fn clear_sub_mode(&self, submode: MinorMode) {
+        let _ = submode;
+    }
+
     async fn send_raw_steno(&self, stroke: Stroke) {
         self.stroke_sender.send(stroke).await;
     }
