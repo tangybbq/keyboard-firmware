@@ -4,7 +4,7 @@ extern crate alloc;
 
 use alloc::{string::ToString, vec::Vec};
 
-use bbq_steno::{dict::{Joined, Joiner, Lookup}, memdict::MemDict, Stroke};
+use bbq_steno::{dict::{Joined, Joiner, Lookup, State}, memdict::MemDict, Stroke};
 use bbq_steno_macros::stroke;
 use crate::{log::info, Event, EventQueue};
 
@@ -75,5 +75,11 @@ impl Dict {
             result.push(action);
         }
         result
+    }
+
+    /// Retrieve the current state.  This is a rough indicator of what kinds of modifications will
+    /// happen with the next stroke.
+    pub fn state(&self) -> State {
+        self.joiner.state()
     }
 }

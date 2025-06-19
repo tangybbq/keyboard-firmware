@@ -71,12 +71,13 @@ pub struct Joiner {
 //
 // The difference between space and force space is that if a "space" is next to a non "space"
 // stroke, there won't be a space, whereas either having "force space" will result in a space.
-#[derive(Clone, Debug)]
-struct State {
-    cap: bool,
-    space: bool,
-    force_space: bool,
-    stitch: bool,
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct State {
+    pub cap: bool,
+    pub space: bool,
+    pub force_space: bool,
+    pub stitch: bool,
 }
 
 /// Just the fields from the add action.
@@ -139,6 +140,16 @@ impl Joiner {
             Action::Add { text, strokes } => {
                 self.do_add(text, strokes);
             }
+        }
+    }
+
+    /// Retrieve the current state.
+    pub fn state(&self) -> State {
+        if let Some(elt) = self.history.back() {
+            elt.state.clone()
+        } else {
+            // TODO: Centralize this so we don't have a chance of mismatch.
+            State { cap: true, space: false, force_space: false, stitch: false }
         }
     }
 

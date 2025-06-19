@@ -21,7 +21,7 @@ pub use self::mapdict::{RamDict, MapDictBuilder};
 pub use self::translate::Translator;
 pub use self::typer::TypeAction;
 pub use self::lookup::Lookup;
-pub use self::joiner::{Joiner, Joined};
+pub use self::joiner::{Joiner, Joined, State};
 pub use self::emily::EmilySymbols;
 
 mod emily;
