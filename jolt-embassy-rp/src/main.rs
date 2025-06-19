@@ -183,11 +183,22 @@ async fn steno_task(
     let mut dict = Dict::new();
     let mut eq_send = SendWrap(events);
 
+    let mut state = dict.state();
+    events.send(Event::StenoState(state.clone())).await;
+    // info!("Steno state: {:?}", state);
+
     loop {
         let stroke = strokes.receive().await;
         for action in dict.handle_stroke(stroke, &mut eq_send, &WrapTimer) {
             typed.send(action).await;
             // info!("Steno action: {:?}", action);
+        }
+
+        let nstate = dict.state();
+        if state != nstate {
+            state = nstate;
+            // info!("Steno state: {:?}", state);
+            events.send(Event::StenoState(state.clone())).await;
         }
     }
 }

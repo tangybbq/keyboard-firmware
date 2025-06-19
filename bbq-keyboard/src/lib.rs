@@ -184,6 +184,9 @@ pub enum Event {
     /// Led value to be sent to the other side.
     SendLed(RGB8),
 
+    /// Update the steno mode state.
+    StenoState(bbq_steno::dict::State),
+
     /// Tick.  Happens every 1 ms.
     Tick,
 }

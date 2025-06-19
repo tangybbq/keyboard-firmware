@@ -16,7 +16,7 @@ use embassy_time::{Duration, Ticker};
 use static_cell::StaticCell;
 
 use crate::board::{Inter, KeyChannel, UsbHandler};
-use crate::leds::manager::{self, Indication, LedManager};
+use crate::leds::manager::{self, get_steno_state, Indication, LedManager};
 use crate::logging::unwrap;
 use crate::matrix::Matrix;
 use crate::{board::Board, matrix::MatrixAction};
@@ -135,6 +135,9 @@ async fn event_loop(dispatch: &'static Dispatch) -> ! {
                     dispatch.leds.lock().await.set_base(0, get_steno_indicator(raw));
                 }
             },
+            Event::StenoState(state) => {
+                dispatch.leds.lock().await.set_base(1, get_steno_state(&state));
+            }
             _ => (),
         }
         // TODO: This brings in fmt, but this Event type should be going away soon anyway.

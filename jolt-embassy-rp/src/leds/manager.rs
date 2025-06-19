@@ -3,6 +3,7 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
+use bbq_steno::dict::State;
 use heapless::Vec;
 use smart_leds::RGB8;
 
@@ -227,6 +228,36 @@ pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(20, 20, 0),
     count: 100,
 }]);
+
+pub static STENO_NOSPACE_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(20, 0, 0),
+    count: 100,
+}]);
+
+pub static STENO_NOSPACE_CAP_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(20, 20, 0),
+    count: 100,
+}]);
+
+pub static STENO_CAP_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(0, 20, 0),
+    count: 100,
+}]);
+
+/// Take a steno state and return an indicator for it.
+pub fn get_steno_state(state: &State) -> &'static Indication {
+    // For now, we'll try to show cap and not-spacing.
+    let space = state.space || state.force_space || state.stitch;
+    if !state.cap && space {
+        &OFF_INDICATOR
+    } else if !state.cap && !space {
+        &STENO_NOSPACE_INDICATOR
+    } else if state.cap && space {
+        &STENO_CAP_INDICATOR
+    } else {
+        &STENO_NOSPACE_CAP_INDICATOR
+    }
+}
 
 pub struct LedManager {
     // All of the leds.
