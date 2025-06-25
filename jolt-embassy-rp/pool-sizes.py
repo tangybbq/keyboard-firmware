@@ -10,7 +10,7 @@ output = subprocess.run(
 
 total_size = 0
 for line in output.splitlines():
-    match = re.search(r"^[0-9a-fA-F]+ ([0-9a-fA-F]+)\s+.*:(\S+)::POOL::", line)
+    match = re.search(r"^[0-9a-fA-F]+ ([0-9a-fA-F]+)\s+.*jolt_embassy_rp::(\S+)::POOL::", line)
     if match:
         size = int(match.group(1), 16)
         name = match.group(2)
