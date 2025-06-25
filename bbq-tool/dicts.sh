@@ -13,8 +13,10 @@ user_addr=0x10200000
 cargo run -- build -o dicts.bin \
 	~/plover/phoenix.rtf \
 	~/plover/phoenix_fix.json \
-	+emily-symbols \
-	~/plover/taipo.json
+	+emily-symbols
+
+# Taipo is now handled in code.
+# ~/plover/taipo.json
 
 cargo run -- build -o user-dict.bin \
 	~/plover/user.json \
