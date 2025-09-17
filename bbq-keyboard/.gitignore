@@ -1,0 +1,9 @@
+# The build directory.
+target/
+
+# Ignore the settings and other files, but do keep tasks.
+.vscode/
+!.vscode/tasks.json
+
+# This is a library
+Cargo.lock
