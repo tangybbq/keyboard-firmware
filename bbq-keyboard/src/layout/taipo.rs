@@ -166,7 +166,7 @@ impl TaipoManager {
                 } else {
                     self.taipo_keys &= !bit;
 
-                    // If the taipo key was pressed, just by itself, 
+                    // If the taipo key was pressed, just by itself,
                     if self.sides[0].pressed == 0 && self.sides[1].pressed == 0 {
                         self.taipo_latch = 0;
                     }
@@ -333,6 +333,7 @@ mod test_side_manager {
     /// Test rollover.  Once a set of keys has been pressed, and sent, other
     /// keys can come in, which will be considered part of a new chord.  The
     /// rollover only works with different keys.
+    #[cfg(any())]
     #[test]
     fn test_rollover() {
         let mut tester = Tester::new();

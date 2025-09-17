@@ -343,8 +343,6 @@ fn token(code: u8, side : Side) -> u8 {
 
 #[test]
 fn test_serialize() {
-    crate::testlog::setup();
-
     let mut seq = 1u8;
 
     let a = Packet::Idle { side: Side::Left };

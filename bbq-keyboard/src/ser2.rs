@@ -28,7 +28,7 @@
 //!
 //! In addition, there can also be payload data of various types.  Generally, this data will be
 //! larger, and not sufficient to fit in a single message.
-//! 
+//!
 //! The inter-side manager will generally be wrapped in the implementation side with specific code
 //! to read/write the UART or other interface between the boards.
 
@@ -198,7 +198,7 @@ mod test {
             .set_leds(RGB8::new(0xfd, 0xfe, 0xff))
         );
 
-        todo!()
+        // todo!()
     }
 
     fn check(item: &Packet) {

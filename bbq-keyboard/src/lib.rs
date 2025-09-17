@@ -10,6 +10,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
+use cfg_if::cfg_if;
 use enumset::EnumSetType;
 use minicbor::{Decode, Encode};
 pub use smart_leds::RGB8;
@@ -30,23 +31,29 @@ pub mod layout;
 #[cfg(feature = "std")]
 use clap::ValueEnum;
 
-#[cfg(test)]
-mod testlog;
-
-#[cfg(not(any(feature = "defmt", feature = "log")))]
-compile_error!("One of defmt or log must be selected");
-
-#[cfg(not(feature = "defmt"))]
-mod log {
-    pub use log::warn;
-    pub use log::info;
-}
-
-#[cfg(feature = "defmt")]
-mod log {
-    pub use defmt::info;
-    pub use defmt::warn;
-}
+cfg_if!(
+    if #[cfg(feature = "log")] {
+        mod log {
+            pub use log::warn;
+            pub use log::info;
+        }
+    } else if #[cfg(feature = "defmt")] {
+        mod log {
+            pub use defmt::info;
+            pub use defmt::warn;
+        }
+    } else if #[cfg(test)] {
+        mod log {
+            macro_rules! info {
+                ($($arg:tt)*) => {
+                    println!("INFO: {}", format_args!($($arg)*));
+                };
+            }
+        }
+    } else {
+        compile_error!("One of defmt, log or, test must be selected");
+    }
+);
 
 /// Which side of the keyboard are we.
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Encode, Decode)]
