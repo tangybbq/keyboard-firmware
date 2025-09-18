@@ -60,7 +60,9 @@ impl LayoutActions for TestActor {
 
     async fn set_mode_select(&self, mode: LayoutMode) {
         println!("set_mode_select called with mode: {:?}", mode);
-        panic!("set_mode_select not implemented");
+        self.actions
+            .borrow_mut()
+            .push_back(Actions::SetModeSelect(mode));
     }
 
     async fn send_key(&self, key: KeyAction) {
@@ -97,7 +99,9 @@ fn test_basic_layout() {
         let mut layout = LayoutManager::new(false);
         let mut actor = TestActor::new();
 
-        let tests = gen_qwerty_tests();
+        let mut tests = create_initial_set_mode();
+        gen_qwerty_tests(&mut tests);
+        switch_qwerty_to_taipo(&mut tests);
 
         for step in &tests {
             match step {
@@ -130,15 +134,16 @@ fn test_basic_layout() {
     });
 }
 
-/// Generate some basic qwerty mode sanity tests.
-fn gen_qwerty_tests() -> Vec<ActorStep> {
-    // Start with a tick which should send us the event indicating our
-    // initial mode is qwerty.
-    let mut tests = vec![
+/// Create the initial set mode that comes in when the layout manager starts.
+fn create_initial_set_mode() -> Vec<ActorStep> {
+    vec![
         ActorStep::Tick(1),
         ActorStep::Action(Actions::SetMode(LayoutMode::Qwerty)),
-    ];
+    ]
+}
 
+/// Generate some basic qwerty mode sanity tests.
+fn gen_qwerty_tests(tests: &mut Vec<ActorStep>) {
     // Press the 'Q' key.
     tests.push(ActorStep::Event(KeyEvent::Press(4)));
 
@@ -152,6 +157,16 @@ fn gen_qwerty_tests() -> Vec<ActorStep> {
     tests.push(ActorStep::Action(Actions::SendKey(KeyAction::KeySet(
         vec![],
     ))));
+}
 
-    tests
+/// Switch to taipo mode.
+fn switch_qwerty_to_taipo(tests: &mut Vec<ActorStep>) {
+    for mode in &[LayoutMode::Steno, LayoutMode::Taipo] {
+        // Press the mode switch key.
+        tests.push(ActorStep::Event(KeyEvent::Press(2)));
+        tests.push(ActorStep::Tick(50));
+        tests.push(ActorStep::Action(Actions::SetModeSelect(*mode)));
+        tests.push(ActorStep::Event(KeyEvent::Release(2)));
+        tests.push(ActorStep::Action(Actions::SetMode(*mode)));
+    }
 }
