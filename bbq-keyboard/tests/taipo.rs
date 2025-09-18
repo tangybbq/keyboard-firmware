@@ -11,7 +11,7 @@ use std::{cell::RefCell, collections::VecDeque};
 
 use bbq_keyboard::{
     layout::{LayoutActions, LayoutManager},
-    KeyAction, KeyEvent, LayoutMode, MinorMode,
+    KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode,
 };
 use bbq_steno::Stroke;
 use futures::executor::block_on;
@@ -65,7 +65,7 @@ impl LayoutActions for TestActor {
 
     async fn send_key(&self, key: KeyAction) {
         println!("send_key called with key: {:?}", key);
-        panic!("send_key not implemented");
+        self.actions.borrow_mut().push_back(Actions::SendKey(key));
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {
@@ -97,7 +97,9 @@ fn test_basic_layout() {
         let mut layout = LayoutManager::new(false);
         let mut actor = TestActor::new();
 
-        for step in &BASIC_TEST {
+        let tests = gen_qwerty_tests();
+
+        for step in &tests {
             match step {
                 ActorStep::Tick(t) => {
                     layout.tick(&mut actor, *t).await;
@@ -126,4 +128,30 @@ fn test_basic_layout() {
             );
         }
     });
+}
+
+/// Generate some basic qwerty mode sanity tests.
+fn gen_qwerty_tests() -> Vec<ActorStep> {
+    // Start with a tick which should send us the event indicating our
+    // initial mode is qwerty.
+    let mut tests = vec![
+        ActorStep::Tick(1),
+        ActorStep::Action(Actions::SetMode(LayoutMode::Qwerty)),
+    ];
+
+    // Press the 'Q' key.
+    tests.push(ActorStep::Event(KeyEvent::Press(4)));
+
+    // qwerty wants 50 ms to determine keys vs chords. So, tick 50ms, to get our
+    // down event.
+    tests.push(ActorStep::Tick(50));
+    tests.push(ActorStep::Action(Actions::SendKey(KeyAction::KeySet(
+        vec![Keyboard::Q],
+    ))));
+    tests.push(ActorStep::Event(KeyEvent::Release(4)));
+    tests.push(ActorStep::Action(Actions::SendKey(KeyAction::KeySet(
+        vec![],
+    ))));
+
+    tests
 }
