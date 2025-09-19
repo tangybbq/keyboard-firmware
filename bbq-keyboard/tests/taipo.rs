@@ -11,7 +11,7 @@ use std::{cell::RefCell, collections::VecDeque};
 
 use bbq_keyboard::{
     layout::{LayoutActions, LayoutManager},
-    KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode,
+    KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods,
 };
 use bbq_steno::Stroke;
 use futures::executor::block_on;
@@ -102,6 +102,7 @@ fn test_basic_layout() {
         let mut tests = create_initial_set_mode();
         gen_qwerty_tests(&mut tests);
         switch_qwerty_to_taipo(&mut tests);
+        gen_taipo_rollover_tests(&mut tests);
 
         for step in &tests {
             match step {
@@ -169,4 +170,83 @@ fn switch_qwerty_to_taipo(tests: &mut Vec<ActorStep>) {
         tests.push(ActorStep::Event(KeyEvent::Release(2)));
         tests.push(ActorStep::Action(Actions::SetMode(*mode)));
     }
+}
+
+/// Generate tests for Taipo mode hand rollover functionality. Tests basic
+/// left-to-right hand rollover with timing considerations.
+///
+/// This doesn't extensively test the layout, and just uses a few keys across
+/// the keyboard.
+fn gen_taipo_rollover_tests(tests: &mut Vec<ActorStep>) {
+    // Test 1: Basic left hand chord, then right hand chord (no overlap)
+    // Left hand: 12 is just the 'n'.
+    tests.push(ActorStep::Event(KeyEvent::Press(12)));
+    tests.push(ActorStep::Tick(50)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Release(12)));
+    tests.push(ActorStep::Tick(50));
+    expect_taipo_press_release(tests, Keyboard::N);
+
+    // Left hand: 8 is just the 's'.
+    tests.push(ActorStep::Event(KeyEvent::Press(12)));
+    tests.push(ActorStep::Tick(50)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Release(12)));
+    tests.push(ActorStep::Tick(50));
+    expect_taipo_press_release(tests, Keyboard::N);
+
+    // Pressing both within the chord timeout will give the 'p' key.
+    tests.push(ActorStep::Event(KeyEvent::Press(12)));
+    tests.push(ActorStep::Tick(10)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Press(8)));
+    tests.push(ActorStep::Tick(50)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Release(12)));
+    tests.push(ActorStep::Event(KeyEvent::Release(8)));
+    tests.push(ActorStep::Tick(50));
+    expect_taipo_press_release(tests, Keyboard::P);
+
+    // Test these keys on the right side as well.
+    tests.push(ActorStep::Event(KeyEvent::Press(36)));
+    tests.push(ActorStep::Tick(50)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Release(36)));
+    tests.push(ActorStep::Tick(50));
+    expect_taipo_press_release(tests, Keyboard::N);
+
+    // Right hand: 8 is just the 's'.
+    tests.push(ActorStep::Event(KeyEvent::Press(32)));
+    tests.push(ActorStep::Tick(50)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Release(32)));
+    tests.push(ActorStep::Tick(50));
+    expect_taipo_press_release(tests, Keyboard::S);
+
+    // Pressing both within the chord timeout will give the 'p' key.
+    tests.push(ActorStep::Event(KeyEvent::Press(36)));
+    tests.push(ActorStep::Tick(10)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Press(32)));
+    tests.push(ActorStep::Tick(50)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Release(36)));
+    tests.push(ActorStep::Event(KeyEvent::Release(32)));
+    tests.push(ActorStep::Tick(50));
+    expect_taipo_press_release(tests, Keyboard::P);
+
+    // For basic rollover, across the two sides.
+    tests.push(ActorStep::Event(KeyEvent::Press(12)));
+    tests.push(ActorStep::Tick(10)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Press(32)));
+    tests.push(ActorStep::Event(KeyEvent::Press(8)));
+    tests.push(ActorStep::Tick(50)); // Within chord timeout
+    tests.push(ActorStep::Event(KeyEvent::Release(12)));
+    tests.push(ActorStep::Event(KeyEvent::Release(32)));
+    tests.push(ActorStep::Event(KeyEvent::Release(8)));
+    tests.push(ActorStep::Tick(50));
+    expect_taipo_press_release(tests, Keyboard::P);
+    expect_taipo_press_release(tests, Keyboard::S);
+}
+
+/// Add an expectation of a press-release sequence from the taipo side.  Most of
+/// the ordinary keys are sent this way
+fn expect_taipo_press_release(tests: &mut Vec<ActorStep>, key: Keyboard) {
+    tests.push(ActorStep::Action(Actions::SendKey(KeyAction::KeyPress(
+        key,
+        Mods::empty(),
+    ))));
+    tests.push(ActorStep::Action(Actions::SendKey(KeyAction::KeyRelease)));
 }
