@@ -381,7 +381,7 @@ impl Next {
             _ => {
                 #[cfg(feature = "std")]
                 {
-                    eprintln!("Act: {:?}", text);
+                    // eprintln!("Act: {:?}", text);
                 }
             }
         }
