@@ -19,6 +19,7 @@ cargo run -- build -o dicts.bin \
 # ~/plover/taipo.json
 
 cargo run -- build -o user-dict.bin \
+	~/plover/taipo.json \
 	~/plover/user.json \
 	~/plover/rust.yaml
 
@@ -27,7 +28,6 @@ cargo run -- build -o full.bin \
 	~/plover/phoenix.rtf \
 	~/plover/phoenix_fix.json \
 	+emily-symbols \
-	~/plover/taipo.json \
 	~/plover/user.json \
 	~/plover/rust.yaml
 
