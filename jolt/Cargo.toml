@@ -13,11 +13,29 @@ license = "Apache-2.0 or MIT"
 crate-type = ["staticlib"]
 
 [dependencies]
-zephyr = "0.1.0"
+zephyr = { version = "0.1.0", features = ["executor-zephyr", "time-driver"] }
 critical-section = "1.1.2"
 log = "0.4.22"
 rgb = "0.8.50"
 arraydeque = { version = "0.5", default-features = false }
+static_cell = "2.1"
+
+[dependencies.embassy-executor]
+version = "0.7.0"
+features = [
+  "log",
+  "task-arena-size-2048",
+]
+
+[dependencies.embassy-futures]
+version = "0.1.1"
+
+[dependencies.embassy-sync]
+version = "0.6.2"
+
+[dependencies.embassy-time]
+version = "0.4.0"
+features = ["tick-hz-10_000"]
 
 [dependencies.bbq-keyboard]
 version = "0.1.0"

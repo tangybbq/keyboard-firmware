@@ -6,9 +6,11 @@ use anyhow::{Result, anyhow};
 use bbq_steno::{dict::{Dict, Joined, Joiner, Lookup}, memdict::MemDict, Stroke};
 use regex::Regex;
 
+use bbq_steno_macros::stroke;
+
 fn main() -> Result<()> {
     // Pull in the user dictionary.
-    let bindict = std::fs::read("../bbq-tool/dicts.bin")?;
+    let bindict = std::fs::read("../bbq-tool/full.bin")?;
     let dicts = unsafe { MemDict::from_raw_ptr(bindict.as_ptr()) };
 
     let base = dirs::home_dir().unwrap().join("steno").join("steno-drill").join("phoenix");
@@ -74,7 +76,15 @@ impl Exercise {
             // The engine always capitalizes at the start, but we have numerous
             // exercises that aren't capitalized. Work around this by just
             // capitalizing the beginning.
-            let text = Self::capitalize(&text);
+            //
+            // However, there are others that are for programming that have an explicit "KP-F" to
+            // avoid the capitalization.
+            let text = if steno.first() == Some(&stroke!("KP-F")) {
+                text
+            } else {
+                Self::capitalize(&text)
+            };
+            let text = fix_helps(&text);
             entries.push(Entry { text, steno });
         }
 
@@ -145,4 +155,20 @@ impl Entry {
         }
         wrongs
     }
+}
+
+/// Fix up various helper texts that can be inserted into the text to assist the user with
+/// ambiguity.
+fn fix_helps(text: &str) -> String {
+    let text = text.replace("(spell) ", "");
+    let text = text.replace("(spell)", "");
+    let text = text.replace("{*>}", "");
+    let text = text.replace("{*2>}", "");
+    let text = text.replace("{*3>}", "");
+    let text = text.replace("(cap)", "");
+    let text = text.replace("(cap2)", "");
+
+    // Specific to disambiguating "wound".
+    let text = text.replace(" (wire)", "");
+    text
 }

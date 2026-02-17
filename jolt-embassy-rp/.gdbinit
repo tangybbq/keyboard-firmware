@@ -6,8 +6,12 @@ set substitute-path /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081 \
 
 # target extended-remote :1337
 target extended-remote :2331
+# target remote :3333
 
-# b rust_main
+# Not sure how stable this is.
+monitor exec SetRTTAddr 0x2000015c
+
+b main
 
 define z
   load

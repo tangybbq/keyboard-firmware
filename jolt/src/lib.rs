@@ -16,42 +16,24 @@
 // versions.
 #![allow(static_mut_refs)]
 
+use embassy_executor::Spawner;
+use static_cell::StaticCell;
+use zephyr::embassy::Executor;
+
+use log::info;
+
 extern crate alloc;
 
-use core::mem;
+// use logging::Logger;
 
-use alloc::boxed::Box;
-use alloc::vec::Vec;
-use bbq_keyboard::boardinfo::BoardInfo;
-use dispatch::{Dispatch, DispatchBuilder};
-use keyminder::Minder;
-use leds::manager::Indication;
-use leds::LedSet;
-use logging::Logger;
-use zephyr::kio::yield_now;
-use zephyr::raw::{sys_heap, sys_heap_runtime_stats_get, sys_memory_stats};
-use zephyr::sync::channel::{Receiver, Sender};
-use zephyr::sync::{channel, Arc};
-use zephyr::sys::sync::Semaphore;
-use zephyr::time::{Duration, NoWait, Tick};
-use zephyr::work::futures::sleep;
-use zephyr::work::WorkQueueBuilder;
+// use log::{info, warn};
 
-use log::{info, warn};
-
-use matrix::Matrix;
-use zephyr::{kobj_define, printkln};
-
-use bbq_keyboard::{
-    layout::LayoutManager,
-    Event, EventQueue, InterState, KeyEvent, LayoutMode, Side, Timable,
-    UsbDeviceState,
-};
-
+/*
 #[allow(unused_imports)]
 use crate::inter::{InterHandler, InterUpdate};
-use crate::leds::manager::LedManager;
+*/
 
+/*
 mod devices;
 mod dispatch;
 mod inter;
@@ -60,13 +42,32 @@ mod leds;
 mod logging;
 mod matrix;
 mod translate;
+*/
+
+static EXECUTOR_MAIN: StaticCell<Executor> = StaticCell::new();
 
 #[no_mangle]
 extern "C" fn rust_main() {
-    printkln!("Hello world from Rust on {}", zephyr::kconfig::CONFIG_BOARD);
+    // TODO: Logging through USB.
+    unsafe {
+        zephyr::set_logger().unwrap();
+    }
 
-    let logger = Logger::new();
+    info!("Hello world from Rust on {}", zephyr::kconfig::CONFIG_BOARD);
 
+    // Become our executor.
+    info!(
+        "Starting Embassy executor on {}",
+        zephyr::kconfig::CONFIG_BOARD,
+    );
+    let executor = EXECUTOR_MAIN.init(Executor::new());
+    executor.run(|spawner| {
+        spawner.spawn(main(spawner)).unwrap();
+    })
+
+    // let logger = Logger::new();
+
+    /*
     // Initialize the main event queue.
     let (equeue_send, equeue_recv) = channel::bounded::<Event>(32);
 
@@ -319,8 +320,16 @@ extern "C" fn rust_main() {
 
     // Wait for the main loop.  This should never happen.
     let () = main_loop.join();
+    */
 }
 
+#[embassy_executor::task]
+async fn main(spawner: Spawner) {
+    let _ = spawner;
+    info!("Main thread running");
+}
+
+/*
 // TODO: Does this move to Dispatch?
 fn get_steno_indicator(raw: bool) -> &'static Indication {
     if raw {
@@ -523,3 +532,4 @@ kobj_define! {
     // A thread for the inter-worker.  Allows this to run at lower priority to prevent stalls.
     static INTER_STACK: ThreadStack<2048>;
 }
+*/
