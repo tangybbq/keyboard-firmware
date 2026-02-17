@@ -144,7 +144,8 @@ fn dict(args: &DictArgs) -> Result<()> {
     let len = updates.len();
 
     for (i, update) in updates.iter().enumerate() {
-        println!("Update [{}/{}]", i, len);
+        print!("Update [{}/{}]\r", i, len);
+        let _ = std::io::stdout().flush();
         flasher.write(update.data, update.offset)?;
     }
     println!("");
