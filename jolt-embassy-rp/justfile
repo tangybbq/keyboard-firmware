@@ -19,6 +19,13 @@ rtt:
 		-w \
 		tcp
 
+uf2:
+	elf2uf2-rs target/thumbv6m-none-eabi/debug/jolt-embassy-rp main.uf2
+	echo "Put keyboard into UF2 mode. Waiting 5 seconds"
+	sleep 5
+	echo Flashing
+	cp main.uf2 /Volumes/RPI-RP2
+
 gdb:
 	arm-none-eabi-gdb {{tdir}}/{{app}}
 # -rtos /Applications/SEGGER/JLink_V812c/GDBServer/RTOSPlugin_Zephyr \
