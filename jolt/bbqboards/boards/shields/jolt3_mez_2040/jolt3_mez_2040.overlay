@@ -1,0 +1,95 @@
+/* Device tree overlay for Jolt3 Mez 2040 keyboard matrix
+ *
+ * This is a "shield" built around the rp2040 direct.  We'll start with the Pimoroni Tiny 2040, as
+ * it has very little on-board.
+ */
+
+/ {
+	aliases {
+		matrix = &kbd_matrix;
+	};
+
+	chosen {
+		zephyr,matrix = &kbd_matrix;
+                inter-board-uart = &uart0;
+		bbq,led-strip = &ws2812;
+		/* bbq,pwm-leds = &pwm_leds; */
+	};
+
+	kbd_matrix: kbd-matrix {
+		compatible = "bbq-kbd-matrix";
+		row-gpios = <&gpio0 0 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 2 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 1 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 3 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 5 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,
+			    <&gpio0 4 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
+		col-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 7 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 8 GPIO_ACTIVE_HIGH>,
+			    <&gpio0 9 GPIO_ACTIVE_HIGH>;
+		// col-drive-inactive;
+		idle-mode = "scan";
+	};
+
+	/*
+        side_select {
+                compatible = "gpio-mode-selector";
+                in-gpios = <&gpio0 22 (GPIO_PULL_UP | GPIO_ACTIVE_HIGH)>;
+        };
+	*/
+
+};
+
+/* We could use uart 1, but as we don't use the console, just remap uart 0 to
+ * the gpio pins. */
+&pinctrl {
+        uart0_inter: uart0_inter {
+                group1 {
+                        pinmux = <UART0_TX_P12>;
+                };
+                group2 {
+                        pinmux = <UART0_RX_P13>;
+                        input-enable;
+                };
+        };
+
+	ws2812_pio0_default_l: ws2812_pio0_default_l {
+		ws2812 {
+			pinmux = <PIO0_P19>;
+		};
+	};
+};
+
+&pwm_leds {
+	status = "disabled";
+};
+
+&pio0 {
+	pio-ws2812 {
+		compatible = "worldsemi,ws2812-rpi_pico-pio";
+		status = "okay";
+		pinctrl-0 = <&ws2812_pio0_default_l>;
+		pinctrl-names = "default";
+		bit-waveform = <3>, <3>, <4>;
+
+		ws2812: ws2812 {
+			status = "okay";
+			gpios = <&gpio0 19 GPIO_ACTIVE_HIGH>;
+			chain-length = <2>;
+			color-mapping = <LED_COLOR_ID_GREEN
+				LED_COLOR_ID_RED
+				LED_COLOR_ID_BLUE>;
+			reset-delay = <280>;
+			frequency = <800000>;
+		};
+	};
+};
+
+&uart0 {
+        /delete-property/ hw-flow-control;
+        status = "okay";
+        pinctrl-0 = <&uart0_inter>;
+        pinctrl-names = "default";
+        current-speed = <460800>;
+};

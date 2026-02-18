@@ -1,0 +1,22 @@
+# Keyboard firmware.
+
+[package]
+name = "rustapp"
+version = "0.1.0"
+edition = "2024"
+description = "Rusty Zephyry Keyboard Firmware"
+license = "Apache-2.0 or MIT"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+zephyr = "0.1.0"
+# log = "0.4.22"
+
+# Ensure we can debug.
+[profile.release]
+debug = true
+
+[profile.dev]
+opt-level = 1

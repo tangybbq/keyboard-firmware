@@ -1,0 +1,5 @@
+# Copyright (c) 2023 Linaro Limited
+# SPDX-License-Identifier: Apache-2.0
+
+config SHIELD_JOLT1
+	def_bool $(shields_list_contains,jolt1)
