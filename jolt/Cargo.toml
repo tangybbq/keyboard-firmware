@@ -11,12 +11,32 @@ license = "Apache-2.0 or MIT"
 crate-type = ["staticlib"]
 
 [dependencies]
-zephyr = "0.1.0"
+zephyr = { version = "0.1.0", features = ["time-driver", "executor-zephyr"] }
+static_cell = "2.1"
+
+embassy-executor = { version = "0.7.0", features = ["log", "task-arena-size-2048"] }
+embassy-sync = "0.6.2"
+
+# The zephyr timer is able to adapt to a mismatch of the time base, however it
+# is more efficient if the timer here matches the zephyr::time::SYS_FREQUENCY.
+embassy-time = { version = "0.4.0", features = ["tick-hz-10_000"] }
 # log = "0.4.22"
+
+[dependencies.bbq-keyboard]
+version = "0.1.0"
+default-features = false
+features = ["proto3", "log"]
+path = "../bbq-keyboard"
+
+[dependencies.bbq-steno]
+version = "0.1.0"
+default-features = false
+path = "../bbq-steno"
 
 # Ensure we can debug.
 [profile.release]
 debug = true
+overflow-checks = true
 
 [profile.dev]
 opt-level = 1
