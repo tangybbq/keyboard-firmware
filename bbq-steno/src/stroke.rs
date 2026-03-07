@@ -31,6 +31,7 @@ pub enum Error {
 
 /// The stroke itself is just a 32 bit number.  It represents a single stroke on the machine.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Stroke(pub(super) u32);
 
 /// A stroke with no keys pressed.  Useful for building strokes.
