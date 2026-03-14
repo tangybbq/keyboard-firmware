@@ -2,6 +2,8 @@
 
 extern crate alloc;
 
+use alloc::fmt::Write;
+use alloc::string::String;
 use alloc::vec::Vec;
 use bbq_keyboard::{
     Event,
@@ -297,8 +299,7 @@ async fn steno_lookup_task(
                 }
             }
             StenoCommand::Raw(stroke) => {
-                // The raw steno HID endpoint is not wired in this target yet.
-                printkln!("Raw steno report pending implementation: {}", stroke);
+                type_raw_stroke(stroke).await;
             }
         }
     }
@@ -371,6 +372,12 @@ async fn type_joined(action: bbq_steno::dict::Joined) {
             enqueue_action(&mut SubmitActionHandler, &append).await;
         }
     }
+}
+
+async fn type_raw_stroke(stroke: Stroke) {
+    let mut text = String::new();
+    write!(&mut text, "{} ", stroke).unwrap();
+    enqueue_action(&mut SubmitActionHandler, &text).await;
 }
 
 fn submit_key_action(key: KeyAction) {
