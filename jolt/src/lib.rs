@@ -3,8 +3,22 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use bbq_keyboard::{KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods, layout::{LayoutActions, LayoutManager}};
+use bbq_keyboard::{
+    Event,
+    EventQueue,
+    KeyAction,
+    KeyEvent,
+    Keyboard,
+    LayoutMode,
+    MinorMode,
+    Mods,
+    Timable,
+    dict::Dict,
+    layout::{LayoutActions, LayoutManager},
+    usb_typer::{ActionHandler, enqueue_action},
+};
 use bbq_steno::Stroke;
+use core::ffi::c_int;
 use embassy_executor::Spawner;
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
@@ -18,6 +32,7 @@ use zephyr::{
     devicetree::Value,
     embassy::Executor,
     printkln,
+    raw::k_cycle_get_64,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
@@ -30,6 +45,10 @@ unsafe extern "C" {
 }
 
 const HID_QUEUE_DEPTH: usize = 32;
+const STENO_COMMAND_DEPTH: usize = 16;
+const STENO_EVENT_DEPTH: usize = 16;
+const STENO_THREAD_STACK_SIZE: usize = 8192;
+const STENO_THREAD_PRIO: c_int = 5;
 
 #[repr(C)]
 struct HidReport {
@@ -41,6 +60,10 @@ static HID_READY: AtomicBool = AtomicBool::new(false);
 static HID_GENERATION: AtomicUsize = AtomicUsize::new(0);
 static HID_REPORTS: Channel<CriticalSectionRawMutex, HidReport, HID_QUEUE_DEPTH> = Channel::new();
 static HID_IN_FLIGHT: GreedySemaphore<CriticalSectionRawMutex> = GreedySemaphore::new(0);
+static STENO_COMMANDS: Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH> = Channel::new();
+static STENO_EVENTS: Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH> = Channel::new();
+static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
+static ACTION: Action = Action::new();
 
 #[unsafe(no_mangle)]
 extern "C" fn rust_main() {
@@ -51,6 +74,10 @@ extern "C" fn rust_main() {
     if ret != 0 {
         panic!("usb_setup failed: {}", ret);
     }
+
+    let steno = steno_thread(&STENO_COMMANDS, &STENO_EVENTS);
+    steno.set_priority(STENO_THREAD_PRIO);
+    let _steno = steno.start();
 
     let executor = EXECUTOR.init(Executor::new());
     executor.run(|spawner| {
@@ -73,6 +100,7 @@ async fn main(spawner: Spawner) -> () {
     printkln!("Rows: {:?}", cols);
 
     spawner.spawn(usb_sender_task()).unwrap();
+    spawner.spawn(steno_event_task(&ACTION)).unwrap();
     // Spawn a task to manage the keyboard matrix.
     spawner.spawn(keyboard_task(rows, cols)).unwrap();
 }
@@ -86,7 +114,6 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
     let mut matrix = matrix::Matrix::new(rows, cols);
     let mut ticker = Ticker::every(embassy_time::Duration::from_millis(1));
     let mut manager = LayoutManager::new(true);
-    let action = Action;
     loop {
         let mut events = Vec::new();
         matrix.scan(|code, pressed| {
@@ -103,9 +130,9 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
         });
         for ev in events {
             printkln!("Event: {:?}", ev);
-            manager.handle_event(ev, &action).await;
+            manager.handle_event(ev, &ACTION).await;
         }
-        manager.tick(&action, 1).await;
+        manager.tick(&ACTION, 1).await;
         manager.poll();
         count += 1;
         if count % 30000 == 0 {
@@ -115,7 +142,37 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
     }
 }
 
-struct Action;
+enum StenoCommand {
+    Lookup(Stroke),
+    Raw(Stroke),
+}
+
+struct Action {
+    raw_mode: AtomicBool,
+}
+
+impl Action {
+    const fn new() -> Self {
+        Self {
+            raw_mode: AtomicBool::new(false),
+        }
+    }
+
+    async fn handle_steno_event(&self, event: Event) {
+        match event {
+            Event::RawMode(raw) => {
+                self.raw_mode.store(raw, Ordering::Release);
+                printkln!("Steno raw mode: {}", raw);
+            }
+            Event::StenoState(state) => {
+                printkln!("Steno state: {:?}", state);
+            }
+            other => {
+                printkln!("Unexpected steno event: {:?}", other);
+            }
+        }
+    }
+}
 
 impl LayoutActions for Action {
     async fn set_mode(&self, mode: LayoutMode) {
@@ -155,7 +212,15 @@ impl LayoutActions for Action {
     }
 
     async fn send_raw_steno(&self, steno: Stroke) {
-        printkln!("Send raw steno: {}", steno);
+        let command = if self.raw_mode.load(Ordering::Acquire) {
+            StenoCommand::Raw(steno)
+        } else {
+            StenoCommand::Lookup(steno)
+        };
+
+        if STENO_COMMANDS.try_send(command).is_err() {
+            printkln!("Dropping steno stroke: {}", steno);
+        }
     }
 }
 
@@ -199,6 +264,57 @@ async fn usb_sender_task() -> () {
     }
 }
 
+#[embassy_executor::task]
+async fn steno_event_task(action: &'static Action) -> () {
+    loop {
+        let event = STENO_EVENTS.receive().await;
+        action.handle_steno_event(event).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn steno_lookup_task(
+    commands: &'static Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH>,
+    events: &'static Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH>,
+) -> ! {
+    let mut dict = Dict::new();
+    let mut event_send = StenoEventSender(events);
+
+    let mut state = dict.state();
+    events.send(Event::StenoState(state.clone())).await;
+
+    loop {
+        match commands.receive().await {
+            StenoCommand::Lookup(stroke) => {
+                for action in dict.handle_stroke(stroke, &mut event_send, &WrapTimer) {
+                    type_joined(action).await;
+                }
+
+                let new_state = dict.state();
+                if state != new_state {
+                    state = new_state;
+                    events.send(Event::StenoState(state.clone())).await;
+                }
+            }
+            StenoCommand::Raw(stroke) => {
+                // The raw steno HID endpoint is not wired in this target yet.
+                printkln!("Raw steno report pending implementation: {}", stroke);
+            }
+        }
+    }
+}
+
+#[zephyr::thread(stack_size = STENO_THREAD_STACK_SIZE)]
+fn steno_thread(
+    commands: &'static Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH>,
+    events: &'static Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH>,
+) -> ! {
+    let executor = EXECUTOR_LOW.init(Executor::new());
+    executor.run(|spawner| {
+        spawner.spawn(steno_lookup_task(commands, events)).unwrap();
+    })
+}
+
 #[unsafe(no_mangle)]
 extern "C" fn usb_iface_ready_callback(ready: bool) {
     HID_READY.store(ready, Ordering::Release);
@@ -240,6 +356,69 @@ fn modifier_bits(mods: Mods) -> u8 {
         bits |= 0x08;
     }
     bits
+}
+
+async fn type_joined(action: bbq_steno::dict::Joined) {
+    match action {
+        bbq_steno::dict::Joined::Type { remove, append } => {
+            for _ in 0..remove {
+                submit_key_action(KeyAction::KeyPress(
+                    Keyboard::DeleteBackspace,
+                    Mods::empty(),
+                ));
+                submit_key_action(KeyAction::KeyRelease);
+            }
+            enqueue_action(&mut SubmitActionHandler, &append).await;
+        }
+    }
+}
+
+fn submit_key_action(key: KeyAction) {
+    match key {
+        KeyAction::KeyPress(key, mods) => {
+            submit_report(keypress_report(key, mods));
+        }
+        KeyAction::ModOnly(mods) => {
+            submit_report([modifier_bits(mods), 0, 0, 0, 0, 0, 0, 0]);
+        }
+        KeyAction::KeyRelease => {
+            submit_report([0; 8]);
+        }
+        KeyAction::KeySet(keys) => {
+            submit_report(keyset_report(&keys));
+        }
+        KeyAction::Stall => {
+            printkln!("USB stall action");
+        }
+    }
+}
+
+struct SubmitActionHandler;
+
+impl ActionHandler for SubmitActionHandler {
+    async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
+        for event in events {
+            submit_key_action(event);
+        }
+    }
+}
+
+struct StenoEventSender(
+    &'static Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH>,
+);
+
+impl EventQueue for StenoEventSender {
+    fn push(&mut self, val: Event) {
+        let _ = self.0.try_send(val);
+    }
+}
+
+struct WrapTimer;
+
+impl Timable for WrapTimer {
+    fn get_ticks(&self) -> u64 {
+        unsafe { k_cycle_get_64() }
+    }
 }
 
 /// Extract GPIO from the devicetree data.
