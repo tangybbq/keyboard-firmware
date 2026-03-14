@@ -1,9 +1,6 @@
 #![no_std]
 
 extern crate alloc;
-
-use alloc::fmt::Write;
-use alloc::string::String;
 use alloc::vec::Vec;
 use bbq_keyboard::{
     Event,
@@ -146,7 +143,6 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
 
 enum StenoCommand {
     Lookup(Stroke),
-    Raw(Stroke),
 }
 
 struct Action {
@@ -214,13 +210,7 @@ impl LayoutActions for Action {
     }
 
     async fn send_raw_steno(&self, steno: Stroke) {
-        let command = if self.raw_mode.load(Ordering::Acquire) {
-            StenoCommand::Raw(steno)
-        } else {
-            StenoCommand::Lookup(steno)
-        };
-
-        if STENO_COMMANDS.try_send(command).is_err() {
+        if STENO_COMMANDS.try_send(StenoCommand::Lookup(steno)).is_err() {
             printkln!("Dropping steno stroke: {}", steno);
         }
     }
@@ -298,9 +288,6 @@ async fn steno_lookup_task(
                     events.send(Event::StenoState(state.clone())).await;
                 }
             }
-            StenoCommand::Raw(stroke) => {
-                type_raw_stroke(stroke).await;
-            }
         }
     }
 }
@@ -372,12 +359,6 @@ async fn type_joined(action: bbq_steno::dict::Joined) {
             enqueue_action(&mut SubmitActionHandler, &append).await;
         }
     }
-}
-
-async fn type_raw_stroke(stroke: Stroke) {
-    let mut text = String::new();
-    write!(&mut text, "{} ", stroke).unwrap();
-    enqueue_action(&mut SubmitActionHandler, &text).await;
 }
 
 fn submit_key_action(key: KeyAction) {
