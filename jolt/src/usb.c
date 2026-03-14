@@ -9,6 +9,9 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(jolt_usb, LOG_LEVEL_INF);
 
+extern void usb_iface_ready_callback(bool ready);
+extern void usb_input_report_done_callback(void);
+
 static const uint8_t hid_report_desc[] = HID_KEYBOARD_REPORT_DESC();
 
 static const struct device *hid_dev;
@@ -21,6 +24,16 @@ static void hid_iface_ready(const struct device *dev, const bool ready)
 {
 	LOG_INF("HID device %s interface is %s", dev->name, ready ? "ready" : "not ready");
 	hid_ready = ready;
+	usb_iface_ready_callback(ready);
+}
+
+static void hid_input_report_done(const struct device *dev,
+				  const uint8_t *const report)
+{
+	ARG_UNUSED(dev);
+	ARG_UNUSED(report);
+
+	usb_input_report_done_callback();
 }
 
 static int hid_get_report(const struct device *dev,
@@ -74,6 +87,7 @@ static struct hid_device_ops hid_ops = {
 	.get_report = hid_get_report,
 	.set_report = hid_set_report,
 	.set_protocol = hid_set_protocol,
+	.input_report_done = hid_input_report_done,
 };
 
 static void msg_cb(struct usbd_context *const usbd_ctx,

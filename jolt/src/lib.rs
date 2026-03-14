@@ -6,9 +6,20 @@ use alloc::vec::Vec;
 use bbq_keyboard::{KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods, layout::{LayoutActions, LayoutManager}};
 use bbq_steno::Stroke;
 use embassy_executor::Spawner;
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex,
+    channel::Channel,
+    semaphore::{GreedySemaphore, Semaphore},
+};
 use embassy_time::Ticker;
 use static_cell::StaticCell;
-use zephyr::{device::gpio::GpioPin, devicetree::Value, embassy::Executor, printkln};
+use zephyr::{
+    device::gpio::GpioPin,
+    devicetree::Value,
+    embassy::Executor,
+    printkln,
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+};
 
 mod mapping;
 mod matrix;
@@ -17,6 +28,19 @@ unsafe extern "C" {
     fn usb_setup() -> i32;
     fn usb_send_report(report: *const u8, len: u16) -> i32;
 }
+
+const HID_QUEUE_DEPTH: usize = 32;
+
+#[repr(C)]
+struct HidReport {
+    generation: usize,
+    bytes: [u8; 8],
+}
+
+static HID_READY: AtomicBool = AtomicBool::new(false);
+static HID_GENERATION: AtomicUsize = AtomicUsize::new(0);
+static HID_REPORTS: Channel<CriticalSectionRawMutex, HidReport, HID_QUEUE_DEPTH> = Channel::new();
+static HID_IN_FLIGHT: GreedySemaphore<CriticalSectionRawMutex> = GreedySemaphore::new(0);
 
 #[unsafe(no_mangle)]
 extern "C" fn rust_main() {
@@ -48,6 +72,7 @@ async fn main(spawner: Spawner) -> () {
     printkln!("Cols: {:?}", rows);
     printkln!("Rows: {:?}", cols);
 
+    spawner.spawn(usb_sender_task()).unwrap();
     // Spawn a task to manage the keyboard matrix.
     spawner.spawn(keyboard_task(rows, cols)).unwrap();
 }
@@ -135,9 +160,56 @@ impl LayoutActions for Action {
 }
 
 fn submit_report(report: [u8; 8]) {
-    let ret = unsafe { usb_send_report(report.as_ptr(), report.len() as u16) };
-    if ret != 0 {
-        printkln!("usb_send_report failed: {}", ret);
+    let report = HidReport {
+        generation: HID_GENERATION.load(Ordering::Acquire),
+        bytes: report,
+    };
+
+    if HID_REPORTS.try_send(report).is_err() {
+        printkln!("Dropping HID report: queue full");
+    }
+}
+
+#[embassy_executor::task]
+async fn usb_sender_task() -> () {
+    loop {
+        let report = HID_REPORTS.receive().await;
+
+        if report.generation != HID_GENERATION.load(Ordering::Acquire)
+            || !HID_READY.load(Ordering::Acquire)
+        {
+            continue;
+        }
+
+        let permit = HID_IN_FLIGHT.acquire(1).await.unwrap();
+        permit.disarm();
+
+        if report.generation != HID_GENERATION.load(Ordering::Acquire)
+            || !HID_READY.load(Ordering::Acquire)
+        {
+            HID_IN_FLIGHT.release(1);
+            continue;
+        }
+
+        let ret = unsafe { usb_send_report(report.bytes.as_ptr(), report.bytes.len() as u16) };
+        if ret != 0 {
+            HID_IN_FLIGHT.release(1);
+            printkln!("usb_send_report failed: {}", ret);
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn usb_iface_ready_callback(ready: bool) {
+    HID_READY.store(ready, Ordering::Release);
+    HID_GENERATION.fetch_add(1, Ordering::AcqRel);
+    HID_IN_FLIGHT.set(if ready { 1 } else { 0 });
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn usb_input_report_done_callback() {
+    if HID_READY.load(Ordering::Acquire) {
+        HID_IN_FLIGHT.release(1);
     }
 }
 
