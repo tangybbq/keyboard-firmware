@@ -14,7 +14,7 @@ defmt = { version = "0.3", features = ["alloc"], optional = true }
 log = { version = "0.4.20", optional = true }
 smart-leds = "0.3"
 usb-device = "0.2"
-usbd-human-interface-device = { version = "0.4", features = ["defmt"] }
+usbd-human-interface-device = { version = "0.4" }
 enumset = "1.1"
 
 # We use serde and ciborium, which should support no-std.
@@ -37,6 +37,6 @@ default = ["std", "proto3", "log"]
 std = ["dep:clap"]
 proto2 = []
 proto3 = []
-defmt = ["dep:defmt", "bbq-steno/defmt"]
+defmt = ["dep:defmt", "bbq-steno/defmt", "usbd-human-interface-device/defmt"]
 # defmt = ["bbq-steno/defmt"]
 log = ["dep:log", "bbq-steno/log"]

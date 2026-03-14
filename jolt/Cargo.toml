@@ -31,6 +31,7 @@ path = "../bbq-keyboard"
 [dependencies.bbq-steno]
 version = "0.1.0"
 default-features = false
+features = ["log"]
 path = "../bbq-steno"
 
 # Ensure we can debug.
