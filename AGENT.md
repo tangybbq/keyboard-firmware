@@ -56,6 +56,8 @@ Other directories can be ignored at this time.
     - A short summary, followed by a blank line
     - A textual description of the change
     - A `Co-Authored-By` tag giving credit to the Agent model.
+    - The body should be wrapped to 72 columm max lines, when reasonable (long symbols make make it
+      overflow)
   - The commit text should be worded in the simple present tense, not past. "Add ..." instead of
     "Added ...".
 
