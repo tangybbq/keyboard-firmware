@@ -1,11 +1,9 @@
 // Test dictionaries.
 
-use std::{collections::BTreeMap, fs::File, rc::Rc};
+use std::rc::Rc;
 
-use anyhow::Result;
 use bbq_steno::{
-    dict::{RamDict, MapDictBuilder, DictImpl},
-    stroke::StenoWord,
+    dict::{MapDictBuilder, DictImpl},
 };
 use bbq_steno_macros::stroke;
 
@@ -26,7 +24,7 @@ fn ramdict() {
     let (posb, text) = pos.lookup_step(stroke!("ST")).unwrap();
     // println!("ST: {:?}", posb);
     assert_eq!(text, Some("ST".to_string()));
-    let (_posc, text) = posb.lookup_step(stroke!("OP")).unwrap();
+    let (_, text) = posb.lookup_step(stroke!("OP")).unwrap();
     assert_eq!(text, Some("ST/OP".to_string()));
     // println!("ST/OP: {:?}", posc);
 }
@@ -68,52 +66,3 @@ vec![stroke!("ST"), stroke!("OP"), stroke!("-G")],
     );
 }
 */
-
-// #[test]
-fn main_dict() {
-    let dict = load_dict().expect("Unable to load main dict");
-    let pos = dict.clone().selector();
-    let (pos, text) = pos.lookup_step(stroke!("1257B")).unwrap();
-    assert_eq!(text, Some("Stan".to_string()));
-    let (pos, text) = pos.lookup_step(stroke!("HREU")).unwrap();
-    assert_eq!(text, Some("Stanley".to_string()));
-    assert!(!pos.unique());
-}
-
-/*
-#[test]
-fn test_translator() {
-    let dict = load_dict().expect("Load main dict");
-    let mut xlat = Translator::new(&dict);
-
-    for st in [
-        stroke!("A"),
-        stroke!("ABT"),
-        stroke!("-G"),
-        stroke!("A"),
-        stroke!("ABT"),
-        stroke!("AG"),
-        // Asia, first stroke doesn't translate.
-        stroke!("AEURB"),
-        stroke!("SHA"),
-    ] {
-        println!("Add: {}", st);
-        xlat.add(st);
-        xlat.show();
-    }
-
-    todo!();
-}
-*/
-
-/// Load the main dictionary.
-fn load_dict() -> Result<Rc<RamDict>> {
-    let data: BTreeMap<String, String> =
-        serde_json::from_reader(File::open("../phoenix/phoenix_fix.json")?)?;
-    let mut builder = MapDictBuilder::new();
-    for (k, v) in data {
-        let k = StenoWord::parse(&k)?;
-        builder.insert(k.0, v);
-    }
-    Ok(Rc::new(builder.into_ram_dict()))
-}

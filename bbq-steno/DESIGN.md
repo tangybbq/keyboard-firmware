@@ -22,8 +22,6 @@ The crate contains a few distinct layers:
 - `dict/joiner.rs`: turns translation results into text edits and state transitions.
 - `dict/emily.rs`: built-in programmatic dictionary for Emily-style symbols.
 
-There is also an older `dict/translate.rs` + `dict/typer.rs` pipeline still in tree. It is useful as reference, but it is not the live firmware path.
-
 ## Runtime Architecture
 
 The active runtime pipeline is:
@@ -205,7 +203,6 @@ Current test coverage is light but real:
 
 - stroke text/bitfield round-trip
 - replacement encode/decode round-trip
-- basic `Typer` behavior
 - `RamDict` selector behavior
 
 Notably absent are focused tests for:
@@ -248,16 +245,6 @@ Costs:
 
 ## Technical Debt and Open Questions
 
-### Legacy translator path
-
-`dict/translate.rs` and `dict/typer.rs` implement an older translation pipeline with overlapping responsibilities. It is still exported, but the firmware path uses `Lookup` and `Joiner`.
-
-That creates three risks:
-
-- the public API suggests two competing architectures
-- fixes may land in the inactive path by mistake
-- tests may not cover the live path well enough
-
 ### Unsafe flash loading
 
 `MemDict::from_raw_ptr()` is intentionally unsafe and trusts offsets from the serialized header. That is appropriate for trusted flash images, but it means malformed dictionary images can cause invalid memory access or invalid UTF-8 assumptions.
@@ -278,4 +265,3 @@ Useful follow-on sections, if this document is expanded later:
 - `Replacement` encoding reference with examples
 - worked example of a multi-stroke word replacing earlier output
 - undo walkthrough across `Lookup` and `Joiner`
-- explicit note on the intended future of the legacy `Translator`

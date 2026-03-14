@@ -90,7 +90,7 @@ impl Lookup {
         }
     }
 
-    /// Add a new stroke to the Translator.  Updates the internal state.
+    /// Add a new stroke to the lookup state. Updates the internal state.
     pub fn add(&mut self, stroke: Stroke) -> Action {
         if stroke.is_star() {
             self.undo()
