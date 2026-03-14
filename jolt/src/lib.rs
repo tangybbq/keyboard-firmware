@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use bbq_keyboard::{KeyAction, KeyEvent, LayoutMode, MinorMode, layout::{LayoutActions, LayoutManager}};
+use bbq_keyboard::{KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods, layout::{LayoutActions, LayoutManager}};
 use bbq_steno::Stroke;
 use embassy_executor::Spawner;
 use embassy_time::Ticker;
@@ -13,10 +13,20 @@ use zephyr::{device::gpio::GpioPin, devicetree::Value, embassy::Executor, printk
 mod mapping;
 mod matrix;
 
+unsafe extern "C" {
+    fn usb_setup() -> i32;
+    fn usb_send_report(report: *const u8, len: u16) -> i32;
+}
+
 #[unsafe(no_mangle)]
 extern "C" fn rust_main() {
     printkln!("Jolt keyboard firmware");
     printkln!("Time tick: {}", zephyr::time::SYS_FREQUENCY);
+
+    let ret = unsafe { usb_setup() };
+    if ret != 0 {
+        panic!("usb_setup failed: {}", ret);
+    }
 
     let executor = EXECUTOR.init(Executor::new());
     executor.run(|spawner| {
@@ -92,7 +102,23 @@ impl LayoutActions for Action {
     }
 
     async fn send_key(&self, key: KeyAction) {
-        printkln!("Send key: {:?}", key);
+        match key {
+            KeyAction::KeyPress(key, mods) => {
+                submit_report(keypress_report(key, mods));
+            }
+            KeyAction::ModOnly(mods) => {
+                submit_report([modifier_bits(mods), 0, 0, 0, 0, 0, 0, 0]);
+            }
+            KeyAction::KeyRelease => {
+                submit_report([0; 8]);
+            }
+            KeyAction::KeySet(keys) => {
+                submit_report(keyset_report(&keys));
+            }
+            KeyAction::Stall => {
+                printkln!("USB stall action");
+            }
+        }
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {
@@ -106,6 +132,42 @@ impl LayoutActions for Action {
     async fn send_raw_steno(&self, steno: Stroke) {
         printkln!("Send raw steno: {}", steno);
     }
+}
+
+fn submit_report(report: [u8; 8]) {
+    let ret = unsafe { usb_send_report(report.as_ptr(), report.len() as u16) };
+    if ret != 0 {
+        printkln!("usb_send_report failed: {}", ret);
+    }
+}
+
+fn keypress_report(key: Keyboard, mods: Mods) -> [u8; 8] {
+    [modifier_bits(mods), 0, key as u8, 0, 0, 0, 0, 0]
+}
+
+fn keyset_report(keys: &[Keyboard]) -> [u8; 8] {
+    let mut report = [0u8; 8];
+    for (index, key) in keys.iter().take(6).enumerate() {
+        report[index + 2] = *key as u8;
+    }
+    report
+}
+
+fn modifier_bits(mods: Mods) -> u8 {
+    let mut bits = 0u8;
+    if mods.contains(Mods::CONTROL) {
+        bits |= 0x01;
+    }
+    if mods.contains(Mods::SHIFT) {
+        bits |= 0x02;
+    }
+    if mods.contains(Mods::ALT) {
+        bits |= 0x04;
+    }
+    if mods.contains(Mods::GUI) {
+        bits |= 0x08;
+    }
+    bits
 }
 
 /// Extract GPIO from the devicetree data.
