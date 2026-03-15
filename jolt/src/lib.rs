@@ -68,7 +68,12 @@ static ACTION: Action = Action::new();
 extern "C" fn rust_main() {
     printkln!("Jolt keyboard firmware");
     printkln!("Time tick: {}", zephyr::time::SYS_FREQUENCY);
-    log_board_info();
+    let addr = board_info_addr();
+    let board_info = get_board_info();
+    match &board_info {
+        Some(info) => printkln!("Board info @ {:#x}: {:?}", addr, info),
+        None => printkln!("Board info decode failed @ {:#x}", addr),
+    }
 
     let ret = unsafe { usb_setup() };
     if ret != 0 {
@@ -85,13 +90,9 @@ extern "C" fn rust_main() {
     })
 }
 
-fn log_board_info() {
+fn get_board_info() -> Option<bbq_keyboard::boardinfo::BoardInfo> {
     let addr = board_info_addr();
-    let info = unsafe { bbq_keyboard::boardinfo::BoardInfo::decode_from_memory(addr as *const u8) };
-    match info {
-        Some(info) => printkln!("Board info @ {:#x}: {:?}", addr, info),
-        None => printkln!("Board info decode failed @ {:#x}", addr),
-    }
+    unsafe { bbq_keyboard::boardinfo::BoardInfo::decode_from_memory(addr as *const u8) }
 }
 
 fn board_info_addr() -> usize {
