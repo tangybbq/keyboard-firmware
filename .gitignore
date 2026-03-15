@@ -19,3 +19,6 @@ jolt/.cargo
 
 # Local workspaces
 *.code-workspace
+
+# Local planning notes
+TASKS.md
