@@ -68,6 +68,7 @@ static ACTION: Action = Action::new();
 extern "C" fn rust_main() {
     printkln!("Jolt keyboard firmware");
     printkln!("Time tick: {}", zephyr::time::SYS_FREQUENCY);
+    log_board_info();
 
     let ret = unsafe { usb_setup() };
     if ret != 0 {
@@ -82,6 +83,22 @@ extern "C" fn rust_main() {
     executor.run(|spawner| {
         spawner.spawn(main(spawner)).unwrap();
     })
+}
+
+fn log_board_info() {
+    let addr = board_info_addr();
+    let info = unsafe { bbq_keyboard::boardinfo::BoardInfo::decode_from_memory(addr as *const u8) };
+    match info {
+        Some(info) => printkln!("Board info @ {:#x}: {:?}", addr, info),
+        None => printkln!("Board info decode failed @ {:#x}", addr),
+    }
+}
+
+fn board_info_addr() -> usize {
+    match zephyr::devicetree::chosen::board_info::RAW_REG {
+        [Value::Words([zephyr::devicetree::Word::Number(addr), ..])] => *addr as usize,
+        _ => panic!("chosen board-info node does not provide a usable reg property"),
+    }
 }
 
 #[embassy_executor::task]

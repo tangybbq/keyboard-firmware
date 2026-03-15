@@ -1,0 +1,19 @@
+# Copyright 2026 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Fixed-location board information block stored in flash.
+
+  This node describes a small region containing encoded board identity
+  information such as the board name and split side.
+
+compatible: "bbq,board-info"
+
+include: [base.yaml]
+
+properties:
+  reg:
+    type: array
+    required: true
+    description: |
+      Address and size of the board information block.

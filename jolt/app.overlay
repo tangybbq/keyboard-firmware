@@ -1,4 +1,14 @@
 / {
+	chosen {
+		board-info = &board_info;
+	};
+
+	board_info: board-info@101fff00 {
+		compatible = "bbq,board-info";
+		reg = <0x101fff00 0x100>;
+		status = "okay";
+	};
+
 	hid_dev_0: hid_dev_0 {
 		compatible = "zephyr,hid-device";
 		label = "HID0";
