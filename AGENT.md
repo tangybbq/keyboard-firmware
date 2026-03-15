@@ -54,7 +54,8 @@ Other directories can be ignored at this time.
 - The code should be committed to git with these guidelines:
   - Commit text should follow git conventions:
     - A short summary, followed by a blank line
-    - A textual description of the change
+    - A textual description of the change.  The body of the commit should almost always be present,
+      giving a bit more detail than the short summary.
     - A `Co-Authored-By` tag giving credit to the Agent model.
     - The body should be wrapped to 72 columm max lines, when reasonable (long symbols make make it
       overflow)
