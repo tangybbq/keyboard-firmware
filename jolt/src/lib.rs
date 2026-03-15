@@ -128,7 +128,7 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
             // printkln!("Key {} {}", code, if pressed { "pressed" } else { "released" });
         });
         for ev in events {
-            printkln!("Event: {:?}", ev);
+            // printkln!("Event: {:?}", ev);
             manager.handle_event(ev, &ACTION).await;
         }
         manager.tick(&ACTION, 1).await;
