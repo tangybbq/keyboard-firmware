@@ -22,9 +22,10 @@ use embassy_executor::Spawner;
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
     channel::Channel,
+    mutex::Mutex,
     semaphore::{GreedySemaphore, Semaphore},
 };
-use embassy_time::Ticker;
+use embassy_time::{Duration, Ticker};
 use static_cell::StaticCell;
 use zephyr::{
     device::gpio::GpioPin,
@@ -35,6 +36,7 @@ use zephyr::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
+mod leds;
 mod mapping;
 mod matrix;
 
@@ -62,6 +64,7 @@ static HID_IN_FLIGHT: GreedySemaphore<CriticalSectionRawMutex> = GreedySemaphore
 static STENO_COMMANDS: Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH> = Channel::new();
 static STENO_EVENTS: Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH> = Channel::new();
 static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
+static LEDS: Mutex<CriticalSectionRawMutex, Option<leds::manager::LedManager>> = Mutex::new(None);
 static ACTION: Action = Action::new();
 
 #[unsafe(no_mangle)]
@@ -116,8 +119,13 @@ async fn main(spawner: Spawner) -> () {
     printkln!("Cols: {:?}", rows);
     printkln!("Rows: {:?}", cols);
 
+    let mut led_manager = leds::manager::LedManager::new(leds::LedSet::get_all());
+    led_manager.clear_global(0);
+    *LEDS.lock().await = Some(led_manager);
+
     spawner.spawn(usb_sender_task()).unwrap();
     spawner.spawn(steno_event_task(&ACTION)).unwrap();
+    spawner.spawn(led_task()).unwrap();
     // Spawn a task to manage the keyboard matrix.
     spawner.spawn(keyboard_task(rows, cols)).unwrap();
 }
@@ -164,12 +172,14 @@ enum StenoCommand {
 }
 
 struct Action {
+    current_mode: AtomicUsize,
     raw_mode: AtomicBool,
 }
 
 impl Action {
     const fn new() -> Self {
         Self {
+            current_mode: AtomicUsize::new(LayoutMode::Qwerty as usize),
             raw_mode: AtomicBool::new(false),
         }
     }
@@ -178,9 +188,13 @@ impl Action {
         match event {
             Event::RawMode(raw) => {
                 self.raw_mode.store(raw, Ordering::Release);
+                if self.current_mode.load(Ordering::Acquire) == LayoutMode::Steno as usize {
+                    with_leds(|leds| leds.set_base(0, get_steno_indicator(raw))).await;
+                }
                 printkln!("Steno raw mode: {}", raw);
             }
             Event::StenoState(state) => {
+                with_leds(|leds| leds.set_base(1, leds::manager::get_steno_state(&state))).await;
                 printkln!("Steno state: {:?}", state);
             }
             other => {
@@ -192,10 +206,13 @@ impl Action {
 
 impl LayoutActions for Action {
     async fn set_mode(&self, mode: LayoutMode) {
+        self.current_mode.store(mode as usize, Ordering::Release);
+        with_leds(|leds| leds.set_base(0, get_mode_indicator(mode, self.raw_mode.load(Ordering::Acquire)))).await;
         printkln!("Set mode: {:?}", mode);
     }
 
     async fn set_mode_select(&self, mode: LayoutMode) {
+        with_leds(|leds| leds.set_base(0, get_mode_select_indicator(mode, self.raw_mode.load(Ordering::Acquire)))).await;
         printkln!("Set mode select: {:?}", mode);
     }
 
@@ -220,16 +237,33 @@ impl LayoutActions for Action {
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {
+        let indicator = match &submode {
+            MinorMode::ArtseyNav => &leds::manager::ARTSEY_NAV_INDICATOR,
+        };
+        with_leds(|leds| leds.set_base(1, indicator)).await;
         printkln!("Set submode: {:?}", submode);
     }
 
     async fn clear_sub_mode(&self, submode: MinorMode) {
+        with_leds(|leds| leds.set_base(1, &leds::manager::OFF_INDICATOR)).await;
         printkln!("Clear submode: {:?}", submode);
     }
 
     async fn send_raw_steno(&self, steno: Stroke) {
         if STENO_COMMANDS.try_send(StenoCommand::Lookup(steno)).is_err() {
             printkln!("Dropping steno stroke: {}", steno);
+        }
+    }
+}
+
+#[embassy_executor::task]
+async fn led_task() -> ! {
+    let mut ticker = Ticker::every(Duration::from_millis(100));
+    loop {
+        ticker.next().await;
+        let mut leds = LEDS.lock().await;
+        if let Some(leds) = leds.as_mut() {
+            leds.tick();
         }
     }
 }
@@ -424,6 +458,54 @@ struct WrapTimer;
 impl Timable for WrapTimer {
     fn get_ticks(&self) -> u64 {
         unsafe { k_cycle_get_64() }
+    }
+}
+
+async fn with_leds<F>(f: F)
+where
+    F: FnOnce(&mut leds::manager::LedManager),
+{
+    let mut leds = LEDS.lock().await;
+    if let Some(manager) = leds.as_mut() {
+        f(manager);
+    }
+}
+
+fn get_mode_indicator(mode: LayoutMode, raw: bool) -> &'static leds::manager::Indication {
+    match mode {
+        LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
+        LayoutMode::Steno => get_steno_indicator(raw),
+        LayoutMode::Artsey => &leds::manager::ARTSEY_INDICATOR,
+        LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
+        LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
+        LayoutMode::NKRO => &leds::manager::NKRO_INDICATOR,
+    }
+}
+
+fn get_mode_select_indicator(mode: LayoutMode, raw: bool) -> &'static leds::manager::Indication {
+    match mode {
+        LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
+        LayoutMode::Steno => get_steno_select_indicator(raw),
+        LayoutMode::Artsey => &leds::manager::ARTSEY_SELECT_INDICATOR,
+        LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
+        LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
+        LayoutMode::NKRO => &leds::manager::NKRO_SELECT_INDICATOR,
+    }
+}
+
+fn get_steno_indicator(raw: bool) -> &'static leds::manager::Indication {
+    if raw {
+        &leds::manager::STENO_RAW_INDICATOR
+    } else {
+        &leds::manager::STENO_INDICATOR
+    }
+}
+
+fn get_steno_select_indicator(raw: bool) -> &'static leds::manager::Indication {
+    if raw {
+        &leds::manager::STENO_RAW_SELECT_INDICATOR
+    } else {
+        &leds::manager::STENO_SELECT_INDICATOR
     }
 }
 
