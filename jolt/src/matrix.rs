@@ -7,9 +7,9 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use zephyr::device::gpio::GpioPin;
+use zephyr::raw::GPIO_PULL_DOWN;
 use zephyr::raw::ZR_GPIO_INPUT;
 use zephyr::raw::ZR_GPIO_OUTPUT_INACTIVE;
-use zephyr::raw::GPIO_PULL_DOWN;
 use zephyr::raw::k_busy_wait;
 
 // TODO: side
@@ -26,11 +26,7 @@ impl Matrix {
         let state = (0..rows.len() * cols.len())
             .map(|_| Debouncer::new())
             .collect();
-        let mut result = Matrix {
-            rows,
-            cols,
-            state,
-        };
+        let mut result = Matrix { rows, cols, state };
         Self::pin_setup(&mut result.cols, &mut result.rows);
         result
     }

@@ -19,15 +19,15 @@
 ///  Due to the numerous missing keys, we need to map the mode switch, which is
 ///  '2', to one of our pressable keys.
 pub const PROTO4_MAPPING: [u8; 30] = [
-    2, // 0
-    2, // 1
-    4, // 2
+    2,  // 0
+    2,  // 1
+    4,  // 2
     28, // 3
     25, // 4
     24, // 5
-    5, // 6
-    8, // 7
-    9, // 8
+    5,  // 6
+    8,  // 7
+    9,  // 8
     33, // 9
     32, // 10
     29, // 11
