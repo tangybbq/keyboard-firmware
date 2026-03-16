@@ -1,44 +1,50 @@
 //! PWM-backed RGB LED groups.
 
-use zephyr::device::led::Leds;
+use zephyr::device::led::Led;
 
 use super::LedGroup;
 
 pub struct PwmLed {
-    leds: Leds,
+    red: Led,
+    green: Led,
+    blue: Led,
 }
 
 impl LedGroup for PwmLed {
     fn len(&self) -> usize {
-        self.leds.len() / 3
+        1
     }
 
     fn update(&mut self, values: &[smart_leds::RGB8]) {
-        for (index, value) in values.iter().enumerate() {
-            let base = 3 * index;
-            unsafe {
-                self.leds
-                    .set_brightness(base, scale(value.r))
-                    .unwrap();
-                self.leds
-                    .set_brightness(base + 1, scale(value.g))
-                    .unwrap();
-                self.leds
-                    .set_brightness(base + 2, scale(value.b))
-                    .unwrap();
-            }
+        if let Some(value) = values.first() {
+            self.red.set_brightness(scale(value.r)).unwrap();
+            self.green.set_brightness(scale(value.g)).unwrap();
+            self.blue.set_brightness(scale(value.b)).unwrap();
         }
     }
 }
 
 impl PwmLed {
+    #[cfg(all(
+        dt = "aliases::pwm_led0",
+        dt = "aliases::pwm_led1",
+        dt = "aliases::pwm_led2"
+    ))]
     pub fn get_instance() -> Option<Self> {
-        let leds = zephyr::devicetree::chosen::bbq_pwm_leds::get_instance()?;
-        if leds.len() >= 3 {
-            Some(Self { leds })
-        } else {
-            None
-        }
+        Some(Self {
+            red: zephyr::devicetree::aliases::pwm_led0::get_instance()?,
+            green: zephyr::devicetree::aliases::pwm_led1::get_instance()?,
+            blue: zephyr::devicetree::aliases::pwm_led2::get_instance()?,
+        })
+    }
+
+    #[cfg(not(all(
+        dt = "aliases::pwm_led0",
+        dt = "aliases::pwm_led1",
+        dt = "aliases::pwm_led2"
+    )))]
+    pub fn get_instance() -> Option<Self> {
+        None
     }
 }
 

@@ -19,15 +19,33 @@ struct Step {
 }
 
 pub static INIT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(8, 0, 0), count: 1 },
-    Step { color: RGB8::new(0, 8, 0), count: 1 },
-    Step { color: RGB8::new(0, 0, 8), count: 1 },
-    Step { color: OFF, count: 3 },
+    Step {
+        color: RGB8::new(8, 0, 0),
+        count: 1,
+    },
+    Step {
+        color: RGB8::new(0, 8, 0),
+        count: 1,
+    },
+    Step {
+        color: RGB8::new(0, 0, 8),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 3,
+    },
 ]);
 
 pub static UNDEF_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(1, 1, 1), count: 1 },
-    Step { color: OFF, count: 30 },
+    Step {
+        color: RGB8::new(1, 1, 1),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 30,
+    },
 ]);
 
 pub static OFF_INDICATOR: Indication = Indication(&[Step {
@@ -41,8 +59,14 @@ pub static STENO_INDICATOR: Indication = Indication(&[Step {
 }]);
 
 pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(0, 0, 24), count: 1 },
-    Step { color: OFF, count: 1 },
+    Step {
+        color: RGB8::new(0, 0, 24),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 1,
+    },
 ]);
 
 pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
@@ -51,8 +75,14 @@ pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
 }]);
 
 pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(16, 8, 0), count: 1 },
-    Step { color: OFF, count: 1 },
+    Step {
+        color: RGB8::new(16, 8, 0),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 1,
+    },
 ]);
 
 pub static STENO_DIRECT_INDICATOR: Indication = Indication(&[Step {
@@ -61,8 +91,14 @@ pub static STENO_DIRECT_INDICATOR: Indication = Indication(&[Step {
 }]);
 
 pub static STENO_DIRECT_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(16, 8, 0), count: 1 },
-    Step { color: OFF, count: 1 },
+    Step {
+        color: RGB8::new(16, 8, 0),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 1,
+    },
 ]);
 
 pub static NKRO_INDICATOR: Indication = Indication(&[Step {
@@ -71,8 +107,14 @@ pub static NKRO_INDICATOR: Indication = Indication(&[Step {
 }]);
 
 pub static NKRO_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(32, 0, 32), count: 1 },
-    Step { color: OFF, count: 1 },
+    Step {
+        color: RGB8::new(32, 0, 32),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 1,
+    },
 ]);
 
 pub static ARTSEY_INDICATOR: Indication = Indication(&[Step {
@@ -81,8 +123,14 @@ pub static ARTSEY_INDICATOR: Indication = Indication(&[Step {
 }]);
 
 pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(16, 0, 0), count: 1 },
-    Step { color: OFF, count: 1 },
+    Step {
+        color: RGB8::new(16, 0, 0),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 1,
+    },
 ]);
 
 pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
@@ -91,8 +139,14 @@ pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
 }]);
 
 pub static TAIPO_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(16, 8, 24), count: 1 },
-    Step { color: OFF, count: 1 },
+    Step {
+        color: RGB8::new(16, 8, 24),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 1,
+    },
 ]);
 
 pub static QWERTY_INDICATOR: Indication = Indication(&[Step {
@@ -101,8 +155,14 @@ pub static QWERTY_INDICATOR: Indication = Indication(&[Step {
 }]);
 
 pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
-    Step { color: RGB8::new(0, 16, 0), count: 1 },
-    Step { color: OFF, count: 1 },
+    Step {
+        color: RGB8::new(0, 16, 0),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 1,
+    },
 ]);
 
 pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[Step {

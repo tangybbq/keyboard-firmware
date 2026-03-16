@@ -3,15 +3,7 @@
 extern crate alloc;
 use alloc::vec::Vec;
 use bbq_keyboard::{
-    Event,
-    EventQueue,
-    KeyAction,
-    KeyEvent,
-    Keyboard,
-    LayoutMode,
-    MinorMode,
-    Mods,
-    Timable,
+    Event, EventQueue, KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods, Timable,
     dict::Dict,
     layout::{LayoutActions, LayoutManager},
     usb_typer::{ActionHandler, enqueue_action},
@@ -61,7 +53,8 @@ static HID_READY: AtomicBool = AtomicBool::new(false);
 static HID_GENERATION: AtomicUsize = AtomicUsize::new(0);
 static HID_REPORTS: Channel<CriticalSectionRawMutex, HidReport, HID_QUEUE_DEPTH> = Channel::new();
 static HID_IN_FLIGHT: GreedySemaphore<CriticalSectionRawMutex> = GreedySemaphore::new(0);
-static STENO_COMMANDS: Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH> = Channel::new();
+static STENO_COMMANDS: Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH> =
+    Channel::new();
 static STENO_EVENTS: Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH> = Channel::new();
 static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
 static LEDS: Mutex<CriticalSectionRawMutex, Option<leds::manager::LedManager>> = Mutex::new(None);
@@ -108,11 +101,17 @@ fn board_info_addr() -> usize {
 #[embassy_executor::task]
 async fn main(spawner: Spawner) -> () {
     let mut cols = Vec::new();
-    extract_gpios(zephyr::devicetree::aliases::matrix::RAW_COL_GPIOS, &mut cols);
+    extract_gpios(
+        zephyr::devicetree::aliases::matrix::RAW_COL_GPIOS,
+        &mut cols,
+    );
     printkln!("n columns: {}", cols.len());
 
     let mut rows = Vec::new();
-    extract_gpios(zephyr::devicetree::aliases::matrix::RAW_ROW_GPIOS, &mut rows);
+    extract_gpios(
+        zephyr::devicetree::aliases::matrix::RAW_ROW_GPIOS,
+        &mut rows,
+    );
     printkln!("n rows: {}", rows.len());
 
     // Find the keyboard matrix definitions.
@@ -142,9 +141,12 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
     loop {
         let mut events = Vec::new();
         matrix.scan(|code, pressed| {
-            let code = mapping::PROTO4_MAPPING.get(code as usize).copied().unwrap_or_else(|| {
-                panic!("Invalid code from matrix: {}", code);
-            });
+            let code = mapping::PROTO4_MAPPING
+                .get(code as usize)
+                .copied()
+                .unwrap_or_else(|| {
+                    panic!("Invalid code from matrix: {}", code);
+                });
             let ev = if pressed {
                 KeyEvent::Press(code)
             } else {
@@ -207,12 +209,24 @@ impl Action {
 impl LayoutActions for Action {
     async fn set_mode(&self, mode: LayoutMode) {
         self.current_mode.store(mode as usize, Ordering::Release);
-        with_leds(|leds| leds.set_base(0, get_mode_indicator(mode, self.raw_mode.load(Ordering::Acquire)))).await;
+        with_leds(|leds| {
+            leds.set_base(
+                0,
+                get_mode_indicator(mode, self.raw_mode.load(Ordering::Acquire)),
+            )
+        })
+        .await;
         printkln!("Set mode: {:?}", mode);
     }
 
     async fn set_mode_select(&self, mode: LayoutMode) {
-        with_leds(|leds| leds.set_base(0, get_mode_select_indicator(mode, self.raw_mode.load(Ordering::Acquire)))).await;
+        with_leds(|leds| {
+            leds.set_base(
+                0,
+                get_mode_select_indicator(mode, self.raw_mode.load(Ordering::Acquire)),
+            )
+        })
+        .await;
         printkln!("Set mode select: {:?}", mode);
     }
 
@@ -250,7 +264,10 @@ impl LayoutActions for Action {
     }
 
     async fn send_raw_steno(&self, steno: Stroke) {
-        if STENO_COMMANDS.try_send(StenoCommand::Lookup(steno)).is_err() {
+        if STENO_COMMANDS
+            .try_send(StenoCommand::Lookup(steno))
+            .is_err()
+        {
             printkln!("Dropping steno stroke: {}", steno);
         }
     }
@@ -443,9 +460,7 @@ impl ActionHandler for SubmitActionHandler {
     }
 }
 
-struct StenoEventSender(
-    &'static Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH>,
-);
+struct StenoEventSender(&'static Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH>);
 
 impl EventQueue for StenoEventSender {
     fn push(&mut self, val: Event) {
