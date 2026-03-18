@@ -61,8 +61,26 @@
 	};
 };
 
+/* Workaround: when pwm_leds is disabled the Rust code generator still emits
+ * get_instance() on the child nodes which call super::get_instance_raw(), a
+ * function that is only generated when the parent is enabled.  Deleting the
+ * children (and the board-level aliases that point at them) suppresses that
+ * dead code.  The real fix is in zephyr-lang-rust: RawInfo::Parent in
+ * zephyr-build/src/devicetree/augment.rs must check the ancestor's status
+ * before emitting code.  See zephyr-lang-rust TASKS.md. */
+/ {
+	aliases {
+		/delete-property/ pwm-led0;
+		/delete-property/ pwm-led1;
+		/delete-property/ pwm-led2;
+	};
+};
+
 &pwm_leds {
 	status = "disabled";
+	/delete-node/ pwm_led_0;
+	/delete-node/ pwm_led_1;
+	/delete-node/ pwm_led_2;
 };
 
 &pio0 {
