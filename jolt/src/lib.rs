@@ -134,26 +134,39 @@ static EXECUTOR: StaticCell<Executor> = StaticCell::new();
 
 #[embassy_executor::task]
 async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
+    let board_info = get_board_info();
+    let board_name = board_info.as_ref().map(|b| b.name.as_str()).unwrap_or("proto4");
+    let (two_row, key_mapping): (bool, &'static [u8]) = match board_name {
+        "proto4" => (true, &mapping::PROTO4_MAPPING),
+        "jolt3" => (false, &mapping::JOLT3_LEFT_MAPPING),
+        other => panic!("Unknown board name: {}", other),
+    };
+    printkln!("Board: {}, two_row: {}", board_name, two_row);
+
     let mut count = 0u64;
     let mut matrix = matrix::Matrix::new(rows, cols);
     let mut ticker = Ticker::every(embassy_time::Duration::from_millis(1));
-    let mut manager = LayoutManager::new(true);
+    let mut manager = LayoutManager::new(two_row);
     loop {
         let mut events = Vec::new();
         matrix.scan(|code, pressed| {
-            let code = mapping::PROTO4_MAPPING
+            let mapped = key_mapping
                 .get(code as usize)
                 .copied()
                 .unwrap_or_else(|| {
                     panic!("Invalid code from matrix: {}", code);
                 });
+            if mapped == 255 {
+                // Dead key position — no physical switch here.
+                return;
+            }
             let ev = if pressed {
-                KeyEvent::Press(code)
+                KeyEvent::Press(mapped)
             } else {
-                KeyEvent::Release(code)
+                KeyEvent::Release(mapped)
             };
             events.push(ev);
-            // printkln!("Key {} {}", code, if pressed { "pressed" } else { "released" });
+            // printkln!("Key {} {}", mapped, if pressed { "pressed" } else { "released" });
         });
         for ev in events {
             // printkln!("Event: {:?}", ev);
