@@ -4,7 +4,7 @@
 //! seem to hurt anything to have it run always.
 
 fn main() {
-    build_data::set_GIT_COMMIT();
-    build_data::set_GIT_DIRTY();
+    build_data::set_GIT_COMMIT().expect("set_GIT_COMMIT");
+    build_data::set_GIT_DIRTY().expect("set_GIT_DIRTY");
     build_data::set_BUILD_TIMESTAMP();
 }
