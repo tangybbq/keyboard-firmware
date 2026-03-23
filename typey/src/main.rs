@@ -109,7 +109,7 @@ fn main() -> Result<()> {
 }
 
 fn writer(cmd: &WriteCommand) -> Result<()> {
-    let file = cmd.file.clone().unwrap_or_else(|| "../phoenix/phoenix.bin".to_string());
+    let file = cmd.file.clone().unwrap_or_else(|| "../bbq-tool/full.bin".to_string());
     let dict = load_dict(&file)?;
     let mut xlat = Lookup::new(dict);
     let stdin = stdin();
