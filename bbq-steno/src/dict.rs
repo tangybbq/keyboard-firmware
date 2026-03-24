@@ -18,7 +18,7 @@ use alloc::string::{String, ToString};
 use crate::Stroke;
 
 pub use self::mapdict::{RamDict, MapDictBuilder};
-pub use self::lookup::Lookup;
+pub use self::lookup::{Action, Lookup};
 pub use self::joiner::{Joiner, Joined, State};
 pub use self::emily::EmilySymbols;
 
