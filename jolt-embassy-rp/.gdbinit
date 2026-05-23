@@ -9,7 +9,7 @@ target extended-remote :2331
 # target remote :3333
 
 # Not sure how stable this is.
-monitor exec SetRTTAddr 0x2000015c
+monitor exec SetRTTAddr 0x2000014c
 
 b main
 
