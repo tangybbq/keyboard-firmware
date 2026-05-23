@@ -136,10 +136,13 @@ impl KeyEvent {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum KeyAction {
-    KeyPress(Keyboard, Mods),
+    // `Keyboard` comes from usbd-human-interface-device, which we no longer
+    // build with defmt support (see the note in Cargo.toml), so format it
+    // through its `Debug` impl rather than requiring `defmt::Format`.
+    KeyPress(#[cfg_attr(feature = "defmt", defmt(Debug2Format))] Keyboard, Mods),
     ModOnly(Mods),
     KeyRelease,
-    KeySet(Vec<Keyboard>),
+    KeySet(#[cfg_attr(feature = "defmt", defmt(Debug2Format))] Vec<Keyboard>),
     Stall,
 }
 
