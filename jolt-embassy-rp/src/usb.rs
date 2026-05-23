@@ -3,9 +3,9 @@
 use alloc::{boxed::Box, vec::Vec};
 use bbq_keyboard::{KeyAction, Keyboard, Mods};
 use embassy_futures::join::join;
-use embassy_rp::{peripherals::USB, usb::Driver};
+use embassy_rp::{peripherals::USB, usb::Driver, Peri};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Receiver};
-use embassy_usb::{class::hid::{HidReaderWriter, HidWriter, ReportId, RequestHandler, State}, control::OutResponse, Builder, Config, Handler};
+use embassy_usb::{class::hid::{HidBootProtocol, HidReaderWriter, HidSubclass, HidWriter, ReportId, RequestHandler, State}, control::OutResponse, Builder, Config, Handler};
 use static_cell::StaticCell;
 use usbd_hid::descriptor::KeyboardReport;
 
@@ -18,7 +18,7 @@ pub type KeyReceiver = Receiver<'static, CriticalSectionRawMutex, KeyAction, 8>;
 /// Setup the USB driver.  We'll make things heap allocated just to simplify things, and because
 /// there is no particular reason to go out of our way to avoid allocation.
 #[embassy_executor::task]
-pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
+pub async fn setup_usb(usb: Peri<'static, USB>, unique: &'static str, keys_rec: KeyReceiver) {
     let driver = Driver::new(usb, Irqs);
 
     let mut config = Config::new(0xc0de, 0xcafe);
@@ -56,6 +56,8 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
         request_handler: None,
         poll_ms: 1,
         max_packet_size: 64,
+        hid_subclass: HidSubclass::No,
+        hid_boot_protocol: HidBootProtocol::None,
     };
     // info!("Descriptor: {=[u8]:#02x}", config.report_descriptor);
     let state = Box::leak(Box::new(State::new()));
@@ -65,8 +67,8 @@ pub async fn setup_usb(usb: USB, unique: &'static str, keys_rec: KeyReceiver) {
     let mut function = builder.function(0xFF, 0, 0);
     let mut interface = function.interface();
     let mut alt = interface.alt_setting(0xff, 0, 0, None);
-    let read_ep = alt.endpoint_bulk_out(64);
-    let write_ep = alt.endpoint_bulk_in(64);
+    let read_ep = alt.endpoint_bulk_out(None, 64);
+    let write_ep = alt.endpoint_bulk_in(None, 64);
     drop(function);
 
     let minder = Minder::new(read_ep, write_ep, unique);

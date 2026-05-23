@@ -72,18 +72,18 @@ impl Dispatch {
             typed_receiver,
         });
 
-        unwrap!(spawn_high.spawn(matrix_loop(this, board.matrix)));
-        unwrap!(spawn_high.spawn(led_loop(&this.leds)));
+        spawn_high.spawn(unwrap!(matrix_loop(this, board.matrix)));
+        spawn_high.spawn(unwrap!(led_loop(&this.leds)));
         if this.layout.is_some() {
-            unwrap!(spawn_high.spawn(layout_loop(this)));
-            unwrap!(spawn_high.spawn(event_loop(this)));
-            unwrap!(spawn_high.spawn(typed_loop(this)));
+            spawn_high.spawn(unwrap!(layout_loop(this)));
+            spawn_high.spawn(unwrap!(event_loop(this)));
+            spawn_high.spawn(unwrap!(typed_loop(this)));
         }
         if let Inter::ActiveI2C(chan) = this.inter {
-            unwrap!(spawn_high.spawn(active_task(this, chan)));
+            spawn_high.spawn(unwrap!(active_task(this, chan)));
         }
         if let Inter::ActiveUart(active_uart) = this.inter {
-            unwrap!(spawn_high.spawn(active_uart_task(this, active_uart)));
+            spawn_high.spawn(unwrap!(active_uart_task(this, active_uart)));
         }
 
         this

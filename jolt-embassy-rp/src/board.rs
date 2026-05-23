@@ -16,10 +16,9 @@ mod jolt3 {
     use bbq_keyboard::{KeyAction, KeyEvent, Side};
     use embassy_executor::SendSpawner;
     use embassy_rp::{
-        gpio::{Input, Level, Output, Pin, Pull}, i2c, i2c_slave, peripherals::{self, PIO0}, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peripherals
+        gpio::{AnyPin, Input, Level, Output, Pull}, i2c, i2c_slave, peripherals::{self, I2C1, PIO0}, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peri, Peripherals
     };
     use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::{Channel, Sender}};
-    use embedded_resources::resource_group;
     use static_cell::StaticCell;
 
     use crate::{board::Inter, inter::{InterPassive, PassiveTask}, logging::unwrap};
@@ -35,57 +34,60 @@ mod jolt3 {
     use super::{Board, UsbHandler};
 
     // Split up the periperals for each init.
-    #[resource_group]
     struct MatrixResources {
-        pin_0: peripherals::PIN_0,
-        pin_1: peripherals::PIN_1,
-        pin_2: peripherals::PIN_2,
-        pin_3: peripherals::PIN_3,
-        pin_4: peripherals::PIN_4,
-        pin_5: peripherals::PIN_5,
-        pin_6: peripherals::PIN_6,
-        pin_7: peripherals::PIN_7,
-        pin_8: peripherals::PIN_8,
-        pin_9: peripherals::PIN_9,
+        pin_0: Peri<'static, peripherals::PIN_0>,
+        pin_1: Peri<'static, peripherals::PIN_1>,
+        pin_2: Peri<'static, peripherals::PIN_2>,
+        pin_3: Peri<'static, peripherals::PIN_3>,
+        pin_4: Peri<'static, peripherals::PIN_4>,
+        pin_5: Peri<'static, peripherals::PIN_5>,
+        pin_6: Peri<'static, peripherals::PIN_6>,
+        pin_7: Peri<'static, peripherals::PIN_7>,
+        pin_8: Peri<'static, peripherals::PIN_8>,
+        pin_9: Peri<'static, peripherals::PIN_9>,
     }
 
-    #[resource_group]
     struct RgbResources {
-        pin_19: peripherals::PIN_19,
-        pio0: peripherals::PIO0,
-        dma_ch0: peripherals::DMA_CH0,
+        pin_19: Peri<'static, peripherals::PIN_19>,
+        pio0: Peri<'static, peripherals::PIO0>,
+        dma_ch0: Peri<'static, peripherals::DMA_CH0>,
     }
 
-    #[resource_group]
     struct I2cResources {
-        pin_10: peripherals::PIN_10,
-        pin_11: peripherals::PIN_11,
-        pin_12: peripherals::PIN_12,
-        pin_13: peripherals::PIN_13,
-        i2c1: peripherals::I2C1,
+        pin_10: Peri<'static, peripherals::PIN_10>,
+        pin_11: Peri<'static, peripherals::PIN_11>,
+        pin_12: Peri<'static, peripherals::PIN_12>,
+        pin_13: Peri<'static, peripherals::PIN_13>,
+        i2c1: Peri<'static, peripherals::I2C1>,
     }
 
-    #[resource_group]
     struct UsbResources {
-        usb: peripherals::USB,
+        usb: Peri<'static, peripherals::USB>,
     }
 
     pub fn new_left(p: Peripherals, spawner: SendSpawner, unique: &'static str) -> Board {
-        let matrix = matrix_init(matrix_resources!(p), Side::Left);
-        let leds = leds_init(rgb_resources!(p), spawner);
+        let matrix = matrix_init(MatrixResources {
+            pin_0: p.PIN_0, pin_1: p.PIN_1, pin_2: p.PIN_2, pin_3: p.PIN_3, pin_4: p.PIN_4,
+            pin_5: p.PIN_5, pin_6: p.PIN_6, pin_7: p.PIN_7, pin_8: p.PIN_8, pin_9: p.PIN_9,
+        }, Side::Left);
+        let leds = leds_init(RgbResources {
+            pin_19: p.PIN_19, pio0: p.PIO0, dma_ch0: p.DMA_CH0,
+        }, spawner);
 
         let mut config = i2c::Config::default();
         config.frequency = 400_000;
-        let i2c = i_2c_resources!(p);
+        let i2c = I2cResources {
+            pin_10: p.PIN_10, pin_11: p.PIN_11, pin_12: p.PIN_12, pin_13: p.PIN_13, i2c1: p.I2C1,
+        };
         let bus = i2c::I2c::new_async(i2c.i2c1, i2c.pin_11, i2c.pin_10, Irqs, config);
         let irq = Input::new(i2c.pin_13, Pull::None);
 
         static CHAN: StaticCell<Channel<CriticalSectionRawMutex, KeyEvent, 1>> = StaticCell::new();
         let key_chan = CHAN.init(Channel::new());
 
-        unwrap!(spawner.spawn(active_task(bus, irq, key_chan.sender())));
+        spawner.spawn(unwrap!(active_task(bus, irq, key_chan.sender())));
 
-        let usb = usb_init(usb_resources!(p), spawner, unique);
+        let usb = usb_init(UsbResources { usb: p.USB }, spawner, unique);
 
         Board {
             matrix,
@@ -105,18 +107,25 @@ mod jolt3 {
     }
 
     pub fn new_right(p: Peripherals, spawner: SendSpawner) -> Board {
-        let matrix = matrix_init(matrix_resources!(p), Side::Right);
-        let leds = leds_init(rgb_resources!(p), spawner);
+        let matrix = matrix_init(MatrixResources {
+            pin_0: p.PIN_0, pin_1: p.PIN_1, pin_2: p.PIN_2, pin_3: p.PIN_3, pin_4: p.PIN_4,
+            pin_5: p.PIN_5, pin_6: p.PIN_6, pin_7: p.PIN_7, pin_8: p.PIN_8, pin_9: p.PIN_9,
+        }, Side::Right);
+        let leds = leds_init(RgbResources {
+            pin_19: p.PIN_19, pio0: p.PIO0, dma_ch0: p.DMA_CH0,
+        }, spawner);
 
         let mut config = i2c_slave::Config::default();
         config.addr = 0x42;
-        let i2c = i_2c_resources!(p);
+        let i2c = I2cResources {
+            pin_10: p.PIN_10, pin_11: p.PIN_11, pin_12: p.PIN_12, pin_13: p.PIN_13, i2c1: p.I2C1,
+        };
         let bus = i2c_slave::I2cSlave::new(i2c.i2c1, i2c.pin_11, i2c.pin_10, Irqs, config);
         let irq = Output::new(i2c.pin_12, Level::Low);
 
         let (passive, task_data) = InterPassive::new(bus, irq);
 
-        unwrap!(spawner.spawn(passive_task(task_data)));
+        spawner.spawn(unwrap!(passive_task(task_data)));
 
         Board {
             matrix,
@@ -137,25 +146,25 @@ mod jolt3 {
         static COLS: StaticCell<[Output<'static>; 4]> = StaticCell::new();
         let cols = COLS.init(
             [
-                r.pin_6.degrade(),
-                r.pin_7.degrade(),
-                r.pin_8.degrade(),
-                r.pin_9.degrade(),
+                r.pin_6.into(),
+                r.pin_7.into(),
+                r.pin_8.into(),
+                r.pin_9.into(),
             ]
-            .map(|p| Output::new(p, Level::Low)),
+            .map(|p: Peri<'static, AnyPin>| Output::new(p, Level::Low)),
         );
 
         static ROWS: StaticCell<[Input<'static>; 6]> = StaticCell::new();
         let rows = ROWS.init(
             [
-                r.pin_0.degrade(),
-                r.pin_2.degrade(),
-                r.pin_1.degrade(),
-                r.pin_3.degrade(),
-                r.pin_5.degrade(),
-                r.pin_4.degrade(),
+                r.pin_0.into(),
+                r.pin_2.into(),
+                r.pin_1.into(),
+                r.pin_3.into(),
+                r.pin_5.into(),
+                r.pin_4.into(),
             ]
-            .map(|p| Input::new(p, Pull::Down)),
+            .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
         );
 
         let xlate = translate::get_translation("jolt3");
@@ -169,13 +178,13 @@ mod jolt3 {
             mut common, sm0, ..
         } = Pio::new(r.pio0, Irqs);
         let program = PioWs2812Program::new(&mut common);
-        let ws2812 = PioWs2812::new(&mut common, sm0, r.dma_ch0, r.pin_19, &program);
+        let ws2812 = PioWs2812::new(&mut common, sm0, r.dma_ch0, Irqs, r.pin_19, &program);
 
         let leds = LedStripGroup::new(ws2812);
 
         static STRIP: StaticCell<LedStripHandle> = StaticCell::new();
         let strip = STRIP.init(leds.get_handle());
-        unwrap! {spawner.spawn(led_task(leds))};
+        spawner.spawn(unwrap!(led_task(leds)));
 
         LedSet::new([strip])
     }
@@ -192,7 +201,7 @@ mod jolt3 {
             keys: KEYS.init(Channel::new()),
         };
 
-        unwrap!(spawner.spawn(crate::usb::setup_usb(r.usb, unique, usb.keys.receiver())));
+        spawner.spawn(unwrap!(crate::usb::setup_usb(r.usb, unique, usb.keys.receiver())));
 
         usb
     }
@@ -208,8 +217,7 @@ mod jolt2 {
 
     use bbq_keyboard::Side;
     use embassy_executor::SendSpawner;
-    use embassy_rp::{gpio::{Input, Level, Output, Pin, Pull}, peripherals, uart::{BufferedUart, BufferedUartRx, BufferedUartTx, DataBits, Parity, StopBits}, Peripherals};
-    use embedded_resources::resource_group;
+    use embassy_rp::{gpio::{AnyPin, Input, Level, Output, Pull}, peripherals, uart::{BufferedUart, BufferedUartRx, BufferedUartTx, DataBits, Parity, StopBits}, Peri, Peripherals};
     use static_cell::StaticCell;
 
     use crate::{inter_uart::InterPassive, leds::LedSet, matrix::Matrix, translate, Irqs};
@@ -218,26 +226,23 @@ mod jolt2 {
     use super::{Board, Inter};
 
     // Split up the peripherals.
-    #[resource_group]
     struct MatrixResources {
-        pin_2: peripherals::PIN_2,
-        pin_3: peripherals::PIN_3,
-        pin_4: peripherals::PIN_4,
-        pin_5: peripherals::PIN_5,
-        pin_6: peripherals::PIN_6,
-        pin_26: peripherals::PIN_26,
-        pin_7: peripherals::PIN_7,
-        pin_27: peripherals::PIN_27,
-        pin_29: peripherals::PIN_29,
-        pin_28: peripherals::PIN_28,
+        pin_2: Peri<'static, peripherals::PIN_2>,
+        pin_3: Peri<'static, peripherals::PIN_3>,
+        pin_4: Peri<'static, peripherals::PIN_4>,
+        pin_5: Peri<'static, peripherals::PIN_5>,
+        pin_6: Peri<'static, peripherals::PIN_6>,
+        pin_26: Peri<'static, peripherals::PIN_26>,
+        pin_7: Peri<'static, peripherals::PIN_7>,
+        pin_27: Peri<'static, peripherals::PIN_27>,
+        pin_29: Peri<'static, peripherals::PIN_29>,
+        pin_28: Peri<'static, peripherals::PIN_28>,
     }
 
-    #[resource_group]
     struct UartResources {
-        #[alias = UART]
-        uart: peripherals::UART0,
-        tx: peripherals::PIN_0,
-        rx: peripherals::PIN_1,
+        uart: Peri<'static, peripherals::UART0>,
+        tx: Peri<'static, peripherals::PIN_0>,
+        rx: Peri<'static, peripherals::PIN_1>,
     }
 
     pub fn new_right(p: Peripherals, spawner: SendSpawner) -> Board {
@@ -245,8 +250,13 @@ mod jolt2 {
 
         // For now, construct an empty led, until we have something to write to the led.
         let leds = LedSet::new([]);
-        let matrix = matrix_init(matrix_resources!(p), Side::Right);
-        let uart = uart_init(uart_resources!(p), spawner);
+        let matrix = matrix_init(MatrixResources {
+            pin_2: p.PIN_2, pin_3: p.PIN_3, pin_4: p.PIN_4, pin_5: p.PIN_5, pin_6: p.PIN_6,
+            pin_26: p.PIN_26, pin_7: p.PIN_7, pin_27: p.PIN_27, pin_29: p.PIN_29, pin_28: p.PIN_28,
+        }, Side::Right);
+        let uart = uart_init(UartResources {
+            uart: p.UART0, tx: p.PIN_0, rx: p.PIN_1,
+        }, spawner);
 
         Board {
             matrix,
@@ -260,25 +270,25 @@ mod jolt2 {
         static COLS: StaticCell<[Output<'static>; 4]> = StaticCell::new();
         let cols = COLS.init(
             [
-                r.pin_2.degrade(),
-                r.pin_3.degrade(),
-                r.pin_4.degrade(),
-                r.pin_5.degrade(),
+                r.pin_2.into(),
+                r.pin_3.into(),
+                r.pin_4.into(),
+                r.pin_5.into(),
             ]
-            .map(|p| Output::new(p, Level::Low)),
+            .map(|p: Peri<'static, AnyPin>| Output::new(p, Level::Low)),
         );
 
         static ROWS: StaticCell<[Input<'static>; 6]> = StaticCell::new();
         let rows = ROWS.init(
             [
-                r.pin_6.degrade(),
-                r.pin_26.degrade(),
-                r.pin_7.degrade(),
-                r.pin_27.degrade(),
-                r.pin_29.degrade(),
-                r.pin_28.degrade(),
+                r.pin_6.into(),
+                r.pin_26.into(),
+                r.pin_7.into(),
+                r.pin_27.into(),
+                r.pin_29.into(),
+                r.pin_28.into(),
             ]
-            .map(|p| Input::new(p, Pull::Down)),
+            .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
         );
 
         let xlate = translate::get_translation("jolt2");
@@ -299,12 +309,12 @@ mod jolt2 {
         static RX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
         let rx_buf = &mut RX_BUF.init([0; 64])[..];
 
-        static UART: StaticCell<BufferedUart<'static, UART>> = StaticCell::new();
+        static UART: StaticCell<BufferedUart> = StaticCell::new();
         let uart = UART.init(BufferedUart::new(
             r.uart,
-            Irqs,
             r.tx,
             r.rx,
+            Irqs,
             tx_buf,
             rx_buf,
             config,
@@ -314,19 +324,19 @@ mod jolt2 {
 
         static PASSIVE: StaticCell<InterPassive> = StaticCell::new();
         let passive = PASSIVE.init(InterPassive::new());
-        unwrap!(spawner.spawn(passive_tx_task(passive, tx)));
-        unwrap!(spawner.spawn(passive_rx_task(passive, rx)));
+        spawner.spawn(unwrap!(passive_tx_task(passive, tx)));
+        spawner.spawn(unwrap!(passive_rx_task(passive, rx)));
 
         passive
     }
 
     #[embassy_executor::task]
-    async fn passive_tx_task(passive: &'static InterPassive, tx: &'static mut BufferedUartTx<'static, UART>) -> ! {
+    async fn passive_tx_task(passive: &'static InterPassive, tx: &'static mut BufferedUartTx) -> ! {
         passive.tx_task(tx).await
     }
 
     #[embassy_executor::task]
-    async fn passive_rx_task(passive: &'static InterPassive, rx: &'static mut BufferedUartRx<'static, UART>) -> ! {
+    async fn passive_rx_task(passive: &'static InterPassive, rx: &'static mut BufferedUartRx) -> ! {
         passive.rx_task(rx).await
     }
 }
@@ -337,9 +347,8 @@ mod jolt2dir {
 
     use bbq_keyboard::{KeyAction, Side};
     use embassy_executor::SendSpawner;
-    use embassy_rp::{gpio::{Input, Level, Output, Pin, Pull}, peripherals, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, uart::{BufferedUart, BufferedUartRx, BufferedUartTx, DataBits, Parity, StopBits}, Peripherals};
+    use embassy_rp::{gpio::{AnyPin, Input, Level, Output, Pull}, peripherals, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, uart::{BufferedUart, BufferedUartRx, BufferedUartTx, DataBits, Parity, StopBits}, Peri, Peripherals};
     use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
-    use embedded_resources::resource_group;
     use static_cell::StaticCell;
 
     use crate::{inter_uart::InterActive, leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, translate, Irqs};
@@ -347,48 +356,52 @@ mod jolt2dir {
 
     use super::{Board, Inter, UsbHandler};
 
+    /// The PIO instance that drives the RGB LEDs.
+    type RgbPIO = peripherals::PIO0;
+
     // Split up the peripherals.
-    #[resource_group]
     struct MatrixResources {
-        row0: peripherals::PIN_4,
-        row1: peripherals::PIN_6,
-        row2: peripherals::PIN_5,
-        row3: peripherals::PIN_7,
-        row4: peripherals::PIN_9,
-        row5: peripherals::PIN_8,
-        col0: peripherals::PIN_2,
-        col1: peripherals::PIN_1,
-        col2: peripherals::PIN_0,
-        col3: peripherals::PIN_3,
+        row0: Peri<'static, peripherals::PIN_4>,
+        row1: Peri<'static, peripherals::PIN_6>,
+        row2: Peri<'static, peripherals::PIN_5>,
+        row3: Peri<'static, peripherals::PIN_7>,
+        row4: Peri<'static, peripherals::PIN_9>,
+        row5: Peri<'static, peripherals::PIN_8>,
+        col0: Peri<'static, peripherals::PIN_2>,
+        col1: Peri<'static, peripherals::PIN_1>,
+        col2: Peri<'static, peripherals::PIN_0>,
+        col3: Peri<'static, peripherals::PIN_3>,
     }
 
-    #[resource_group]
     struct RgbResources {
-        rgb_pin: peripherals::PIN_13,
-        #[alias = RgbPIO]
-        pio: peripherals::PIO0,
-        dma: peripherals::DMA_CH0,
+        rgb_pin: Peri<'static, peripherals::PIN_13>,
+        pio: Peri<'static, RgbPIO>,
+        dma: Peri<'static, peripherals::DMA_CH0>,
     }
 
-    #[resource_group]
     struct UsbResources {
-        usb: peripherals::USB,
+        usb: Peri<'static, peripherals::USB>,
     }
 
-    #[resource_group]
     struct UartResources {
-        #[alias = UART]
-        uart: peripherals::UART0,
-        tx: peripherals::PIN_28,
-        rx: peripherals::PIN_29,
+        uart: Peri<'static, peripherals::UART0>,
+        tx: Peri<'static, peripherals::PIN_28>,
+        rx: Peri<'static, peripherals::PIN_29>,
     }
 
     pub fn new_left(p: Peripherals, spawner: SendSpawner, unique: &'static str) -> Board {
-        let matrix = matrix_init(matrix_resources!(p), Side::Left);
-        let leds = leds_init(rgb_resources!(p), spawner);
+        let matrix = matrix_init(MatrixResources {
+            row0: p.PIN_4, row1: p.PIN_6, row2: p.PIN_5, row3: p.PIN_7, row4: p.PIN_9, row5: p.PIN_8,
+            col0: p.PIN_2, col1: p.PIN_1, col2: p.PIN_0, col3: p.PIN_3,
+        }, Side::Left);
+        let leds = leds_init(RgbResources {
+            rgb_pin: p.PIN_13, pio: p.PIO0, dma: p.DMA_CH0,
+        }, spawner);
 
-        let usb = usb_init(usb_resources!(p), spawner, unique);
-        let uart = uart_init(uart_resources!(p), spawner);
+        let usb = usb_init(UsbResources { usb: p.USB }, spawner, unique);
+        let uart = uart_init(UartResources {
+            uart: p.UART0, tx: p.PIN_28, rx: p.PIN_29,
+        }, spawner);
 
         Board {
             matrix,
@@ -402,25 +415,25 @@ mod jolt2dir {
         static COLS: StaticCell<[Output<'static>; 4]> = StaticCell::new();
         let cols = COLS.init(
             [
-                r.col0.degrade(),
-                r.col1.degrade(),
-                r.col2.degrade(),
-                r.col3.degrade(),
+                r.col0.into(),
+                r.col1.into(),
+                r.col2.into(),
+                r.col3.into(),
             ]
-            .map(|p| Output::new(p, Level::Low)),
+            .map(|p: Peri<'static, AnyPin>| Output::new(p, Level::Low)),
         );
 
         static ROWS: StaticCell<[Input<'static>; 6]> = StaticCell::new();
         let rows = ROWS.init(
             [
-                r.row0.degrade(),
-                r.row1.degrade(),
-                r.row2.degrade(),
-                r.row3.degrade(),
-                r.row4.degrade(),
-                r.row5.degrade(),
+                r.row0.into(),
+                r.row1.into(),
+                r.row2.into(),
+                r.row3.into(),
+                r.row4.into(),
+                r.row5.into(),
             ]
-            .map(|p| Input::new(p, Pull::Down)),
+            .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
         );
 
         let xlate = translate::get_translation("jolt2");
@@ -434,13 +447,13 @@ mod jolt2dir {
             mut common, sm0, ..
         } = Pio::new(r.pio, Irqs);
         let program = PioWs2812Program::new(&mut common);
-        let ws2812 = PioWs2812::new(&mut common, sm0, r.dma, r.rgb_pin, &program);
+        let ws2812 = PioWs2812::new(&mut common, sm0, r.dma, Irqs, r.rgb_pin, &program);
 
         let leds = LedStripGroup::new(ws2812);
 
         static STRIP: StaticCell<LedStripHandle> = StaticCell::new();
         let strip = STRIP.init(leds.get_handle());
-        unwrap! {spawner.spawn(led_task(leds))};
+        spawner.spawn(unwrap!(led_task(leds)));
 
         LedSet::new([strip])
     }
@@ -457,7 +470,7 @@ mod jolt2dir {
             keys: KEYS.init(Channel::new()),
         };
 
-        unwrap!(spawner.spawn(crate::usb::setup_usb(r.usb, unique, usb.keys.receiver())));
+        spawner.spawn(unwrap!(crate::usb::setup_usb(r.usb, unique, usb.keys.receiver())));
 
         usb
     }
@@ -474,12 +487,12 @@ mod jolt2dir {
         static RX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
         let rx_buf = &mut RX_BUF.init([0; 64])[..];
 
-        static UART: StaticCell<BufferedUart<'static, UART>> = StaticCell::new();
+        static UART: StaticCell<BufferedUart> = StaticCell::new();
         let uart = UART.init(BufferedUart::new(
             r.uart,
-            Irqs,
             r.tx,
             r.rx,
+            Irqs,
             tx_buf,
             rx_buf,
             config,
@@ -489,19 +502,19 @@ mod jolt2dir {
 
         static ACTIVE: StaticCell<InterActive> = StaticCell::new();
         let active = ACTIVE.init(InterActive::new());
-        unwrap!(spawner.spawn(active_tx_task(active, tx)));
-        unwrap!(spawner.spawn(active_rx_task(active, rx)));
+        spawner.spawn(unwrap!(active_tx_task(active, tx)));
+        spawner.spawn(unwrap!(active_rx_task(active, rx)));
 
         active
     }
 
     #[embassy_executor::task]
-    async fn active_tx_task(active: &'static InterActive, tx: &'static mut BufferedUartTx<'static, UART>) -> ! {
+    async fn active_tx_task(active: &'static InterActive, tx: &'static mut BufferedUartTx) -> ! {
         active.tx_task(tx).await
     }
 
     #[embassy_executor::task]
-    async fn active_rx_task(active: &'static InterActive, rx: &'static mut BufferedUartRx<'static, UART>) -> ! {
+    async fn active_rx_task(active: &'static InterActive, rx: &'static mut BufferedUartRx) -> ! {
         active.rx_task(rx).await
     }
 }

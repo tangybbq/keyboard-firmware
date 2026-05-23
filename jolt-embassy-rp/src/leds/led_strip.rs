@@ -2,7 +2,7 @@
 //!
 //! This supports managing a single ws2812 instance.  The updates happen from an async task.
 
-use embassy_rp::{pio::Instance, pio_programs::ws2812::PioWs2812};
+use embassy_rp::{pio::Instance, pio_programs::ws2812::{Grb, PioWs2812}};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use heapless::Vec;
 use smart_leds::RGB8;
@@ -19,12 +19,12 @@ static LATEST_LED: Signal<CriticalSectionRawMutex, Vec<RGB8, MAX_GROUP_SIZE>> = 
 /// The builder for the led strip provides both an async Future that is used to run, as well as a
 /// Handle with an update method on it.
 pub struct LedStripGroup<'d, P: Instance, const S: usize, const N: usize> {
-    // Underlying device.
-    strip: PioWs2812<'d, P, S, N>,
+    // Underlying device.  The ws2812 driver defaults to GRB color order.
+    strip: PioWs2812<'d, P, S, N, Grb>,
 }
 
 impl<'d, P: Instance, const S: usize, const N: usize> LedStripGroup<'d, P, S, N> {
-    pub fn new(strip: PioWs2812<'d, P, S, N>) -> Self {
+    pub fn new(strip: PioWs2812<'d, P, S, N, Grb>) -> Self {
         Self { strip }
     }
 

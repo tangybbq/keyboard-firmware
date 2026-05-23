@@ -28,7 +28,7 @@ use embassy_rp::interrupt::{InterruptExt, Priority};
 use embassy_rp::peripherals::{FLASH, PIO0};
 use embassy_rp::pio::InterruptHandler;
 use embassy_rp::uart::BufferedInterruptHandler;
-use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt};
+use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt, Peri};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::{Channel, Receiver, Sender};
 use embassy_time::{Duration, Instant, Ticker};
@@ -60,6 +60,7 @@ bind_interrupts!(struct Irqs {
     USBCTRL_IRQ => embassy_rp::usb::InterruptHandler<embassy_rp::peripherals::USB>;
     I2C1_IRQ => i2c::InterruptHandler<embassy_rp::peripherals::I2C1>;
     UART0_IRQ => BufferedInterruptHandler<embassy_rp::peripherals::UART0>;
+    DMA_IRQ_0 => embassy_rp::dma::InterruptHandler<embassy_rp::peripherals::DMA_CH0>;
 });
 
 #[global_allocator]
@@ -162,7 +163,7 @@ fn main() -> ! {
     executor.run(|spawner| {
         if let Some(Side::Right) = info.side {
         } else {
-            unwrap!(spawner.spawn(steno_task(spawner, stroke_queue.receiver(), typed_queue.sender(), event_queue.sender())));
+            spawner.spawn(unwrap!(steno_task(spawner, stroke_queue.receiver(), typed_queue.sender(), event_queue.sender())));
         }
 
         // It should be safe to just exit. We'll sleep if no task got spawned.
@@ -178,7 +179,7 @@ async fn steno_task(
     typed: Sender<'static, CriticalSectionRawMutex, Joined, 2>,
     events: Sender<'static, CriticalSectionRawMutex, Event, 16>,
 ) -> ! {
-    unwrap!(spawner.spawn(heap_stats()));
+    spawner.spawn(unwrap!(heap_stats()));
 
     let mut dict = Dict::new();
     let mut eq_send = SendWrap(events);
@@ -232,7 +233,7 @@ async fn heap_stats() -> ! {
 
 /// Retrieve the unique ID from the flash device.  This will need to coordinate with future flash
 /// drivers, but for now, it is fine to just consume it.
-fn get_unique(flash: FLASH, info: &BoardInfo) -> &'static str {
+fn get_unique(flash: Peri<'static, FLASH>, info: &BoardInfo) -> &'static str {
     // https://github.com/knurling-rs/defmt/pull/683 suggests a delay of 10ms to avoid interference
     // between the debug probe and can interfere with flash operations.
     // Delay.delay_ms(10);
@@ -274,13 +275,14 @@ mod flash {
     use embassy_rp::{
         flash::{Blocking, Flash},
         peripherals::FLASH,
+        Peri,
     };
 
     // This can actually be quite a bit larger.
     const FLASH_SIZE: usize = 2 * 1024 * 1024;
 
     // TODO: This is a blocking interface (which I think is always the case anyway).
-    pub fn get_unique(flash: FLASH) -> u64 {
+    pub fn get_unique(flash: Peri<'static, FLASH>) -> u64 {
         let mut flash = Flash::<_, Blocking, FLASH_SIZE>::new_blocking(flash);
 
         /*

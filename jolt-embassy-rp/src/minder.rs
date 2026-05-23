@@ -17,7 +17,7 @@ use minder::{Reply, Request, VERSION};
 use sha2::{Digest, Sha256};
 
 #[allow(unused_imports)]
-use crate::logging::{info, warn};
+use crate::logging::{info, unwrap, warn};
 
 type FlashType = Flash<'static, FLASH, Blocking, FLASH_DEV_SIZE>;
 
@@ -150,9 +150,9 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
 
     /// Trigger a reset shortly after we acknowledge.
     async fn reset(&mut self) -> Reply {
-        let spawner = Spawner::for_current_executor().await;
+        let spawner = unsafe { Spawner::for_current_executor() }.await;
 
-        spawner.spawn(reset_device()).unwrap();
+        spawner.spawn(unwrap!(reset_device()));
 
         Reply::Reset
     }

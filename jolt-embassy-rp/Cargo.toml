@@ -6,27 +6,34 @@ license = "MIT OR Apache-2.0"
 
 
 [dependencies]
-embassy-embedded-hal = { version = "0.3.0", path = "../embassy/embassy-embedded-hal", features = [] }
-embassy-sync = { version = "0.6.2", path = "../embassy/embassy-sync", features = [] }
+# embassy-embedded-hal = { version = "0.3.0", path = "../embassy/embassy-embedded-hal", features = [] }
+# embassy-sync = { version = "0.6.2", path = "../embassy/embassy-sync", features = [] }
 # embassy-executor = { version = "0.7.0", path = "../embassy/embassy-executor", features = ["task-arena-size-98304", "arch-cortex-m", "executor-thread", "executor-interrupt", "rtos-trace"] }
-embassy-time = { version = "0.4.0", path = "../embassy/embassy-time", features = [] }
-embassy-rp = { version = "0.3.0", path = "../embassy/embassy-rp", features = ["unstable-pac", "time-driver", "critical-section-impl", "rp2040"] }
-embassy-usb = { version = "0.4.0", path = "../embassy/embassy-usb", features = [] }
+# embassy-time = { version = "0.4.0", path = "../embassy/embassy-time", features = [] }
+# embassy-rp = { version = "0.3.0", path = "../embassy/embassy-rp", features = ["unstable-pac", "time-driver", "critical-section-impl", "rp2040"] }
+# embassy-usb = { version = "0.4.0", path = "../embassy/embassy-usb", features = [] }
 # embassy-net = { version = "0.6.0", path = "../embassy/embassy-net", features = ["tcp", "udp", "raw", "dhcpv4", "medium-ethernet", "dns", "proto-ipv4", "proto-ipv6", "multicast"] }
 # embassy-net-wiznet = { version = "0.2.0", path = "../embassy/embassy-net-wiznet", features = [] }
-embassy-futures = { version = "0.1.0", path = "../embassy/embassy-futures" }
+# embassy-futures = { version = "0.1.0", path = "../embassy/embassy-futures" }
 # embassy-usb-logger = { version = "0.4.0", path = "../embassy/embassy-usb-logger" }
 # cyw43 = { version = "0.3.0", path = "../../cyw43", features = ["defmt", "firmware-logs"] }
 # cyw43-pio = { version = "0.3.0", path = "../../cyw43-pio", features = ["defmt"] }
 
+embassy-embedded-hal = { version = "0.6.0", features = [] }
+embassy-sync = { version = "0.8.0", features = [] }
+embassy-time = { version = "0.5.1", features = [] }
+embassy-rp = { version = "0.10.0", features = ["unstable-pac", "time-driver", "critical-section-impl", "rp2040"] }
+embassy-usb = { version = "0.6.0", features = [] }
+embassy-futures = { version = "0.1.2" }
+
 embedded-alloc = "0.6.0"
 
-defmt = { version = "0.3", optional = true }
+defmt = { version = "1.0", optional = true }
 log = { version = "0.4.25", optional = true }
-defmt-rtt = { version = "0.4", optional = true }
+defmt-rtt = { version = "1.0", optional = true }
 fixed = "1.23.1"
 fixed-macro = "1.2"
-systemview-target = { version = "0.1.2", optional = true, features = ["log", "cortex-m", "callbacks-os", "callbacks-os-time" ], path = "../rtos-trace/systemview_target" }
+# systemview-target = { version = "0.1.2", optional = true, features = ["log", "cortex-m", "callbacks-os", "callbacks-os-time" ], path = "../rtos-trace/systemview_target" }
 rtos-trace = { version = "0.1", optional = true }
 
 # rtos-trace = "0.1"
@@ -41,7 +48,7 @@ rtos-trace = { version = "0.1", optional = true }
 cortex-m = { version = "0.7.6", features = ["inline-asm"] }
 cortex-m-rt = "0.7.0"
 critical-section = "1.1"
-panic-probe = { version = "0.3", features = [], optional = true }
+panic-probe = { version = "1.0", features = [], optional = true }
 panic-halt = { version = "1.0", optional = true }
 # display-interface-spi = "0.5.0"
 # embedded-graphics = "0.8.1"
@@ -50,14 +57,14 @@ panic-halt = { version = "1.0", optional = true }
 # byte-slice-cast = { version = "1.2.0", default-features = false }
 smart-leds = "0.4.0"
 heapless = "0.8"
-usbd-hid = "0.8.1"
+usbd-hid = "0.10"
 rand_core = "0.6.4"
 minicbor = { version = "0.25.1", features = ["alloc"] }
 
 embedded-hal-1 = { package = "embedded-hal", version = "1.0" }
 embedded-hal-async = "1.0"
 embedded-hal-bus = { version = "0.1", features = ["async"] }
-embedded-io-async = { version = "0.6.1", features = [] }
+embedded-io-async = { version = "0.7", features = [] }
 embedded-storage = { version = "0.3" }
 static_cell = "2.1"
 portable-atomic = { version = "1.5", features = ["critical-section"] }
@@ -69,18 +76,16 @@ pio-proc = { git = "https://github.com/rp-rs/pio-rs", rev = "fa586448b0b223217ee
 pio = { git = "https://github.com/rp-rs/pio-rs", rev = "fa586448b0b223217eec8c92c19fe6823dd04cc4" }
 rand = { version = "0.8.5", default-features = false }
 # assign-resources = { version = "0.4.0", path = "../assign-resources" }
-embedded-resources = { version = "0.1.5" }
 crc = "3.2.1"
 # embedded-sdmmc = "0.7.0"
 sha2 = { version = "0.10.8", default-features = false }
 
 [dependencies.embassy-executor]
-version = "0.7.0"
-path = "../embassy/embassy-executor"
+version = "0.10.0"
 features = [
   # "task-arena-size-32768",
-  "task-arena-size-8192",
-  "arch-cortex-m",
+  # "task-arena-size-8192",
+  "platform-cortex-m",
   "executor-thread",
   "executor-interrupt",
 ]
@@ -113,7 +118,7 @@ defmt = [
   "dep:defmt", "embassy-embedded-hal/defmt", "embassy-sync/defmt", "embassy-executor/defmt",
   "embassy-time/defmt", "embassy-rp/defmt", "embassy-usb/defmt", "dep:defmt-rtt",
   "bbq-keyboard/defmt", "bbq-steno/defmt", "embassy-time/defmt-timestamp-uptime",
-  "embedded-io-async/defmt-03",
+  "embedded-io-async/defmt",
   "panic-probe/print-defmt",
   "minder/defmt",
 ]
@@ -122,11 +127,11 @@ log = [
   "dep:panic-halt",
   "bbq-keyboard/log",
   "embassy-executor/log",
-  "dep:systemview-target",
-  "dep:rtos-trace",
-  "systemview-target/log",
-  "embassy-executor/rtos-trace",
-  "embassy-rp/rtos-trace",
+  # "dep:systemview-target",
+  # "dep:rtos-trace",
+  # "systemview-target/log",
+  # "embassy-executor/rtos-trace",
+  # "embassy-rp/rtos-trace",
 ]
 
 [profile.release]
