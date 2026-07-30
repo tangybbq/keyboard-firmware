@@ -22,3 +22,13 @@ jolt/.cargo
 
 # Local planning notes
 TASKS.md
+
+# macOS
+.DS_Store
+
+# Firmware build artifact (justfile uf2 recipe)
+jolt-embassy-rp/main.uf2
+
+# Sibling git checkouts (separate repositories)
+/embassy/
+/steno-flow/
