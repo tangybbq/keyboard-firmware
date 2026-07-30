@@ -1,14 +1,19 @@
 # Overview
 
-This repository is a body of code implementing the firmware for a combination steno/qwerty/taipo
-keyboard called the "Jolt". This is a 42-key keyboard organized to make Steno usage ergonomic, as
-well as regular qwerty use. It is the daily driver for the author.
+This repository is a body of code implementing the firmware for a family of combination
+steno/qwerty/taipo keyboards. The current daily driver is the "Jolt 3", a 42-key split keyboard
+organized to make steno usage ergonomic, as well as regular qwerty use.
 
-The project is primarily written in Rust.  There are two main variants: "jolt-embassy-rp" a version
-that uses Embassy on the raspberry pi 2040, and 'jolt' which will eventually be a version that runs
-on Zephyr, using the zephyr-lang-rust support.  There is an `archive/jolt` directory, which is a
-much older version of the firmware built around Zephyr, before official Rust support came to Zephyr.
-It doesn't build but is a useful reference.
+The project is primarily written in Rust. There are two main firmware variants:
+
+- `jolt-embassy-rp`: the **currently running firmware**, built on Embassy for the RP2040. This is
+  what runs on the Jolt 3 today.
+- `jolt`: an in-progress port of the firmware to Zephyr, using the zephyr-lang-rust support.
+  Implementing this will likely require numerous improvements to the zephyr-lang-rust project.
+
+There is also an `archive/jolt` directory, a much older version of the firmware built around Zephyr
+before official Rust support came to Zephyr. It doesn't build but is a useful reference (including
+shield definitions for older keyboards such as the proto2/proto3/proto4).
 
 # Organization
 
@@ -25,22 +30,37 @@ There are the following crates:
   primary implementations: Qwerty, Taipo, and Steno, and manages state changes between them. Qwerty
   and Taipo fully resolve to key press and release events, which are returned through callbacks. The
   Steno mode simply returns strokes, and the main firmware uses the dictionary support for
-  translation.
+  translation. Keyboard geometry is selected with the `proto2` (2-row) / `proto3` (3-row) cargo
+  features; `jolt-embassy-rp` builds with `proto3` scancodes and translates per-board at runtime.
 - minder: A simple protocol, used over a USB bulk channel, to update dictionaries, and get basic
   status.
 
 ## Firmware implementations
-- jolt-embassy-rs: The current running firmware.
-- jolt: The start of a new project to make the current firmware run on Zephyr. Implementing this
-  will likely require numerous improvements to the zephyr-lang-rust project.
+- jolt-embassy-rp: The current running firmware. Board-specific initialization lives in
+  `src/board.rs` (with modules for jolt3, jolt2, and jolt2dir); the board is identified at runtime
+  from a `BoardInfo` CBOR block stored in flash (see `bbq-keyboard/src/boardinfo.rs`), so one
+  binary serves all supported boards. Scancode translation per board is in `src/translate.rs`.
+- jolt: The start of a new project to make the current firmware run on Zephyr.
 - zbbq: A different branch of earlier versions of the Zephyr version.
+- proto: The older pre-Zephyr (rtic-based) firmware; superseded, but a reference for boards like
+  the proto2.
 
 ## Utilities
 - bbq-tool: A tool for converting dictionaries from a few formats to the binary format used by the
-  bbq-steno::Dict code.
+  bbq-steno::Dict code. See `bbq-tool/CLAUDE.md`.
 - keyminder: A command line tool implementing the Host PC side of the 'minder' protocol.
-- typey: A simple command line tool to test the dictionary.
+- typey: A simple command line tool to test the dictionary. See `typey/CLAUDE.md`.
 - dict-test: The start of a more automated test of the dictionary translation
+
+## Sibling checkouts (untracked)
+
+These directories are separate git repositories checked out inside this one, and are ignored by
+the parent repo:
+
+- `embassy/`: a checkout of the tangybbq fork of Embassy. `jolt-embassy-rp` currently builds
+  against crates.io releases, but its Cargo.toml retains commented-out path dependencies pointing
+  here for when local patches are needed.
+- `steno-flow/`: a separate ML project for steno, with its own CLAUDE.md and TASKS.md.
 
 Other directories can be ignored at this time.
 
@@ -49,14 +69,14 @@ Other directories can be ignored at this time.
 - Changes should be made incrementally, and grouped into logical commits.
 - A given change, in general, should either change functionality, or refactor/improve the code. Try
   not to combine refactoring and functional changes into the same commit.
-- The develop prefers gradual and incremental review of changes to the code rather than large-scale
-  changes that are difficult to understand.
+- The developer prefers gradual and incremental review of changes to the code rather than
+  large-scale changes that are difficult to understand.
 - The code should be committed to git with these guidelines:
   - Commit text should follow git conventions:
     - A short summary, followed by a blank line
     - A textual description of the change.  The body of the commit should almost always be present,
       giving a bit more detail than the short summary.
-    - The body should be wrapped to 72 columm max lines, when reasonable (long symbols make make it
+    - The body should be wrapped to 72 column max lines, when reasonable (long symbols may make it
       overflow)
   - The commit text should be worded in the simple present tense, not past. "Add ..." instead of
     "Added ...".
@@ -66,17 +86,26 @@ Other directories can be ignored at this time.
 - Due to the complexity, each change will require manual testing of multiple systems before commits
   are made.
 
+# Building
+
+## Building `jolt-embassy-rp`
+
+- Build from the `jolt-embassy-rp` directory with `just build` (or `cargo build --bin
+  jolt-embassy-rp`; the target is `thumbv6m-none-eabi`).
+- `just uf2` converts the ELF to `main.uf2` and copies it to a keyboard in UF2 bootloader mode.
+- `just serve` / `just gdb` / `just rtt` support JTAG debugging via a Segger J-Link.
+
 ## Building `jolt`
 
 - Jolt can be built from the repository root with `./jolt/b-proto4.sh`.
-  The script changes into the `jolt` directory and loads `jolt/.envrc` so it works from within the
-  Agent shell as well.
+  The script changes into the `jolt` directory and, when the environment isn't already set up
+  (e.g. in the Agent shell), sources the repository-root `.envrc` for the Zephyr environment.
   Once the `build` directory is present, the symlink in `.cargo/config.toml` will allow `cargo
   check` and other cargo commands to work normally.
 
 # Current work tracking
 
-The active task list lives in `TASKS.md`.
+The active task list lives in `TASKS.md` (a local, untracked planning file).
 
 - Treat `TASKS.md` as the source of truth for current and pending work.
 - If `TASKS.md` conflicts with older notes elsewhere, follow `TASKS.md`.

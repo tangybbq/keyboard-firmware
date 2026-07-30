@@ -2,23 +2,26 @@
 
 This repo contains the firmware I use for my various
 [keyboards](https://github.com/tangybbq/keyboard). Support for a given keyboard is generally best
-for the newer ones, as I generally don't use the older ones that much.  Currently, the proto3,
-proto4 and jolt1 are my main interest, and the jolt1 is my main keyboard I use as of 2024-10-29.
+for the newer ones, as I generally don't use the older ones that much. As of mid-2026, my main
+keyboard is the jolt3, running the `jolt-embassy-rp` firmware.
 
 This firmware has gone through several iterations and rewrites, with a rough timeframe of:
 
 - 2023-10-10: First commit on top of an rtic sample.  This continued for a while, quickly becoming
-  my regular firmware.
+  my regular firmware (the `proto` directory).
 - 2024-02-28: First commit on top of Zephyr.  I started as I began to grow frustrated at how many
   types from the hals leaked into the code.  This was largely a bunch of C code to make for a bit
-  easier interfaces to the Zephyr interfaces.
+  easier interfaces to the Zephyr interfaces (now under `archive/`).
 - 2024-09-19: First commit based on the
-  [zephyr-lang-rust](https://github.com/dnaq/plover-machine-hid) work.  It turns out to be a nice
-  practical test to help confirm that the interfaces I'm developing for the Zephyr Rust support are
-  useful.
+  [zephyr-lang-rust](https://github.com/zephyrproject-rtos/zephyr-lang-rust) work.  It turns out to
+  be a nice practical test to help confirm that the interfaces I'm developing for the Zephyr Rust
+  support are useful (the `jolt` directory).
+- 2025-02-07: First commit of `jolt-embassy-rp`, a port of the firmware to
+  [Embassy](https://embassy.dev/) on the RP2040.  This is the firmware I currently run, while the
+  Zephyr version waits on upstream Rust support maturing.
 
-Over time, I've moved more and more functionality out of the main program directory (before `proto`,
-now `jolt`) and into various crates, all starting with `bbq-`.
+Over time, I've moved more and more functionality out of the main program directories and into
+various platform-independent crates, all starting with `bbq-`.
 
 - `bbq-steno`: This implements the bulk of the steno functionality, including:
   - `stroke::Stroke`: The primary type that represents a single steno stroke.  This is extended to
@@ -31,18 +34,18 @@ now `jolt`) and into various crates, all starting with `bbq-`.
     do programming and such with steno.
   - `mapdict`: An implementation of the traits from `dict` to support a compact memory-mapped
     encoding of steno dictionaries.  These are placed directly in flash.
-  - `bbq-steno-macros`: A proc macro crate that provides a `steno!("STROEBG")` macro to insert steno
-    strokes directly into the code.  Unfortunately, as it uses the `bbq-steno` crate, that crate
-    can't use the macros.  There is a `bbq-consts` crate that helps make the constants used in the
-    Emily's symbols crate.
+  - `bbq-steno-macros`: A proc macro crate that provides a `stroke!("STROEBG")` macro to insert
+    steno strokes directly into the code.  Unfortunately, as it uses the `bbq-steno` crate, that
+    crate can't use the macros.  There is a `bbq-consts` crate that helps make the constants used in
+    the Emily's symbols code.
 - `bbq-keyboard`: This implements the functionality of a keyboard. It is platform independent.  It
   supports several different modes and mappings:
   - `layout`: This manages the layouts in general.  It also processes the mode switch (lower left on
-    42-key, upper left on 30-key), with taping to switch modes, an holding it and various home row
+    42-key, upper left on 30-key), with tapping to switch modes, and holding it and various home row
     letter keys to select specific modes.
   - `layout::qwerty`: A somewhat traditional qwerty layout, but designed for a 42-key keyboard.
     Because my keyboards are designed for steno, it is very easy to press adjacent keys with a
-    single keyboard, and this qwerty layer first detects numerous of these, effectively adding 24
+    single finger, and this qwerty layer first detects numerous of these, effectively adding 24
     more keys.  The end result is a somewhat intuitive layout for those that have spent a lot of
     time on a traditional qwerty keyboard.
   - `layout::steno`: The steno support itself.  This also detects a special `RA*U` stroke to switch
@@ -53,20 +56,24 @@ now `jolt`) and into various crates, all starting with `bbq-`.
     use it.  I use Taipo now.
   - `layout::taipo`: An implementation of the Taipo layout.  I added this primarily to use with
     2-row, 30-key keyboards as it only needs 8 finger keys and two thumb keys per hand.  It turns
-    out to be a pretty nice layout, especially with it's identical layout per hand (mirrored) and
-    encouragement of alternating hand.  If I get good at this, I might switch primarily to two-row
+    out to be a pretty nice layout, especially with its identical layout per hand (mirrored) and
+    encouragement of alternating hands.  If I get good at this, I might switch primarily to two-row
     keyboards.
   - `serialize`: Implements a CRC'd packet protocol used over UART between the two halves of the
     keyboard.  It sends the state of the keys from the passive side, and there is an LED value sent
-    to the passive side, which isn't quite implemented yet.
+    to the passive side, which isn't quite implemented yet.  (The jolt3 uses an I2C protocol
+    between halves instead, in `jolt-embassy-rp/src/inter.rs`.)
   - `boardinfo`: A small block of cbor used to identify the specific keyboard.  This saves a gpio on
-    split keyboards, where I prefer running the same firmware on both halves.
-- `bbq-tool`: The tool used to build the binary dictionaries, as well as the boardinto file.
+    split keyboards, where I prefer running the same firmware on both halves, and lets a single
+    firmware binary support several different boards.
+- `minder`: A simple protocol, run over a USB bulk channel, to update dictionaries and query basic
+  status.  `keyminder` is the host-side command line tool.
+- `bbq-tool`: The tool used to build the binary dictionaries, as well as the boardinfo file.
 - `dict-test`: Uses the bbq-steno library, and reads my Phoenix exercise files.  As I am unable to
   distribute these, this isn't likely to be useful for others.
-- `typey`: A host-based translation tool. It expecte the keyboard to be in raw mode (where it sends
+- `typey`: A host-based translation tool. It expects the keyboard to be in raw mode (where it sends
   the text of the stroke followed by a space). It supports a `write` command which will show some of
-  the details of the translation, and an `exbuild` command that let's me enter exercises for steno
+  the details of the translation, and an `exbuild` command that lets me enter exercises for steno
   drill.
 
 ## Steno support
@@ -95,35 +102,43 @@ This has a few significant impacts:
 
 ## How to use
 
-The current version of this code is in the `jolt` directory.  It expects a working Zephyr install,
-and will almost certainly depend on extra changes in [this
-pr](https://github.com/zephyrproject-rtos/zephyr-lang-rust/pull/22).
+The firmware I currently run is in the `jolt-embassy-rp` directory.  It is a normal Rust embedded
+project (no Zephyr needed): `just build` in that directory builds it for the RP2040
+(`thumbv6m-none-eabi`), and `just uf2` produces a `main.uf2` and copies it to a keyboard waiting in
+the UF2 bootloader.  The same binary supports my various boards; each keyboard carries a small
+"boardinfo" CBOR block in flash (built with `bbq-tool`) that tells the firmware which board it is
+on, and which side it is for split designs.
 
-There is a justfile that describes how to build for the various keyboards.  Note that, until I
-manage to fix it, the bbq-keyboard crate needs a feature to be set as to whether the keyboard is a 2
-or 3 row keyboard.  Otherwise, the configuration comes from the Zephyr device trees.
+Dictionaries are built with `bbq-tool` (see `bbq-tool/dicts.sh`) into a memory-mapped binary format
+that is flashed directly.  I have not been able to flash large dictionaries with the UF2 file (it
+just seems to hang forever, it might just be _very_ slow, but I have given it over an hour).  I use
+jtag for this.  For debugging the firmware, I recommend a JTAG interface anyway; the justfile has
+recipes for a Segger J-Link with defmt RTT logging.
 
-The images can be flashed with the UF2 files.  I have not been able to flash large dictionaries with
-the UF2 file (it just seems to hang forever, it might just be _very_ slow, but I have given it over
-an hour). I use jtag for this. For debugging the firmware, I recommend a JTAG interface anyway.
+The `jolt` directory holds the in-progress Zephyr port, built on zephyr-lang-rust.  It expects a
+working Zephyr install (see the `.envrc` at the repo root), and can be built with
+`./jolt/b-proto4.sh`.  It is not yet functional enough to be my daily firmware.
 
 ## Future direction
 
 I am currently using these keyboards exclusively, both at home, and when traveling.  The qwerty
-layout is my main use, especially while programming, although as I'm nearing the last of the lessons
-in the Phoenix theory, I hope to start transitioning to more and more steno, even with code.  My
-goal is for the keyboard to be self-contained.
+layout is my main use, especially while programming, although I hope to keep transitioning to more
+and more steno, even with code.  My goal is for the keyboard to be self-contained.
 
-Some other ideas I have:
+Some things I'm working toward:
 
+- Support more of my older boards in `jolt-embassy-rp`, starting with the proto2 (a 30-key,
+  single-MCU rp2040 board where one controller scans both halves).
+- Steno stroke logging: capture every stroke written (including corrections) over the minder
+  protocol, to build a personal corpus for ML experiments (the separate steno-flow project).
+- Bring the Zephyr `jolt` port up to parity with `jolt-embassy-rp`, improving zephyr-lang-rust
+  along the way.
 - Implement a local flash-based user dictionary and sequences on the keyboard that can be used to
   program entries.
-- Develop a protocol, probably HID, to allow for management of a user dictionary.
-- Add log messages and other debugging utilities to the HID interface.
 - Big picture: implement an app that can optionally be run on the host that detects changes in the
   focused window, and informs the keyboard.  The keyboard could maintain separate state (caps-next,
   auto-space or not, possibly even undo history).
 - A host tool that could monitor the raw steno during normal use, and offer something similar to the
   suggestions window in Plover. Because the Phoenix dictionary is built around numerous prefix and
-  suffix entries, this suggestion window doesn't doesn't actually work all that well, and I may put
-  some thought into how to possibly do this better.
+  suffix entries, this suggestion window doesn't actually work all that well, and I may put some
+  thought into how to possibly do this better.
