@@ -1,0 +1,136 @@
+# Taipo cheat sheet
+
+This describes the Taipo implementation in `bbq-keyboard/src/layout/taipo.rs`, which follows the
+layout at <https://inkeys.wiki/en/keymaps/taipo> with local differences: function keys use both
+thumbs (instead of a shift-like prefix), and modifiers are sent to the host immediately (see
+"Modifiers" below).
+
+## Physical layout
+
+Each hand has 8 finger keys (4 fingers × 2 rows) and 2 thumb keys. The hands are identical
+(mirrored); chords are formed within one hand, and you can alternate hands freely — even for
+double letters. Keys are named here by the letter they type alone:
+
+| finger:   | index | middle | ring | pinky |
+|-----------|-------|--------|------|-------|
+| top row   | r     | s      | n    | i     |
+| bottom row| a     | o      | t    | e     |
+
+Thumbs: **Sp** = the thumb that types Space alone, **Bk** = the thumb that types Backspace alone.
+
+Every chord has up to four variants: alone, with Sp added, with Bk added, or with both thumbs
+added.
+
+## Single keys
+
+Sp adds shift (capital); Bk gives brackets. Bottom row opens, top row closes, matching by finger:
+a/r = `<` `>`, o/s = `{` `}`, t/n = `[` `]`, e/i = `(` `)`.
+
+| chord | alone | +Sp | +Bk |
+|-------|-------|-----|-----|
+| a     | a     | A   | `<` |
+| o     | o     | O   | `{` |
+| t     | t     | T   | `[` |
+| e     | e     | E   | `(` |
+| r     | r     | R   | `>` |
+| s     | s     | S   | `}` |
+| n     | n     | N   | `]` |
+| i     | i     | I   | `)` |
+
+## Letter combos
+
++Sp capitalizes any of these. +Bk gives the digit or symbol shown.
+
+Same-row pairs (digits: bottom-row combos give 1 2 3 4 0, top-row give 5 6 7 8 9):
+
+| chord   | alone | +Bk |
+|---------|-------|-----|
+| o+e     | c     | 1   |
+| o+t     | u     | 2   |
+| a+t     | q     | 3   |
+| a+o     | l     | 4   |
+| n+i     | y     | 5   |
+| s+i     | f     | 6   |
+| s+n     | p     | 7   |
+| r+n     | z     | 8   |
+| r+s     | b     | 9   |
+| t+e     | h     | 0   |
+| a+e     | d     | `@` |
+| r+i     | g     | `#` |
+
+Cross-row pairs:
+
+| chord         | alone | +Bk |
+|---------------|-------|-----|
+| n(top)+a(bot) | j     | `=` |
+| i(top)+o(bot) | k     | `+` |
+| i(top)+a(bot) | w     | `&` |
+| r(top)+e(bot) | m     | `$` |
+| r(top)+t(bot) | x     | `^` |
+| s(top)+e(bot) | v     | `*` |
+
+## Punctuation combos
+
+| chord         | alone | +Sp | +Bk |
+|---------------|-------|-----|-----|
+| s(top)+t(bot) | `/`   | `\` | `\|` |
+| n(top)+o(bot) | `-`   | `_` | `%` |
+| r(top)+o(bot) | `;`   | `:` |     |
+| i(top)+t(bot) | `?`   | `!` |     |
+| n(top)+e(bot) | `,`   | `.` | `~` |
+| s(top)+a(bot) | `'`   | `"` | `` ` `` |
+
+## Vertical pairs: modifiers and cursor keys
+
+Pressing a finger's two keys together (same finger, both rows) is a modifier; +Sp turns the same
+pair into an arrow, +Bk into paging/home/end:
+
+| chord  | alone       | +Sp | +Bk       |
+|--------|-------------|-----|-----------|
+| r+a    | GUI (Cmd)   | →   | Page Up   |
+| s+o    | Alt         | ↑   | Home      |
+| n+t    | Ctrl        | ↓   | End       |
+| i+e    | Shift       | ←   | Page Down |
+
+Arrow mnemonic: left/right on the outer (pinky/index) pairs, up/down on the inner (middle/ring)
+pairs.
+
+## Three-finger chords and thumbs
+
+| chord         | alone     | +Sp            | +Bk    |
+|---------------|-----------|----------------|--------|
+| s+n+i (top)   | Tab       | Delete (fwd)   | Insert |
+| o+t+e (bottom)| Enter     | Escape         |        |
+| Sp alone      | Space     |                |        |
+| Bk alone      | Backspace |                |        |
+| Sp+Bk together| release held modifiers (types nothing) | | |
+
+## Function keys (both thumbs)
+
+Both thumbs + a digit chord gives the matching function key; v and w extend past F10:
+
+| chord (with Sp+Bk)   | key |
+|----------------------|-----|
+| 1–9 chords (c u q l y f p z b) | F1–F9 |
+| 0 chord (h = t+e)    | F10 |
+| v chord (s+e)        | F11 |
+| w chord (i+a)        | F12 |
+
+## Modifiers: how they behave
+
+- A modifier chord is sent to the host **immediately** on press, and stays held after you release
+  the chord.
+- Modifiers accumulate: press GUI then Shift, and both are down.
+- The next normal key is sent with the held modifiers; when that chord is released, the key
+  **and all modifiers** are released.
+- Pressed a modifier by mistake (or want to press-and-release one bare, e.g. tap Cmd)? Both
+  thumbs together releases all held modifiers without typing anything.
+- **Not currently supported:** holding a modifier across multiple keys (e.g. Cmd held while
+  tapping Tab repeatedly to cycle windows). The module doc comment describes a double-press
+  "sticky" mode for this, but it is not implemented — the release after the first key clears the
+  modifiers too. (Tracked in TASKS.md.)
+
+## Taipo from steno mode
+
+In steno mode, holding a taipo-shift key (proto3 scancodes 20/44 — the L-S1/R-S3 positions)
+lets taipo chords type through as a layer shift, without leaving steno mode.
