@@ -94,6 +94,7 @@ mod jolt3 {
             leds,
             inter: Inter::ActiveI2C(key_chan.receiver()),
             usb: Some(usb),
+            two_row: false,
         }
     }
 
@@ -132,6 +133,7 @@ mod jolt3 {
             leds,
             inter: Inter::PassiveI2C(passive),
             usb: None,
+            two_row: false,
         }
     }
 
@@ -263,6 +265,7 @@ mod jolt2 {
             leds,
             inter: Inter::PassiveUart(uart),
             usb: None,
+            two_row: false,
         }
     }
 
@@ -408,6 +411,7 @@ mod jolt2dir {
             leds,
             inter: Inter::ActiveUart(uart),
             usb: Some(usb),
+            two_row: false,
         }
     }
 
@@ -533,11 +537,17 @@ pub enum Inter {
     ActiveI2C(KeyChannel),
     PassiveUart(&'static crate::inter_uart::InterPassive),
     ActiveUart(&'static InterActive),
+    /// There is no other half at all.  Either a non-split board, or one where a single MCU scans
+    /// the entire matrix.
+    None,
 }
 
 impl Inter {
+    /// Does this side run the layout engine?
+    ///
+    /// True for the active side of a split board, and for boards that have no other half.
     pub fn is_active(&self) -> bool {
-        matches!(self, Self::ActiveI2C(_) | Self::ActiveUart(_))
+        matches!(self, Self::ActiveI2C(_) | Self::ActiveUart(_) | Self::None)
     }
 }
 
@@ -552,6 +562,9 @@ pub struct Board {
     pub inter: Inter,
     /// The communication channels with the USB tasks
     pub usb: Option<UsbHandler>,
+    /// Is this a 2-row keyboard?  These have fewer keys, and select modes differently, with the
+    /// upper-left key acting as the "Fn" key.
+    pub two_row: bool,
 }
 
 impl Board {

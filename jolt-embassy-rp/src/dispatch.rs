@@ -50,11 +50,9 @@ impl Dispatch {
 
         let leds = Mutex::new(leds);
 
-        // Hard code the "two row" parameter.  This will need to come from the board to add support
-        // for 2 row keyboards.
         // The layout is present, as long as we aren't the passive side.
         let layout = if board.inter.is_active() {
-            Some(Mutex::new(LayoutManager::new(false)))
+            Some(Mutex::new(LayoutManager::new(board.two_row)))
         } else {
             None
         };
