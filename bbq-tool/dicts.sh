@@ -28,6 +28,7 @@ cargo run -- build -o full.bin \
 	~/plover/phoenix.rtf \
 	~/plover/phoenix_fix.json \
 	+emily-symbols \
+	~/plover/taipo.json \
 	~/plover/user.json \
 	~/plover/rust.yaml
 
