@@ -11,7 +11,7 @@ use embedded_hal_1::delay::DelayNs;
 use crate::logging::unwrap;
 
 const MAX_ROWS: usize = 6;
-const MAX_COLS: usize = 4;
+const MAX_COLS: usize = 5;
 const MAX_KEYS: usize = MAX_ROWS * MAX_COLS;
 
 /// Idle timeout for the matrix scanner.
