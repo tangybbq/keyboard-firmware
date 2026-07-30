@@ -127,8 +127,8 @@ and more steno, even with code.  My goal is for the keyboard to be self-containe
 
 Some things I'm working toward:
 
-- Support more of my older boards in `jolt-embassy-rp`, starting with the proto2 (a 30-key,
-  single-MCU rp2040 board where one controller scans both halves).
+- Support more of my older boards in `jolt-embassy-rp`, starting with the proto4 (a 30-key,
+  tiny2040-based board where the single controller scans both halves directly).
 - Steno stroke logging: capture every stroke written (including corrections) over the minder
   protocol, to build a personal corpus for ML experiments (the separate steno-flow project).
 - Bring the Zephyr `jolt` port up to parity with `jolt-embassy-rp`, improving zephyr-lang-rust
