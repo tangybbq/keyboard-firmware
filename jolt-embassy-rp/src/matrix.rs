@@ -8,7 +8,7 @@ use embassy_rp::gpio::{Input, Output};
 use embassy_time::{Delay, Duration, Ticker};
 use embedded_hal_1::delay::DelayNs;
 
-use crate::logging::unwrap;
+use crate::logging::{debug, unwrap};
 
 const MAX_ROWS: usize = 6;
 const MAX_COLS: usize = 5;
@@ -119,18 +119,16 @@ impl Matrix {
                     let (code, state) = unwrap!(states_iter.next());
                     match state.react(row.is_high()) {
                         KeyAction::Press => {
-                            action
-                                .handle_key(KeyEvent::Press((self.xlate)((code + bias) as u8)))
-                                .await;
-                            // info!("Press: {}", code);
+                            let key = (self.xlate)((code + bias) as u8);
+                            debug!("Press: scan {} -> key {}", code + bias, key);
+                            action.handle_key(KeyEvent::Press(key)).await;
                             pressed += 1;
                             idle_count = 0;
                         }
                         KeyAction::Release => {
-                            action
-                                .handle_key(KeyEvent::Release((self.xlate)((code + bias) as u8)))
-                                .await;
-                            // info!("Release: {}", code);
+                            let key = (self.xlate)((code + bias) as u8);
+                            debug!("Release: scan {} -> key {}", code + bias, key);
+                            action.handle_key(KeyEvent::Release(key)).await;
                             pressed -= 1;
                         }
                         _ => (),

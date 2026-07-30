@@ -4,6 +4,11 @@ app := "jolt-embassy-rp"
 build:
 	cargo build --bin {{app}}
 
+# Build with debug logging, which includes the raw and translated scan codes
+# for every key press.  Useful over RTT when bringing up a new board.
+build-debug:
+	DEFMT_LOG=debug cargo build --bin {{app}}
+
 serve:
 	JLinkGDBServer  \
 		-if swd \
