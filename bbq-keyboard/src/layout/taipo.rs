@@ -25,9 +25,6 @@
 //! thumb keys are pressed together.  This is useful for some types of GUI
 //! manipulation, such as holding down alt while pressing tab or arrow keys.
 
-// TODO: Fn key support. The function key causes the next stroke or two, if they
-// are numbers, to send function keys.
-
 use arraydeque::ArrayDeque;
 use usbd_human_interface_device::page::Keyboard;
 
