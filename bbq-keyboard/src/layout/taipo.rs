@@ -236,6 +236,11 @@ struct SideManager {
 // strict than what is done for steno.  However, we want to be able to handle
 // rollover even just beyond the left-right alternating.
 
+/// How long, in milliseconds, after the first key of a chord we still consider
+/// additional keys to be part of that chord.  The chord is sent when this
+/// expires, or as soon as all of its keys are released.
+const CHORD_TIME: u32 = 50;
+
 impl SideManager {
     fn press(&mut self, tcode: u16, keys: &mut TaipoEvents) {
         // info!("smpress: down:{} seen:{}, age:{}", self.down, self.seen, self.age);
@@ -250,8 +255,12 @@ impl SideManager {
             self.seen = 0;
             self.down = false;
         }
+        if self.seen == 0 {
+            // The window is measured from the first key of the chord, so that a
+            // chord that is rolled slowly still lands at a predictable time.
+            self.age = 0;
+        }
         self.seen |= tcode;
-        self.age = 0;
         self.pressed |= tcode;
         // info!("Usmpress: down:{} seen:{}, age:{}", self.down, self.seen, self.age);
     }
@@ -289,7 +298,7 @@ impl SideManager {
             return;
         }
         self.age = self.age.saturating_add(ticks as u32);
-        if self.age >= 50 {
+        if self.age >= CHORD_TIME {
             let _ = keys.push_back(TaipoEvent { is_press: true, code: self.seen });
             // info!("taipo: tpress {:x}", self.seen);
             self.down = true;
@@ -391,20 +400,36 @@ mod test_side_manager {
         tester.events(&[TaipoEvent { is_press: false, code: 3 }]);
     }
 
-    /// Characterization: every key of a chord restarts the 50ms window, so a
-    /// chord that is rolled slowly is sent well after 50ms from its first key.
-    /// This changes when the window is made fixed.
+    /// The window is measured from the first key of the chord: a key that
+    /// arrives later joins the chord, but doesn't push out when it is sent.
     #[test]
-    fn test_window_restarts() {
+    fn test_fixed_window() {
         let mut tester = Tester::new();
         tester.press(1);
         tester.spin(40);
         tester.press(2);
-        // 40ms in, and the window starts over, so nothing until 90ms.
-        tester.spin(49);
+        tester.spin(9);
         tester.events(&[]);
+        // 50ms after the first key, not after the second.
         tester.spin(1);
         tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+    }
+
+    /// A key that arrives after the window has expired isn't merged into the
+    /// chord, but starts a new one.
+    #[test]
+    fn test_key_after_window() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(50);
+        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.press(2);
+        tester.spin(50);
+        tester.events(&[TaipoEvent { is_press: false, code: 1 },
+                        TaipoEvent { is_press: true, code: 2 }]);
+        tester.release(1);
+        tester.release(2);
+        tester.events(&[TaipoEvent { is_press: false, code: 2 }]);
     }
 
     /// The event queue is fixed size, and events that don't fit are silently
