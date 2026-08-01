@@ -314,6 +314,117 @@ mod test_side_manager {
         }
     }
 
+    /// A chord that is tapped and released well before the timer expires is
+    /// sent as soon as the last key comes up, press immediately followed by
+    /// release.
+    #[test]
+    fn test_quick_tap() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(5);
+        tester.events(&[]);
+        tester.release(1);
+        tester.events(&[TaipoEvent { is_press: true, code: 1 },
+                        TaipoEvent { is_press: false, code: 1 }]);
+    }
+
+    /// The chord is committed by the timer at exactly 50ms, not before.
+    #[test]
+    fn test_timer_boundary() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(49);
+        tester.events(&[]);
+        tester.spin(1);
+        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+    }
+
+    /// Several keys released before the timer expires still make up a single
+    /// chord, sent when the last of them comes up.
+    #[test]
+    fn test_release_commits_chord() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(5);
+        tester.press(2);
+        tester.release(1);
+        tester.events(&[]);
+        tester.release(2);
+        tester.events(&[TaipoEvent { is_press: true, code: 3 },
+                        TaipoEvent { is_press: false, code: 3 }]);
+    }
+
+    /// Releasing part of a chord that has already been sent doesn't do
+    /// anything; the release comes when the last key is up.
+    #[test]
+    fn test_partial_release() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.press(2);
+        tester.spin(50);
+        tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+        tester.release(1);
+        tester.events(&[]);
+        tester.release(2);
+        tester.events(&[TaipoEvent { is_press: false, code: 3 }]);
+    }
+
+    /// Characterization: every key of a chord restarts the 50ms window, so a
+    /// chord that is rolled slowly is sent well after 50ms from its first key.
+    /// This changes when the window is made fixed.
+    #[test]
+    fn test_window_restarts() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(40);
+        tester.press(2);
+        // 40ms in, and the window starts over, so nothing until 90ms.
+        tester.spin(49);
+        tester.events(&[]);
+        tester.spin(1);
+        tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+    }
+
+    /// Characterization: a key pressed after the chord has been sent is
+    /// dropped, and the eventual release is of the original chord.  This
+    /// changes when same-side rollover is implemented.
+    #[test]
+    fn test_press_while_down_dropped() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(50);
+        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.press(2);
+        tester.spin(50);
+        tester.events(&[]);
+        tester.release(1);
+        tester.events(&[]);
+        tester.release(2);
+        tester.events(&[TaipoEvent { is_press: false, code: 1 }]);
+    }
+
+    /// The event queue is fixed size, and events that don't fit are silently
+    /// discarded.  In practice the queue is drained every tick, and a tick can
+    /// only produce a couple of events per side, so this only matters if key
+    /// events arrive much faster than the layout is ticked.
+    #[test]
+    fn test_event_queue_overflow() {
+        let mut tester = Tester::new();
+        let capacity = tester.events.capacity();
+
+        // Each tap produces two events, so one more than the queue holds.
+        let mut expected = Vec::new();
+        for _ in 0..(capacity / 2 + 1) {
+            tester.press(1);
+            tester.release(1);
+        }
+        for _ in 0..(capacity / 2) {
+            expected.push(TaipoEvent { is_press: true, code: 1 });
+            expected.push(TaipoEvent { is_press: false, code: 1 });
+        }
+        tester.events(&expected[..]);
+    }
+
     /// Test the basics of the side.  Simulate two keys being pressed, and that
     /// the event is sent when the timer expires.
     #[test]
