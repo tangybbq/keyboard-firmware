@@ -112,12 +112,14 @@ async fn active_uart_task(dispatch: &'static Dispatch, act: &'static crate::inte
 
 #[embassy_executor::task]
 async fn layout_loop(dispatch: &'static Dispatch) -> ! {
-    let mut ticker = Ticker::every(Duration::from_millis(10));
+    // The layout timeouts are all in milliseconds, so tick at that rate to keep
+    // them from being quantized.
+    let mut ticker = Ticker::every(Duration::from_millis(1));
     // The layout should always be set if we're runing.
     let layout = dispatch.layout.as_ref().unwrap();
     loop {
         ticker.next().await;
-        layout.lock().await.tick(dispatch, 10).await;
+        layout.lock().await.tick(dispatch, 1).await;
     }
 }
 
