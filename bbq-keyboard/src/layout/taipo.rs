@@ -19,11 +19,14 @@
 //! which will release any pressed modifiers without pressing any keys.  This
 //! allows for modifiers to be pressed and released.
 //!
-//! In addition, modifiers can be made sticky by pressing them twice (it
-//! actually makes all of the modifiers sticky, there isn't support for
-//! releasing some modifiers).  The modifiers will remain pressed until the two
-//! thumb keys are pressed together.  This is useful for some types of GUI
-//! manipulation, such as holding down alt while pressing tab or arrow keys.
+//! In addition, modifiers can be made sticky with a double press: a modifier
+//! chord whose modifiers are all already held (the same chord again, or its
+//! counterpart on the other hand).  This makes all of the currently held
+//! modifiers sticky, not just the double-pressed one; there isn't support for
+//! making only some of them sticky.  Sticky modifiers remain pressed across
+//! any number of keypresses, until the two thumb keys are pressed together.
+//! This is useful for some types of GUI manipulation, such as holding down alt
+//! while pressing tab or arrow keys.
 
 use arraydeque::ArrayDeque;
 use usbd_human_interface_device::page::Keyboard;
@@ -43,6 +46,10 @@ pub struct TaipoManager {
     /// Modifiers that are down.
     oneshot: Mods,
 
+    /// The subset of `oneshot` that is sticky, surviving keypresses until the
+    /// null chord releases everything.  Invariant: `sticky ⊆ oneshot`.
+    sticky: Mods,
+
     /// Does the HID have a non-modifier key down?
     down: bool,
 
@@ -60,6 +67,7 @@ impl Default for TaipoManager {
             sides: [Default::default(), Default::default()],
             keys: TaipoEvents::new(),
             oneshot: Mods::empty(),
+            sticky: Mods::empty(),
             down: false,
             taipo_keys: 0,
             taipo_latch: 0,
@@ -89,7 +97,14 @@ impl TaipoManager {
                 // If a key is actually pressed, release it. This shouldn't
                 // really need to be conditional.
                 if self.down {
-                    self.send(actions, is_steno, KeyAction::KeyRelease).await;
+                    // `oneshot` is non-empty here only when sticky modifiers
+                    // are held; keep them in the report.
+                    let action = if self.oneshot.is_empty() {
+                        KeyAction::KeyRelease
+                    } else {
+                        KeyAction::ModOnly(self.oneshot)
+                    };
+                    self.send(actions, is_steno, action).await;
                     self.down = false;
                     self.taipo_latch = 0;
                 }
@@ -102,29 +117,33 @@ impl TaipoManager {
                     self.release_nonmod(actions).await;
                     self.send(actions, is_steno, KeyAction::KeyPress(*k, self.oneshot)).await;
                     self.down = true;
-                    self.oneshot = Mods::empty();
+                    self.oneshot = self.sticky;
                 }
                 Some(Entry { action: Action::Shifted(k), .. }) => {
                     self.release_nonmod(actions).await;
                     self.send(actions, is_steno, KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)).await;
                     self.down = true;
-                    self.oneshot = Mods::empty();
+                    self.oneshot = self.sticky;
                 }
                 Some(Entry { action: Action::OneShot(m), .. }) => {
                     let new_mods = self.oneshot | *m;
 
                     // If this modification adds any new modifiers, send a new
-                    // event.
+                    // event.  A press that adds nothing is a double press,
+                    // which makes all of the held modifiers sticky.
                     if new_mods != self.oneshot {
                         self.release_nonmod(actions).await;
                         self.send(actions, is_steno, KeyAction::ModOnly(new_mods)).await;
+                        self.oneshot = new_mods;
+                    } else {
+                        self.sticky = self.oneshot;
                     }
-                    self.oneshot |= *m;
                 }
                 Some(Entry { action: Action::Release, .. }) => {
                     if !self.oneshot.is_empty() {
                         self.send(actions, is_steno, KeyAction::KeyRelease).await;
                         self.oneshot = Mods::empty();
+                        self.sticky = Mods::empty();
                         self.taipo_latch = 0;
                     }
                 }

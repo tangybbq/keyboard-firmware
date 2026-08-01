@@ -536,20 +536,169 @@ fn test_modifier_release() {
     script.run();
 }
 
-/// Characterization: the module documentation describes double-pressing a
-/// modifier as making it "sticky" until the thumbs are pressed together, but
-/// that is not implemented.  The second press is simply a no-op, and the
-/// modifiers are released along with the first key typed.  See TASKS.md.
+/// Double-pressing a modifier makes it sticky: it stays held across keys,
+/// until the null chord releases everything.
 #[test]
-fn test_sticky_modifier_unimplemented() {
+fn test_sticky_modifier() {
     let mut script = Script::taipo();
 
     script.chord(LEFT, I | E).mod_only(Mods::SHIFT);
-    // Pressing it a second time adds no new modifiers, so nothing is sent.
+    // The second press adds no new modifiers; it silently promotes to sticky.
     script.chord(LEFT, I | E).idle();
-    script.chord(LEFT, A).types_mods(Keyboard::A, Mods::SHIFT);
-    // Sticky would keep shift held here; it doesn't.
+    // Keys carry the modifier, and their release keeps it held rather than
+    // clearing the report.
+    script
+        .chord(LEFT, A)
+        .presses(Keyboard::A, Mods::SHIFT)
+        .mod_only(Mods::SHIFT);
+    script
+        .chord(LEFT, O)
+        .presses(Keyboard::O, Mods::SHIFT)
+        .mod_only(Mods::SHIFT);
+    // The null chord releases everything, ...
+    script.chord(LEFT, SP | BK).releases();
+    // ... and the next key is unmodified.
     script.chord(LEFT, A).types(Keyboard::A);
+
+    script.run();
+}
+
+/// The motivating case: double-press alt, then tap tab repeatedly to cycle
+/// windows.  Alt never drops between the taps.
+#[test]
+fn test_sticky_alt_tab() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, S | O).mod_only(Mods::ALT);
+    script.chord(LEFT, S | O).idle();
+    for _ in 0..3 {
+        script
+            .chord(LEFT, S | N | I)
+            .presses(Keyboard::Tab, Mods::ALT)
+            .mod_only(Mods::ALT);
+    }
+    script.chord(LEFT, SP | BK).releases();
+    script.chord(LEFT, S | N | I).types(Keyboard::Tab);
+
+    script.run();
+}
+
+/// The double press can also be the matching modifier chord on the other
+/// hand.
+#[test]
+fn test_sticky_cross_hand() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, I | E).mod_only(Mods::SHIFT);
+    script.chord(RIGHT, I | E).idle();
+    script
+        .chord(LEFT, A)
+        .presses(Keyboard::A, Mods::SHIFT)
+        .mod_only(Mods::SHIFT);
+    script
+        .chord(RIGHT, A)
+        .presses(Keyboard::A, Mods::SHIFT)
+        .mod_only(Mods::SHIFT);
+    script.chord(LEFT, SP | BK).releases();
+
+    script.run();
+}
+
+/// A single modifier press on top of sticky modifiers is still one-shot: it
+/// applies to the next key only, while the sticky modifiers stay held.
+#[test]
+fn test_oneshot_on_sticky() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, I | E).mod_only(Mods::SHIFT);
+    script.chord(LEFT, I | E).idle();
+    // A single ctrl press accumulates as usual.
+    script.chord(RIGHT, N | T).mod_only(Mods::SHIFT | Mods::CONTROL);
+    // The next key gets both, but only shift survives its release.
+    script
+        .chord(LEFT, A)
+        .presses(Keyboard::A, Mods::SHIFT | Mods::CONTROL)
+        .mod_only(Mods::SHIFT);
+    script
+        .chord(LEFT, A)
+        .presses(Keyboard::A, Mods::SHIFT)
+        .mod_only(Mods::SHIFT);
+    script.chord(LEFT, SP | BK).releases();
+
+    script.run();
+}
+
+/// Pressing a modifier twice on top of sticky modifiers promotes everything
+/// held, including the new modifier, to sticky.
+#[test]
+fn test_sticky_accumulate() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, I | E).mod_only(Mods::SHIFT);
+    script.chord(LEFT, I | E).idle();
+    script.chord(RIGHT, N | T).mod_only(Mods::SHIFT | Mods::CONTROL);
+    script.chord(RIGHT, N | T).idle();
+    script
+        .chord(LEFT, A)
+        .presses(Keyboard::A, Mods::SHIFT | Mods::CONTROL)
+        .mod_only(Mods::SHIFT | Mods::CONTROL);
+    script
+        .chord(LEFT, A)
+        .presses(Keyboard::A, Mods::SHIFT | Mods::CONTROL)
+        .mod_only(Mods::SHIFT | Mods::CONTROL);
+    script.chord(LEFT, SP | BK).releases();
+
+    script.run();
+}
+
+/// A `Shifted` chord while sticky modifiers are held: shift rides along for
+/// the keypress, and the release falls back to just the sticky modifiers.
+#[test]
+fn test_sticky_shifted_action() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, S | O).mod_only(Mods::ALT);
+    script.chord(LEFT, S | O).idle();
+    script
+        .chord(LEFT, SP | A)
+        .presses(Keyboard::A, Mods::ALT | Mods::SHIFT)
+        .mod_only(Mods::ALT);
+    script.chord(LEFT, SP | BK).releases();
+
+    script.run();
+}
+
+/// Rollover with sticky modifiers held: the modifiers persist through the
+/// release of the rolled-over key, both across hands and within one.
+#[test]
+fn test_sticky_rollover() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, I | E).mod_only(Mods::SHIFT);
+    script.chord(LEFT, I | E).idle();
+
+    // Cross-hand rollover: the 'a' is released (to modifiers only, not a full
+    // clear) to make room for the 'i'.
+    script.press(LEFT, A).tick(CHORD_TIME).presses(Keyboard::A, Mods::SHIFT);
+    script
+        .press(RIGHT, I)
+        .tick(CHORD_TIME)
+        .mod_only(Mods::SHIFT)
+        .presses(Keyboard::I, Mods::SHIFT);
+
+    // Same-side rollover: 'n' on the left while the 'a' is still held.
+    script
+        .press(LEFT, N)
+        .tick(CHORD_TIME)
+        .mod_only(Mods::SHIFT)
+        .presses(Keyboard::N, Mods::SHIFT);
+
+    // The 'a' is inactive now; its release does nothing.
+    script.release(LEFT, A).tick(1).idle();
+    script.release(RIGHT, I).tick(1).mod_only(Mods::SHIFT);
+    script.release(LEFT, N).tick(1).idle();
+
+    script.chord(LEFT, SP | BK).releases();
 
     script.run();
 }
