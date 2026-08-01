@@ -411,6 +411,22 @@ fn test_single_keys() {
     script.run();
 }
 
+/// A chord that is tapped, and released before the chord timer expires, is sent
+/// as soon as the last key comes up.
+#[test]
+fn test_quick_tap() {
+    let mut script = Script::taipo();
+
+    script.press(LEFT, A).tick(5).idle();
+    script.release(LEFT, A).tick(1).types(Keyboard::A);
+
+    // The same, for a multi-key chord.
+    script.press(RIGHT, S | N).tick(5).idle();
+    script.release(RIGHT, S | N).tick(1).types(Keyboard::P);
+
+    script.run();
+}
+
 /// Multi-key chords, including ones that only differ by the row.
 #[test]
 fn test_chords() {
@@ -430,6 +446,123 @@ fn test_chords() {
         script.chord(LEFT, chord).types(key);
         script.chord(RIGHT, chord).types(key);
     }
+
+    script.run();
+}
+
+/// Adding the space thumb to a letter shifts it.
+#[test]
+fn test_shifted() {
+    let mut script = Script::taipo();
+
+    script
+        .chord(LEFT, SP | A)
+        .types_mods(Keyboard::A, Mods::SHIFT);
+    script
+        .chord(RIGHT, SP | S | N)
+        .types_mods(Keyboard::P, Mods::SHIFT);
+    // The backspace thumb gives punctuation, which is shifted for some keys.
+    script
+        .chord(LEFT, BK | A)
+        .types_mods(Keyboard::Comma, Mods::SHIFT);
+    script.chord(LEFT, BK | T).types(Keyboard::LeftBrace);
+
+    script.run();
+}
+
+/// Both thumbs together with a chord give the function keys.
+#[test]
+fn test_function_keys() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, SP | BK | O | E).types(Keyboard::F1);
+    script.chord(RIGHT, SP | BK | T | E).types(Keyboard::F10);
+    script.chord(LEFT, SP | BK | S | E).types(Keyboard::F11);
+    script.chord(RIGHT, SP | BK | I | A).types(Keyboard::F12);
+
+    script.run();
+}
+
+/// A modifier chord is sent immediately, and applies to the next key typed.
+#[test]
+fn test_oneshot_modifier() {
+    let mut script = Script::taipo();
+
+    // The shift modifier is the pinky pair.  It is sent as soon as the chord is
+    // recognized, and releasing the chord doesn't send anything.
+    script.press(LEFT, I | E).tick(CHORD_TIME).mod_only(Mods::SHIFT);
+    script.release(LEFT, I | E).tick(1).idle();
+
+    // The next key carries the modifier, ...
+    script.chord(LEFT, A).types_mods(Keyboard::A, Mods::SHIFT);
+
+    // ... and only that key.
+    script.chord(LEFT, A).types(Keyboard::A);
+
+    // The modifier can come from the other hand.
+    script.chord(RIGHT, N | T).mod_only(Mods::CONTROL);
+    script.chord(LEFT, A).types_mods(Keyboard::A, Mods::CONTROL);
+
+    script.run();
+}
+
+/// Modifiers accumulate until a key is typed.
+#[test]
+fn test_oneshot_accumulate() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, I | E).mod_only(Mods::SHIFT);
+    script.chord(LEFT, R | A).mod_only(Mods::SHIFT | Mods::GUI);
+    script
+        .chord(RIGHT, S | N)
+        .types_mods(Keyboard::P, Mods::SHIFT | Mods::GUI);
+    script.chord(RIGHT, S | N).types(Keyboard::P);
+
+    script.run();
+}
+
+/// Both thumbs together release held modifiers, without typing anything.
+#[test]
+fn test_modifier_release() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, I | E).mod_only(Mods::SHIFT);
+    script.chord(LEFT, SP | BK).releases();
+    // With no modifiers held, the null chord does nothing at all.
+    script.chord(LEFT, SP | BK).idle();
+    // And the modifier really is gone.
+    script.chord(LEFT, A).types(Keyboard::A);
+
+    script.run();
+}
+
+/// Characterization: the module documentation describes double-pressing a
+/// modifier as making it "sticky" until the thumbs are pressed together, but
+/// that is not implemented.  The second press is simply a no-op, and the
+/// modifiers are released along with the first key typed.  See TASKS.md.
+#[test]
+fn test_sticky_modifier_unimplemented() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, I | E).mod_only(Mods::SHIFT);
+    // Pressing it a second time adds no new modifiers, so nothing is sent.
+    script.chord(LEFT, I | E).idle();
+    script.chord(LEFT, A).types_mods(Keyboard::A, Mods::SHIFT);
+    // Sticky would keep shift held here; it doesn't.
+    script.chord(LEFT, A).types(Keyboard::A);
+
+    script.run();
+}
+
+/// A chord with no entry in the action table types nothing, and leaves the
+/// state clean for the next chord.
+#[test]
+fn test_unknown_chord() {
+    let mut script = Script::taipo();
+
+    // All four keys of the bottom row is not a defined chord.
+    script.chord(LEFT, A | O | T | E).idle();
+    script.chord(LEFT, A).types(Keyboard::A);
 
     script.run();
 }
@@ -455,6 +588,86 @@ fn test_cross_hand_rollover() {
     // Releasing the left key releases the key that is down.
     script.release(LEFT, A).tick(1).releases();
     script.release(RIGHT, I).tick(1).idle();
+
+    script.run();
+}
+
+/// The same character can be typed twice in a row by alternating hands.
+#[test]
+fn test_alternate_same_key() {
+    let mut script = Script::taipo();
+
+    script.press(LEFT, A).tick(CHORD_TIME).presses(Keyboard::A, Mods::empty());
+    script
+        .press(RIGHT, A)
+        .tick(CHORD_TIME)
+        .releases()
+        .presses(Keyboard::A, Mods::empty());
+    script.release(LEFT, A).tick(1).releases();
+    script.release(RIGHT, A).tick(1).idle();
+
+    script.run();
+}
+
+/// Characterization: same-side rollover doesn't work.  Typing "captain" rolls
+/// 'a' (left), 'i' (right), 'n' (left), with the 'a' still held when the 'n'
+/// goes down.  The 'n' is currently dropped entirely.
+///
+/// This changes: after same-side rollover is implemented, the 'n' must be
+/// typed.
+#[test]
+fn test_same_side_rollover_dropped() {
+    let mut script = Script::taipo();
+
+    script.press(LEFT, A).tick(CHORD_TIME).presses(Keyboard::A, Mods::empty());
+    script
+        .press(RIGHT, I)
+        .tick(CHORD_TIME)
+        .releases()
+        .presses(Keyboard::I, Mods::empty());
+
+    // The 'n' on the left, with the 'a' still held, is lost.
+    script.press(LEFT, N).tick(CHORD_TIME).idle();
+
+    script.release(LEFT, A).tick(1).idle();
+    script.release(RIGHT, I).tick(1).releases();
+    script.release(LEFT, N).tick(1).idle();
+
+    script.run();
+}
+
+/// In steno mode, taipo chords are decoded but not sent; the keys are steno
+/// keys instead.
+#[test]
+fn test_steno_suppresses_taipo() {
+    let mut script = Script::steno();
+
+    // The left 'a' key is steno 'S'.
+    script
+        .press(LEFT, A)
+        .tick(CHORD_TIME)
+        .idle()
+        .release(LEFT, A)
+        .tick(1)
+        .steno_stroke(bbq_steno::Stroke::from_text("S").unwrap())
+        .idle();
+
+    script.run();
+}
+
+/// Holding a taipo key while in steno mode acts as a layer shift: the chord is
+/// typed as taipo, and no steno stroke is sent.
+#[test]
+fn test_steno_taipo_latch() {
+    let mut script = Script::steno();
+
+    script.press_scan(TAIPO_KEY);
+    script
+        .press(LEFT, A)
+        .tick(CHORD_TIME)
+        .presses(Keyboard::A, Mods::empty());
+    script.release(LEFT, A).tick(1).releases();
+    script.release_scan(TAIPO_KEY).tick(1).idle();
 
     script.run();
 }
