@@ -166,7 +166,9 @@ impl TaipoManager {
                 } else {
                     self.taipo_keys &= !bit;
 
-                    // If the taipo key was pressed, just by itself,
+                    // If the taipo key was pressed, just by itself.  Keys left
+                    // over from a rolled-over chord are still counted here, as
+                    // this is asking whether anything is physically held.
                     if self.sides[0].pressed == 0 && self.sides[1].pressed == 0 {
                         self.taipo_latch = 0;
                     }
@@ -185,7 +187,7 @@ impl TaipoManager {
               is_press, code, text_side, tcode);
         */
         if is_press {
-            self.sides[side.index()].press(*tcode);
+            self.sides[side.index()].press(*tcode, &mut self.keys);
         } else {
             self.sides[side.index()].release(*tcode, &mut self.keys);
         }
@@ -216,6 +218,10 @@ impl TaipoManager {
 struct SideManager {
     /// Keys that are currently pressed.
     pressed: u16,
+    /// Keys that are physically still held, but belong to a chord that has
+    /// already been sent.  These take no part in the chord being built, and are
+    /// only tracked until they are released.
+    inactive: u16,
     /// Keys that have been seen.
     seen: u16,
     /// How many ticks since the last key pressed went down.
@@ -231,14 +237,21 @@ struct SideManager {
 // rollover even just beyond the left-right alternating.
 
 impl SideManager {
-    fn press(&mut self, tcode: u16) {
+    fn press(&mut self, tcode: u16, keys: &mut TaipoEvents) {
         // info!("smpress: down:{} seen:{}, age:{}", self.down, self.seen, self.age);
-        // As long as we aren't in 'down' state, capture that this is part of
-        // the key we want to send.
-        if !self.down {
-            self.seen |= tcode;
-            self.age = 0;
+        if self.down {
+            // This chord has already been sent, so this key starts a new one.
+            // End the old chord here, rather than waiting for its keys to come
+            // up; they become inactive, and are only tracked until they are
+            // released.
+            let _ = keys.push_back(TaipoEvent { is_press: false, code: self.seen });
+            // info!("taipo: rollover release {:x}", self.seen);
+            self.inactive |= self.pressed;
+            self.seen = 0;
+            self.down = false;
         }
+        self.seen |= tcode;
+        self.age = 0;
         self.pressed |= tcode;
         // info!("Usmpress: down:{} seen:{}, age:{}", self.down, self.seen, self.age);
     }
@@ -246,16 +259,25 @@ impl SideManager {
     fn release(&mut self, tcode: u16, keys: &mut TaipoEvents) {
         // info!("smrel: down:{} seen:{}, age:{}", self.down, self.seen, self.age);
         self.pressed &= !tcode;
-        // If everything is released, and the timer hasn't expired, we need to
-        // send down, and then release.
-        if self.pressed == 0 {
+        if self.inactive & tcode != 0 {
+            // The key was left over from a chord that has already been sent and
+            // released, so this is just bookkeeping, freeing the key up to be
+            // used by a later chord.
+            self.inactive &= !tcode;
+            return;
+        }
+        // If everything taking part in the chord is released, and the timer
+        // hasn't expired, we need to send down, and then release.
+        if self.pressed & !self.inactive == 0 && self.seen != 0 {
             if !self.down {
                 let _ = keys.push_back(TaipoEvent { is_press: true, code: self.seen });
                 // info!("taipo: press {:x}", self.seen);
             }
             let _ = keys.push_back(TaipoEvent { is_press: false, code: self.seen });
             // info!("taipo: release {:x}", self.seen);
-            *self = Default::default();
+            self.seen = 0;
+            self.age = 0;
+            self.down = false;
         }
         // info!("Usmrel: down:{} seen:{}, age:{}", self.down, self.seen, self.age);
 
@@ -293,7 +315,7 @@ mod test_side_manager {
         }
 
         fn press(&mut self, keys: u16) {
-            self.manager.press(keys);
+            self.manager.press(keys, &mut self.events);
         }
 
         fn release(&mut self, keys: u16) {
@@ -385,24 +407,6 @@ mod test_side_manager {
         tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
     }
 
-    /// Characterization: a key pressed after the chord has been sent is
-    /// dropped, and the eventual release is of the original chord.  This
-    /// changes when same-side rollover is implemented.
-    #[test]
-    fn test_press_while_down_dropped() {
-        let mut tester = Tester::new();
-        tester.press(1);
-        tester.spin(50);
-        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
-        tester.press(2);
-        tester.spin(50);
-        tester.events(&[]);
-        tester.release(1);
-        tester.events(&[]);
-        tester.release(2);
-        tester.events(&[TaipoEvent { is_press: false, code: 1 }]);
-    }
-
     /// The event queue is fixed size, and events that don't fit are silently
     /// discarded.  In practice the queue is drained every tick, and a tick can
     /// only produce a couple of events per side, so this only matters if key
@@ -444,7 +448,6 @@ mod test_side_manager {
     /// Test rollover.  Once a set of keys has been pressed, and sent, other
     /// keys can come in, which will be considered part of a new chord.  The
     /// rollover only works with different keys.
-    #[cfg(any())]
     #[test]
     fn test_rollover() {
         let mut tester = Tester::new();
@@ -460,6 +463,65 @@ mod test_side_manager {
         tester.release(2);
         tester.events(&[TaipoEvent { is_press: false, code: 2 }]);
     }
+
+    /// A rolled-over chord can also be committed by releasing it, while the
+    /// keys of the chord it replaced are still held.
+    #[test]
+    fn test_rollover_quick_tap() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(51);
+        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.press(2);
+        tester.events(&[TaipoEvent { is_press: false, code: 1 }]);
+        tester.release(2);
+        tester.events(&[TaipoEvent { is_press: true, code: 2 },
+                        TaipoEvent { is_press: false, code: 2 }]);
+        tester.release(1);
+        tester.events(&[]);
+    }
+
+    /// Rollover repeats: a third chord can start while the keys of the first
+    /// are still held down.
+    #[test]
+    fn test_repeated_rollover() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(51);
+        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.press(2);
+        tester.spin(51);
+        tester.events(&[TaipoEvent { is_press: false, code: 1 },
+                        TaipoEvent { is_press: true, code: 2 }]);
+        tester.press(4);
+        tester.spin(51);
+        tester.events(&[TaipoEvent { is_press: false, code: 2 },
+                        TaipoEvent { is_press: true, code: 4 }]);
+        tester.release(1);
+        tester.release(2);
+        tester.events(&[]);
+        tester.release(4);
+        tester.events(&[TaipoEvent { is_press: false, code: 4 }]);
+    }
+
+    /// An inactive key becomes available again as soon as it is released, and
+    /// can be used by the chord that is being built.
+    #[test]
+    fn test_key_reuse_after_rollover() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(51);
+        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.press(2);
+        tester.events(&[TaipoEvent { is_press: false, code: 1 }]);
+        tester.release(1);
+        tester.press(1);
+        tester.spin(51);
+        tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+        tester.release(1);
+        tester.release(2);
+        tester.events(&[TaipoEvent { is_press: false, code: 3 }]);
+    }
 }
 
 /// A single press or release indicated by Taipo.
@@ -470,7 +532,12 @@ struct TaipoEvent {
 }
 
 /// A queue of events recorded.
-type TaipoEvents = ArrayDeque<TaipoEvent, 8>;
+///
+/// The queue is drained on every tick.  Between ticks, each side can add a
+/// release for a rolled-over chord, and a press and release for the chord that
+/// replaced it, so this is generously sized; events that don't fit are silently
+/// dropped.
+type TaipoEvents = ArrayDeque<TaipoEvent, 16>;
 
 /// Mapping between scan codes, and Taipo codes.  Taipo codes are a 10 number,
 /// with the top two bits as the two thumb keys, then the top row, and bottom

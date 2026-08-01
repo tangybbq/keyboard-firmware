@@ -609,14 +609,11 @@ fn test_alternate_same_key() {
     script.run();
 }
 
-/// Characterization: same-side rollover doesn't work.  Typing "captain" rolls
-/// 'a' (left), 'i' (right), 'n' (left), with the 'a' still held when the 'n'
-/// goes down.  The 'n' is currently dropped entirely.
-///
-/// This changes: after same-side rollover is implemented, the 'n' must be
-/// typed.
+/// Same-side rollover.  Typing "captain" rolls 'a' (left), 'i' (right), 'n'
+/// (left), with the 'a' still held when the 'n' goes down.  All three have to
+/// be typed, in order.
 #[test]
-fn test_same_side_rollover_dropped() {
+fn test_same_side_rollover() {
     let mut script = Script::taipo();
 
     script.press(LEFT, A).tick(CHORD_TIME).presses(Keyboard::A, Mods::empty());
@@ -626,12 +623,38 @@ fn test_same_side_rollover_dropped() {
         .releases()
         .presses(Keyboard::I, Mods::empty());
 
-    // The 'n' on the left, with the 'a' still held, is lost.
-    script.press(LEFT, N).tick(CHORD_TIME).idle();
+    // The 'n' on the left, with the 'a' still held, starts a new chord, which
+    // ends the one the 'a' belongs to.
+    script
+        .press(LEFT, N)
+        .tick(CHORD_TIME)
+        .releases()
+        .presses(Keyboard::N, Mods::empty());
 
+    // The 'a' is inactive now, and its release does nothing.
     script.release(LEFT, A).tick(1).idle();
     script.release(RIGHT, I).tick(1).releases();
     script.release(LEFT, N).tick(1).idle();
+
+    script.run();
+}
+
+/// A rolled chord that is tapped, rather than held, while the previous chord is
+/// still down.
+#[test]
+fn test_same_side_rollover_tap() {
+    let mut script = Script::taipo();
+
+    script.press(LEFT, A).tick(CHORD_TIME).presses(Keyboard::A, Mods::empty());
+    // A quick 'o' while the 'a' is held is sent as soon as it comes up.
+    script
+        .press(LEFT, O)
+        .tick(5)
+        .releases()
+        .release(LEFT, O)
+        .tick(1)
+        .types(Keyboard::O);
+    script.release(LEFT, A).tick(1).idle();
 
     script.run();
 }
