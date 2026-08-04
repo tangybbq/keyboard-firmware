@@ -55,6 +55,14 @@ static SCANS: [[u8; 10]; 2] = [
     [29, 33, 37, 41, 28, 32, 36, 40, 43, 47],
 ];
 
+/// The same keys, one physical row further down, which is where they live when
+/// the layout is in the "lower" row position.  The thumb keys don't move.
+static SCANS_LOWER: [[u8; 10]; 2] = [
+    // A   O   T   E   R  S   N   I   SP  BK
+    [6, 10, 14, 18, 5, 9, 13, 17, 19, 23],
+    [30, 34, 38, 42, 29, 33, 37, 41, 43, 47],
+];
+
 /// The mode selection key.
 const MODE_KEY: u8 = 2;
 
@@ -62,9 +70,19 @@ const MODE_KEY: u8 = 2;
 /// mode.
 const TAIPO_KEY: u8 = 20;
 
+/// The same taipo shift key when the layout is in the lower row position.
+const TAIPO_KEY_LOWER: u8 = 21;
+
+/// The dead top-left key, which toggles the row position.
+const ROW_TOGGLE_KEY: u8 = 0;
+
 /// The scan codes of the keys making up a chord, in bit order.
-fn scans(side: Side, chord: u16) -> impl Iterator<Item = u8> {
-    let row = SCANS[side.index()];
+fn scans(side: Side, chord: u16, lower: bool) -> impl Iterator<Item = u8> {
+    let row = if lower {
+        SCANS_LOWER[side.index()]
+    } else {
+        SCANS[side.index()]
+    };
     (0..10).filter_map(move |bit| {
         if chord & (1 << bit) != 0 {
             Some(row[bit])
@@ -159,14 +177,36 @@ impl LayoutActions for TestActor {
 /// a chain of stimulus and expectation.
 struct Script {
     steps: Vec<ActorStep>,
+
+    /// Build the layout as if the board only has two rows.
+    two_row: bool,
+
+    /// Which physical keys the chord builders use.  This tracks the row
+    /// position the layout is expected to be in.
+    lower: bool,
 }
 
 impl Script {
     /// A new script, starting in the layout's initial (qwerty) mode.  The
     /// layout announces its mode on the first tick.
     fn new() -> Script {
-        let mut script = Script { steps: Vec::new() };
+        let mut script = Script {
+            steps: Vec::new(),
+            two_row: false,
+            lower: false,
+        };
         script.tick(1).mode(LayoutMode::Qwerty);
+        script
+    }
+
+    /// A new script on a two-row board, which comes up in taipo mode.
+    fn two_row() -> Script {
+        let mut script = Script {
+            steps: Vec::new(),
+            two_row: true,
+            lower: false,
+        };
+        script.tick(1).mode(LayoutMode::Taipo);
         script
     }
 
@@ -208,7 +248,7 @@ impl Script {
 
     /// Press all of the keys of a chord, with no time in between.
     fn press(&mut self, side: Side, chord: u16) -> &mut Self {
-        for scan in scans(side, chord) {
+        for scan in scans(side, chord, self.lower) {
             self.press_scan(scan);
         }
         self
@@ -216,9 +256,19 @@ impl Script {
 
     /// Release all of the keys of a chord, with no time in between.
     fn release(&mut self, side: Side, chord: u16) -> &mut Self {
-        for scan in scans(side, chord) {
+        for scan in scans(side, chord, self.lower) {
             self.release_scan(scan);
         }
+        self
+    }
+
+    /// Tap the row toggle key by itself, which moves the 2-row layouts between
+    /// the upper and lower rows.  Subsequent chords use the new scan codes.
+    fn toggle_rows(&mut self) -> &mut Self {
+        self.press_scan(ROW_TOGGLE_KEY)
+            .release_scan(ROW_TOGGLE_KEY)
+            .tick(1);
+        self.lower = !self.lower;
         self
     }
 
@@ -312,7 +362,7 @@ impl Script {
     /// nothing extra is left over at the end.
     fn run(&mut self) {
         block_on(async {
-            let mut layout = LayoutManager::new(false);
+            let mut layout = LayoutManager::new(self.two_row);
             let actor = TestActor::new();
 
             for (num, step) in self.steps.iter().enumerate() {
@@ -840,6 +890,223 @@ fn test_steno_taipo_latch() {
         .presses(Keyboard::A, Mods::empty());
     script.release(LEFT, A).tick(1).releases();
     script.release_scan(TAIPO_KEY).tick(1).idle();
+
+    script.run();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Row position
+//
+// On a 3-row board, the 2-row layouts (taipo and steno) can be moved between
+// the top two and the bottom two rows by tapping the otherwise dead top-left
+// key.
+//////////////////////////////////////////////////////////////////////////////
+
+/// After toggling, taipo chords are typed on the lower two rows, and the old
+/// scan codes no longer produce anything.  Toggling back restores the original
+/// mapping.
+#[test]
+fn test_row_toggle_taipo() {
+    let mut script = Script::taipo();
+
+    script.toggle_rows();
+
+    // The lower-row scan codes now type normally.
+    script.chord(LEFT, A).types(Keyboard::A);
+    script.chord(RIGHT, N | I).types(Keyboard::Y);
+
+    // The top physical row is dead for taipo (it holds the steno `#` codes).
+    script
+        .press_scan(4)
+        .press_scan(8)
+        .tick(CHORD_TIME)
+        .release_scan(4)
+        .release_scan(8)
+        .tick(1)
+        .idle();
+
+    // Toggling back returns to the upper rows, where the same chords type the
+    // same letters.
+    script.toggle_rows();
+    script.chord(LEFT, A).types(Keyboard::A);
+    script.chord(RIGHT, N | I).types(Keyboard::Y);
+
+    script.run();
+}
+
+/// The toggle key produces nothing of its own in taipo mode.
+#[test]
+fn test_row_toggle_is_consumed_taipo() {
+    let mut script = Script::taipo();
+
+    script.toggle_rows().idle();
+    script.toggle_rows().idle();
+
+    script.run();
+}
+
+/// In steno mode the toggle key used to send an empty stroke; it is now
+/// consumed entirely.
+#[test]
+fn test_row_toggle_is_consumed_steno() {
+    let mut script = Script::steno();
+
+    script.toggle_rows().idle();
+    script.toggle_rows().idle();
+
+    script.run();
+}
+
+/// The toggle only happens when the key is tapped by itself.  Pressing it while
+/// another key is held leaves the mapping alone.
+#[test]
+fn test_row_toggle_needs_solo_tap() {
+    let mut script = Script::taipo();
+
+    // Press it in the middle of a chord.
+    script
+        .press(LEFT, A)
+        .press_scan(ROW_TOGGLE_KEY)
+        .release_scan(ROW_TOGGLE_KEY)
+        .tick(CHORD_TIME)
+        .presses(Keyboard::A, Mods::empty())
+        .release(LEFT, A)
+        .tick(1)
+        .releases();
+
+    // Press it first, but release it after another key has gone down.
+    script
+        .press_scan(ROW_TOGGLE_KEY)
+        .press(LEFT, O)
+        .release_scan(ROW_TOGGLE_KEY)
+        .tick(CHORD_TIME)
+        .presses(Keyboard::O, Mods::empty())
+        .release(LEFT, O)
+        .tick(1)
+        .releases();
+
+    // Still on the upper rows.
+    script.chord(LEFT, T).types(Keyboard::T);
+
+    script.run();
+}
+
+/// Steno strokes move down a row as well, with the physical top row picking up
+/// the `#` keys.
+#[test]
+fn test_row_toggle_steno() {
+    let mut script = Script::steno();
+
+    script.toggle_rows();
+
+    // Physical middle and bottom of the third column are steno 'T' and 'K'.
+    script
+        .press_scan(9)
+        .press_scan(10)
+        .tick(CHORD_TIME)
+        .idle()
+        .release_scan(9)
+        .steno_stroke(Stroke::from_text("TK").unwrap())
+        .release_scan(10)
+        .tick(1)
+        .idle();
+
+    // The physical top row of that column is now the number key.
+    script
+        .press_scan(8)
+        .tick(CHORD_TIME)
+        .idle()
+        .release_scan(8)
+        .steno_stroke(Stroke::from_text("#").unwrap())
+        .tick(1)
+        .idle();
+
+    // The right outer column rotates too, so the physical middle key there is
+    // '-D'.
+    script
+        .press_scan(25)
+        .tick(CHORD_TIME)
+        .idle()
+        .release_scan(25)
+        .steno_stroke(Stroke::from_text("-D").unwrap())
+        .tick(1)
+        .idle();
+
+    script.run();
+}
+
+/// The taipo shift keys move down along with everything else, and still allow
+/// taipo to be typed from steno mode.
+#[test]
+fn test_row_toggle_steno_taipo_latch() {
+    let mut script = Script::steno();
+
+    script.toggle_rows();
+
+    script.press_scan(TAIPO_KEY_LOWER);
+    script
+        .press(LEFT, A)
+        .tick(CHORD_TIME)
+        .presses(Keyboard::A, Mods::empty());
+    script.release(LEFT, A).tick(1).releases();
+    script.release_scan(TAIPO_KEY_LOWER).tick(1).idle();
+
+    script.run();
+}
+
+/// The mode select chords stay on fixed physical keys; they are not remapped
+/// with the row position.
+#[test]
+fn test_row_toggle_mode_select() {
+    let mut script = Script::taipo();
+
+    script.toggle_rows();
+
+    // Mode key plus the physical qwerty 's' selects steno.
+    script
+        .press_scan(MODE_KEY)
+        .mode_select(LayoutMode::Qwerty)
+        .press_scan(9)
+        .mode_select(LayoutMode::Steno)
+        .release_scan(9)
+        .mode_select(LayoutMode::Steno)
+        .release_scan(MODE_KEY)
+        .mode(LayoutMode::Steno);
+
+    // The row position survived the mode change.
+    script
+        .press_scan(9)
+        .tick(CHORD_TIME)
+        .idle()
+        .release_scan(9)
+        .steno_stroke(Stroke::from_text("T").unwrap())
+        .tick(1)
+        .idle();
+
+    script.run();
+}
+
+/// A two-row board has no third row to move to, so the toggle does nothing.
+#[test]
+fn test_row_toggle_two_row() {
+    let mut script = Script::two_row();
+
+    script
+        .press_scan(ROW_TOGGLE_KEY)
+        .release_scan(ROW_TOGGLE_KEY)
+        .tick(1)
+        .idle();
+
+    // The original scan codes still work,
+    script.chord(LEFT, A).types(Keyboard::A);
+
+    // and the shifted ones do not.
+    script
+        .press_scan(6)
+        .tick(CHORD_TIME)
+        .release_scan(6)
+        .tick(1)
+        .idle();
 
     script.run();
 }

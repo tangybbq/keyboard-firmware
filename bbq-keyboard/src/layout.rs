@@ -37,6 +37,67 @@ cfg_if::cfg_if! {
     }
 }
 
+// The row position toggle.  Taipo and steno are both 2-row layouts (two main
+// rows plus thumbs).  On a 3-row board they can sit on either the top two or
+// the bottom two rows, selected at runtime by tapping the otherwise dead
+// top-left key.  See `RowPosition` and `lower_row_remap` below.
+#[cfg(feature = "proto3")]
+const ROW_TOGGLE_KEY: u8 = 0;
+
+/// Which pair of rows the 2-row layouts (Taipo and steno) occupy.
+///
+/// This only makes sense on a 3-row board; 2-row boards always behave as
+/// `Upper`.
+#[cfg(feature = "proto3")]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+enum RowPosition {
+    /// The layout uses the top two rows of the keyboard, and the bottom row
+    /// holds the steno `#` keys.  This is how the boards have always worked.
+    #[default]
+    Upper,
+    /// The layout is shifted down one row, using the bottom two rows, with the
+    /// old bottom row (`#`) moving up to the now-free top row.
+    Lower,
+}
+
+#[cfg(feature = "proto3")]
+impl RowPosition {
+    fn toggle(self) -> Self {
+        match self {
+            RowPosition::Upper => RowPosition::Lower,
+            RowPosition::Lower => RowPosition::Upper,
+        }
+    }
+}
+
+/// Map a physical scancode to the code the layout tables should see when the
+/// layout is in the `Lower` row position.
+///
+/// Scancodes are column-major, `code = column * 4 + row`, with row 3 being the
+/// thumb keys.  Each column's three main-row keys are rotated so that the
+/// existing tables can be used unchanged:
+///
+/// - physical middle (`4k+1`) acts as the layout's top row (`4k+0`),
+/// - physical bottom (`4k+2`) acts as the layout's second row (`4k+1`),
+/// - physical top (`4k+0`) picks up the old bottom row (`4k+2`), i.e. steno `#`.
+///
+/// The thumbs never move.  Neither does the outer left column (codes 0, 1, 2):
+/// 0 is the toggle key itself, 1 is steno `#`, and 2 is the mode key.  The
+/// outer right column does rotate, as it carries real steno letters.
+#[cfg(feature = "proto3")]
+fn lower_row_remap(key: u8) -> u8 {
+    if key < 3 {
+        return key;
+    }
+    match key % 4 {
+        0 => key + 2,
+        1 => key - 1,
+        2 => key - 1,
+        // The thumb row.
+        _ => key,
+    }
+}
+
 /// If this key is one of the taipo keys, return it's bit, otherwise None.
 fn taipo_map(key: u8) -> Option<u8> {
     match key {
@@ -157,6 +218,16 @@ pub struct LayoutManager {
 
     // Flag indicating this is a two-row keyboard.  Skips qwerty mode when selected.
     two_row: bool,
+
+    // Which rows the 2-row layouts occupy.  Meaningless (and never changed) on
+    // a two-row board.
+    #[cfg(feature = "proto3")]
+    row_position: RowPosition,
+
+    // Set when the row toggle key has been pressed by itself, and is a
+    // candidate for toggling the row position when it comes back up.
+    #[cfg(feature = "proto3")]
+    row_arm: bool,
 }
 
 impl LayoutManager {
@@ -169,6 +240,10 @@ impl LayoutManager {
             taipo: TaipoManager::default(),
             first_tick: true,
             two_row,
+            #[cfg(feature = "proto3")]
+            row_position: RowPosition::default(),
+            #[cfg(feature = "proto3")]
+            row_arm: false,
         }
     }
 
@@ -195,6 +270,13 @@ impl LayoutManager {
 
     /// Handle a single key event.
     pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT) {
+        #[cfg(feature = "proto3")]
+        let event = match self.row_event(event) {
+            Some(event) => event,
+            // The toggle key was consumed.
+            None => return,
+        };
+
         let next = self.mode.event(event, actions, self.two_row).await;
 
         if !matches!(next, ModeNext::Discard) {
@@ -219,6 +301,55 @@ impl LayoutManager {
         }
 
         self.mode.after_event(actions, next).await;
+    }
+
+    /// Handle the row position toggle key, and remap events for the current row
+    /// position.
+    ///
+    /// This runs before `ModeSelector::event` so that everything downstream —
+    /// the mode selector's taipo tap detection as well as both handlers — sees
+    /// a single consistent view of the keyboard.  Returns `None` if the event
+    /// was consumed.
+    ///
+    /// Presses and releases always map the same way.  The position can only
+    /// change on the release of the toggle key with nothing else held, and the
+    /// remap is only skipped while the mode selector is running, which also
+    /// begins and ends with nothing else held.  So no key can be pressed under
+    /// one mapping and released under another.
+    #[cfg(feature = "proto3")]
+    fn row_event(&mut self, event: KeyEvent) -> Option<KeyEvent> {
+        // The 2-row modes on a 3-row board are the only place any of this
+        // applies.  Qwerty and Artsey use all three rows as they are.
+        if self.two_row || !self.mode.is_two_row_layout() {
+            return Some(event);
+        }
+
+        if event.key() == ROW_TOGGLE_KEY {
+            // The toggle key is always consumed in these modes; it has no other
+            // meaning.  Toggle only on a solo tap, which also keeps the mapping
+            // from ever changing in the middle of a chord.
+            match event {
+                KeyEvent::Press(_) => self.row_arm = self.mode.pressed == 0,
+                KeyEvent::Release(_) => {
+                    if self.row_arm && self.mode.pressed == 0 {
+                        self.row_position = self.row_position.toggle();
+                    }
+                    self.row_arm = false;
+                }
+            }
+            return None;
+        }
+
+        // Any other key means the toggle key wasn't pressed by itself.
+        self.row_arm = false;
+
+        match self.row_position {
+            RowPosition::Upper => Some(event),
+            RowPosition::Lower => Some(match event {
+                KeyEvent::Press(k) => KeyEvent::Press(lower_row_remap(k)),
+                KeyEvent::Release(k) => KeyEvent::Release(lower_row_remap(k)),
+            }),
+        }
     }
 }
 
@@ -403,6 +534,21 @@ impl ModeSelector {
     /// Quick check if we are in steno mode.
     fn is_steno(&self) -> bool {
         matches!(self.mode, LayoutMode::Steno)
+    }
+
+    /// Are we in one of the inherently 2-row layouts?
+    ///
+    /// While a mode is being selected, `mode` holds the tentative new mode, and
+    /// every key is discarded anyway, so this reports false.  That keeps the
+    /// mode select chords on fixed physical keys, rather than having them
+    /// depend on which direction the mode is being cycled.
+    #[cfg(feature = "proto3")]
+    fn is_two_row_layout(&self) -> bool {
+        !self.selecting
+            && matches!(
+                self.mode,
+                LayoutMode::Taipo | LayoutMode::Steno | LayoutMode::StenoDirect
+            )
     }
 }
 
