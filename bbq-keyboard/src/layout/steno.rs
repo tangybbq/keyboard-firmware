@@ -143,6 +143,12 @@ static STENO_KEYS: &[Option<Stroke>] = &[
     Some(stroke!("-Z")),
 ];
 
+/// The stroke each scan code contributes.
+///
+/// On the 3-row boards this describes the layout sitting on the top two rows,
+/// with the `#` keys along the bottom.  The lower row position is handled by
+/// remapping the scan codes before they get here (see the row position
+/// discussion in the parent module), so there is only the one table.
 #[cfg(feature = "proto3")]
 static STENO_KEYS: &[Option<Stroke>] = &[
     // Left

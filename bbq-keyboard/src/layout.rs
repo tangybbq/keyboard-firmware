@@ -152,6 +152,21 @@ fn taipo_map(key: u8) -> Option<u8> {
 // Keys sent between the first tap of the mode key and it's release aren't sent
 // to the lower layers. Press mode select while other keys are pressed will have
 // noeffect.
+//
+// Row position:
+//
+// Taipo and steno are both inherently 2-row layouts, two main rows plus the
+// thumbs, but the 3-row boards obviously have a row to spare. Which two rows
+// they use is selected at runtime by tapping the otherwise dead top-left key
+// (see `ROW_TOGGLE_KEY`), giving the two positions described by `RowPosition`:
+// the top two rows (the original behavior), or the bottom two, with the steno
+// `#` keys moving up to the freed top row. The two 2-row modes share the
+// setting, as they interoperate, and it is lost at power off.
+//
+// This is implemented purely by remapping incoming scancodes (see
+// `lower_row_remap`), so the tables in the submodules only ever describe the
+// upper position. Qwerty, Artsey, and boards that physically have two rows are
+// not affected.
 
 mod async_traits {
     // This is generally warned because it makes the API fragile.  This makes the API fragile, as

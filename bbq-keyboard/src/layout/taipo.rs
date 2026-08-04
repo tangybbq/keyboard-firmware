@@ -583,6 +583,11 @@ type TaipoEvents = ArrayDeque<TaipoEvent, 16>;
 /// Mapping between scan codes, and Taipo codes.  Taipo codes are a 10 number,
 /// with the top two bits as the two thumb keys, then the top row, and bottom
 /// row, with bit order represented by the view from the right side.
+///
+/// On the 3-row boards this describes the layout sitting on the top two rows.
+/// The lower row position is handled by remapping the scan codes before they
+/// get here (see the row position discussion in the parent module), so there is
+/// only the one table.
 #[cfg(feature = "proto3")]
 static SCAN_MAP: [Option<(Side, u16)>; 48] = [
     // 0
