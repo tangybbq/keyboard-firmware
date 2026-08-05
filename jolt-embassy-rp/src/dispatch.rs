@@ -4,15 +4,18 @@
 //! protected using Atomic or Mutexes.
 
 use bbq_keyboard::layout::{LayoutActions, LayoutManager};
+use bbq_keyboard::steno_delay::StenoDelay;
 use bbq_keyboard::usb_typer::{enqueue_action, ActionHandler};
 use bbq_keyboard::{Event, KeyAction, Keyboard, LayoutMode, MinorMode, Mods};
 use bbq_steno::dict::Joined;
 use bbq_steno::Stroke;
 use embassy_executor::SendSpawner;
+use embassy_futures::select::{select3, Either3};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::{Receiver, Sender};
 use embassy_sync::mutex::Mutex;
-use embassy_time::{Duration, Ticker};
+use embassy_sync::signal::Signal;
+use embassy_time::{Duration, Instant, Ticker, Timer};
 use static_cell::StaticCell;
 
 use crate::board::{Inter, KeyChannel, UsbHandler};
@@ -29,6 +32,9 @@ pub struct Dispatch {
     stroke_sender: Sender<'static, CriticalSectionRawMutex, Stroke, 10>,
     event_receiver: Receiver<'static, CriticalSectionRawMutex, Event, 16>,
     typed_receiver: Receiver<'static, CriticalSectionRawMutex, Joined, 2>,
+
+    /// Asks `typed_loop` to type everything it still has buffered, right now.
+    flush_signal: Signal<CriticalSectionRawMutex, ()>,
 
     current_mode: Mutex<CriticalSectionRawMutex, LayoutMode>,
     raw_mode: Mutex<CriticalSectionRawMutex, bool>,
@@ -68,6 +74,7 @@ impl Dispatch {
             stroke_sender,
             event_receiver,
             typed_receiver,
+            flush_signal: Signal::new(),
         });
 
         spawn_high.spawn(unwrap!(matrix_loop(this, board.matrix)));
@@ -146,23 +153,63 @@ async fn event_loop(dispatch: &'static Dispatch) -> ! {
 }
 
 /// Event handler of steno actions.
+///
+/// Dictionary results are not typed as they arrive, but held in a [`StenoDelay`] buffer for a
+/// short while, so that a following stroke's corrections can quietly consume text that hasn't
+/// been typed yet.  See `bbq_keyboard::steno_delay`.
 #[embassy_executor::task]
 async fn typed_loop(dispatch: &'static Dispatch) -> ! {
-    let usb = &dispatch.usb.as_ref().unwrap();
+    let usb = dispatch.usb.as_ref().unwrap();
+    let mut delay = StenoDelay::new();
     loop {
-        match dispatch.typed_receiver.receive().await {
-            Joined::Type { remove, append } => {
-                for _ in 0..remove {
-                    usb.keys.send(KeyAction::KeyPress(
-                            Keyboard::DeleteBackspace,
-                            Mods::empty())).await;
-                    usb.keys.send(KeyAction::KeyRelease).await;
-                }
+        // Wait until the buffer's front entry is due.  With nothing buffered, there is no
+        // deadline, and only a new result or a flush can wake us.
+        let due = async {
+            match delay.next_deadline() {
+                Some(deadline) => Timer::at(Instant::from_millis(deadline)).await,
+                None => core::future::pending().await,
+            }
+        };
 
-                enqueue_action(&mut UsbAction(usb), &append).await;
+        match select3(
+            dispatch.typed_receiver.receive(),
+            due,
+            dispatch.flush_signal.wait(),
+        )
+        .await
+        {
+            Either3::First(action) => delay.push(action, Instant::now().as_millis()),
+            Either3::Second(()) => {
+                if let Some(action) = delay.take_ready(Instant::now().as_millis()) {
+                    type_action(usb, action).await;
+                }
+            }
+            // Leaving steno mode: don't leave text sitting in the buffer while the user types
+            // with another layout.
+            Either3::Third(()) => {
+                if let Some(action) = delay.take_all() {
+                    type_action(usb, action).await;
+                }
             }
         }
     }
+}
+
+/// Send a dictionary result to the host as USB key events.
+async fn type_action(usb: &'static UsbHandler, action: Joined) {
+    let Joined::Type { remove, append } = action;
+
+    for _ in 0..remove {
+        usb.keys
+            .send(KeyAction::KeyPress(
+                Keyboard::DeleteBackspace,
+                Mods::empty(),
+            ))
+            .await;
+        usb.keys.send(KeyAction::KeyRelease).await;
+    }
+
+    enqueue_action(&mut UsbAction(usb), &append).await;
 }
 
 // The Actionhandler wants a mut ref, so give it one.
@@ -213,6 +260,13 @@ impl LayoutActions for Dispatch {
         };
         self.leds.lock().await.set_base(0, next);
         *self.current_mode.lock().await = mode;
+
+        // Steno output is buffered briefly before being typed.  Leaving steno mode, get it out
+        // now, rather than having it appear in the middle of what is typed next.  Signalling with
+        // nothing buffered is harmless.
+        if mode != LayoutMode::Steno {
+            self.flush_signal.signal(());
+        }
     }
 
     async fn set_mode_select(&self, mode: LayoutMode) {
