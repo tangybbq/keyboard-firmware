@@ -94,7 +94,7 @@ struct Add {
 }
 
 /// The result of the Joiner's calculations.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Joined {
     Type {
