@@ -9,6 +9,7 @@ pub fn get_translation(board: &str) -> fn(u8) -> u8 {
     match board {
         "proto3" => id,
         "proto4" => proto4,
+        "mesa1" => mesa1,
         "jolt1" => id,
         "jolt2" => jolt2,
         "jolt3" => jolt3,
@@ -66,6 +67,58 @@ static PROTO4: [u8; 30] = [
 
 fn proto4(code: u8) -> u8 {
     *PROTO4.get(code as usize).unwrap_or(&255)
+}
+
+/// The Mesa1 has the same 30 keys as the proto4, in the same places, with the same meanings.  Only
+/// the matrix wiring differs: the mesa1 shares five driven lines (`ROW_A`..`ROW_E`) between the
+/// halves and gives each half three sensed lines (`COL_1`..`COL_3` left, `COL_4`..`COL_6` right),
+/// so the cable between the halves needs only 8 conductors.
+///
+/// Beware of the naming: the diodes conduct from column to row, so the scanner drives the mesa1's
+/// *columns* and senses its *rows* (see the `mesa1` module in `board.rs`).  Scan codes therefore
+/// run `COL_n * 5 + ROW_x`, six groups of five, and each group holds a column's two keys from each
+/// physical row plus one thumb.
+static MESA1: [u8; 30] = [
+    // COL_1
+    2,  // LF1, the mode ("Fn") key
+    12, // L-P
+    1,  // LF2, steno '#'
+    13, // L-W
+    18, // L-num
+    // COL_2
+    4,  // L-Star
+    16, // L-H
+    5,  // L-S
+    17, // L-R
+    19, // L-A
+    // COL_3
+    8,  // L-T
+    20, // L-S1
+    9,  // L-K
+    21, // L-S2
+    23, // L-O
+    // COL_4
+    24, // R-D
+    36, // R-P
+    25, // R-Z
+    37, // R-B
+    42, // R-Num
+    // COL_5
+    28, // R-T
+    40, // R-F
+    29, // R-S
+    41, // R-R
+    43, // R-U
+    // COL_6
+    32, // R-L
+    44, // R-S3
+    33, // R-G
+    45, // R-S4
+    47, // R-E
+];
+
+fn mesa1(code: u8) -> u8 {
+    *MESA1.get(code as usize).unwrap_or(&255)
 }
 
 /// The Jolt4 has a different scan order that puts the keys allnicely in order.

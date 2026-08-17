@@ -35,6 +35,7 @@ gen_files() {
 gen_files proto3-left --name proto3 --side left
 gen_files proto3-right --name proto3 --side right
 gen_files proto4 --name proto4
+gen_files mesa1 --name mesa1
 gen_files jolt1-left --name jolt1 --side left
 gen_files jolt1-right --name jolt1 --side right
 gen_files jolt2dir-left --name jolt2dir --side left
