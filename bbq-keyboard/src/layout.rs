@@ -179,7 +179,7 @@ mod async_traits {
 
     use bbq_steno::Stroke;
 
-    use crate::{KeyAction, MinorMode};
+    use crate::{KeyAction, MinorMode, Mods};
 
     use super::LayoutMode;
 
@@ -211,6 +211,15 @@ mod async_traits {
 
         /// Send a RawSteno stroke.
         async fn send_raw_steno(&self, stroke: Stroke);
+
+        /// Report a change in the Taipo modifier state.
+        ///
+        /// `oneshot` is every modifier currently held, and `sticky` is the subset of those that
+        /// survives a keypress.  This is called only when the state changes, and is meant to drive
+        /// an indicator; implementations without one can leave it alone.
+        async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
+            let _ = (oneshot, sticky);
+        }
     }
 }
 pub use async_traits::LayoutActions;

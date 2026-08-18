@@ -59,6 +59,11 @@ pub struct TaipoManager {
 
     /// A latch of the taipo keys, to allow these keys to be used like a layer shift.
     taipo_latch: u8,
+
+    /// The `(oneshot, sticky)` pair last reported through
+    /// [`LayoutActions::set_mod_state`], so that the indicator is only told
+    /// about actual changes.
+    reported: (Mods, Mods),
 }
 
 impl Default for TaipoManager {
@@ -71,6 +76,7 @@ impl Default for TaipoManager {
             down: false,
             taipo_keys: 0,
             taipo_latch: 0,
+            reported: (Mods::empty(), Mods::empty()),
         }
     }
 }
@@ -149,6 +155,12 @@ impl TaipoManager {
                 }
                 None => (),
             }
+        }
+
+        // Let the indicator know about any change in the modifiers being held.
+        if (self.oneshot, self.sticky) != self.reported {
+            self.reported = (self.oneshot, self.sticky);
+            actions.set_mod_state(self.oneshot, self.sticky).await;
         }
     }
 

@@ -122,6 +122,8 @@ enum ActorStep {
     Action(Actions),
     /// Expect that nothing is pending at this point.
     Idle,
+    /// Expect the modifier indicator to show this `(oneshot, sticky)` state.
+    ModState(Mods, Mods),
 }
 
 /// Keep track of the state of the test, as well as the state we think the
@@ -129,12 +131,18 @@ enum ActorStep {
 struct TestActor {
     /// Actions that have been queued up.
     actions: RefCell<VecDeque<Actions>>,
+
+    /// The latest `(oneshot, sticky)` modifier state reported for the
+    /// indicator.  This is kept out of `actions` because it is reported
+    /// whenever it changes, and the existing tests aren't written to expect it.
+    mod_state: RefCell<(Mods, Mods)>,
 }
 
 impl TestActor {
     fn new() -> Self {
         Self {
             actions: RefCell::new(VecDeque::new()),
+            mod_state: RefCell::new((Mods::empty(), Mods::empty())),
         }
     }
 }
@@ -170,6 +178,10 @@ impl LayoutActions for TestActor {
         self.actions
             .borrow_mut()
             .push_back(Actions::SendRawSteno(stroke));
+    }
+
+    async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
+        *self.mod_state.borrow_mut() = (oneshot, sticky);
     }
 }
 
@@ -356,6 +368,17 @@ impl Script {
         self.expect(Actions::SendRawSteno(stroke))
     }
 
+    /// Expect the modifier indicator to be showing this state.
+    fn mod_state(&mut self, oneshot: Mods, sticky: Mods) -> &mut Self {
+        self.steps.push(ActorStep::ModState(oneshot, sticky));
+        self
+    }
+
+    /// Expect the modifier indicator to be showing nothing.
+    fn no_mod_state(&mut self) -> &mut Self {
+        self.mod_state(Mods::empty(), Mods::empty())
+    }
+
     //////////////////////////////////////////////////////////////////////////
     // Execution
     //////////////////////////////////////////////////////////////////////////
@@ -385,6 +408,14 @@ impl Script {
                                 panic!("step {}: expected action {:?}, but none found", num, expected);
                             }
                         }
+                    }
+                    ActorStep::ModState(oneshot, sticky) => {
+                        assert_eq!(
+                            *actor.mod_state.borrow(),
+                            (*oneshot, *sticky),
+                            "step {}",
+                            num
+                        );
                     }
                     ActorStep::Idle => {
                         let pending = actor.actions.borrow();
@@ -1109,6 +1140,74 @@ fn test_row_toggle_two_row() {
         .release_scan(6)
         .tick(1)
         .idle();
+
+    script.run();
+}
+
+/// The modifier state reported for the indicator tracks the one-shot
+/// modifiers, and clears when a key consumes them.
+#[test]
+fn test_mod_state_oneshot() {
+    let mut script = Script::taipo();
+
+    script.no_mod_state();
+
+    script
+        .chord(LEFT, I | E)
+        .mod_only(Mods::SHIFT)
+        .mod_state(Mods::SHIFT, Mods::empty());
+
+    // Accumulating a second modifier shows both, still one-shot.
+    script
+        .chord(LEFT, R | A)
+        .mod_only(Mods::SHIFT | Mods::GUI)
+        .mod_state(Mods::SHIFT | Mods::GUI, Mods::empty());
+
+    // Typing a key consumes them, and the indicator goes out.
+    script
+        .chord(RIGHT, S | N)
+        .types_mods(Keyboard::P, Mods::SHIFT | Mods::GUI)
+        .no_mod_state();
+
+    script.run();
+}
+
+/// A sticky modifier is reported as sticky, and survives the keys it
+/// modifies.
+#[test]
+fn test_mod_state_sticky() {
+    let mut script = Script::taipo();
+
+    script
+        .chord(LEFT, S | O)
+        .mod_only(Mods::ALT)
+        .mod_state(Mods::ALT, Mods::empty());
+
+    // The double press promotes it.
+    script.chord(LEFT, S | O).idle().mod_state(Mods::ALT, Mods::ALT);
+
+    // Typing doesn't clear it.
+    script
+        .chord(LEFT, S | N | I)
+        .presses(Keyboard::Tab, Mods::ALT)
+        .mod_only(Mods::ALT)
+        .mod_state(Mods::ALT, Mods::ALT);
+
+    // A one-shot on top of sticky is reported as held but not sticky, ...
+    script
+        .chord(RIGHT, N | T)
+        .mod_only(Mods::ALT | Mods::CONTROL)
+        .mod_state(Mods::ALT | Mods::CONTROL, Mods::ALT);
+
+    // ... and only it goes away with the next key.
+    script
+        .chord(LEFT, A)
+        .presses(Keyboard::A, Mods::ALT | Mods::CONTROL)
+        .mod_only(Mods::ALT)
+        .mod_state(Mods::ALT, Mods::ALT);
+
+    // The null chord clears everything.
+    script.chord(LEFT, SP | BK).releases().no_mod_state();
 
     script.run();
 }
