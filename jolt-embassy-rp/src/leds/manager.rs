@@ -8,6 +8,7 @@ use bbq_steno::dict::State;
 use heapless::Vec;
 use smart_leds::RGB8;
 
+use super::mod_palette::{ModPalette, MOD_PALETTE_PACKED};
 use super::{LedSet, MAX_LEDS};
 
 const OFF: RGB8 = RGB8::new(0, 0, 0);
@@ -255,56 +256,41 @@ pub static STENO_CAP_INDICATOR: Indication = Indication(&[Step {
 //////////////////////////////////////////////////////////////////////////////
 // The Taipo modifier indicator.
 //
-// Unlike the indicators above, this one doesn't come from a fixed set, but is
-// mixed from the modifiers that are held.  Each modifier contributes a color,
-// and the contributions are added together, so combinations blend: shift and
-// control together are yellow, control and alt are cyan, and so on.  GUI is a
-// dimmer white, which lightens whatever else is held instead of pushing the
-// result toward a particular hue.
+// Both the modifiers being held and whether they are sticky have to fit in one LED.  Each of the
+// 15 modifier sets gets its own color, and sticky is shown by how light that color is: all 15 sit
+// at one Oklab lightness while every held modifier is sticky, and at a lower one while any of them
+// is still one-shot.  Holding the lightness constant across the 15 is what makes the sticky
+// difference the largest thing about the indicator, rather than something competing with the
+// difference between one modifier set and another.
 //
-// The one ambiguity is that shift+control+alt is white as well, differing from
-// GUI only in being brighter.  That combination is rare enough to live with.
+// The tables are generated; see `mod-palette.py` for how the colors are chosen, and for the
+// second, compositional palette that can be swapped in here to compare them on the hardware.
 //////////////////////////////////////////////////////////////////////////////
 
-/// The color each modifier contributes while it is sticky.
+/// The palette the modifier indicator uses.
 ///
-/// As with the indicators above, these are before the manager's overall
-/// division, so they are roughly four times the value that reaches the LED.
-static MOD_COLORS: [(Mods, RGB8); 4] = [
-    (Mods::SHIFT, RGB8::new(96, 0, 0)),
-    (Mods::CONTROL, RGB8::new(0, 96, 0)),
-    (Mods::ALT, RGB8::new(0, 0, 96)),
-    (Mods::GUI, RGB8::new(40, 40, 40)),
-];
-
-/// How much a one-shot modifier is dimmed compared to a sticky one.
-const ONESHOT_DIM: u8 = 5;
-
-/// Mix the color showing the Taipo modifier state.
+/// [`MOD_PALETTE_PACKED`] separates best; [`MOD_PALETTE_SUMS`] instead adds up a color per
+/// modifier, so a combination reads as its parts, at about a third of the separation.  Which is
+/// easier to live with is a question for the hardware.
 ///
-/// `oneshot` is every modifier held, and `sticky` the subset of those that
-/// survives a keypress.  Sticky modifiers show at full intensity, and the rest
-/// dimly, so a mixture of the two shows both.  With nothing held, this is off.
+/// [`MOD_PALETTE_SUMS`]: super::mod_palette::MOD_PALETTE_SUMS
+static MOD_PALETTE: &ModPalette = &MOD_PALETTE_PACKED;
+
+/// The color showing the Taipo modifier state.
+///
+/// `oneshot` is every modifier held, and `sticky` the subset of those that survives a keypress.
+/// The color is bright when they are the same, meaning nothing will be lost by typing, and dim
+/// while any modifier is still one-shot.  With nothing held, this is off.
 pub fn get_mods_color(oneshot: Mods, sticky: Mods) -> RGB8 {
-    let mut result = OFF;
+    let index = oneshot.bits() as usize;
 
-    for (m, color) in MOD_COLORS {
-        if !oneshot.contains(m) {
-            continue;
-        }
-        let color = if sticky.contains(m) {
-            color
-        } else {
-            color / ONESHOT_DIM
-        };
-        result = RGB8::new(
-            result.r.saturating_add(color.r),
-            result.g.saturating_add(color.g),
-            result.b.saturating_add(color.b),
-        );
+    if index == 0 {
+        OFF
+    } else if sticky == oneshot {
+        MOD_PALETTE.bright[index]
+    } else {
+        MOD_PALETTE.dim[index]
     }
-
-    result
 }
 
 /// Take a steno state and return an indicator for it.
@@ -457,8 +443,8 @@ impl LedState {
     /// Perform the tick for this single LED, returning the color this LED shold
     /// be.
     fn tick(&mut self) -> RGB8 {
+        // Solid colors are computed as the values the LED wants, so they aren't scaled.
         if let Some(color) = self.solid {
-            let color = color / WS2812_DIM;
             self.last_color = color;
             return color;
         }

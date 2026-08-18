@@ -10,6 +10,7 @@ use smart_leds::RGB8;
 
 pub mod led_strip;
 pub mod manager;
+pub mod mod_palette;
 /*
 mod pwm;
 */
