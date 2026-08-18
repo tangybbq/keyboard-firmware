@@ -11,6 +11,13 @@ use smart_leds::RGB8;
 use super::{LedSet, MAX_LEDS};
 
 const OFF: RGB8 = RGB8::new(0, 0, 0);
+
+/// The colors below are written larger than the ws2812 wants, and are scaled down by this as they
+/// are played.
+///
+/// TODO: This belongs in the driver, so that a PWM LED, which wants the larger values, can scale
+/// differently.
+const WS2812_DIM: u8 = 4;
 // const INIT: RGB8 = RGB8::new(8, 8, 0);
 
 pub struct Indication(&'static [Step]);
@@ -374,13 +381,7 @@ impl LedManager {
     ///
     /// This assumes it will be run approximately every 100ms.
     pub fn tick(&mut self) {
-        let colors: Vec<_, MAX_LEDS> = self
-            .states
-            .iter_mut()
-            // TODO: The divide by four makes the colors better on the ws2812, vs the PWM.  This
-            // needs to be elsewhere to work with both.
-            .map(|st| st.tick() / 4)
-            .collect();
+        let colors: Vec<_, MAX_LEDS> = self.states.iter_mut().map(|st| st.tick()).collect();
         self.set_state(&colors)
     }
 
@@ -457,6 +458,7 @@ impl LedState {
     /// be.
     fn tick(&mut self) -> RGB8 {
         if let Some(color) = self.solid {
+            let color = color / WS2812_DIM;
             self.last_color = color;
             return color;
         }
@@ -492,7 +494,7 @@ impl LedState {
             if self.phase >= steps.len() {
                 panic!("Stopping");
             }
-            let color = steps[self.phase].color;
+            let color = steps[self.phase].color / WS2812_DIM;
             self.count = steps[self.phase].count;
             self.phase += 1;
             self.last_color = color;
