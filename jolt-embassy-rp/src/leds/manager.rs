@@ -3,6 +3,7 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
+use bbq_keyboard::Mods;
 use bbq_steno::dict::State;
 use heapless::Vec;
 use smart_leds::RGB8;
@@ -244,6 +245,61 @@ pub static STENO_CAP_INDICATOR: Indication = Indication(&[Step {
     count: 100,
 }]);
 
+//////////////////////////////////////////////////////////////////////////////
+// The Taipo modifier indicator.
+//
+// Unlike the indicators above, this one doesn't come from a fixed set, but is
+// mixed from the modifiers that are held.  Each modifier contributes a color,
+// and the contributions are added together, so combinations blend: shift and
+// control together are yellow, control and alt are cyan, and so on.  GUI is a
+// dimmer white, which lightens whatever else is held instead of pushing the
+// result toward a particular hue.
+//
+// The one ambiguity is that shift+control+alt is white as well, differing from
+// GUI only in being brighter.  That combination is rare enough to live with.
+//////////////////////////////////////////////////////////////////////////////
+
+/// The color each modifier contributes while it is sticky.
+///
+/// As with the indicators above, these are before the manager's overall
+/// division, so they are roughly four times the value that reaches the LED.
+static MOD_COLORS: [(Mods, RGB8); 4] = [
+    (Mods::SHIFT, RGB8::new(96, 0, 0)),
+    (Mods::CONTROL, RGB8::new(0, 96, 0)),
+    (Mods::ALT, RGB8::new(0, 0, 96)),
+    (Mods::GUI, RGB8::new(40, 40, 40)),
+];
+
+/// How much a one-shot modifier is dimmed compared to a sticky one.
+const ONESHOT_DIM: u8 = 5;
+
+/// Mix the color showing the Taipo modifier state.
+///
+/// `oneshot` is every modifier held, and `sticky` the subset of those that
+/// survives a keypress.  Sticky modifiers show at full intensity, and the rest
+/// dimly, so a mixture of the two shows both.  With nothing held, this is off.
+pub fn get_mods_color(oneshot: Mods, sticky: Mods) -> RGB8 {
+    let mut result = OFF;
+
+    for (m, color) in MOD_COLORS {
+        if !oneshot.contains(m) {
+            continue;
+        }
+        let color = if sticky.contains(m) {
+            color
+        } else {
+            color / ONESHOT_DIM
+        };
+        result = RGB8::new(
+            result.r.saturating_add(color.r),
+            result.g.saturating_add(color.g),
+            result.b.saturating_add(color.b),
+        );
+    }
+
+    result
+}
+
 /// Take a steno state and return an indicator for it.
 pub fn get_steno_state(state: &State) -> &'static Indication {
     // For now, we'll try to show cap and not-spacing.
@@ -279,6 +335,11 @@ struct LedState {
 
     /// A single shot.  Runs until out of steps, and then is removed.
     oneshot: Option<&'static [Step]>,
+
+    /// A computed solid color, shown instead of any of the step sequences.
+    /// Used by indicators whose color is mixed at runtime rather than chosen
+    /// from the fixed set above.
+    solid: Option<RGB8>,
 
     /// Information on the current display.
     count: usize,
@@ -345,6 +406,15 @@ impl LedManager {
         }
     }
 
+    /// Show a computed solid color on an LED, overriding its indicators.
+    /// `None` returns it to them.  Indices past the end are ignored, so this
+    /// can address an LED that only some boards have.
+    pub fn set_solid(&mut self, index: usize, color: Option<RGB8>) {
+        if let Some(st) = self.states.get_mut(index) {
+            st.set_solid(color);
+        }
+    }
+
     /// Override the LEDs, setting to just a value sent by the other side.
     /// TODO: This should allow more than one to be set.
     pub fn set_other_side(&mut self, leds: RGB8) {
@@ -376,6 +446,7 @@ impl LedState {
             base,
             global,
             oneshot: None,
+            solid: None,
             count: 0,
             phase: 0,
             last_color: OFF,
@@ -385,6 +456,11 @@ impl LedState {
     /// Perform the tick for this single LED, returning the color this LED shold
     /// be.
     fn tick(&mut self) -> RGB8 {
+        if let Some(color) = self.solid {
+            self.last_color = color;
+            return color;
+        }
+
         let mut steps = self.base;
         if let Some(gl) = self.global {
             steps = gl;
@@ -436,6 +512,15 @@ impl LedState {
     fn clear_global(&mut self) {
         self.global = None;
         if self.oneshot.is_none() {
+            self.count = 0;
+            self.phase = 0;
+        }
+    }
+
+    fn set_solid(&mut self, color: Option<RGB8>) {
+        self.solid = color;
+        // Returning to the step sequences, restart whichever one is current.
+        if color.is_none() {
             self.count = 0;
             self.phase = 0;
         }

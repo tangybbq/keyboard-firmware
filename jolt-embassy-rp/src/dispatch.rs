@@ -19,10 +19,16 @@ use embassy_time::{Duration, Instant, Ticker, Timer};
 use static_cell::StaticCell;
 
 use crate::board::{Inter, KeyChannel, UsbHandler};
-use crate::leds::manager::{self, get_steno_state, Indication, LedManager};
+use crate::leds::manager::{self, get_mods_color, get_steno_state, Indication, LedManager};
 use crate::logging::unwrap;
 use crate::matrix::Matrix;
 use crate::{board::Board, matrix::MatrixAction};
+
+/// The LED showing the Taipo modifier state.
+///
+/// This is the 4th LED, which only some boards have; the manager ignores
+/// updates to LEDs that aren't there.
+const MODS_LED: usize = 3;
 
 pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
@@ -53,6 +59,9 @@ impl Dispatch {
         // TODO: This is a workaround until usb is present.  Until either USB connects, or the left
         // side connects to us, just disable the global state.
         leds.clear_global(0);
+
+        // The modifier indicator is dark until Taipo reports a modifier being held.
+        leds.set_base(MODS_LED, &manager::OFF_INDICATOR);
 
         let leds = Mutex::new(leds);
 
@@ -296,6 +305,11 @@ impl LayoutActions for Dispatch {
 
     async fn send_raw_steno(&self, stroke: Stroke) {
         self.stroke_sender.send(stroke).await;
+    }
+
+    async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
+        let color = get_mods_color(oneshot, sticky);
+        self.leds.lock().await.set_solid(MODS_LED, Some(color));
     }
 }
 
