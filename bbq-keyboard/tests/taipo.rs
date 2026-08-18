@@ -14,7 +14,7 @@
 use std::{cell::RefCell, collections::VecDeque};
 
 use bbq_keyboard::{
-    layout::{LayoutActions, LayoutManager},
+    layout::{LayoutActions, LayoutManager, TAIPO_CHORD_TIME},
     KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods, Side,
 };
 use bbq_steno::Stroke;
@@ -92,8 +92,10 @@ fn scans(side: Side, chord: u16, lower: bool) -> impl Iterator<Item = u8> {
     })
 }
 
-/// How long taipo waits before deciding a chord is complete.
-const CHORD_TIME: usize = 50;
+/// How long taipo waits before deciding a chord is complete.  Taken from the
+/// layout itself, so that changing the chord window doesn't silently invalidate
+/// every test that waits for it.
+const CHORD_TIME: usize = TAIPO_CHORD_TIME as usize;
 
 //////////////////////////////////////////////////////////////////////////////
 // The test harness

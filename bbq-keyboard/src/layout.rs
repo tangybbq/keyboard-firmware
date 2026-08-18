@@ -15,6 +15,10 @@ mod qwerty;
 mod steno;
 mod taipo;
 
+/// The taipo chord window, exposed so that tests can time their chords against
+/// the same value the layout uses.
+pub use self::taipo::CHORD_TIME as TAIPO_CHORD_TIME;
+
 /// The mode key is the general key to switch modes.
 const MODE_KEY: u8 = 2;
 

@@ -255,7 +255,10 @@ struct SideManager {
 /// How long, in milliseconds, after the first key of a chord we still consider
 /// additional keys to be part of that chord.  The chord is sent when this
 /// expires, or as soon as all of its keys are released.
-const CHORD_TIME: u32 = 50;
+///
+/// Re-exported by the parent module as `TAIPO_CHORD_TIME` so that the tests
+/// time their chords against the value the layout actually uses.
+pub const CHORD_TIME: u32 = 50;
 
 impl SideManager {
     fn press(&mut self, tcode: u16, keys: &mut TaipoEvents) {
