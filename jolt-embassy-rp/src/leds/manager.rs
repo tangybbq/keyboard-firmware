@@ -214,6 +214,19 @@ pub static TAIPO_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+/// The Taipo engine using the Taipo chord table.  This is the Taipo mode color,
+/// so that the two LEDs read together as "taipo, in taipo".
+pub static VARIANT_TAIPO_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(16, 8, 24),
+    count: 100,
+}]);
+
+/// The Taipo engine using the Posh chord table.  Cyan, which nothing else uses.
+pub static VARIANT_POSH_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(0, 16, 16),
+    count: 100,
+}]);
+
 /// Qwerty mode
 pub static QWERTY_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(0, 16, 0),

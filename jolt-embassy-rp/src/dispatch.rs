@@ -30,6 +30,12 @@ use crate::{board::Board, matrix::MatrixAction};
 /// updates to LEDs that aren't there.
 const MODS_LED: usize = 3;
 
+/// The LED showing which chord table the Taipo engine is using.
+///
+/// This is the 3rd LED, which only some boards have, and which is dark outside
+/// of Taipo mode.
+const VARIANT_LED: usize = 2;
+
 pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
     layout: Option<Mutex<CriticalSectionRawMutex, LayoutManager>>,
@@ -44,6 +50,11 @@ pub struct Dispatch {
 
     current_mode: Mutex<CriticalSectionRawMutex, LayoutMode>,
     raw_mode: Mutex<CriticalSectionRawMutex, bool>,
+
+    /// Whether the Taipo engine has the Posh chord table selected.  Only
+    /// meaningful in Taipo mode, but the engine keeps the setting across mode
+    /// changes, so this does too.
+    posh: Mutex<CriticalSectionRawMutex, bool>,
 }
 
 impl Dispatch {
@@ -63,6 +74,9 @@ impl Dispatch {
         // The modifier indicator is dark until Taipo reports a modifier being held.
         leds.set_base(MODS_LED, &manager::OFF_INDICATOR);
 
+        // The variant indicator is dark until we enter Taipo mode.
+        leds.set_base(VARIANT_LED, &manager::OFF_INDICATOR);
+
         let leds = Mutex::new(leds);
 
         // The layout is present, as long as we aren't the passive side.
@@ -78,6 +92,7 @@ impl Dispatch {
             layout,
             current_mode: Mutex::new(LayoutMode::Steno),
             raw_mode: Mutex::new(false),
+            posh: Mutex::new(false),
             inter: board.inter,
             usb: board.usb,
             stroke_sender,
@@ -101,6 +116,25 @@ impl Dispatch {
         }
 
         this
+    }
+
+    /// Update the Taipo variant indicator to match the current mode and
+    /// variant.  It is dark outside of Taipo mode, since the variant means
+    /// nothing there.
+    ///
+    /// The mutexes are taken one after another, never nested.
+    async fn update_variant_led(&self) {
+        let mode = *self.current_mode.lock().await;
+        let posh = *self.posh.lock().await;
+
+        let next = if mode != LayoutMode::Taipo {
+            &manager::OFF_INDICATOR
+        } else if posh {
+            &manager::VARIANT_POSH_INDICATOR
+        } else {
+            &manager::VARIANT_TAIPO_INDICATOR
+        };
+        self.leds.lock().await.set_base(VARIANT_LED, next);
     }
 }
 
@@ -276,6 +310,8 @@ impl LayoutActions for Dispatch {
         if mode != LayoutMode::Steno {
             self.flush_signal.signal(());
         }
+
+        self.update_variant_led().await;
     }
 
     async fn set_mode_select(&self, mode: LayoutMode) {
@@ -295,12 +331,24 @@ impl LayoutActions for Dispatch {
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {
-        let _ = submode;
-        // At this point, this doesn't do anything.
+        match submode {
+            MinorMode::Posh => {
+                *self.posh.lock().await = true;
+                self.update_variant_led().await;
+            }
+            // Artsey's nav mode has no indicator here.
+            MinorMode::ArtseyNav => (),
+        }
     }
 
     async fn clear_sub_mode(&self, submode: MinorMode) {
-        let _ = submode;
+        match submode {
+            MinorMode::Posh => {
+                *self.posh.lock().await = false;
+                self.update_variant_led().await;
+            }
+            MinorMode::ArtseyNav => (),
+        }
     }
 
     async fn send_raw_steno(&self, stroke: Stroke) {
