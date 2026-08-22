@@ -37,9 +37,25 @@ use crate::{KeyEvent, Side, Mods, KeyAction};
 
 use super::{taipo_map, LayoutActions};
 
+/// Which chord table the Taipo engine is interpreting chords with.
+///
+/// The engine, the chord timing, and the modifier handling are the same for
+/// every variant; only the table that maps a chord code to an [`Action`]
+/// differs.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum TaipoVariant {
+    /// The Taipo layout itself.
+    #[default]
+    Taipo,
+}
+
 pub struct TaipoManager {
     /// Managing state for each side.
     sides: [SideManager; 2],
+
+    /// Which chord table chords are looked up in.
+    variant: TaipoVariant,
+
     /// Key events passed through.
     keys: TaipoEvents,
 
@@ -70,6 +86,7 @@ impl Default for TaipoManager {
     fn default() -> Self {
         TaipoManager {
             sides: [Default::default(), Default::default()],
+            variant: TaipoVariant::default(),
             keys: TaipoEvents::new(),
             oneshot: Mods::empty(),
             sticky: Mods::empty(),
@@ -82,6 +99,13 @@ impl Default for TaipoManager {
 }
 
 impl TaipoManager {
+    /// The chord table for the variant currently selected.
+    fn actions(&self) -> &'static [Entry] {
+        match self.variant {
+            TaipoVariant::Taipo => &TAIPO_ACTIONS,
+        }
+    }
+
     /// Poll doesn't do anything.
     pub fn poll(&mut self) {
     }
@@ -117,8 +141,11 @@ impl TaipoManager {
                 continue;
             }
 
-            // Look up the code to see if we have an action.
-            match TAIPO_ACTIONS.iter().find(|e| e.code == tevent.code) {
+            // Look up the code to see if we have an action.  The tables are
+            // `'static`, so binding the entry here releases the borrow of
+            // `self` that `actions()` takes.
+            let entry = self.actions().iter().find(|e| e.code == tevent.code);
+            match entry {
                 Some(Entry { action: Action::Simple(k), .. }) => {
                     self.release_nonmod(actions).await;
                     self.send(actions, is_steno, KeyAction::KeyPress(*k, self.oneshot)).await;
