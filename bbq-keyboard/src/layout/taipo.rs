@@ -47,6 +47,18 @@ pub enum TaipoVariant {
     /// The Taipo layout itself.
     #[default]
     Taipo,
+    /// Posh, a Taipo-derived layout that leaves the pinkies out.  See the
+    /// [`posh`](super::posh) module.
+    Posh,
+}
+
+impl TaipoVariant {
+    fn toggle(self) -> Self {
+        match self {
+            TaipoVariant::Taipo => TaipoVariant::Posh,
+            TaipoVariant::Posh => TaipoVariant::Taipo,
+        }
+    }
 }
 
 pub struct TaipoManager {
@@ -103,7 +115,18 @@ impl TaipoManager {
     fn actions(&self) -> &'static [Entry] {
         match self.variant {
             TaipoVariant::Taipo => &TAIPO_ACTIONS,
+            TaipoVariant::Posh => super::posh::POSH_ACTIONS,
         }
+    }
+
+    /// Switch to the other chord table, returning the variant now in use.
+    ///
+    /// Held modifiers are deliberately left alone; the two variants share the
+    /// modifier state, and the caller only toggles with every key released
+    /// anyway, so this can never happen in the middle of a chord.
+    pub fn toggle_variant(&mut self) -> TaipoVariant {
+        self.variant = self.variant.toggle();
+        self.variant
     }
 
     /// Poll doesn't do anything.
@@ -749,7 +772,7 @@ static SCAN_MAP: [Option<(Side, u16)>; 30] = [
 /// An Action is what should happen when particular key or combo is pressed.
 /// Taipo does not have anything that acts as a shift key, as all keys are
 /// pressed together (like steno).
-enum Action {
+pub(super) enum Action {
     Simple(Keyboard),
     Shifted(Keyboard),
     OneShot(Mods),
@@ -757,9 +780,9 @@ enum Action {
 }
 
 /// The mapping between each key and its Action.
-struct Entry {
-    code: u16,
-    action: Action,
+pub(super) struct Entry {
+    pub(super) code: u16,
+    pub(super) action: Action,
 }
 
 static TAIPO_ACTIONS: [Entry; 126] = [

@@ -246,6 +246,9 @@ impl defmt::Format for InterState {
 pub enum MinorMode {
     // To start with, just distinguish artsy main from artsy nav mode.
     ArtseyNav,
+    /// The Taipo engine is interpreting chords with the Posh table rather than
+    /// the Taipo one.
+    Posh,
 }
 
 /// Something we can use to get time.

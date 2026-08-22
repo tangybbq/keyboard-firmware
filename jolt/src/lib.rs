@@ -266,6 +266,8 @@ impl LayoutActions for Action {
     async fn set_sub_mode(&self, submode: MinorMode) {
         let indicator = match &submode {
             MinorMode::ArtseyNav => &leds::manager::ARTSEY_NAV_INDICATOR,
+            // The Zephyr port has no LED plan for the Taipo variant yet.
+            MinorMode::Posh => &leds::manager::OFF_INDICATOR,
         };
         with_leds(|leds| leds.set_base(1, indicator)).await;
         printkln!("Set submode: {:?}", submode);
