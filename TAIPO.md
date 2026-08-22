@@ -11,10 +11,10 @@ Each hand has 8 finger keys (4 fingers × 2 rows) and 2 thumb keys. The hands ar
 (mirrored); chords are formed within one hand, and you can alternate hands freely — even for
 double letters. Keys are named here by the letter they type alone:
 
-| finger:   | index | middle | ring | pinky |
-|-----------|-------|--------|------|-------|
-| top row   | r     | s      | n    | i     |
-| bottom row| a     | o      | t    | e     |
+| finger:   | pinky | ring | middle | index |
+|-----------|-------|------|--------|-------|
+| top row   | r     | s    | n      | i     |
+| bottom row| a     | o    | t      | e     |
 
 Thumbs: **Sp** = the thumb that types Space alone, **Bk** = the thumb that types Backspace alone.
 
@@ -125,10 +125,15 @@ Both thumbs + a digit chord gives the matching function key; v and w extend past
   **and all modifiers** are released.
 - Pressed a modifier by mistake (or want to press-and-release one bare, e.g. tap Cmd)? Both
   thumbs together releases all held modifiers without typing anything.
-- **Not currently supported:** holding a modifier across multiple keys (e.g. Cmd held while
-  tapping Tab repeatedly to cycle windows). The module doc comment describes a double-press
-  "sticky" mode for this, but it is not implemented — the release after the first key clears the
-  modifiers too. (Tracked in TASKS.md.)
+- To hold a modifier across several keys (e.g. Cmd held while tapping Tab repeatedly to cycle
+  windows), **double press** it: a modifier chord whose modifiers are all already held — the same
+  chord again, or its counterpart on the other hand — makes the whole held set sticky. Sticky
+  modifiers survive any number of keypresses; both thumbs together is what releases them.
+
+## The Posh variant
+
+The same engine can interpret chords with the Posh table instead, which leaves the pinkies out.
+Tap the lower-left key by itself while in taipo mode to switch between them; see POSH.md.
 
 ## Taipo from steno mode
 

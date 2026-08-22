@@ -28,12 +28,12 @@ use futures::executor::block_on;
 // thumb keys are `SP` (space) and `BK` (backspace).
 //////////////////////////////////////////////////////////////////////////////
 
-/// Bottom row, index to pinky.
+/// Bottom row, pinky to index.
 const A: u16 = 0x001;
 const O: u16 = 0x002;
 const T: u16 = 0x004;
 const E: u16 = 0x008;
-/// Top row, index to pinky.
+/// Top row, pinky to index.
 const R: u16 = 0x010;
 const S: u16 = 0x020;
 const N: u16 = 0x040;

@@ -180,6 +180,21 @@ fn taipo_map(key: u8) -> Option<u8> {
 // `lower_row_remap`), so the tables in the submodules only ever describe the
 // upper position. Qwerty, Artsey, and boards that physically have two rows are
 // not affected.
+//
+// Taipo variant:
+//
+// The taipo engine can interpret chords with either of two tables: Taipo
+// itself, or Posh, a derivative that leaves the pinkies out (see the `posh`
+// module). Which one is in use is selected at runtime by tapping the steno `#`
+// key of the outer left column (see `POSH_TOGGLE_KEY`), which is dead in taipo
+// mode; `posh_event` handles it, and only in taipo mode, so the key keeps its
+// normal meaning everywhere else.
+//
+// Like the row position, the toggle requires a solo tap, so the table can never
+// change in the middle of a chord, and the setting is lost at power off. Unlike
+// the row position, it belongs to the taipo engine rather than to this module:
+// it survives mode changes, and it applies to the taipo latch in steno mode as
+// well. The change is reported as `MinorMode::Posh` for an indicator.
 
 mod async_traits {
     // This is generally warned because it makes the API fragile.  This makes the API fragile, as

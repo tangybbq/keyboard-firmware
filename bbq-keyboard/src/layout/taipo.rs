@@ -9,6 +9,14 @@
 //! the halves.  As such, we have to maintain the state of the two halves
 //! separately.
 //!
+//! Variants:
+//!
+//! Everything here other than the chord table is shared with the Posh layout
+//! (see the `posh` module), which is a Taipo derivative leaving the pinkies
+//! out.  `TaipoVariant` selects which table `actions()` looks chords up in;
+//! the parent module switches between them, and `LayoutManager` is what
+//! decides when.
+//!
 //! Modifiers:
 //!
 //! The Taipo layout describes four modifier combos for each side, one for each
