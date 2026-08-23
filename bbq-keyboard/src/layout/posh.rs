@@ -40,6 +40,11 @@
 //! - **`ralt` is Shift.**  [`Mods`] has no right-alt, so the wiki's `ralt`
 //!   chord (`0x026`) is a plain Shift one-shot.  Its "both" variant would then
 //!   be shift plus shift, so `0x326` is left unmapped.
+//! - **`l` has a second chord.**  The wiki's `l` is index-top plus
+//!   middle-bottom (`0x084`), a splay the developer finds hard to hit.  The
+//!   otherwise unused `n+i+e` chord (`0x0c8`, middle-top plus index-top plus
+//!   index-bottom) is mapped to the same four actions.  Both spellings work;
+//!   this adds a chord rather than moving one.
 //!
 //! Left unmapped, as a future task: everything needing a consumer-control HID
 //! report, which the firmware does not have — play/pause, next/previous track,
@@ -118,6 +123,13 @@ pub(super) static POSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x184, action: Action::Shifted(Keyboard::L), },
     Entry { code: 0x284, action: Action::Simple(Keyboard::Keyboard2), },
     Entry { code: 0x384, action: Action::Simple(Keyboard::F2), },
+
+    // A local alias for the above, because the index-top plus middle-bottom
+    // splay is awkward to hit.  Same actions, on the free `n+i+e` chord.
+    Entry { code: 0x0c8, action: Action::Simple(Keyboard::L), },
+    Entry { code: 0x1c8, action: Action::Shifted(Keyboard::L), },
+    Entry { code: 0x2c8, action: Action::Simple(Keyboard::Keyboard2), },
+    Entry { code: 0x3c8, action: Action::Simple(Keyboard::F2), },
 
     Entry { code: 0x00a, action: Action::Simple(Keyboard::C), },
     Entry { code: 0x10a, action: Action::Shifted(Keyboard::C), },
@@ -235,6 +247,42 @@ pub(super) static POSH_ACTIONS: &[Entry] = &[
 #[cfg(test)]
 mod tests {
     use super::POSH_ACTIONS;
+    use crate::layout::taipo::Action;
+
+    /// Compare two actions, which do not implement `PartialEq`.
+    fn same_action(a: &Action, b: &Action) -> bool {
+        match (a, b) {
+            (Action::Simple(x), Action::Simple(y)) => x == y,
+            (Action::Shifted(x), Action::Shifted(y)) => x == y,
+            (Action::OneShot(x), Action::OneShot(y)) => x == y,
+            (Action::Release, Action::Release) => true,
+            _ => false,
+        }
+    }
+
+    fn action_for(code: u16) -> &'static Action {
+        &POSH_ACTIONS
+            .iter()
+            .find(|e| e.code == code)
+            .unwrap_or_else(|| panic!("no entry for {:#05x}", code))
+            .action
+    }
+
+    /// The local `n+i+e` alias types exactly what the wiki's `l` chord does,
+    /// on all four thumb layers.
+    #[test]
+    fn test_l_alias() {
+        for layer in [0x000, 0x100, 0x200, 0x300] {
+            let wiki = action_for(layer | 0x084);
+            let alias = action_for(layer | 0x0c8);
+            assert!(
+                same_action(wiki, alias),
+                "alias {:#05x} differs from {:#05x}",
+                layer | 0x0c8,
+                layer | 0x084,
+            );
+        }
+    }
 
     /// Every chord code appears at most once; a duplicate would silently
     /// shadow the later entry.

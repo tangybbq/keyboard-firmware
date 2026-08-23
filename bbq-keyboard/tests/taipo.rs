@@ -1500,6 +1500,31 @@ fn test_posh_pinky_is_dead() {
     script.run();
 }
 
+/// `l` has a second, locally added chord, because the wiki's index-top plus
+/// middle-bottom splay is awkward to hit.  Both spellings work, on both hands,
+/// and on every thumb layer.
+#[test]
+fn test_posh_l_alias() {
+    let mut script = Script::posh();
+
+    let wiki = posh::I | posh::T;
+    let alias = posh::N | posh::I | posh::E;
+
+    script.chord(LEFT, wiki).types(Keyboard::L);
+    script.chord(LEFT, alias).types(Keyboard::L);
+    script.chord(RIGHT, alias).types(Keyboard::L);
+
+    script
+        .chord(LEFT, alias | posh::SP)
+        .types_mods(Keyboard::L, Mods::SHIFT);
+    script.chord(LEFT, alias | posh::BK).types(Keyboard::Keyboard2);
+    script
+        .chord(LEFT, alias | posh::SP | posh::BK)
+        .types(Keyboard::F2);
+
+    script.run();
+}
+
 /// Toggling a second time comes back to taipo, where the pinky keys work
 /// again.
 #[test]
