@@ -399,6 +399,11 @@ impl SideManager {
 mod test_side_manager {
     use super::{SideManager, TaipoEvent, TaipoEvents};
 
+    /// The chord window, in the units `spin` counts.  Taken from the layout
+    /// itself, so that retuning the window doesn't silently invalidate every
+    /// test that waits for it.
+    const CHORD_TIME: usize = super::CHORD_TIME as usize;
+
     struct Tester {
         events: TaipoEvents,
         manager: SideManager,
@@ -448,12 +453,12 @@ mod test_side_manager {
                         TaipoEvent { is_press: false, code: 1 }]);
     }
 
-    /// The chord is committed by the timer at exactly 50ms, not before.
+    /// The chord is committed by the timer at exactly the window, not before.
     #[test]
     fn test_timer_boundary() {
         let mut tester = Tester::new();
         tester.press(1);
-        tester.spin(49);
+        tester.spin(CHORD_TIME - 1);
         tester.events(&[]);
         tester.spin(1);
         tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
@@ -481,7 +486,7 @@ mod test_side_manager {
         let mut tester = Tester::new();
         tester.press(1);
         tester.press(2);
-        tester.spin(50);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
         tester.release(1);
         tester.events(&[]);
@@ -495,11 +500,11 @@ mod test_side_manager {
     fn test_fixed_window() {
         let mut tester = Tester::new();
         tester.press(1);
-        tester.spin(40);
+        tester.spin(CHORD_TIME - 10);
         tester.press(2);
         tester.spin(9);
         tester.events(&[]);
-        // 50ms after the first key, not after the second.
+        // The window after the first key, not after the second.
         tester.spin(1);
         tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
     }
@@ -510,10 +515,10 @@ mod test_side_manager {
     fn test_key_after_window() {
         let mut tester = Tester::new();
         tester.press(1);
-        tester.spin(50);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
         tester.press(2);
-        tester.spin(50);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: false, code: 1 },
                         TaipoEvent { is_press: true, code: 2 }]);
         tester.release(1);
@@ -551,7 +556,7 @@ mod test_side_manager {
         tester.press(1);
         tester.spin(5);
         tester.press(2);
-        tester.spin(52);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
         tester.release(2);
         tester.events(&[]);
@@ -566,10 +571,10 @@ mod test_side_manager {
     fn test_rollover() {
         let mut tester = Tester::new();
         tester.press(1);
-        tester.spin(51);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
         tester.press(2);
-        tester.spin(51);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: false, code: 1 },
                         TaipoEvent { is_press: true, code: 2 }]);
         tester.release(1);
@@ -584,7 +589,7 @@ mod test_side_manager {
     fn test_rollover_quick_tap() {
         let mut tester = Tester::new();
         tester.press(1);
-        tester.spin(51);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
         tester.press(2);
         tester.events(&[TaipoEvent { is_press: false, code: 1 }]);
@@ -601,14 +606,14 @@ mod test_side_manager {
     fn test_repeated_rollover() {
         let mut tester = Tester::new();
         tester.press(1);
-        tester.spin(51);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
         tester.press(2);
-        tester.spin(51);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: false, code: 1 },
                         TaipoEvent { is_press: true, code: 2 }]);
         tester.press(4);
-        tester.spin(51);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: false, code: 2 },
                         TaipoEvent { is_press: true, code: 4 }]);
         tester.release(1);
@@ -624,13 +629,13 @@ mod test_side_manager {
     fn test_key_reuse_after_rollover() {
         let mut tester = Tester::new();
         tester.press(1);
-        tester.spin(51);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
         tester.press(2);
         tester.events(&[TaipoEvent { is_press: false, code: 1 }]);
         tester.release(1);
         tester.press(1);
-        tester.spin(51);
+        tester.spin(CHORD_TIME);
         tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
         tester.release(1);
         tester.release(2);
