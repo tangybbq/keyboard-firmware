@@ -4,7 +4,9 @@ This describes the Posh implementation in `bbq-keyboard/src/layout/posh.rs`, whi
 layout at <https://inkeys.wiki/en/keymaps/posh> with local differences: the thumbs are Taipo's
 rather than the wiki's (see "Physical layout" below), both thumbs together is Taipo's "release
 modifiers" null key rather than a sticky shift, the wiki's `ralt` chord is Shift, and the media,
-volume and brightness keys are not mapped.
+volume and brightness keys are not mapped. Two more local swaps: `s` and `h` trade their
+punctuation layers, and `o` and `e` trade their navigation layers. In both cases the letters
+themselves stay where the wiki has them; only the thumb layers move.
 
 Posh is a Taipo-style layout by the same community, described there as "a taipo style layout that
 excludes the pinkies in order to make combos more accurate and long periods of work more
@@ -37,17 +39,17 @@ Both thumbs pressed alone releases any held modifiers without typing anything.
 
 +Bk turns the six keys into the navigation cluster, and both thumbs into the far-motion keys.
 Arrow mnemonic: up and down are the middle finger's two keys, and left and right are the bottom
-row's outer two, in the order they sit on the hand. That leaves the ring and index top keys for
-Escape and Enter.
+row's outer two, with the index finger giving left and the ring finger right. (The wiki has those
+two the other way around.) That leaves the ring and index top keys for Escape and Enter.
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | a | a | A | Escape | Delete (fwd) |
 | n | n | N | ↑ | Page Up |
 | i | i | I | Enter | Tab |
-| o | o | O | ← | Home |
+| o | o | O | → | End |
 | t | t | T | ↓ | Page Down |
-| e | e | E | → | End |
+| e | e | E | ← | Home |
 
 ## Middle+index pairs
 
@@ -55,8 +57,8 @@ The two chords whose thumb layers carry the comma, the period and the quotes.
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| n+i | s | S | `,` | `'` |
-| t+e | h | H | `.` | `"` |
+| n+i | s | S | `.` | `"` |
+| t+e | h | H | `,` | `'` |
 
 ## Letters whose +Bk is a digit
 

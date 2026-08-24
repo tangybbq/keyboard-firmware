@@ -40,6 +40,15 @@
 //! - **`ralt` is Shift.**  [`Mods`] has no right-alt, so the wiki's `ralt`
 //!   chord (`0x026`) is a plain Shift one-shot.  Its "both" variant would then
 //!   be shift plus shift, so `0x326` is left unmapped.
+//! - **`s` and `h` have their punctuation swapped.**  The wiki puts the comma
+//!   and apostrophe on `s` (`n+i`) and the period and quote on `h` (`t+e`);
+//!   the developer wants them the other way around.  The letters themselves
+//!   stay where the wiki has them.
+//! - **`o` and `e` have their navigation swapped.**  The wiki puts left and
+//!   home on `o` and right and end on `e`, matching the order the keys sit on
+//!   the left hand; the developer finds the mirrored sense more intuitive, so
+//!   `o` is right and end, and `e` is left and home.  Again the letters
+//!   themselves do not move.
 //! - **`l` has a second chord.**  The wiki's `l` is index-top plus
 //!   middle-bottom (`0x084`), a splay the developer finds hard to hit.  The
 //!   otherwise unused `n+i+e` chord (`0x0c8`, middle-top plus index-top plus
@@ -68,8 +77,8 @@ pub(super) static POSH_ACTIONS: &[Entry] = &[
     // The six single keys: alone, +Sp (capital), +Bk (navigation), +both.
     Entry { code: 0x008, action: Action::Simple(Keyboard::E), },
     Entry { code: 0x108, action: Action::Shifted(Keyboard::E), },
-    Entry { code: 0x208, action: Action::Simple(Keyboard::RightArrow), },
-    Entry { code: 0x308, action: Action::Simple(Keyboard::End), },
+    Entry { code: 0x208, action: Action::Simple(Keyboard::LeftArrow), },
+    Entry { code: 0x308, action: Action::Simple(Keyboard::Home), },
 
     Entry { code: 0x004, action: Action::Simple(Keyboard::T), },
     Entry { code: 0x104, action: Action::Shifted(Keyboard::T), },
@@ -83,8 +92,8 @@ pub(super) static POSH_ACTIONS: &[Entry] = &[
 
     Entry { code: 0x002, action: Action::Simple(Keyboard::O), },
     Entry { code: 0x102, action: Action::Shifted(Keyboard::O), },
-    Entry { code: 0x202, action: Action::Simple(Keyboard::LeftArrow), },
-    Entry { code: 0x302, action: Action::Simple(Keyboard::Home), },
+    Entry { code: 0x202, action: Action::Simple(Keyboard::RightArrow), },
+    Entry { code: 0x302, action: Action::Simple(Keyboard::End), },
 
     Entry { code: 0x080, action: Action::Simple(Keyboard::I), },
     Entry { code: 0x180, action: Action::Shifted(Keyboard::I), },
@@ -99,13 +108,13 @@ pub(super) static POSH_ACTIONS: &[Entry] = &[
     // The two same-row pairs, whose symbols are the comma and the quotes.
     Entry { code: 0x0c0, action: Action::Simple(Keyboard::S), },
     Entry { code: 0x1c0, action: Action::Shifted(Keyboard::S), },
-    Entry { code: 0x2c0, action: Action::Simple(Keyboard::Comma), },
-    Entry { code: 0x3c0, action: Action::Simple(Keyboard::Apostrophe), },
+    Entry { code: 0x2c0, action: Action::Simple(Keyboard::Dot), },
+    Entry { code: 0x3c0, action: Action::Shifted(Keyboard::Apostrophe), },
 
     Entry { code: 0x00c, action: Action::Simple(Keyboard::H), },
     Entry { code: 0x10c, action: Action::Shifted(Keyboard::H), },
-    Entry { code: 0x20c, action: Action::Simple(Keyboard::Dot), },
-    Entry { code: 0x30c, action: Action::Shifted(Keyboard::Apostrophe), },
+    Entry { code: 0x20c, action: Action::Simple(Keyboard::Comma), },
+    Entry { code: 0x30c, action: Action::Simple(Keyboard::Apostrophe), },
 
     // The letters whose +Bk is a digit, and whose +both is the matching
     // function key.
