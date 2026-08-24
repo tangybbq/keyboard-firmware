@@ -1309,17 +1309,17 @@ fn test_posh_navigation() {
 
     let mut script = Script::posh();
 
-    script.chord(LEFT, E | BK).types(Keyboard::RightArrow);
+    script.chord(LEFT, E | BK).types(Keyboard::LeftArrow);
     script.chord(LEFT, T | BK).types(Keyboard::DownArrow);
     script.chord(LEFT, A | BK).types(Keyboard::Escape);
-    script.chord(LEFT, O | BK).types(Keyboard::LeftArrow);
+    script.chord(LEFT, O | BK).types(Keyboard::RightArrow);
     script.chord(LEFT, I | BK).types(Keyboard::ReturnEnter);
     script.chord(LEFT, N | BK).types(Keyboard::UpArrow);
 
-    script.chord(RIGHT, E | SP | BK).types(Keyboard::End);
+    script.chord(RIGHT, E | SP | BK).types(Keyboard::Home);
     script.chord(RIGHT, T | SP | BK).types(Keyboard::PageDown);
     script.chord(RIGHT, A | SP | BK).types(Keyboard::DeleteForward);
-    script.chord(RIGHT, O | SP | BK).types(Keyboard::Home);
+    script.chord(RIGHT, O | SP | BK).types(Keyboard::End);
     script.chord(RIGHT, I | SP | BK).types(Keyboard::Tab);
     script.chord(RIGHT, N | SP | BK).types(Keyboard::PageUp);
 
@@ -1374,7 +1374,7 @@ fn test_posh_digits_and_symbols() {
     script.chord(LEFT, O | T | E | BK).types(Keyboard::Minus);
     script.chord(RIGHT, A | N | E | BK).types(Keyboard::Semicolon);
     script.chord(LEFT, A | T | E | BK).types_mods(Keyboard::Keyboard4, Mods::SHIFT);
-    script.chord(LEFT, N | I | BK).types(Keyboard::Comma);
+    script.chord(LEFT, N | I | BK).types(Keyboard::Dot);
 
     // Function keys on both thumbs.
     script.chord(LEFT, A | N | SP | BK).types(Keyboard::F1);
@@ -1384,8 +1384,8 @@ fn test_posh_digits_and_symbols() {
     // And the rest of the symbols.
     script.chord(LEFT, A | N | I | SP | BK).types(Keyboard::Equal);
     script.chord(RIGHT, A | N | E | SP | BK).types_mods(Keyboard::Backslash, Mods::SHIFT);
-    script.chord(LEFT, T | E | SP | BK).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
-    script.chord(RIGHT, N | I | SP | BK).types(Keyboard::Apostrophe);
+    script.chord(LEFT, T | E | SP | BK).types(Keyboard::Apostrophe);
+    script.chord(RIGHT, N | I | SP | BK).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
 
     // The punctuation-only chords, which have no both-thumbs variant.
     script.chord(LEFT, A | T).types_mods(Keyboard::ForwardSlash, Mods::SHIFT);
