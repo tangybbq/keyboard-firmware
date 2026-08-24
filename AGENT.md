@@ -71,6 +71,12 @@ Other directories can be ignored at this time.
   not to combine refactoring and functional changes into the same commit.
 - The developer prefers gradual and incremental review of changes to the code rather than
   large-scale changes that are difficult to understand.
+- Commit the work as part of doing it.  Do not leave finished changes sitting unstaged waiting
+  for permission to commit; make the commit yourself as the natural end of each logical change.
+  The developer reviews with git (`git log`, `git show`, `git diff`) before anything is pushed, so
+  a commit is a proposal, not a publication.  Nothing is ever pushed without the developer asking.
+- Amending, reordering, or otherwise rewriting commits that have not been pushed is fine when the
+  developer's review asks for it.
 - The code should be committed to git with these guidelines:
   - Commit text should follow git conventions:
     - A short summary, followed by a blank line
@@ -83,8 +89,9 @@ Other directories can be ignored at this time.
 
 # Testing
 
-- Due to the complexity, each change will require manual testing of multiple systems before commits
-  are made.
+- Due to the complexity, each change requires manual testing of multiple systems.  That testing
+  happens during the developer's review of the commits, not before they are made; commit the work
+  and say plainly in the response what has and has not been tested.
 
 # Building
 
