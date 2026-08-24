@@ -330,11 +330,19 @@ struct SideManager {
 
 /// How long, in milliseconds, after the first key of a chord we still consider
 /// additional keys to be part of that chord.  The chord is sent when this
-/// expires, or as soon as all of its keys are released.
+/// expires, or as soon as all of its keys are released, or as soon as a key
+/// goes down on the other side.
+///
+/// The window can afford to be generous because it is rarely what ends a
+/// chord: a chord that is tapped is sent on the release of its last key, and
+/// one that is rolled out of is sent when the other hand starts.  What it
+/// really bounds is how long a slowly-assembled chord may take to come
+/// together, so it wants to be longer than a hand needs to land every finger,
+/// and short enough that a deliberately held chord still repeats.
 ///
 /// Re-exported by the parent module as `TAIPO_CHORD_TIME` so that the tests
 /// time their chords against the value the layout actually uses.
-pub const CHORD_TIME: u32 = 50;
+pub const CHORD_TIME: u32 = 100;
 
 impl SideManager {
     fn press(&mut self, tcode: u16, keys: &mut TaipoEvents) {
