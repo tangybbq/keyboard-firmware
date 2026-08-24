@@ -849,6 +849,71 @@ fn test_unknown_chord() {
     script.run();
 }
 
+/// A key on the other hand ends the chord being built on this one, without
+/// waiting for the chord timer.  The 'a' is typed as soon as the 'i' goes
+/// down, well inside the window.
+#[test]
+fn test_cross_hand_ends_chord() {
+    let mut script = Script::taipo();
+
+    // The 'a' on the left, held, but nowhere near long enough to expire.
+    script.press(LEFT, A).tick(5).idle();
+
+    // The right hand starting is what commits it.
+    script.press(RIGHT, I).tick(1).presses(Keyboard::A, Mods::empty());
+
+    // The 'i' still waits out its own timer.
+    script
+        .tick(CHORD_TIME)
+        .releases()
+        .presses(Keyboard::I, Mods::empty());
+
+    script.release(LEFT, A).tick(1).releases();
+    script.release(RIGHT, I).tick(1).idle();
+
+    script.run();
+}
+
+/// A modifier chord is committed by the other hand too, so a one-shot can be
+/// rolled straight into the key it modifies.
+#[test]
+fn test_cross_hand_ends_modifier() {
+    let mut script = Script::taipo();
+
+    script.press(LEFT, I | E).tick(5).idle();
+    script.press(RIGHT, A).tick(1).mod_only(Mods::SHIFT);
+    script.tick(CHORD_TIME).presses(Keyboard::A, Mods::SHIFT);
+
+    script.release(LEFT, I | E).tick(1).releases();
+    script.release(RIGHT, A).tick(1).idle();
+
+    script.run();
+}
+
+/// Rolling "ain" fast enough that every chord lands inside the window.  The
+/// 'i' ends the 'a', and the 'n' ends the 'i', so all three are typed
+/// separately instead of the 'n' merging into the chord the 'a' started.
+#[test]
+fn test_fast_alternating_roll() {
+    let mut script = Script::taipo();
+
+    script.press(LEFT, A).tick(5).idle();
+    script.press(RIGHT, I).tick(1).presses(Keyboard::A, Mods::empty());
+    script
+        .press(LEFT, N)
+        .tick(1)
+        .releases()
+        .presses(Keyboard::I, Mods::empty())
+        .releases();
+    script.tick(CHORD_TIME).presses(Keyboard::N, Mods::empty());
+
+    script.release(LEFT, A).tick(1).idle();
+    script.release(RIGHT, I).tick(1).releases();
+    script.release(LEFT, N).tick(1).idle();
+
+    script.run();
+}
+
 /// Rollover between the two hands: the second hand's chord can be pressed
 /// before the first hand's is released.  Because the HID layer only holds a
 /// single key down, pressing the new key releases the old one.

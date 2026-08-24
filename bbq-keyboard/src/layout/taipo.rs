@@ -273,6 +273,12 @@ impl TaipoManager {
               is_press, code, text_side, tcode);
         */
         if is_press {
+            // The hands alternate, so a key landing here means the other hand
+            // is done with whatever it was building.  Commit that chord now,
+            // rather than making it wait out its timer; this is what keeps the
+            // chord window from having to be short enough to separate
+            // alternating chords by time alone.
+            self.sides[1 - side.index()].force_down(&mut self.keys);
             self.sides[side.index()].press(*tcode, &mut self.keys);
         } else {
             self.sides[side.index()].release(*tcode, &mut self.keys);
@@ -388,10 +394,22 @@ impl SideManager {
         }
         self.age = self.age.saturating_add(ticks as u32);
         if self.age >= CHORD_TIME {
-            let _ = keys.push_back(TaipoEvent { is_press: true, code: self.seen });
-            // info!("taipo: tpress {:x}", self.seen);
-            self.down = true;
+            self.force_down(keys);
         }
+    }
+
+    /// Commit the chord being built, as though its timer had expired.
+    ///
+    /// The keys stay held; as with the timer, they take no further part in the
+    /// chord, and are only tracked until they come back up.  Does nothing if
+    /// there is no chord in progress, or if it has already been sent.
+    fn force_down(&mut self, keys: &mut TaipoEvents) {
+        if self.down || self.seen == 0 {
+            return;
+        }
+        let _ = keys.push_back(TaipoEvent { is_press: true, code: self.seen });
+        // info!("taipo: tpress {:x}", self.seen);
+        self.down = true;
     }
 }
 
