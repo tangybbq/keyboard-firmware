@@ -122,7 +122,7 @@ impl TaipoManager {
     /// The chord table for the variant currently selected.
     fn actions(&self) -> &'static [Entry] {
         match self.variant {
-            TaipoVariant::Taipo => &TAIPO_ACTIONS,
+            TaipoVariant::Taipo => TAIPO_ACTIONS,
             TaipoVariant::Posh => super::posh::POSH_ACTIONS,
         }
     }
@@ -824,7 +824,7 @@ pub(super) struct Entry {
     pub(super) action: Action,
 }
 
-static TAIPO_ACTIONS: [Entry; 126] = [
+static TAIPO_ACTIONS: &[Entry] = &[
     // The thumb keys by themselves.
     Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
