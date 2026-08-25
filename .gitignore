@@ -36,3 +36,6 @@ jolt-embassy-rp/main.uf2
 
 # Downloaded corpus for words/ngrams.py
 words/count_1w.txt
+
+# Word list fetched by words/drills.py
+words/english_10k.json
