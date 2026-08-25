@@ -7,6 +7,7 @@ worth learning in, so the lessons follow it.  Regenerate with:
 
 ```
 uv run words/drills.py > docs/taipo-drills.md
+uv run words/drills.py --files
 ```
 
 See [ngrams-results.md](ngrams-results.md) for where the grams came from and
@@ -14,9 +15,17 @@ which chord each one sits on.
 
 ## How to use these
 
-MonkeyType: **custom text**, paste a block, turn *random* on and set a word
-count.  Punctuation and numbers off.  The capital lists are separate because
-custom text keeps case, and a lower-case list with `Random` on will never
+Every drill is also a file in [drills/](drills/), one line, no newlines --
+MonkeyType's custom text treats a newline as a character to type, so the
+wrapped blocks below are for reading and the files are what to paste:
+
+```
+pbcopy < docs/drills/01-the.txt
+```
+
+Then MonkeyType: **custom text**, paste, turn *random* on and set a word count.
+Punctuation and numbers off.  The capital lists are separate files because
+custom text keeps case, and a lower-case list with random on will never
 exercise the `+Sp` half of a chord.
 
 Nothing outside the keyboard can see whether a word was chorded or spelled out,
@@ -38,12 +47,15 @@ learned so far.  Those are where the chords stop being an exercise: the words
 are ordinary, the grams are wherever they fall, and nothing marks them.
 
 Each lesson's words are the most common qualifying ones from MonkeyType's
-`english_10k`.  `--lesson <gram>` prints one list bare, and `-n` takes more
-words per lesson if a list gets stale.
+`english_10k`; `-n` takes more per lesson if a list goes stale.  A chord with
+fewer than 4 words it can start gets no capital drill: `Er` is the
+one that misses.
 
 ## Lesson 1 — `the`
 
 45 words in the list qualify; 40 here, most common first.
+
+`drills/01-the.txt`
 
 ```
 the other they their these them then others further whether weather either together
@@ -54,6 +66,8 @@ synthetic thesaurus theology luther hypothesis motherboard
 
 Capitals (`The`, the `+Sp` twin):
 
+`drills/01-the-caps.txt`
+
 ```
 The They Their These Them Then Therapy Theme
 ```
@@ -61,6 +75,8 @@ The They Their These Them Then Therapy Theme
 ## Lesson 2 — `in`
 
 673 words in the list qualify; 40 here, most common first.
+
+`drills/02-in.txt`
 
 ```
 in find into info links line using within shipping index being link following think
@@ -71,6 +87,8 @@ having living window
 
 Capitals (`In`, the `+Sp` twin):
 
+`drills/02-in-caps.txt`
+
 ```
 In Into Info Index Including Include Included Income
 ```
@@ -79,6 +97,8 @@ In Into Info Index Including Include Included Income
 
 513 words in the list qualify; 40 here, most common first.
 
+`drills/03-er.txt`
+
 ```
 here were service over her number after where very user under university member terms
 members power computer per property every however better server never users offers paper
@@ -86,15 +106,11 @@ poker seller offer delivery term computers powered period average ever cover pla
 newsletter
 ```
 
-Capitals (`Er`, the `+Sp` twin):
-
-```
-Erotic Era Erotica
-```
-
 ### Review 1–3: `the` `in` `er`
 
 100 words, using only these chords.
+
+`drills/03-review.txt`
 
 ```
 the in here other find were they into service their info over these links her them line
@@ -111,6 +127,8 @@ mothers login delivery synthesis single term heather something computers therape
 
 296 words in the list qualify; 40 here, most common first.
 
+`drills/04-an.txt`
+
 ```
 and an can any than company many want change man advanced plan human language range hand
 means land island bank thanks loan brand loans mean plans exchange islands woman band
@@ -119,6 +137,8 @@ channel wanted thank command significant grand van panel plant brands
 
 Capitals (`An`, the `+Sp` twin):
 
+`drills/04-an-caps.txt`
+
 ```
 And An Any Anime Announced Angel Anyway Antique
 ```
@@ -126,6 +146,8 @@ And An Any Anime Announced Angel Anyway Antique
 ## Lesson 5 — `tion`
 
 206 words in the list qualify; 40 here, most common first.
+
+`drills/05-tion.txt`
 
 ```
 education section location action application options edition association collection
@@ -139,6 +161,8 @@ nation motion actions situation dictionary sections competition auctions
 
 403 words in the list qualify; 40 here, most common first.
 
+`drills/06-re.txt`
+
 ```
 are more free software review read research reviews before results address area care
 three current pictures children return previous reply compare press credit thread
@@ -148,6 +172,8 @@ currently receive hardware figure
 
 Capitals (`Re`, the `+Sp` twin):
 
+`drills/06-re-caps.txt`
+
 ```
 Review Read Research Reviews Results Return Reply Required
 ```
@@ -155,6 +181,8 @@ Review Read Research Reviews Results Return Reply Required
 ### Review 1–6: `the` `in` `er` `an` `tion` `re`
 
 100 words, using only these chords.
+
+`drills/06-review.txt`
 
 ```
 the in service and education are other find over an section more they into her can
@@ -172,6 +200,8 @@ including property hand
 
 241 words in the list qualify; 40 here, most common first.
 
+`drills/07-or.txt`
+
 ```
 for or world work support forum sports network north form author forums memory password
 major color short word works words sort force port mortgage airport editor forms prior
@@ -181,6 +211,8 @@ authors
 
 Capitals (`Or`, the `+Sp` twin):
 
+`drills/07-or-caps.txt`
+
 ```
 Or Oracle Orbit Orchid
 ```
@@ -188,6 +220,8 @@ Or Oracle Orbit Orchid
 ## Lesson 8 — `es`
 
 426 words in the list qualify; 40 here, most common first.
+
+`drills/08-es.txt`
 
 ```
 message best does games design prices pages access resources times sites movies process
@@ -198,6 +232,8 @@ names facilities courses
 
 Capitals (`Es`, the `+Sp` twin):
 
+`drills/08-es-caps.txt`
+
 ```
 Established Establish Escape Essays Essay Esteem Establishes
 ```
@@ -205,6 +241,8 @@ Established Establish Escape Essays Essay Esteem Establishes
 ## Lesson 9 — `en`
 
 351 words in the list qualify; 40 here, most common first.
+
+`drills/09-en.txt`
 
 ```
 when been comments development send between even women open end events department teen
@@ -215,6 +253,8 @@ client sent went
 
 Capitals (`En`, the `+Sp` twin):
 
+`drills/09-en-caps.txt`
+
 ```
 End Enough Entry Enjoy Enable Ends Ended Enlarge
 ```
@@ -222,6 +262,8 @@ End Enough Entry Enjoy Enable Ends Ended Enlarge
 ### Review 1–9: `the` `in` `er` `an` `tion` `re` `or` `es` `en`
 
 100 words, using only these chords.
+
+`drills/09-review.txt`
 
 ```
 the in services and information are for business when other find service an education
@@ -238,6 +280,8 @@ member man edition reviews north prices open weather
 
 230 words in the list qualify; 40 here, most common first.
 
+`drills/10-on.txt`
+
 ```
 on one only contact phone long control money second month million discussion once months
 common electronics upon done front economic none among commission soon electronic season
@@ -247,6 +291,8 @@ songs wrong beyond
 
 Capitals (`On`, the `+Sp` twin):
 
+`drills/10-on-caps.txt`
+
 ```
 On One Only Once Onto Onion
 ```
@@ -254,6 +300,8 @@ On One Only Once Onto Onion
 ## Lesson 11 — `al`
 
 286 words in the list qualify; 40 here, most common first.
+
+`drills/11-al.txt`
 
 ```
 all also health local special total small digital call shall quality value sale medical
@@ -264,6 +312,8 @@ hall hospital
 
 Capitals (`Al`, the `+Sp` twin):
 
+`drills/11-al-caps.txt`
+
 ```
 All Also Always Although Album Allow Allows Allowed
 ```
@@ -271,6 +321,8 @@ All Also Always Although Album Allow Allows Allowed
 ## Lesson 12 — `at`
 
 235 words in the list qualify; 40 here, most common first.
+
+`drills/12-at.txt`
 
 ```
 that at what date data rate private updated database update watch chat death sat
@@ -281,6 +333,8 @@ boat dedicated atom associate
 
 Capitals (`At`, the `+Sp` twin):
 
+`drills/12-at-caps.txt`
+
 ```
 At Attack Atom Attempt Attached Attacks Attribute Athletic
 ```
@@ -288,6 +342,8 @@ At Attack Atom Attempt Attached Attacks Attribute Athletic
 ### Review 1–12: `the` `in` `er` `an` `tion` `re` `or` `es` `en` `on` `al` `at`
 
 100 words, using only these chords.
+
+`drills/12-review.txt`
 
 ```
 the in services and information are for business when on all that other online service
@@ -304,6 +360,8 @@ personal water others internet under change
 
 196 words in the list qualify; 40 here, most common first.
 
+`drills/13-st.txt`
+
 ```
 first list just last most system post must posted systems posts still stock start cost
 study staff east star listed least past district costs style fast step stuff stay stop
@@ -312,6 +370,8 @@ started lost artist custom stars lists abstract artists trust stage
 
 Capitals (`St`, the `+Sp` twin):
 
+`drills/13-st-caps.txt`
+
 ```
 Still Stock Start Study Staff Star Style Step
 ```
@@ -319,6 +379,8 @@ Still Stock Start Study Staff Star Style Step
 ### Everything: `the` `in` `er` `an` `tion` `re` `or` `es` `en` `on` `al` `at` `st`
 
 100 words, using only these chords.
+
+`drills/13-review-all.txt`
 
 ```
 the in services and information are for business when on all that first other online

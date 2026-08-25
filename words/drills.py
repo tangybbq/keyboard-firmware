@@ -31,9 +31,9 @@ Review lists relax that to the grams learned so far, and round-robin over them
 so each chord in the set gets a turn.
 
 Usage:
-    uv run words/drills.py                     # markdown, all lessons
-    uv run words/drills.py -n 50 --review 3
-    uv run words/drills.py --lesson the        # one list, bare words
+    uv run words/drills.py > docs/taipo-drills.md   # the readable version
+    uv run words/drills.py --files                  # one file per drill
+    uv run words/drills.py -n 50 --review 2 --files
 """
 
 import argparse
@@ -49,11 +49,16 @@ from pathlib import Path
 WORDS_URL = ("https://raw.githubusercontent.com/monkeytypegame/monkeytype/"
              "master/frontend/static/languages/english_10k.json")
 DEFAULT_WORDS = Path(__file__).with_name("english_10k.json")
+DEFAULT_DIR = Path(__file__).parent.parent / "docs" / "drills"
 DEFAULT_TABLE = (Path(__file__).parent.parent
                  / "bbq-keyboard" / "src" / "layout" / "taipo.rs")
 
 MIN_LEN = 2
 WRAP = 88
+
+# Fewer capitalisable words than this and there is nothing to drill: only a
+# word the gram *starts* can use the `+Sp` chord, and some grams barely do.
+CAPS_MIN = 4
 
 
 PREAMBLE = """# Taipo n-gram drills
@@ -65,6 +70,7 @@ worth learning in, so the lessons follow it.  Regenerate with:
 
 ```
 uv run words/drills.py > docs/taipo-drills.md
+uv run words/drills.py --files
 ```
 
 See [ngrams-results.md](ngrams-results.md) for where the grams came from and
@@ -72,9 +78,17 @@ which chord each one sits on.
 
 ## How to use these
 
-MonkeyType: **custom text**, paste a block, turn *random* on and set a word
-count.  Punctuation and numbers off.  The capital lists are separate because
-custom text keeps case, and a lower-case list with `Random` on will never
+Every drill is also a file in [{dir}/]({dir}/), one line, no newlines --
+MonkeyType's custom text treats a newline as a character to type, so the
+wrapped blocks below are for reading and the files are what to paste:
+
+```
+pbcopy < docs/{first}
+```
+
+Then MonkeyType: **custom text**, paste, turn *random* on and set a word count.
+Punctuation and numbers off.  The capital lists are separate files because
+custom text keeps case, and a lower-case list with random on will never
 exercise the `+Sp` half of a chord.
 
 Nothing outside the keyboard can see whether a word was chorded or spelled out,
@@ -96,8 +110,9 @@ learned so far.  Those are where the chords stop being an exercise: the words
 are ordinary, the grams are wherever they fall, and nothing marks them.
 
 Each lesson's words are the most common qualifying ones from MonkeyType's
-`english_10k`.  `--lesson <gram>` prints one list bare, and `-n` takes more
-words per lesson if a list gets stale.
+`english_10k`; `-n` takes more per lesson if a list goes stale.  A chord with
+fewer than {caps_min} words it can start gets no capital drill: `Er` is the
+one that misses.
 """
 
 
@@ -225,6 +240,79 @@ def wrap(words, width=WRAP):
     return "\n".join(lines)
 
 
+def build(words, grams, args):
+    """Every drill in the order they are worked through."""
+    all_grams = set(grams)
+    max_len = max(len(g) for g in grams)
+    blocks = []
+    for i, gram in enumerate(grams, 1):
+        picked = lesson_words(words, i - 1, grams, max_len)
+        blocks.append({"kind": "lesson", "n": i, "gram": gram,
+                       "words": picked[:args.count], "total": len(picked)})
+        caps = capitals(picked, gram, max_len)[:args.caps]
+        if len(caps) >= CAPS_MIN:
+            blocks.append({"kind": "caps", "n": i, "gram": gram,
+                           "words": caps})
+        final = i == len(grams)
+        if final or (args.review and i % args.review == 0):
+            learned = grams[:i]
+            blocks.append({"kind": "review", "n": i, "learned": learned,
+                           "final": final,
+                           "words": review_words(words, learned, all_grams,
+                                                 max_len, args.review_count)})
+    return blocks
+
+
+def filename(block):
+    """The drill's file name, sorting into the order they are learned."""
+    if block["kind"] == "lesson":
+        return f"{block['n']:02d}-{block['gram']}.txt"
+    if block["kind"] == "caps":
+        return f"{block['n']:02d}-{block['gram']}-caps.txt"
+    return f"{block['n']:02d}-review{'-all' if block['final'] else ''}.txt"
+
+
+def write_files(blocks, directory):
+    """One file per drill, a single line each -- MonkeyType eats newlines.
+
+    Files this tool owns are cleared first, so a changed chord table does
+    not leave a stale drill behind.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    for stale in directory.glob("[0-9][0-9]-*.txt"):
+        stale.unlink()
+    for block in blocks:
+        path = directory / filename(block)
+        # No trailing newline: `pbcopy` would put it on the clipboard.
+        path.write_text(" ".join(block["words"]), encoding="utf-8")
+        print(f"{path}  ({len(block['words'])} words)", file=sys.stderr)
+
+
+def markdown(blocks, grams, args, directory):
+    """The readable version: the same drills, wrapped, with the commentary."""
+    print(PREAMBLE.format(count=len(grams), review=args.review,
+                          dir=directory.name, caps_min=CAPS_MIN,
+                          first=f"{directory.name}/{filename(blocks[0])}"))
+    for block in blocks:
+        if block["kind"] == "lesson":
+            print(f"## Lesson {block['n']} — `{block['gram']}`\n")
+            print(f"{block['total']} words in the list qualify; "
+                  f"{len(block['words'])} here, most common first.\n")
+        elif block["kind"] == "caps":
+            print(f"Capitals (`{block['gram'].capitalize()}`, "
+                  "the `+Sp` twin):\n")
+        else:
+            learned = " ".join(f"`{g}`" for g in block["learned"])
+            title = "Everything" if block["final"] else f"Review 1–{block['n']}"
+            print(f"### {title}: {learned}\n")
+            print(f"{len(block['words'])} words, "
+                  "using only these chords.\n")
+        print(f"`{directory.name}/{filename(block)}`\n")
+        print("```")
+        print(wrap(block["words"]))
+        print("```\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-n", "--count", type=int, default=40,
@@ -235,53 +323,23 @@ def main():
                         help="words per review list (default 100)")
     parser.add_argument("--caps", type=int, default=8,
                         help="capitalised words per lesson (default 8)")
-    parser.add_argument("--lesson", metavar="GRAM",
-                        help="print just this lesson's words, no markdown")
+    parser.add_argument("--files", type=Path, metavar="DIR", nargs="?",
+                        const=DEFAULT_DIR,
+                        help=f"write one file per drill into DIR "
+                             f"(default {DEFAULT_DIR.name}/) instead of "
+                             f"printing markdown")
     parser.add_argument("--words", type=Path, default=DEFAULT_WORDS)
     parser.add_argument("--table", type=Path, default=DEFAULT_TABLE)
     args = parser.parse_args()
 
     grams = read_grams(args.table)
     words = load_words(args.words)
-    all_grams = set(grams)
-    max_len = max(len(g) for g in grams)
+    blocks = build(words, grams, args)
 
-    if args.lesson:
-        if args.lesson not in all_grams:
-            raise SystemExit(f"{args.lesson} is not in the chord table")
-        picked = lesson_words(words, grams.index(args.lesson), grams, max_len)
-        print(wrap(picked[:args.count]))
-        return
-
-    print(PREAMBLE.format(count=len(grams), review=args.review))
-
-    for i, gram in enumerate(grams, 1):
-        picked = lesson_words(words, i - 1, grams, max_len)
-        head = picked[:args.count]
-        print(f"## Lesson {i} — `{gram}`\n")
-        print(f"{len(picked)} words in the list qualify; "
-              f"{len(head)} here, most common first.\n")
-        print("```")
-        print(wrap(head))
-        print("```\n")
-        caps = capitals(picked, gram, max_len)[:args.caps]
-        if caps:
-            print(f"Capitals (`{gram.capitalize()}`, the `+Sp` twin):\n")
-            print("```")
-            print(wrap(caps))
-            print("```\n")
-
-        done = i == len(grams)
-        if done or (args.review and i % args.review == 0):
-            learned = grams[:i]
-            mixed = review_words(words, learned, all_grams, max_len,
-                                 args.review_count)
-            title = "Everything" if done else f"Review 1–{i}"
-            print(f"### {title}: {' '.join(f'`{g}`' for g in learned)}\n")
-            print(f"{len(mixed)} words, using only these chords.\n")
-            print("```")
-            print(wrap(mixed))
-            print("```\n")
+    if args.files:
+        write_files(blocks, args.files)
+    else:
+        markdown(blocks, grams, args, DEFAULT_DIR)
 
 
 if __name__ == "__main__":
