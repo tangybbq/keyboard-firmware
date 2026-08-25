@@ -896,10 +896,67 @@ static TAIPO_ACTIONS: &[Entry] = &[
     Entry { code: 0x00e, action: Action::Simple(Keyboard::ReturnEnter), },
     Entry { code: 0x10e, action: Action::Simple(Keyboard::Escape), },
 
-    // Multi-character chords.  `ent` (n on the top row, t and e on the bottom)
-    // types the most common English bigram; the space thumb capitalizes it.
-    Entry { code: 0x04c, action: Action::Text("th"), },
-    Entry { code: 0x14c, action: Action::Text("Th"), },
+    // Multi-character chords.  The thirteen most valuable English n-grams, on
+    // the thirteen easiest chords that leave the pinky out.  See
+    // `docs/ngrams-results.md` for where both orders come from: grams are
+    // ranked by the chords they save once the grams above them already have
+    // chords, so `th` is not here -- `the` takes most of what it would save.
+    //
+    // The bare chord types the gram, the space thumb capitalizes its first
+    // letter.  `+Bk` and both-thumb variants are left unmapped throughout.
+    // The comments give the chord's keys, its ease score, and the letters it
+    // shares with what it types.
+    // eit (2.45) -> 'the', sharing et
+    Entry { code: 0x08c, action: Action::Text("the"), },
+    Entry { code: 0x18c, action: Action::Text("The"), },
+
+    // ein (2.45) -> 'in', sharing in
+    Entry { code: 0x0c8, action: Action::Text("in"), },
+    Entry { code: 0x1c8, action: Action::Text("In"), },
+
+    // ent (2.47) -> 'er', sharing e
+    Entry { code: 0x04c, action: Action::Text("er"), },
+    Entry { code: 0x14c, action: Action::Text("Er"), },
+
+    // int (2.47) -> 'an', sharing n
+    Entry { code: 0x0c4, action: Action::Text("an"), },
+    Entry { code: 0x1c4, action: Action::Text("An"), },
+
+    // not (3.07) -> 'tion', sharing not
+    Entry { code: 0x046, action: Action::Text("tion"), },
+    Entry { code: 0x146, action: Action::Text("Tion"), },
+
+    // nst (3.07) -> 're'
+    Entry { code: 0x064, action: Action::Text("re"), },
+    Entry { code: 0x164, action: Action::Text("Re"), },
+
+    // nos (3.29) -> 'or', sharing o
+    Entry { code: 0x062, action: Action::Text("or"), },
+    Entry { code: 0x162, action: Action::Text("Or"), },
+
+    // ost (3.29) -> 'es', sharing s
+    Entry { code: 0x026, action: Action::Text("es"), },
+    Entry { code: 0x126, action: Action::Text("Es"), },
+
+    // eis (3.30) -> 'en', sharing e
+    Entry { code: 0x0a8, action: Action::Text("en"), },
+    Entry { code: 0x1a8, action: Action::Text("En"), },
+
+    // eio (3.30) -> 'on', sharing o
+    Entry { code: 0x08a, action: Action::Text("on"), },
+    Entry { code: 0x18a, action: Action::Text("On"), },
+
+    // eos (3.54) -> 'al'
+    Entry { code: 0x02a, action: Action::Text("al"), },
+    Entry { code: 0x12a, action: Action::Text("Al"), },
+
+    // ios (3.54) -> 'at'
+    Entry { code: 0x0a2, action: Action::Text("at"), },
+    Entry { code: 0x1a2, action: Action::Text("At"), },
+
+    // ens (4.00) -> 'st', sharing s
+    Entry { code: 0x068, action: Action::Text("st"), },
+    Entry { code: 0x168, action: Action::Text("St"), },
 
     // The single letters, with shift, and the punctuation below these.
     Entry { code: 0x001, action: Action::Simple(Keyboard::A), },

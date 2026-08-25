@@ -1014,17 +1014,17 @@ fn test_same_side_rollover_tap() {
 // they are typed, and the last is left held until the chord comes up.
 //////////////////////////////////////////////////////////////////////////////
 
-/// The `ent` chord types the `th` bigram: two keypresses from one chord, with
+/// The `ent` chord types the `er` bigram: two keypresses from one chord, with
 /// the last left held until the chord is released.
 #[test]
-fn test_multi_th() {
+fn test_multi_er() {
     let mut script = Script::taipo();
 
     script
         .chord(LEFT, E | N | T)
-        .presses(Keyboard::T, Mods::empty())
+        .presses(Keyboard::E, Mods::empty())
         .releases()
-        .presses(Keyboard::H, Mods::empty())
+        .presses(Keyboard::R, Mods::empty())
         .releases();
 
     script.run();
@@ -1032,14 +1032,14 @@ fn test_multi_th() {
 
 /// The same chord committed by its release rather than by the chord timer.
 #[test]
-fn test_multi_th_tapped() {
+fn test_multi_er_tapped() {
     let mut script = Script::taipo();
 
     script
         .tap(LEFT, E | N | T)
-        .presses(Keyboard::T, Mods::empty())
+        .presses(Keyboard::E, Mods::empty())
         .releases()
-        .presses(Keyboard::H, Mods::empty())
+        .presses(Keyboard::R, Mods::empty())
         .releases();
 
     script.run();
@@ -1048,21 +1048,21 @@ fn test_multi_th_tapped() {
 /// The space thumb capitalizes the sequence, which is a property of the text
 /// in the table: only the first character is shifted.
 #[test]
-fn test_multi_th_capital() {
+fn test_multi_er_capital() {
     let mut script = Script::taipo();
 
     script
         .chord(LEFT, SP | E | N | T)
-        .presses(Keyboard::T, Mods::SHIFT)
+        .presses(Keyboard::E, Mods::SHIFT)
         .releases()
-        .presses(Keyboard::H, Mods::empty())
+        .presses(Keyboard::R, Mods::empty())
         .releases();
 
     script.run();
 }
 
 /// A one-shot modifier is consumed by the first character of the sequence, so
-/// a one-shot shift gives the same `Th` the thumb variant does.
+/// a one-shot shift gives the same `Er` the thumb variant does.
 #[test]
 fn test_multi_oneshot_shift() {
     let mut script = Script::taipo();
@@ -1070,9 +1070,9 @@ fn test_multi_oneshot_shift() {
     script.chord(RIGHT, I | E).mod_only(Mods::SHIFT);
     script
         .chord(LEFT, E | N | T)
-        .presses(Keyboard::T, Mods::SHIFT)
+        .presses(Keyboard::E, Mods::SHIFT)
         .releases()
-        .presses(Keyboard::H, Mods::empty())
+        .presses(Keyboard::R, Mods::empty())
         .releases();
 
     script.run();
@@ -1089,9 +1089,9 @@ fn test_multi_sticky_mod() {
     script.chord(LEFT, N | T).idle();
     script
         .chord(LEFT, E | N | T)
-        .presses(Keyboard::T, Mods::CONTROL)
+        .presses(Keyboard::E, Mods::CONTROL)
         .mod_only(Mods::CONTROL)
-        .presses(Keyboard::H, Mods::CONTROL)
+        .presses(Keyboard::R, Mods::CONTROL)
         .mod_only(Mods::CONTROL);
 
     script.run();
@@ -1126,9 +1126,9 @@ fn test_multi_steno_latched() {
     script
         .press(LEFT, E | N | T)
         .tick(CHORD_TIME)
-        .presses(Keyboard::T, Mods::empty())
+        .presses(Keyboard::E, Mods::empty())
         .releases()
-        .presses(Keyboard::H, Mods::empty());
+        .presses(Keyboard::R, Mods::empty());
     script.release(LEFT, E | N | T).tick(1).releases();
     script.release_scan(TAIPO_KEY).tick(1).idle();
 
@@ -1144,12 +1144,12 @@ fn test_multi_rollover() {
     script
         .press(LEFT, E | N | T)
         .tick(CHORD_TIME)
-        .presses(Keyboard::T, Mods::empty())
+        .presses(Keyboard::E, Mods::empty())
         .releases()
-        .presses(Keyboard::H, Mods::empty());
+        .presses(Keyboard::R, Mods::empty());
 
     // The 'a', rolled in while the chord is still held, ends it and releases
-    // the 'h' that was left down.
+    // the 'r' that was left down.
     script
         .press(LEFT, A)
         .tick(CHORD_TIME)
@@ -1158,6 +1158,42 @@ fn test_multi_rollover() {
 
     script.release(LEFT, E | N | T).tick(1).idle();
     script.release(LEFT, A).tick(1).releases();
+
+    script.run();
+}
+
+/// A three-character sequence.  `eit` types `the`, which is what checks that
+/// the shift lands on the first character only -- a two-character sequence
+/// cannot tell "shift the first" from "shift all but the last".
+#[test]
+fn test_multi_three_chars() {
+    let mut script = Script::taipo();
+
+    script
+        .chord(LEFT, E | I | T)
+        .presses(Keyboard::T, Mods::empty())
+        .releases()
+        .presses(Keyboard::H, Mods::empty())
+        .releases()
+        .presses(Keyboard::E, Mods::empty())
+        .releases();
+
+    script.run();
+}
+
+/// The same chord with the space thumb types `The`.
+#[test]
+fn test_multi_three_chars_capital() {
+    let mut script = Script::taipo();
+
+    script
+        .chord(LEFT, SP | E | I | T)
+        .presses(Keyboard::T, Mods::SHIFT)
+        .releases()
+        .presses(Keyboard::H, Mods::empty())
+        .releases()
+        .presses(Keyboard::E, Mods::empty())
+        .releases();
 
     script.run();
 }

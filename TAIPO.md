@@ -107,25 +107,48 @@ pairs.
 
 ## Multi-character chords
 
-A chord can type a short sequence of characters rather than a single key. There is one so far:
+A chord can type a short sequence of characters rather than a single key. Thirteen do: the
+n-grams that save the most typing, on the thirteen easiest chords that leave the pinky out.
+Ordered easiest first, which is also most-valuable first.
 
-| chord | alone | +Sp | +Bk |
-|-------|-------|-----|-----|
-| e+n+t | th    | Th  |     |
+| chord   | alone  | +Sp    |
+|---------|--------|--------|
+| e+i+t   | the    | The    |
+| e+i+n   | in     | In     |
+| e+n+t   | er     | Er     |
+| i+n+t   | an     | An     |
+| n+o+t   | tion   | Tion   |
+| n+s+t   | re     | Re     |
+| n+o+s   | or     | Or     |
+| o+s+t   | es     | Es     |
+| e+i+s   | en     | En     |
+| e+i+o   | on     | On     |
+| e+o+s   | al     | Al     |
+| i+o+s   | at     | At     |
+| e+n+s   | st     | St     |
 
-`ent` is n on the top row with t and e on the bottom — the most common English bigram, on the three
-strongest fingers of one hand.
+Every one of these uses three keys across two or three fingers, none of them the pinky. The first
+four use only the index and middle fingers, which is what makes them the easiest chords on the
+board: two adjacent strong fingers, and no row disagreement between them, because one finger
+presses both of its keys while the other presses one.
 
-Each character is sent as its own report, so the sequence types out as if you had chorded the
-letters yourself. Two things follow from that:
+`th` is deliberately absent. It is the most common bigram in raw counts, but `the` has a chord, and
+`the` takes most of what a `th` chord would have saved. The ranking behind these thirteen accounts
+for that; see `docs/ngrams-results.md`.
+
+Each character is sent as its own report, so a sequence types out as if you had chorded the letters
+yourself. Three things follow from that:
 
 - Held modifiers apply per character, following the usual rules (see "Modifiers" below). A one-shot
-  shift lands on the first character only, giving `Th`, the same as `Sp+ent`. Sticky modifiers apply
-  to all of them: sticky Ctrl plus `ent` is Ctrl-T then Ctrl-H.
-- Only the **last** character is left held, so holding the chord types `th` and then auto-repeats
-  `hhhh`.
+  shift lands on the first character only, so a one-shot shift with `eit` gives `The`, the same as
+  `Sp+eit`. Sticky modifiers apply to all of them: sticky Ctrl plus `ent` is Ctrl-E then Ctrl-R.
+- Only the **last** character is left held, so holding a chord types the sequence and then
+  auto-repeats its final character — holding `eit` gives `the` and then `eeee`.
+- The longer sequences take longer to send. `tion` is four reports, on a queue that drains one per
+  millisecond.
 
-`Bk+ent` and `Sp+Bk+ent` are unassigned.
+`+Bk` and both-thumb variants are unassigned for all thirteen; they are held for punctuation and
+programming sequences, which need their own analysis.
 
 ## Function keys (both thumbs)
 
