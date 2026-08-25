@@ -156,6 +156,27 @@ static KEY_TABLE: [u16; 128] = [
     NONE, // 0x7F, Delete (often represented as DEL)
 ];
 
+/// The keypress that types `ch`, if there is one.
+///
+/// The modifiers are those needed to produce the character itself — shift, or
+/// nothing.  Characters outside ASCII, and those the table has no key for,
+/// return `None`.
+pub fn key_for_char(ch: char) -> Option<(Keyboard, Mods)> {
+    if ch >= (128 as char) {
+        return None;
+    }
+    let code = KEY_TABLE[ch as usize];
+    if code == NONE {
+        return None;
+    }
+    let mods = if (code & SHIFT) != 0 {
+        Mods::SHIFT
+    } else {
+        Mods::empty()
+    };
+    Some((((code & 0xFF) as u8).into(), mods))
+}
+
 /// An ActionHandler is something that is able to take actions.
 pub trait ActionHandler {
     // For now, suppress the warning.
@@ -169,13 +190,10 @@ pub async fn enqueue_action<H: ActionHandler>(usb: &mut H, text: &str) {
 
     for ch in text.chars() {
         if ch < (128 as char) {
-            let code = KEY_TABLE[ch as usize];
-            if code == NONE {
+            let Some((code, mods)) = key_for_char(ch) else {
                 continue;
-            }
-            let shifted = (code & SHIFT) != 0;
-            let code: Keyboard = ((code & 0xFF) as u8).into();
-            let action = KeyAction::KeyPress(code, if shifted {Mods::SHIFT} else {Mods::empty()});
+            };
+            let action = KeyAction::KeyPress(code, mods);
 
             // We only need to send an explicit KeyRelease when the last thing sent was the same as
             // the current.  TODO: There is excess copying here.
