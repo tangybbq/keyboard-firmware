@@ -178,13 +178,13 @@ impl TaipoManager {
             let entry = self.actions().iter().find(|e| e.code == tevent.code);
             match entry {
                 Some(Entry { action: Action::Simple(k), .. }) => {
-                    self.release_nonmod(actions).await;
+                    self.release_nonmod(actions, is_steno).await;
                     self.send(actions, is_steno, KeyAction::KeyPress(*k, self.oneshot)).await;
                     self.down = true;
                     self.oneshot = self.sticky;
                 }
                 Some(Entry { action: Action::Shifted(k), .. }) => {
-                    self.release_nonmod(actions).await;
+                    self.release_nonmod(actions, is_steno).await;
                     self.send(actions, is_steno, KeyAction::KeyPress(*k, self.oneshot | Mods::SHIFT)).await;
                     self.down = true;
                     self.oneshot = self.sticky;
@@ -196,7 +196,7 @@ impl TaipoManager {
                     // event.  A press that adds nothing is a double press,
                     // which makes all of the held modifiers sticky.
                     if new_mods != self.oneshot {
-                        self.release_nonmod(actions).await;
+                        self.release_nonmod(actions, is_steno).await;
                         self.send(actions, is_steno, KeyAction::ModOnly(new_mods)).await;
                         self.oneshot = new_mods;
                     } else {
@@ -225,13 +225,17 @@ impl TaipoManager {
     /// Release any non-modifier keys.  Because of the alternation, which could
     /// be for the same key, we simply don't do any rollover, releasing any
     /// pressed non-modifier keys when a new key needs to be pressed.
-    async fn release_nonmod<ACT: LayoutActions>(&mut self, actions: &ACT) {
+    ///
+    /// The release goes through `send`, so that it is suppressed in steno mode
+    /// just as the press that it is undoing would have been.
+    async fn release_nonmod<ACT: LayoutActions>(&mut self, actions: &ACT, is_steno: bool) {
         if self.down {
-            if self.oneshot.is_empty() {
-                actions.send_key(KeyAction::KeyRelease).await;
+            let action = if self.oneshot.is_empty() {
+                KeyAction::KeyRelease
             } else {
-                actions.send_key(KeyAction::ModOnly(self.oneshot)).await;
-            }
+                KeyAction::ModOnly(self.oneshot)
+            };
+            self.send(actions, is_steno, action).await;
             self.down = false;
         }
     }
