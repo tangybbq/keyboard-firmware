@@ -1006,6 +1006,162 @@ fn test_same_side_rollover_tap() {
     script.run();
 }
 
+//////////////////////////////////////////////////////////////////////////////
+// Multi-character chords
+//
+// A table entry can type a short sequence of characters instead of a single
+// key.  Each character is its own report; all but the last are released as
+// they are typed, and the last is left held until the chord comes up.
+//////////////////////////////////////////////////////////////////////////////
+
+/// The `ent` chord types the `th` bigram: two keypresses from one chord, with
+/// the last left held until the chord is released.
+#[test]
+fn test_multi_th() {
+    let mut script = Script::taipo();
+
+    script
+        .chord(LEFT, E | N | T)
+        .presses(Keyboard::T, Mods::empty())
+        .releases()
+        .presses(Keyboard::H, Mods::empty())
+        .releases();
+
+    script.run();
+}
+
+/// The same chord committed by its release rather than by the chord timer.
+#[test]
+fn test_multi_th_tapped() {
+    let mut script = Script::taipo();
+
+    script
+        .tap(LEFT, E | N | T)
+        .presses(Keyboard::T, Mods::empty())
+        .releases()
+        .presses(Keyboard::H, Mods::empty())
+        .releases();
+
+    script.run();
+}
+
+/// The space thumb capitalizes the sequence, which is a property of the text
+/// in the table: only the first character is shifted.
+#[test]
+fn test_multi_th_capital() {
+    let mut script = Script::taipo();
+
+    script
+        .chord(LEFT, SP | E | N | T)
+        .presses(Keyboard::T, Mods::SHIFT)
+        .releases()
+        .presses(Keyboard::H, Mods::empty())
+        .releases();
+
+    script.run();
+}
+
+/// A one-shot modifier is consumed by the first character of the sequence, so
+/// a one-shot shift gives the same `Th` the thumb variant does.
+#[test]
+fn test_multi_oneshot_shift() {
+    let mut script = Script::taipo();
+
+    script.chord(RIGHT, I | E).mod_only(Mods::SHIFT);
+    script
+        .chord(LEFT, E | N | T)
+        .presses(Keyboard::T, Mods::SHIFT)
+        .releases()
+        .presses(Keyboard::H, Mods::empty())
+        .releases();
+
+    script.run();
+}
+
+/// Sticky modifiers apply to every character, which means the release between
+/// them has to be `ModOnly` rather than a bare release: the host never sees
+/// control lift in the middle of the sequence.
+#[test]
+fn test_multi_sticky_mod() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, N | T).mod_only(Mods::CONTROL);
+    script.chord(LEFT, N | T).idle();
+    script
+        .chord(LEFT, E | N | T)
+        .presses(Keyboard::T, Mods::CONTROL)
+        .mod_only(Mods::CONTROL)
+        .presses(Keyboard::H, Mods::CONTROL)
+        .mod_only(Mods::CONTROL);
+
+    script.run();
+}
+
+/// In steno mode with no taipo key held, the whole sequence is suppressed.
+/// Without the steno gate on `release_nonmod`, the second character would leak
+/// a bare release into the middle of the stroke.
+#[test]
+fn test_multi_in_steno() {
+    let mut script = Script::steno();
+
+    script
+        .press(LEFT, E | N | T)
+        .tick(CHORD_TIME)
+        .idle()
+        .release(LEFT, E | N | T)
+        .tick(1)
+        .steno_stroke(bbq_steno::Stroke::from_text("PWR").unwrap())
+        .idle();
+
+    script.run();
+}
+
+/// With the taipo key held as a layer shift, the sequence types through in
+/// steno mode, and no stroke is sent.
+#[test]
+fn test_multi_steno_latched() {
+    let mut script = Script::steno();
+
+    script.press_scan(TAIPO_KEY);
+    script
+        .press(LEFT, E | N | T)
+        .tick(CHORD_TIME)
+        .presses(Keyboard::T, Mods::empty())
+        .releases()
+        .presses(Keyboard::H, Mods::empty());
+    script.release(LEFT, E | N | T).tick(1).releases();
+    script.release_scan(TAIPO_KEY).tick(1).idle();
+
+    script.run();
+}
+
+/// The last character of the sequence is a normally held key: a chord rolled
+/// in on top of it releases it first, just as it would any other.
+#[test]
+fn test_multi_rollover() {
+    let mut script = Script::taipo();
+
+    script
+        .press(LEFT, E | N | T)
+        .tick(CHORD_TIME)
+        .presses(Keyboard::T, Mods::empty())
+        .releases()
+        .presses(Keyboard::H, Mods::empty());
+
+    // The 'a', rolled in while the chord is still held, ends it and releases
+    // the 'h' that was left down.
+    script
+        .press(LEFT, A)
+        .tick(CHORD_TIME)
+        .releases()
+        .presses(Keyboard::A, Mods::empty());
+
+    script.release(LEFT, E | N | T).tick(1).idle();
+    script.release(LEFT, A).tick(1).releases();
+
+    script.run();
+}
+
 /// In steno mode, taipo chords are decoded but not sent; the keys are steno
 /// keys instead.
 #[test]

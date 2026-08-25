@@ -105,6 +105,28 @@ pairs.
 | Bk alone      | Backspace |                |        |
 | Sp+Bk together| release held modifiers (types nothing) | | |
 
+## Multi-character chords
+
+A chord can type a short sequence of characters rather than a single key. There is one so far:
+
+| chord | alone | +Sp | +Bk |
+|-------|-------|-----|-----|
+| e+n+t | th    | Th  |     |
+
+`ent` is n on the top row with t and e on the bottom — the most common English bigram, on the three
+strongest fingers of one hand.
+
+Each character is sent as its own report, so the sequence types out as if you had chorded the
+letters yourself. Two things follow from that:
+
+- Held modifiers apply per character, following the usual rules (see "Modifiers" below). A one-shot
+  shift lands on the first character only, giving `Th`, the same as `Sp+ent`. Sticky modifiers apply
+  to all of them: sticky Ctrl plus `ent` is Ctrl-T then Ctrl-H.
+- Only the **last** character is left held, so holding the chord types `th` and then auto-repeats
+  `hhhh`.
+
+`Bk+ent` and `Sp+Bk+ent` are unassigned.
+
 ## Function keys (both thumbs)
 
 Both thumbs + a digit chord gives the matching function key; v and w extend past F10:

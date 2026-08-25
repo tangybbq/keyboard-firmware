@@ -35,12 +35,24 @@
 //! any number of keypresses, until the two thumb keys are pressed together.
 //! This is useful for some types of GUI manipulation, such as holding down alt
 //! while pressing tab or arrow keys.
+//!
+//! Multi-character chords:
+//!
+//! A table entry may type a short sequence of characters rather than a single
+//! key (`Action::Text`).  Each character is sent as its own HID report, and
+//! all but the last are released as they are typed; the last one is left held,
+//! so that the chord's release finishes the sequence exactly as it finishes a
+//! single-key chord.  Held modifiers apply per character, following the same
+//! one-shot/sticky rules as everywhere else, so a one-shot modifier lands on
+//! the first character only.  The consequence of leaving the last character
+//! held is that holding such a chord auto-repeats only that last character.
 
 use arraydeque::ArrayDeque;
 use usbd_human_interface_device::page::Keyboard;
 
 // use crate::log::info;
 
+use crate::usb_typer::key_for_char;
 use crate::{KeyEvent, Side, Mods, KeyAction};
 
 use super::{taipo_map, LayoutActions};
@@ -189,6 +201,9 @@ impl TaipoManager {
                     self.down = true;
                     self.oneshot = self.sticky;
                 }
+                Some(Entry { action: Action::Text(text), .. }) => {
+                    self.type_text(actions, is_steno, *text).await;
+                }
                 Some(Entry { action: Action::OneShot(m), .. }) => {
                     let new_mods = self.oneshot | *m;
 
@@ -219,6 +234,38 @@ impl TaipoManager {
         if (self.oneshot, self.sticky) != self.reported {
             self.reported = (self.oneshot, self.sticky);
             actions.set_mod_state(self.oneshot, self.sticky).await;
+        }
+    }
+
+    /// Type a sequence of characters, one keypress per character.
+    ///
+    /// Each character is its own HID report.  All but the last are released as
+    /// they are typed; the last is left held, so that the chord's release
+    /// finishes the sequence exactly as it finishes a single-key chord,
+    /// including the taipo latch bookkeeping.
+    ///
+    /// Because `oneshot` is consumed per character, held modifiers follow the
+    /// usual rule: a one-shot modifier applies to the first character only,
+    /// while sticky modifiers apply to all of them.  A shift asked for by the
+    /// text itself is or-ed in on top.
+    ///
+    /// Characters the key table has no key for are skipped.  Sequences want to
+    /// be short: every character is a report on a queue that drains at one per
+    /// millisecond, so a long one would stall the tick it is sent from.
+    async fn type_text<ACT: LayoutActions>(
+        &mut self,
+        actions: &ACT,
+        is_steno: bool,
+        text: &'static str,
+    ) {
+        for ch in text.chars() {
+            let Some((key, shift)) = key_for_char(ch) else {
+                continue;
+            };
+            self.release_nonmod(actions, is_steno).await;
+            self.send(actions, is_steno, KeyAction::KeyPress(key, self.oneshot | shift)).await;
+            self.down = true;
+            self.oneshot = self.sticky;
         }
     }
 
@@ -818,6 +865,10 @@ static SCAN_MAP: [Option<(Side, u16)>; 30] = [
 pub(super) enum Action {
     Simple(Keyboard),
     Shifted(Keyboard),
+    /// Type a short sequence of characters, one keypress each.  The keys come
+    /// from the same table [`crate::usb_typer`] types strings with, so the
+    /// shift is per character.  Keep these short; see `type_text`.
+    Text(&'static str),
     OneShot(Mods),
     Release,
 }
@@ -844,6 +895,11 @@ static TAIPO_ACTIONS: &[Entry] = &[
     // Enter and variants
     Entry { code: 0x00e, action: Action::Simple(Keyboard::ReturnEnter), },
     Entry { code: 0x10e, action: Action::Simple(Keyboard::Escape), },
+
+    // Multi-character chords.  `ent` (n on the top row, t and e on the bottom)
+    // types the most common English bigram; the space thumb capitalizes it.
+    Entry { code: 0x04c, action: Action::Text("th"), },
+    Entry { code: 0x14c, action: Action::Text("Th"), },
 
     // The single letters, with shift, and the punctuation below these.
     Entry { code: 0x001, action: Action::Simple(Keyboard::A), },
@@ -1008,3 +1064,27 @@ static TAIPO_ACTIONS: &[Entry] = &[
     Entry { code: 0x328, action: Action::Simple(Keyboard::F11), },
     Entry { code: 0x381, action: Action::Simple(Keyboard::F12), },
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::TAIPO_ACTIONS;
+
+    /// Every chord code appears at most once; a duplicate would silently
+    /// shadow the later entry.
+    #[test]
+    fn test_codes_unique() {
+        let mut codes: Vec<u16> = TAIPO_ACTIONS.iter().map(|e| e.code).collect();
+        codes.sort();
+        let count = codes.len();
+        codes.dedup();
+        assert_eq!(codes.len(), count, "duplicate code in TAIPO_ACTIONS");
+    }
+
+    /// Every entry is reachable: an empty chord is never looked up.
+    #[test]
+    fn test_codes_nonempty() {
+        for entry in TAIPO_ACTIONS {
+            assert_ne!(entry.code, 0, "empty code in TAIPO_ACTIONS");
+        }
+    }
+}

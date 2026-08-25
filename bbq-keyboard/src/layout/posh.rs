@@ -263,6 +263,7 @@ mod tests {
         match (a, b) {
             (Action::Simple(x), Action::Simple(y)) => x == y,
             (Action::Shifted(x), Action::Shifted(y)) => x == y,
+            (Action::Text(x), Action::Text(y)) => x == y,
             (Action::OneShot(x), Action::OneShot(y)) => x == y,
             (Action::Release, Action::Release) => true,
             _ => false,
