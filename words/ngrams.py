@@ -25,9 +25,13 @@ deduction rule.
 Grams are counted inside word types, never across a space, because the corpus
 is a word-frequency list rather than running text.
 
+`chords` is the other half: which Taipo chords are still free to put those
+grams on.
+
 Usage:
     uv run words/ngrams.py rank
     uv run words/ngrams.py rank -n 100 --max-len 6
+    uv run words/ngrams.py chords
     uv run words/ngrams.py selftest
 """
 
@@ -39,6 +43,23 @@ from pathlib import Path
 
 CORPUS_URL = "https://norvig.com/ngrams/count_1w.txt"
 DEFAULT_CORPUS = Path(__file__).with_name("count_1w.txt")
+
+# The Taipo chord table, read as text so that this never needs the firmware to
+# build and stays right as the table changes.
+DEFAULT_TABLE = (Path(__file__).parent.parent
+                 / "bbq-keyboard" / "src" / "layout" / "taipo.rs")
+
+# The chord code is a bitmap.  The finger keys are named for the letter they
+# type alone (see TAIPO.md); the two thumbs are above them.
+TOP_ROW = [(0x010, "r"), (0x020, "s"), (0x040, "n"), (0x080, "i")]
+BOTTOM_ROW = [(0x001, "a"), (0x002, "o"), (0x004, "t"), (0x008, "e")]
+FINGERS = 0x0ff
+SP, BK = 0x100, 0x200
+
+# The four thumb variants of a finger pattern, in the order they are reported.
+# Per the layout convention an n-gram chord needs the first two: the bare
+# pattern types the gram in lower case, and Sp capitalises its first letter.
+VARIANTS = [("bare", 0x000), ("+Sp", SP), ("+Bk", BK), ("+both", SP | BK)]
 
 # Grams shorter than this save nothing; longer than --max-len are not counted.
 MIN_LEN = 2
@@ -182,6 +203,69 @@ class Ranker:
             yield gram, value
 
 
+def read_codes(path, table):
+    """The chord codes a Rust chord table uses."""
+    import re
+    source = path.read_text(encoding="utf-8")
+    match = re.search(rf"static {table}[^=]*=\s*&?\[(.*?)\n\];", source, re.S)
+    if not match:
+        raise SystemExit(f"no table {table} found in {path}")
+    return {int(c, 16) for c in re.findall(r"code:\s*0x([0-9a-fA-F]+)",
+                                           match.group(1))}
+
+
+def chord_name(pattern):
+    """The keys of a finger pattern, alphabetically -- `0x04c` is `ent`."""
+    return "".join(sorted(n for b, n in TOP_ROW + BOTTOM_ROW if pattern & b))
+
+
+def chord_picture(pattern):
+    """The pattern as it sits under the hand, top row over bottom row."""
+    rows = ["".join(n if pattern & b else "." for b, n in row)
+            for row in (TOP_ROW, BOTTOM_ROW)]
+    return "/".join(rows)
+
+
+def cmd_chords(args):
+    used = read_codes(args.source, args.table)
+
+    rows = []
+    for pattern in range(1, FINGERS + 1):
+        free = [name for name, thumb in VARIANTS
+                if (pattern | thumb) not in used]
+        rows.append((pattern, free))
+
+    if args.fingers:
+        rows = [r for r in rows if bin(r[0]).count("1") in args.fingers]
+
+    if args.all:
+        print(f"{args.table} in {args.source}: {len(used)} entries\n")
+        print("code  chord     keys       free variants")
+        for pattern, free in rows:
+            print(f"0x{pattern:03x} {chord_name(pattern):<9} "
+                  f"{chord_picture(pattern):<10} {' '.join(free) or '-'}")
+        return
+
+    # The default view: patterns an n-gram chord could take, meaning both the
+    # bare code and its +Sp capital are unclaimed.  +Bk and +both are left
+    # alone; they are held for punctuation and programming grams later.
+    usable = [(p, f) for p, f in rows if "bare" in f and "+Sp" in f]
+
+    print(f"{args.table} in {args.source}: {len(used)} entries")
+    print(f"{len(usable)} of {len(rows)} finger patterns have both the bare "
+          f"chord and its +Sp capital free\n")
+
+    for count in sorted({bin(p).count("1") for p, _ in usable}):
+        group = [(p, f) for p, f in usable if bin(p).count("1") == count]
+        spare = sum(1 for _, f in group if len(f) == 4)
+        print(f"{count} fingers: {len(group)} free "
+              f"({spare} with all four thumb variants free)")
+        for pattern, _ in group:
+            print(f"    0x{pattern:03x} {chord_name(pattern):<9} "
+                  f"{chord_picture(pattern)}")
+        print()
+
+
 def per_thousand(value, baseline):
     """Chords saved per 1000 letters -- the unit everything is reported in."""
     return 1000.0 * value / baseline
@@ -312,6 +396,18 @@ def main():
     rank.add_argument("-q", "--quiet", action="store_true",
                       help="no progress on stderr")
     rank.set_defaults(func=cmd_rank)
+
+    chords = sub.add_parser("chords", help="which chords are still free")
+    chords.add_argument("-s", "--source", type=Path, default=DEFAULT_TABLE,
+                        help=f"Rust file holding the table "
+                             f"(default: {DEFAULT_TABLE.name})")
+    chords.add_argument("-t", "--table", default="TAIPO_ACTIONS",
+                        help="table to read (default: TAIPO_ACTIONS)")
+    chords.add_argument("-f", "--fingers", type=int, nargs="*", metavar="N",
+                        help="only patterns using this many finger keys")
+    chords.add_argument("-a", "--all", action="store_true",
+                        help="every pattern, with its free thumb variants")
+    chords.set_defaults(func=cmd_chords)
 
     test = sub.add_parser("selftest", help="check the cost model and the scan")
     test.add_argument("--slice", type=int, default=20000, metavar="N",
