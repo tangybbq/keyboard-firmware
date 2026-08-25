@@ -56,6 +56,35 @@ BOTTOM_ROW = [(0x001, "a"), (0x002, "o"), (0x004, "t"), (0x008, "e")]
 FINGERS = 0x0ff
 SP, BK = 0x100, 0x200
 
+# Each finger's two keys, ordered pinky to index.
+HAND = [("pinky", 0x010, 0x001), ("ring", 0x020, 0x002),
+        ("middle", 0x040, 0x004), ("index", 0x080, 0x008)]
+
+# --- The ease model -------------------------------------------------------
+#
+# These weights are judgement, not measurement.  They are here to be edited:
+# what the model is really doing is turning "which fingers, and do they have
+# to do different things" into an order, and the exact numbers matter much
+# less than the structure they encode.  Lower is easier.
+
+# How willing each finger is.  The pinky is short and weak, the ring has poor
+# independence, index and middle do as they are told.
+FINGER_COST = {"pinky": 2.3, "ring": 1.6, "middle": 1.05, "index": 1.0}
+
+# One finger pressing both of its keys at once.  Taipo uses this a lot and it
+# is comfortable, but it scales with the finger doing it.
+SQUEEZE = 1.4
+
+# Two *adjacent* fingers held in different rows -- the one that needs real
+# independence.  A finger that is squeezing both its keys covers both rows,
+# so it never conflicts with its neighbour.
+SPLAY = {("pinky", "ring"): 1.0, ("ring", "middle"): 0.8,
+         ("middle", "index"): 0.35}
+
+# An idle finger between two active ones, which has to be held still.
+SKIP = {"ring": 0.5}
+SKIP_DEFAULT = 0.3
+
 # The four thumb variants of a finger pattern, in the order they are reported.
 # Per the layout convention an n-gram chord needs the first two: the bare
 # pattern types the gram in lower case, and Sp capitalises its first letter.
@@ -204,14 +233,67 @@ class Ranker:
 
 
 def read_codes(path, table):
-    """The chord codes a Rust chord table uses."""
+    """The chord codes a Rust chord table uses, each with its action kind."""
     import re
     source = path.read_text(encoding="utf-8")
     match = re.search(rf"static {table}[^=]*=\s*&?\[(.*?)\n\];", source, re.S)
     if not match:
         raise SystemExit(f"no table {table} found in {path}")
-    return {int(c, 16) for c in re.findall(r"code:\s*0x([0-9a-fA-F]+)",
-                                           match.group(1))}
+    return {
+        int(code, 16): kind
+        for code, kind in re.findall(
+            r"code:\s*0x([0-9a-fA-F]+)\s*,\s*action:\s*Action::(\w+)",
+            match.group(1))
+    }
+
+
+def finger_states(pattern):
+    """Each finger's state in this chord: None, "top", "bottom" or "both"."""
+    states = {}
+    for name, top, bottom in HAND:
+        hit = (bool(pattern & top), bool(pattern & bottom))
+        states[name] = {(True, True): "both", (True, False): "top",
+                        (False, True): "bottom", (False, False): None}[hit]
+    return states
+
+
+def ease(pattern):
+    """How hard this chord is to press.  Lower is easier.
+
+    The cost of a chord is what each finger is asked to do, plus what it is
+    asked to do *differently from its neighbour*.  The second part is most of
+    what separates chords that use the same fingers.
+    """
+    states = finger_states(pattern)
+    score = 0.0
+    for name, state in states.items():
+        if state is None:
+            continue
+        score += FINGER_COST[name] * (SQUEEZE if state == "both" else 1.0)
+
+    for (a, b), penalty in SPLAY.items():
+        sa, sb = states[a], states[b]
+        if sa is None or sb is None:
+            continue
+        # A squeezing finger spans both rows, so there is nothing to splay
+        # against; otherwise a row disagreement costs.
+        if sa != "both" and sb != "both" and sa != sb:
+            score += penalty
+
+    order = [name for name, _, _ in HAND]
+    active = [i for i, name in enumerate(order) if states[name]]
+    if active:
+        for i in range(min(active) + 1, max(active)):
+            if not states[order[i]]:
+                score += SKIP.get(order[i], SKIP_DEFAULT)
+    return score
+
+
+def fingers_used(pattern):
+    """Which fingers the chord uses, as initials, pinky to index."""
+    states = finger_states(pattern)
+    return "".join(name[0] if states[name] else "."
+                   for name, _, _ in HAND)
 
 
 def chord_name(pattern):
@@ -226,44 +308,59 @@ def chord_picture(pattern):
     return "/".join(rows)
 
 
+def availability(used, code):
+    """Whether `code` can take an n-gram: "free", "ngram" or None.
+
+    A code holding an `Action::Text` is holding an n-gram that was assigned by
+    this same analysis.  Those are not committed the way a letter or a
+    punctuation mark is -- reassigning one is a table edit -- so they stay in
+    the pool, marked rather than hidden.
+    """
+    kind = used.get(code)
+    if kind is None:
+        return "free"
+    return "ngram" if kind == "Text" else None
+
+
 def cmd_chords(args):
     used = read_codes(args.source, args.table)
 
     rows = []
     for pattern in range(1, FINGERS + 1):
-        free = [name for name, thumb in VARIANTS
-                if (pattern | thumb) not in used]
-        rows.append((pattern, free))
+        state = {name: availability(used, pattern | thumb)
+                 for name, thumb in VARIANTS}
+        rows.append((pattern, state))
 
     if args.fingers:
         rows = [r for r in rows if bin(r[0]).count("1") in args.fingers]
 
     if args.all:
         print(f"{args.table} in {args.source}: {len(used)} entries\n")
-        print("code  chord     keys       free variants")
-        for pattern, free in rows:
+        print("code  chord     keys       ease   available")
+        for pattern, state in sorted(rows, key=lambda r: ease(r[0])):
+            avail = " ".join(f"{n}={v}" for n, v in state.items() if v)
             print(f"0x{pattern:03x} {chord_name(pattern):<9} "
-                  f"{chord_picture(pattern):<10} {' '.join(free) or '-'}")
+                  f"{chord_picture(pattern):<10} {ease(pattern):>5.2f}  "
+                  f"{avail or '-'}")
         return
 
-    # The default view: patterns an n-gram chord could take, meaning both the
-    # bare code and its +Sp capital are unclaimed.  +Bk and +both are left
+    # The default view: patterns an n-gram chord could take, meaning the bare
+    # code and its +Sp capital are both available.  +Bk and +both are left
     # alone; they are held for punctuation and programming grams later.
-    usable = [(p, f) for p, f in rows if "bare" in f and "+Sp" in f]
+    usable = [(p, st) for p, st in rows if st["bare"] and st["+Sp"]]
+    usable.sort(key=lambda r: (ease(r[0]), chord_name(r[0])))
 
     print(f"{args.table} in {args.source}: {len(used)} entries")
-    print(f"{len(usable)} of {len(rows)} finger patterns have both the bare "
-          f"chord and its +Sp capital free\n")
+    print(f"{len(usable)} of {len(rows)} finger patterns can take an n-gram, "
+          f"easiest first")
+    print("(* already holds an n-gram, so it is reassignable rather than free)\n")
 
-    for count in sorted({bin(p).count("1") for p, _ in usable}):
-        group = [(p, f) for p, f in usable if bin(p).count("1") == count]
-        spare = sum(1 for _, f in group if len(f) == 4)
-        print(f"{count} fingers: {len(group)} free "
-              f"({spare} with all four thumb variants free)")
-        for pattern, _ in group:
-            print(f"    0x{pattern:03x} {chord_name(pattern):<9} "
-                  f"{chord_picture(pattern)}")
-        print()
+    print("  ease  code  chord     keys       fingers")
+    for pattern, state in usable:
+        mark = "*" if "ngram" in (state["bare"], state["+Sp"]) else " "
+        print(f"{mark} {ease(pattern):>5.2f}  0x{pattern:03x} "
+              f"{chord_name(pattern):<9} {chord_picture(pattern):<10} "
+              f"{fingers_used(pattern)}")
 
 
 def per_thousand(value, baseline):
