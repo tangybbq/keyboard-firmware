@@ -896,11 +896,18 @@ static TAIPO_ACTIONS: &[Entry] = &[
     Entry { code: 0x00e, action: Action::Simple(Keyboard::ReturnEnter), },
     Entry { code: 0x10e, action: Action::Simple(Keyboard::Escape), },
 
-    // Multi-character chords.  The thirteen most valuable English n-grams, on
-    // the thirteen easiest chords that leave the pinky out.  See
-    // `docs/ngrams-results.md` for where both orders come from: grams are
-    // ranked by the chords they save once the grams above them already have
-    // chords, so `th` is not here -- `the` takes most of what it would save.
+    // Multi-character chords: the most valuable English n-grams, on the
+    // easiest chords that leave the pinky out.  See `docs/ngrams-results.md`
+    // for where both orders come from: grams are ranked by the chords they
+    // save once the grams above them already have chords, so `th` is not
+    // here -- `the` takes most of what it would save.
+    //
+    // Five of the thirteen are followed by an extension of themselves, which
+    // takes a third to a half of what its base would otherwise type -- `ing`
+    // takes 34% of `in`, `ation` 56% of `tion`.  They are here so that the
+    // base is never learned as a habit the extension has to break.  Each sits
+    // on its base's chord plus one key, so the pair is one shape and not two,
+    // and the table order is the order they are worth learning in.
     //
     // The bare chord types the gram, the space thumb capitalizes its first
     // letter.  `+Bk` and both-thumb variants are left unmapped throughout.
@@ -914,6 +921,10 @@ static TAIPO_ACTIONS: &[Entry] = &[
     Entry { code: 0x0c8, action: Action::Text("in"), },
     Entry { code: 0x1c8, action: Action::Text("In"), },
 
+    // eint (2.87) = ein + t -> 'ing', sharing in
+    Entry { code: 0x0cc, action: Action::Text("ing"), },
+    Entry { code: 0x1cc, action: Action::Text("Ing"), },
+
     // ent (2.47) -> 'er', sharing e
     Entry { code: 0x04c, action: Action::Text("er"), },
     Entry { code: 0x14c, action: Action::Text("Er"), },
@@ -922,9 +933,17 @@ static TAIPO_ACTIONS: &[Entry] = &[
     Entry { code: 0x0c4, action: Action::Text("an"), },
     Entry { code: 0x1c4, action: Action::Text("An"), },
 
+    // inst (4.07) = int + s -> 'and', sharing an
+    Entry { code: 0x0e4, action: Action::Text("and"), },
+    Entry { code: 0x1e4, action: Action::Text("And"), },
+
     // not (3.07) -> 'tion', sharing not
     Entry { code: 0x046, action: Action::Text("tion"), },
     Entry { code: 0x146, action: Action::Text("Tion"), },
+
+    // enot (4.07) = not + e -> 'ation', sharing ot
+    Entry { code: 0x04e, action: Action::Text("ation"), },
+    Entry { code: 0x14e, action: Action::Text("Ation"), },
 
     // nst (3.07) -> 're'
     Entry { code: 0x064, action: Action::Text("re"), },
@@ -934,6 +953,10 @@ static TAIPO_ACTIONS: &[Entry] = &[
     Entry { code: 0x062, action: Action::Text("or"), },
     Entry { code: 0x162, action: Action::Text("Or"), },
 
+    // nost (3.71) = nos + t -> 'for', sharing o
+    Entry { code: 0x066, action: Action::Text("for"), },
+    Entry { code: 0x166, action: Action::Text("For"), },
+
     // ost (3.29) -> 'es', sharing s
     Entry { code: 0x026, action: Action::Text("es"), },
     Entry { code: 0x126, action: Action::Text("Es"), },
@@ -941,6 +964,10 @@ static TAIPO_ACTIONS: &[Entry] = &[
     // eis (3.30) -> 'en', sharing e
     Entry { code: 0x0a8, action: Action::Text("en"), },
     Entry { code: 0x1a8, action: Action::Text("En"), },
+
+    // eios (3.94) = eis + o -> 'ent', sharing en
+    Entry { code: 0x0aa, action: Action::Text("ent"), },
+    Entry { code: 0x1aa, action: Action::Text("Ent"), },
 
     // eio (3.30) -> 'on', sharing o
     Entry { code: 0x08a, action: Action::Text("on"), },
