@@ -32,10 +32,12 @@ Usage:
     uv run words/ngrams.py rank
     uv run words/ngrams.py rank -n 100 --max-len 6
     uv run words/ngrams.py chords
+    uv run words/ngrams.py extend
     uv run words/ngrams.py selftest
 """
 
 import argparse
+import re
 import sys
 import urllib.request
 from collections import defaultdict
@@ -418,6 +420,99 @@ def cmd_rank(args):
         )
 
 
+def read_grams(path, table):
+    """The `Action::Text` grams a chord table types, in table order."""
+    source = path.read_text(encoding="utf-8")
+    match = re.search(rf"static {table}[^=]*=\s*&?\[(.*?)\n\];", source, re.S)
+    if not match:
+        raise SystemExit(f"no table {table} found in {path}")
+    grams = []
+    for text in re.findall(r'action:\s*Action::Text\("([^"]+)"\)',
+                           match.group(1)):
+        if text.islower() and text not in grams:
+            grams.append(text)
+    return grams
+
+
+def segment(word, chosen, max_len):
+    """A cheapest segmentation of `word`, longest piece first where tied."""
+    n = len(word)
+    dp, back = [0] * (n + 1), [1] * (n + 1)
+    for i in range(1, n + 1):
+        best, take = dp[i - 1] + 1, 1
+        for length in range(MIN_LEN, min(max_len, i) + 1):
+            if word[i - length:i] in chosen and dp[i - length] + 1 <= best:
+                best, take = dp[i - length] + 1, length
+        dp[i], back[i] = best, take
+    pieces, i = [], n
+    while i:
+        pieces.append(word[i - back[i]:i])
+        i -= back[i]
+    return pieces[::-1]
+
+
+def cmd_extend(args):
+    """Which unadopted grams would take work away from adopted ones.
+
+    `rank` scores a set of grams as it would be once fully adopted.  What is
+    learned is a prefix of that set, and in the gap some adopted gram trains
+    a habit that a gram further down the list takes apart: `ing` claims a
+    third of what `in` would otherwise type.  This measures that claim, so
+    that a base and its extension can be adopted -- and learned -- together.
+    """
+    words = load_corpus(args.words)
+    adopted = read_grams(args.source, args.table)
+    chosen = set(adopted)
+    ranker = Ranker(words, args.max_len, args.floor)
+    for gram in adopted:
+        ranker.take(gram)
+    p1000 = lambda v: per_thousand(v, ranker.baseline)
+
+    # How much each adopted chord is used now, to report a claim as a share.
+    uses = defaultdict(int)
+    for word, count in words:
+        for piece in segment(word, chosen, args.max_len):
+            if len(piece) > 1:
+                uses[piece] += count
+
+    rows = []
+    for gram in ranker.candidates:
+        if gram in chosen or not any(a in gram for a in adopted if a != gram):
+            continue
+        if p1000(ranker.bound[gram]) < args.min_saved:
+            continue
+        saved = ranker.benefit(gram)
+        if p1000(saved) < args.min_saved:
+            continue
+        taken = defaultdict(int)
+        with_gram = chosen | {gram}
+        for i in ranker.index[gram]:
+            word, count = words[i]
+            before = segment(word, chosen, args.max_len)
+            after = segment(word, with_gram, args.max_len)
+            if gram not in after:
+                continue
+            for adopt in adopted:
+                lost = before.count(adopt) - after.count(adopt)
+                if lost > 0:
+                    taken[adopt] += lost * count
+        if taken:
+            rows.append((max(taken.values()) / uses[max(taken, key=taken.get)],
+                         gram, saved, dict(taken)))
+
+    rows.sort(reverse=True)
+    print(f"{len(adopted)} grams adopted in {args.table}; extensions that "
+          f"would claim part of one, biggest share first\n")
+    print(f"{'gram':7s} {'saves/1000':>10s}  claims")
+    for _, gram, saved, taken in rows[:args.number]:
+        claims = ", ".join(
+            f"{a} {100 * v / uses[a]:.0f}%"
+            for a, v in sorted(taken.items(), key=lambda kv: -kv[1])
+            if v / uses[a] >= args.min_share)
+        if claims:
+            print(f"{gram:7s} {p1000(saved):10.2f}  {claims}")
+
+
 def cmd_selftest(args):
     """Check the cost model and the pruned scan against things known by hand."""
     failures = []
@@ -505,6 +600,23 @@ def main():
     chords.add_argument("-a", "--all", action="store_true",
                         help="every pattern, with its free thumb variants")
     chords.set_defaults(func=cmd_chords)
+
+    ext = sub.add_parser("extend",
+                         help="grams that would claim part of an adopted one")
+    ext.add_argument("-s", "--source", type=Path, default=DEFAULT_TABLE,
+                     help=f"Rust file holding the table "
+                          f"(default: {DEFAULT_TABLE.name})")
+    ext.add_argument("-t", "--table", default="TAIPO_ACTIONS",
+                     help="table to read (default: TAIPO_ACTIONS)")
+    ext.add_argument("-n", "--number", type=int, default=15, metavar="N",
+                     help="how many to report (default: 15)")
+    ext.add_argument("--min-saved", type=float, default=1.0, metavar="X",
+                     help="ignore extensions saving less than X per 1000 "
+                          "(default: 1.0)")
+    ext.add_argument("--min-share", type=float, default=0.05, metavar="F",
+                     help="ignore claims below this share of a chord's use "
+                          "(default: 0.05)")
+    ext.set_defaults(func=cmd_extend)
 
     test = sub.add_parser("selftest", help="check the cost model and the scan")
     test.add_argument("--slice", type=int, default=20000, metavar="N",
