@@ -33,3 +33,6 @@ jolt-embassy-rp/main.uf2
 # Sibling git checkouts (separate repositories)
 /embassy/
 /steno-flow/
+
+# Downloaded corpus for words/ngrams.py
+words/count_1w.txt
