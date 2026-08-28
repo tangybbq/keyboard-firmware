@@ -8,12 +8,14 @@ use crate::{KeyEvent, MinorMode};
 
 #[cfg(feature = "qwerty")]
 use self::qwerty::QwertyManager;
+#[cfg(feature = "steno")]
 use self::steno::RawStenoHandler;
 use self::taipo::{TaipoManager, TaipoVariant};
 
 mod posh;
 #[cfg(feature = "qwerty")]
 mod qwerty;
+#[cfg(feature = "steno")]
 mod steno;
 mod taipo;
 
@@ -31,12 +33,14 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "proto2")] {
         const TAIPO_1: u8 = 3;
         const TAIPO_2: u8 = 18;
+        #[cfg(feature = "steno")]
         const TAIPO_MASK: u64 = (1u64 << 3) | (1 << 18);
     } else if #[cfg(feature = "proto3")] {
         const TAIPO_1: u8 = 20;
         const TAIPO_2: u8 = 44;
         const TAIPO_3: u8 = 22;
         const TAIPO_4: u8 = 46;
+        #[cfg(feature = "steno")]
         const TAIPO_MASK: u64 = (1u64 << 20) | (1 << 44) | (1 << 22) | (1 << 46);
     } else {
         compiler_error!("Must enable one of proto2 or proto3");
@@ -206,6 +210,7 @@ mod async_traits {
     // Send is not propagated as a requirement.
     #![allow(async_fn_in_trait)]
 
+    #[cfg(feature = "steno")]
     use bbq_steno::Stroke;
 
     use crate::{KeyAction, MinorMode, Mods};
@@ -239,6 +244,7 @@ mod async_traits {
         async fn clear_sub_mode(&self, submode: MinorMode);
 
         /// Send a RawSteno stroke.
+        #[cfg(feature = "steno")]
         async fn send_raw_steno(&self, stroke: Stroke);
 
         /// Report a change in the Taipo modifier state.
@@ -262,6 +268,7 @@ pub use async_traits::LayoutActions;
 /// - KeyAction
 /// - RawSteno
 pub struct LayoutManager {
+    #[cfg(feature = "steno")]
     raw: steno::RawStenoHandler,
     #[cfg(feature = "qwerty")]
     qwerty: qwerty::QwertyManager,
@@ -294,6 +301,7 @@ pub struct LayoutManager {
 impl LayoutManager {
     pub fn new(two_row: bool) -> Self {
         LayoutManager {
+            #[cfg(feature = "steno")]
             raw: RawStenoHandler::new(),
             mode: ModeSelector::new(two_row),
             #[cfg(feature = "qwerty")]
@@ -312,6 +320,7 @@ impl LayoutManager {
 
     // For now, just pass everything through.
     pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
+        #[cfg(feature = "steno")]
         self.raw.tick(ticks);
         #[cfg(feature = "qwerty")]
         self.qwerty.tick(actions, ticks).await;
@@ -326,6 +335,7 @@ impl LayoutManager {
     }
 
     pub fn poll(&mut self) {
+        #[cfg(feature = "steno")]
         self.raw.poll();
         self.taipo.poll();
     }
@@ -353,6 +363,7 @@ impl LayoutManager {
                 LayoutMode::Taipo => {
                     self.taipo.handle_event(event, actions).await;
                 }
+                #[cfg(feature = "steno")]
                 LayoutMode::Steno | LayoutMode::StenoDirect => {
                     self.raw.handle_event(event, actions).await;
                     self.taipo.handle_event(event, actions).await;
@@ -474,7 +485,9 @@ impl LayoutManager {
 /// The global keyboard mode.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LayoutMode {
+    #[cfg(feature = "steno")]
     StenoDirect,
+    #[cfg(feature = "steno")]
     Steno,
     Taipo,
     #[cfg(feature = "qwerty")]
@@ -501,6 +514,7 @@ enum ModeNext {
     /// This key should be discarded.
     Discard,
     /// The key should be handled normally, but after processing, the mode should be set.
+    #[cfg(feature = "steno")]
     NewMode(LayoutMode),
 }
 
@@ -519,6 +533,7 @@ struct ModeSelector {
     seen: u64,
 
     /// Set when we have only the taipo key(s) down.
+    #[cfg(feature = "steno")]
     taipo: bool,
 }
 
@@ -536,6 +551,7 @@ impl ModeSelector {
             selecting: false,
             pressed: 0,
             seen: 0,
+            #[cfg(feature = "steno")]
             taipo: false,
         }
     }
@@ -554,6 +570,7 @@ impl ModeSelector {
         }
 
         // Detect the taipo key being pressed by itself.
+        #[cfg(feature = "steno")]
         if let Some(_) = taipo_map(event.key()) {
             if event.is_press() {
                 if self.pressed & !TAIPO_MASK == 0 {
@@ -630,12 +647,11 @@ impl ModeSelector {
     /// When 'event' returns the ModeNext, after processing, this call can be used to handle
     /// NewMode.
     async fn after_event<ACT: LayoutActions>(&mut self, actions: &ACT, next: ModeNext) {
-        match next {
-            ModeNext::NewMode(mode) => {
-                self.mode = mode;
-                actions.set_mode(mode).await;
-            }
-            _ => (),
+        let _ = (actions, &next);
+        #[cfg(feature = "steno")]
+        if let ModeNext::NewMode(mode) = next {
+            self.mode = mode;
+            actions.set_mode(mode).await;
         }
     }
 
@@ -653,8 +669,10 @@ impl ModeSelector {
                 Some(LayoutMode::Taipo)
             }
             // qwerty 'd' or 'k' select StenoDirect.
+            #[cfg(feature = "steno")]
             m if m == (1 << 13) || m == (1 << 37) => Some(LayoutMode::StenoDirect),
             // qwerty 's' or 'l' select steno raw.
+            #[cfg(feature = "steno")]
             m if m == (1 << 9) || m == (1 << 33) => Some(LayoutMode::Steno),
             _ => None,
         }
@@ -662,7 +680,10 @@ impl ModeSelector {
 
     /// Quick check if we are in steno mode.
     fn is_steno(&self) -> bool {
-        matches!(self.mode, LayoutMode::Steno)
+        #[cfg(feature = "steno")]
+        return matches!(self.mode, LayoutMode::Steno);
+        #[cfg(not(feature = "steno"))]
+        false
     }
 
     /// Are we in one of the inherently 2-row layouts?
@@ -678,6 +699,7 @@ impl ModeSelector {
         }
         match self.mode {
             LayoutMode::Taipo => true,
+            #[cfg(feature = "steno")]
             LayoutMode::Steno | LayoutMode::StenoDirect => true,
             #[cfg(feature = "qwerty")]
             LayoutMode::Qwerty | LayoutMode::NKRO => false,
@@ -697,6 +719,7 @@ impl LayoutMode {
             LayoutMode::Taipo => after_taipo(two_row),
             #[cfg(feature = "qwerty")]
             LayoutMode::Qwerty | LayoutMode::NKRO => after_qwerty(),
+            #[cfg(feature = "steno")]
             LayoutMode::Steno | LayoutMode::StenoDirect => LayoutMode::Taipo,
         }
     }
@@ -714,14 +737,19 @@ fn after_taipo(two_row: bool) -> LayoutMode {
 
 /// The mode the cycle moves to after qwerty.
 fn after_qwerty() -> LayoutMode {
-    LayoutMode::Steno
+    #[cfg(feature = "steno")]
+    return LayoutMode::Steno;
+    #[cfg(not(feature = "steno"))]
+    LayoutMode::Taipo
 }
 
 #[cfg(feature = "defmt")]
 impl defmt::Format for LayoutMode {
     fn format(&self, fmt: defmt::Formatter) {
         match self {
+            #[cfg(feature = "steno")]
             LayoutMode::Steno => defmt::write!(fmt, "steno"),
+            #[cfg(feature = "steno")]
             LayoutMode::StenoDirect => defmt::write!(fmt, "StenoDirect"),
             #[cfg(feature = "qwerty")]
             LayoutMode::Qwerty => defmt::write!(fmt, "qwerty"),

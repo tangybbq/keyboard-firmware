@@ -27,7 +27,7 @@ embassy-time = { version = "0.4.0", features = ["tick-hz-10_000"] }
 [dependencies.bbq-keyboard]
 version = "0.1.0"
 default-features = false
-features = ["proto3", "log"]
+features = ["proto3", "log", "qwerty", "steno"]
 path = "../bbq-keyboard"
 
 [dependencies.bbq-steno]

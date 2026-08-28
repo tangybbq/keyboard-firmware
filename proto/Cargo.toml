@@ -48,7 +48,7 @@ usbd-human-interface-device = "0.4"
 # rp2040-boot2 = "0.2"
 
 # Child crates containing the implementation.
-bbq-keyboard = { version = "0.1.0", default-features = false, path = "../bbq-keyboard" }
+bbq-keyboard = { version = "0.1.0", default-features = false, features = ["qwerty", "steno"], path = "../bbq-keyboard" }
 bbq-steno = { version = "0.1.0", default-features = false, path = "../bbq-steno" }
 bbq-steno-macros = { version = "0.1.0", default-features = false, path = "../bbq-steno-macros" }
 rp2040-boot2 = "0.3.0"

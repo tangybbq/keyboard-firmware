@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 use bbq_keyboard::Mods;
+#[cfg(feature = "steno")]
 use bbq_steno::dict::State;
 use heapless::Vec;
 use smart_leds::RGB8;
@@ -283,6 +284,7 @@ pub fn get_mods_color(oneshot: Mods, sticky: Mods) -> RGB8 {
 }
 
 /// Take a steno state and return an indicator for it.
+#[cfg(feature = "steno")]
 pub fn get_steno_state(state: &State) -> &'static Indication {
     // For now, we'll try to show cap and not-spacing.
     let space = state.space || state.force_space || state.stitch;

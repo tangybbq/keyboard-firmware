@@ -102,6 +102,7 @@ version = "0.1.0"
 default-features = false
 path = "../bbq-steno"
 features = []
+optional = true
 
 [dependencies.minder]
 version = "0.1.0"
@@ -109,7 +110,7 @@ default-features = false
 path = "../minder"
 
 [features]
-default = ["defmt", "qwerty"]
+default = ["defmt", "qwerty", "steno"]
 # default = ["log"]
 
 nightly = ["embassy-executor/nightly"]
@@ -117,11 +118,12 @@ nightly = ["embassy-executor/nightly"]
 # The optional layouts.  Taipo is always built; leaving these out gives a
 # firmware with no way to reach the other modes at all.
 qwerty = ["bbq-keyboard/qwerty"]
+steno = ["bbq-keyboard/steno", "dep:bbq-steno"]
 
 defmt = [
   "dep:defmt", "embassy-embedded-hal/defmt", "embassy-sync/defmt", "embassy-executor/defmt",
   "embassy-time/defmt", "embassy-rp/defmt", "embassy-usb/defmt", "dep:defmt-rtt",
-  "bbq-keyboard/defmt", "bbq-steno/defmt", "embassy-time/defmt-timestamp-uptime",
+  "bbq-keyboard/defmt", "bbq-steno?/defmt", "embassy-time/defmt-timestamp-uptime",
   "embedded-io-async/defmt",
   "panic-probe/print-defmt",
   "minder/defmt",

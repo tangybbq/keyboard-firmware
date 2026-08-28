@@ -21,8 +21,8 @@ enumset = "1.1"
 minicbor = { version = "0.25.1", features = ["alloc", "derive"] }
 minder = { version = "0.1.0", path = "../minder", default-features = false }
 
-bbq-steno = { version = "0.1", features = [], default-features = false, path = "../bbq-steno" }
-bbq-steno-macros = { version = "0.1", path = "../bbq-steno-macros", default-features = false }
+bbq-steno = { version = "0.1", features = [], default-features = false, path = "../bbq-steno", optional = true }
+bbq-steno-macros = { version = "0.1", path = "../bbq-steno-macros", default-features = false, optional = true }
 bitflags = "2.4.1"
 
 clap = { version = "4.0", features = ["derive"], optional = true }
@@ -33,7 +33,7 @@ cfg-if = "1.0.0"
 futures = { version = "0.3", features = ["executor"] }
 
 [features]
-default = ["std", "proto3", "log", "qwerty"]
+default = ["std", "proto3", "log", "qwerty", "steno"]
 std = ["dep:clap"]
 proto2 = []
 proto3 = []
@@ -41,11 +41,12 @@ proto3 = []
 # The optional layouts.  Taipo is always built; the others can be left out to
 # get a firmware that has no way to reach them.
 qwerty = []
+steno = ["dep:bbq-steno", "dep:bbq-steno-macros"]
 
 # usbd-human-interface-device's defmt feature is intentionally NOT enabled: it
 # pulls usb-device, which still depends on defmt 0.3, which would split the
 # workspace across two defmt versions.  The one type we format that carries a
 # usbd-hid `Keyboard` (`KeyAction`) uses `defmt(Debug2Format)` instead.
-defmt = ["dep:defmt", "bbq-steno/defmt"]
+defmt = ["dep:defmt", "bbq-steno?/defmt"]
 # defmt = ["bbq-steno/defmt"]
-log = ["dep:log", "bbq-steno/log"]
+log = ["dep:log", "bbq-steno?/log"]

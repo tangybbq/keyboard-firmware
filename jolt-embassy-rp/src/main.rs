@@ -16,22 +16,30 @@ extern crate alloc;
 use core::mem::MaybeUninit;
 
 use bbq_keyboard::boardinfo::BoardInfo;
+#[cfg(feature = "steno")]
 use bbq_keyboard::dict::Dict;
+#[cfg(feature = "steno")]
 use bbq_keyboard::{Event, EventQueue, Side, Timable};
+#[cfg(feature = "steno")]
 use bbq_steno::dict::Joined;
+#[cfg(feature = "steno")]
 use bbq_steno::Stroke;
 use board::Board;
 use cortex_m_rt::{self, entry};
 use dispatch::Dispatch;
-use embassy_executor::{Executor, InterruptExecutor, Spawner};
+use embassy_executor::{Executor, InterruptExecutor};
 use embassy_rp::interrupt::{InterruptExt, Priority};
 use embassy_rp::peripherals::{FLASH, PIO0};
 use embassy_rp::pio::InterruptHandler;
 use embassy_rp::uart::BufferedInterruptHandler;
 use embassy_rp::{bind_interrupts, i2c, install_core0_stack_guard, interrupt, Peri};
+#[cfg(feature = "steno")]
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+#[cfg(feature = "steno")]
 use embassy_sync::channel::{Channel, Receiver, Sender};
-use embassy_time::{Duration, Instant, Ticker};
+#[cfg(feature = "steno")]
+use embassy_time::Instant;
+use embassy_time::{Duration, Ticker};
 // use embedded_alloc::TlsfHeap as Heap;
 use embedded_alloc::LlffHeap as Heap;
 use static_cell::StaticCell;
@@ -138,22 +146,31 @@ fn main() -> ! {
     
     // The general event queue.
     // TODO: This should go away.
+    #[cfg(feature = "steno")]
     static EVENT_QUEUE: StaticCell<Channel<CriticalSectionRawMutex, Event, 16>> = StaticCell::new();
+    #[cfg(feature = "steno")]
     let event_queue = EVENT_QUEUE.init(Channel::new());
 
     // The channel for sending strokes to the steno task.
+    #[cfg(feature = "steno")]
     static STROKE_QUEUE: StaticCell<Channel<CriticalSectionRawMutex, Stroke, 10>> = StaticCell::new();
+    #[cfg(feature = "steno")]
     let stroke_queue = STROKE_QUEUE.init(Channel::new());
 
     // The 'typed' channel sends actions back to dispatch to be typed.
+    #[cfg(feature = "steno")]
     static TYPED_QUEUE: StaticCell<Channel<CriticalSectionRawMutex, Joined, 2>> = StaticCell::new();
+    #[cfg(feature = "steno")]
     let typed_queue = TYPED_QUEUE.init(Channel::new());
 
     let _dispatch = Dispatch::new(
         high_spawner,
         board,
+        #[cfg(feature = "steno")]
         event_queue.receiver(),
+        #[cfg(feature = "steno")]
         stroke_queue.sender(),
+        #[cfg(feature = "steno")]
         typed_queue.receiver(),
     );
 
@@ -161,9 +178,15 @@ fn main() -> ! {
     // dictionary lookup take around 1ms, depending on what else is happening.
     let executor = EXECUTOR_LOW.init(Executor::new());
     executor.run(|spawner| {
-        if let Some(Side::Right) = info.side {
-        } else {
-            spawner.spawn(unwrap!(steno_task(spawner, stroke_queue.receiver(), typed_queue.sender(), event_queue.sender())));
+        spawner.spawn(unwrap!(heap_stats()));
+
+        #[cfg(feature = "steno")]
+        if !matches!(info.side, Some(Side::Right)) {
+            spawner.spawn(unwrap!(steno_task(
+                stroke_queue.receiver(),
+                typed_queue.sender(),
+                event_queue.sender(),
+            )));
         }
 
         // It should be safe to just exit. We'll sleep if no task got spawned.
@@ -172,15 +195,13 @@ fn main() -> ! {
 
 // TODO: Big one, this is the only use of `Event` remaining.  Improve this here (and in the zephyr
 // firmware) to use a callback for events and possibly actions.
+#[cfg(feature = "steno")]
 #[embassy_executor::task]
 async fn steno_task(
-    spawner: Spawner,
     strokes: Receiver<'static, CriticalSectionRawMutex, Stroke, 10>,
     typed: Sender<'static, CriticalSectionRawMutex, Joined, 2>,
     events: Sender<'static, CriticalSectionRawMutex, Event, 16>,
 ) -> ! {
-    spawner.spawn(unwrap!(heap_stats()));
-
     let mut dict = Dict::new();
     let mut eq_send = SendWrap(events);
 
@@ -204,8 +225,10 @@ async fn steno_task(
     }
 }
 
+#[cfg(feature = "steno")]
 struct SendWrap(Sender<'static, CriticalSectionRawMutex, Event, 16>);
 
+#[cfg(feature = "steno")]
 impl EventQueue for SendWrap {
     fn push(&mut self, val: Event) {
         // TODO: this is only try, hence the need to have the queue large enough.
@@ -213,8 +236,10 @@ impl EventQueue for SendWrap {
     }
 }
 
+#[cfg(feature = "steno")]
 struct WrapTimer;
 
+#[cfg(feature = "steno")]
 impl Timable for WrapTimer {
     fn get_ticks(&self) -> u64 {
         Instant::now().as_ticks()

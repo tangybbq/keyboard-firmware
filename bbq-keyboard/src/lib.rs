@@ -19,14 +19,17 @@ use bitflags::bitflags;
 
 pub use layout::LayoutMode;
 
+#[cfg(feature = "steno")]
 pub mod dict;
 pub mod boardinfo;
 pub mod keys;
 pub mod ser2;
 pub mod serialize;
+#[cfg(feature = "steno")]
 pub mod modifiers;
 pub mod usb_typer;
 pub mod layout;
+#[cfg(feature = "steno")]
 pub mod steno_delay;
 
 #[cfg(feature = "std")]
@@ -35,11 +38,16 @@ use clap::ValueEnum;
 cfg_if!(
     if #[cfg(feature = "log")] {
         mod log {
+            // Which of these are used depends on which layouts are built.
+            #![allow(unused_imports)]
+
             pub use log::warn;
             pub use log::info;
         }
     } else if #[cfg(feature = "defmt")] {
         mod log {
+            #![allow(unused_imports)]
+
             pub use defmt::info;
             pub use defmt::warn;
         }
@@ -187,6 +195,7 @@ pub enum Event {
     Heartbeat,
 
     /// Message back from the layout code that steno raw mode is enabled.
+    #[cfg(feature = "steno")]
     RawMode(bool),
 
     /// Message received from the primary side to set out LEDs.
@@ -196,6 +205,7 @@ pub enum Event {
     SendLed(RGB8),
 
     /// Update the steno mode state.
+    #[cfg(feature = "steno")]
     StenoState(bbq_steno::dict::State),
 
     /// Tick.  Happens every 1 ms.

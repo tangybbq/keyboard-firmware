@@ -4,22 +4,35 @@
 //! protected using Atomic or Mutexes.
 
 use bbq_keyboard::layout::{LayoutActions, LayoutManager};
+#[cfg(feature = "steno")]
 use bbq_keyboard::steno_delay::StenoDelay;
+#[cfg(feature = "steno")]
 use bbq_keyboard::usb_typer::{enqueue_action, ActionHandler};
-use bbq_keyboard::{Event, KeyAction, Keyboard, LayoutMode, MinorMode, Mods};
+#[cfg(feature = "steno")]
+use bbq_keyboard::{Event, Keyboard};
+use bbq_keyboard::{KeyAction, LayoutMode, MinorMode, Mods};
+#[cfg(feature = "steno")]
 use bbq_steno::dict::Joined;
+#[cfg(feature = "steno")]
 use bbq_steno::Stroke;
 use embassy_executor::SendSpawner;
+#[cfg(feature = "steno")]
 use embassy_futures::select::{select3, Either3};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+#[cfg(feature = "steno")]
 use embassy_sync::channel::{Receiver, Sender};
 use embassy_sync::mutex::Mutex;
+#[cfg(feature = "steno")]
 use embassy_sync::signal::Signal;
-use embassy_time::{Duration, Instant, Ticker, Timer};
+use embassy_time::{Duration, Ticker};
+#[cfg(feature = "steno")]
+use embassy_time::{Instant, Timer};
 use static_cell::StaticCell;
 
 use crate::board::{Inter, KeyChannel, UsbHandler};
-use crate::leds::manager::{self, get_mods_color, get_steno_state, Indication, LedManager};
+#[cfg(feature = "steno")]
+use crate::leds::manager::{get_steno_state, Indication};
+use crate::leds::manager::{self, get_mods_color, LedManager};
 use crate::logging::unwrap;
 use crate::matrix::Matrix;
 use crate::{board::Board, matrix::MatrixAction};
@@ -36,19 +49,31 @@ const MODS_LED: usize = 3;
 /// of Taipo mode.
 const VARIANT_LED: usize = 2;
 
+/// The mode `current_mode` starts out holding, before the layout has reported
+/// its own.  Steno when it is built, and taipo in a taipo-only firmware.
+#[cfg(feature = "steno")]
+const INITIAL_MODE: LayoutMode = LayoutMode::Steno;
+#[cfg(not(feature = "steno"))]
+const INITIAL_MODE: LayoutMode = LayoutMode::Taipo;
+
 pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
     layout: Option<Mutex<CriticalSectionRawMutex, LayoutManager>>,
     inter: Inter,
     usb: Option<UsbHandler>,
+    #[cfg(feature = "steno")]
     stroke_sender: Sender<'static, CriticalSectionRawMutex, Stroke, 10>,
+    #[cfg(feature = "steno")]
     event_receiver: Receiver<'static, CriticalSectionRawMutex, Event, 16>,
+    #[cfg(feature = "steno")]
     typed_receiver: Receiver<'static, CriticalSectionRawMutex, Joined, 2>,
 
     /// Asks `typed_loop` to type everything it still has buffered, right now.
+    #[cfg(feature = "steno")]
     flush_signal: Signal<CriticalSectionRawMutex, ()>,
 
     current_mode: Mutex<CriticalSectionRawMutex, LayoutMode>,
+    #[cfg(feature = "steno")]
     raw_mode: Mutex<CriticalSectionRawMutex, bool>,
 
     /// Whether the Taipo engine has the Posh chord table selected.  Only
@@ -61,9 +86,9 @@ impl Dispatch {
     pub fn new(
         spawn_high: SendSpawner,
         board: Board,
-        event_receiver: Receiver<'static, CriticalSectionRawMutex, Event, 16>,
-        stroke_sender: Sender<'static, CriticalSectionRawMutex, Stroke, 10>,
-        typed_receiver: Receiver<'static, CriticalSectionRawMutex, Joined, 2>,
+        #[cfg(feature = "steno")] event_receiver: Receiver<'static, CriticalSectionRawMutex, Event, 16>,
+        #[cfg(feature = "steno")] stroke_sender: Sender<'static, CriticalSectionRawMutex, Stroke, 10>,
+        #[cfg(feature = "steno")] typed_receiver: Receiver<'static, CriticalSectionRawMutex, Joined, 2>,
     ) -> &'static Dispatch {
         let mut leds = LedManager::new(board.leds);
 
@@ -90,14 +115,19 @@ impl Dispatch {
         let this = THIS.init(Dispatch {
             leds,
             layout,
-            current_mode: Mutex::new(LayoutMode::Steno),
+            current_mode: Mutex::new(INITIAL_MODE),
+            #[cfg(feature = "steno")]
             raw_mode: Mutex::new(false),
             posh: Mutex::new(false),
             inter: board.inter,
             usb: board.usb,
+            #[cfg(feature = "steno")]
             stroke_sender,
+            #[cfg(feature = "steno")]
             event_receiver,
+            #[cfg(feature = "steno")]
             typed_receiver,
+            #[cfg(feature = "steno")]
             flush_signal: Signal::new(),
         });
 
@@ -105,7 +135,9 @@ impl Dispatch {
         spawn_high.spawn(unwrap!(led_loop(&this.leds)));
         if this.layout.is_some() {
             spawn_high.spawn(unwrap!(layout_loop(this)));
+            #[cfg(feature = "steno")]
             spawn_high.spawn(unwrap!(event_loop(this)));
+            #[cfg(feature = "steno")]
             spawn_high.spawn(unwrap!(typed_loop(this)));
         }
         if let Inter::ActiveI2C(chan) = this.inter {
@@ -174,6 +206,7 @@ async fn layout_loop(dispatch: &'static Dispatch) -> ! {
 }
 
 /// Legacy event loop handler.
+#[cfg(feature = "steno")]
 #[embassy_executor::task]
 async fn event_loop(dispatch: &'static Dispatch) -> ! {
     loop {
@@ -200,6 +233,7 @@ async fn event_loop(dispatch: &'static Dispatch) -> ! {
 /// Dictionary results are not typed as they arrive, but held in a [`StenoDelay`] buffer for a
 /// short while, so that a following stroke's corrections can quietly consume text that hasn't
 /// been typed yet.  See `bbq_keyboard::steno_delay`.
+#[cfg(feature = "steno")]
 #[embassy_executor::task]
 async fn typed_loop(dispatch: &'static Dispatch) -> ! {
     let usb = dispatch.usb.as_ref().unwrap();
@@ -239,6 +273,7 @@ async fn typed_loop(dispatch: &'static Dispatch) -> ! {
 }
 
 /// Send a dictionary result to the host as USB key events.
+#[cfg(feature = "steno")]
 async fn type_action(usb: &'static UsbHandler, action: Joined) {
     let Joined::Type { remove, append } = action;
 
@@ -256,8 +291,10 @@ async fn type_action(usb: &'static UsbHandler, action: Joined) {
 }
 
 // The Actionhandler wants a mut ref, so give it one.
+#[cfg(feature = "steno")]
 struct UsbAction(&'static UsbHandler);
 
+#[cfg(feature = "steno")]
 impl ActionHandler for UsbAction {
     async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
         for ev in events {
@@ -295,7 +332,9 @@ impl MatrixAction for Dispatch {
 impl LayoutActions for Dispatch {
     async fn set_mode(&self, mode: LayoutMode) {
         let next = match mode {
+            #[cfg(feature = "steno")]
             LayoutMode::StenoDirect => todo!(),
+            #[cfg(feature = "steno")]
             LayoutMode::Steno => get_steno_indicator(*self.raw_mode.lock().await),
             LayoutMode::Taipo => &manager::TAIPO_INDICATOR,
             #[cfg(feature = "qwerty")]
@@ -307,6 +346,7 @@ impl LayoutActions for Dispatch {
         // Steno output is buffered briefly before being typed.  Leaving steno mode, get it out
         // now, rather than having it appear in the middle of what is typed next.  Signalling with
         // nothing buffered is harmless.
+        #[cfg(feature = "steno")]
         if mode != LayoutMode::Steno {
             self.flush_signal.signal(());
         }
@@ -316,7 +356,9 @@ impl LayoutActions for Dispatch {
 
     async fn set_mode_select(&self, mode: LayoutMode) {
         let next = match mode {
+            #[cfg(feature = "steno")]
             LayoutMode::StenoDirect => todo!(),
+            #[cfg(feature = "steno")]
             LayoutMode::Steno => get_steno_select_indicator(*self.raw_mode.lock().await),
             LayoutMode::Taipo => &manager::TAIPO_SELECT_INDICATOR,
             #[cfg(feature = "qwerty")]
@@ -348,6 +390,7 @@ impl LayoutActions for Dispatch {
         }
     }
 
+    #[cfg(feature = "steno")]
     async fn send_raw_steno(&self, stroke: Stroke) {
         self.stroke_sender.send(stroke).await;
     }
@@ -358,6 +401,7 @@ impl LayoutActions for Dispatch {
     }
 }
 
+#[cfg(feature = "steno")]
 fn get_steno_indicator(raw: bool) -> &'static Indication {
     if raw {
         &crate::leds::manager::STENO_RAW_INDICATOR
@@ -366,6 +410,7 @@ fn get_steno_indicator(raw: bool) -> &'static Indication {
     }
 }
 
+#[cfg(feature = "steno")]
 fn get_steno_select_indicator(raw: bool) -> &'static Indication {
     if raw {
         &crate::leds::manager::STENO_RAW_SELECT_INDICATOR
