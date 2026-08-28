@@ -646,41 +646,45 @@ impl ModeSelector {
     /// depend on which direction the mode is being cycled.
     #[cfg(feature = "proto3")]
     fn is_two_row_layout(&self) -> bool {
-        !self.selecting
-            && matches!(
-                self.mode,
-                LayoutMode::Taipo | LayoutMode::Steno | LayoutMode::StenoDirect
-            )
+        if self.selecting {
+            return false;
+        }
+        match self.mode {
+            LayoutMode::Taipo => true,
+            LayoutMode::Steno | LayoutMode::StenoDirect => true,
+            LayoutMode::Qwerty | LayoutMode::NKRO => false,
+        }
     }
 }
 
 impl LayoutMode {
     /// Move to the next mode.
+    ///
+    /// The cycle is taipo, then qwerty, then steno, and back around to taipo.
+    /// A two-row board has no qwerty in the cycle, so taipo goes straight on to
+    /// steno.  The modes that can only be entered directly (`StenoDirect` and
+    /// `NKRO`) rejoin the cycle wherever their companion mode leaves it.
     fn next(self, two_row: bool) -> Self {
-        if two_row {
-            match self {
-                // Direct cycling is between these modes.
-                LayoutMode::Steno => LayoutMode::Taipo,
-                LayoutMode::Taipo => LayoutMode::Steno,
-
-                // These move to another mode, but can only be entered directly.
-                LayoutMode::Qwerty => LayoutMode::Steno,
-                LayoutMode::StenoDirect => LayoutMode::Taipo,
-                LayoutMode::NKRO => LayoutMode::Steno,
-            }
-        } else {
-            match self {
-                // Direct cycling is between these modes.
-                LayoutMode::Steno => LayoutMode::Taipo,
-                LayoutMode::StenoDirect => LayoutMode::Taipo,
-                LayoutMode::Taipo => LayoutMode::Qwerty,
-                LayoutMode::Qwerty => LayoutMode::Steno,
-
-                // These move to another mode, but can only be entered directly.
-                LayoutMode::NKRO => LayoutMode::Steno,
-            }
+        match self {
+            LayoutMode::Taipo => after_taipo(two_row),
+            LayoutMode::Qwerty | LayoutMode::NKRO => after_qwerty(),
+            LayoutMode::Steno | LayoutMode::StenoDirect => LayoutMode::Taipo,
         }
     }
+}
+
+/// The mode the cycle moves to after taipo.
+fn after_taipo(two_row: bool) -> LayoutMode {
+    if two_row {
+        after_qwerty()
+    } else {
+        LayoutMode::Qwerty
+    }
+}
+
+/// The mode the cycle moves to after qwerty.
+fn after_qwerty() -> LayoutMode {
+    LayoutMode::Steno
 }
 
 #[cfg(feature = "defmt")]
