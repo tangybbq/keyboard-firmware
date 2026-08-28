@@ -33,10 +33,15 @@ cfg-if = "1.0.0"
 futures = { version = "0.3", features = ["executor"] }
 
 [features]
-default = ["std", "proto3", "log"]
+default = ["std", "proto3", "log", "qwerty"]
 std = ["dep:clap"]
 proto2 = []
 proto3 = []
+
+# The optional layouts.  Taipo is always built; the others can be left out to
+# get a firmware that has no way to reach them.
+qwerty = []
+
 # usbd-human-interface-device's defmt feature is intentionally NOT enabled: it
 # pulls usb-device, which still depends on defmt 0.3, which would split the
 # workspace across two defmt versions.  The one type we format that carries a

@@ -298,8 +298,8 @@ impl LayoutActions for Dispatch {
             LayoutMode::StenoDirect => todo!(),
             LayoutMode::Steno => get_steno_indicator(*self.raw_mode.lock().await),
             LayoutMode::Taipo => &manager::TAIPO_INDICATOR,
-            LayoutMode::Qwerty => &manager::QWERTY_INDICATOR,
-            _ => &manager::QWERTY_INDICATOR,
+            #[cfg(feature = "qwerty")]
+            LayoutMode::Qwerty | LayoutMode::NKRO => &manager::QWERTY_INDICATOR,
         };
         self.leds.lock().await.set_base(0, next);
         *self.current_mode.lock().await = mode;
@@ -319,8 +319,8 @@ impl LayoutActions for Dispatch {
             LayoutMode::StenoDirect => todo!(),
             LayoutMode::Steno => get_steno_select_indicator(*self.raw_mode.lock().await),
             LayoutMode::Taipo => &manager::TAIPO_SELECT_INDICATOR,
-            LayoutMode::Qwerty => &manager::QWERTY_SELECT_INDICATOR,
-            _ => &manager::QWERTY_SELECT_INDICATOR,
+            #[cfg(feature = "qwerty")]
+            LayoutMode::Qwerty | LayoutMode::NKRO => &manager::QWERTY_SELECT_INDICATOR,
         };
         self.leds.lock().await.set_base(0, next);
     }

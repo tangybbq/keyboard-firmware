@@ -109,10 +109,14 @@ default-features = false
 path = "../minder"
 
 [features]
-default = ["defmt"]
+default = ["defmt", "qwerty"]
 # default = ["log"]
 
 nightly = ["embassy-executor/nightly"]
+
+# The optional layouts.  Taipo is always built; leaving these out gives a
+# firmware with no way to reach the other modes at all.
+qwerty = ["bbq-keyboard/qwerty"]
 
 defmt = [
   "dep:defmt", "embassy-embedded-hal/defmt", "embassy-sync/defmt", "embassy-executor/defmt",
