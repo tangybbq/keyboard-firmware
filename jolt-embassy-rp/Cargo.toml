@@ -110,7 +110,9 @@ default-features = false
 path = "../minder"
 
 [features]
-default = ["defmt", "qwerty", "steno"]
+# The jolt3 is built as a taipo-only keyboard.  `just build-full` adds the
+# other layouts back.
+default = ["defmt"]
 # default = ["log"]
 
 nightly = ["embassy-executor/nightly"]

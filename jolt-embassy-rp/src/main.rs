@@ -120,6 +120,9 @@ fn main() -> ! {
 
     info!("TangyBBQ Jolt3 Keyboard Firmware");
     info!("Build: {}", BUILD_ID);
+    info!("Layouts: taipo{}{}",
+          if cfg!(feature = "qwerty") { " qwerty" } else { "" },
+          if cfg!(feature = "steno") { " steno" } else { "" });
 
     // Setup the MPU with a stack guard.
     install_core0_stack_guard().expect("MPU already configured)");

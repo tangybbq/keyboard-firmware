@@ -32,6 +32,8 @@ There are the following crates:
   Steno mode simply returns strokes, and the main firmware uses the dictionary support for
   translation. Keyboard geometry is selected with the `proto2` (2-row) / `proto3` (3-row) cargo
   features; `jolt-embassy-rp` builds with `proto3` scancodes and translates per-board at runtime.
+  Taipo is always built; Qwerty and Steno are each behind a cargo feature of that name, and a build
+  without them has no way to reach those modes at all.
 - minder: A simple protocol, used over a USB bulk channel, to update dictionaries, and get basic
   status.
 
@@ -98,7 +100,9 @@ Other directories can be ignored at this time.
 ## Building `jolt-embassy-rp`
 
 - Build from the `jolt-embassy-rp` directory with `just build` (or `cargo build --bin
-  jolt-embassy-rp`; the target is `thumbv6m-none-eabi`).
+  jolt-embassy-rp`; the target is `thumbv6m-none-eabi`).  This is a **taipo-only** firmware; the
+  qwerty and steno layouts are not compiled in.
+- `just build-full` (or `--features qwerty,steno`) builds with all three layouts.
 - `just uf2` converts the ELF to `main.uf2` and copies it to a keyboard in UF2 bootloader mode.
 - `just serve` / `just gdb` / `just rtt` support JTAG debugging via a Segger J-Link.
 

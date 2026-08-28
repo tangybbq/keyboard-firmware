@@ -1,8 +1,13 @@
 tdir := "target/thumbv6m-none-eabi/debug"
 app := "jolt-embassy-rp"
 
+# The default build is taipo-only.
 build:
 	cargo build --bin {{app}}
+
+# Build with every layout: taipo, qwerty and steno.
+build-full:
+	cargo build --bin {{app}} --features qwerty,steno
 
 # Build with debug logging, which includes the raw and translated scan codes
 # for every key press.  Useful over RTT when bringing up a new board.
