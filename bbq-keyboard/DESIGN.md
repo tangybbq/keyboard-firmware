@@ -107,12 +107,11 @@ This crate is in the middle of moving away from event-queue-driven internals tow
 
 The `layout/` module is the behavioral center of the crate.
 
-It has one top-level coordinator, `LayoutManager`, and four mode-specific decoders:
+It has one top-level coordinator, `LayoutManager`, and three mode-specific decoders:
 
 - `qwerty`
 - `steno`
 - `taipo`
-- `artsey`
 
 ### `LayoutManager`
 
@@ -134,7 +133,6 @@ Supported modes are:
 
 - `StenoDirect`
 - `Steno`
-- `Artsey`
 - `Taipo`
 - `Qwerty`
 - `NKRO`
@@ -245,20 +243,6 @@ Taipo also has a special role in steno modes:
 - while in `Steno`, taipo output is suppressed unless the taipo latch is active
 
 This makes taipo usable as an auxiliary escape/input layer while keeping steno as the main interpretation mode.
-
-### Artsey: `layout/artsey.rs`
-
-Artsey is another compact chorded layout, implemented on 8 logical keys per side.
-
-Key ideas:
-
-- normal output is chord-based
-- some corner keys can enter hold modes after a timing threshold
-- one-shot modifiers affect the next real key
-- “sticky” modifiers are supported for interactions like mouse gestures
-- a nav submode exists and is surfaced through `MinorMode`
-
-Compared with taipo, artsey is more modeful and more dependent on timing thresholds and hold interpretation. Its implementation is correspondingly state-heavy.
 
 ## Steno Integration
 
@@ -385,7 +369,6 @@ Current direct coverage includes:
 Important areas with limited or no direct tests:
 
 - qwerty combo and layer edge cases
-- artsey behavior
 - steno raw collection in `RawStenoHandler`
 - `bbq-keyboard::dict::Dict` integration with flash-loaded dictionaries
 - `usb_typer` behavior
@@ -418,7 +401,7 @@ This is pragmatic for a firmware project, but it means the crate boundary is bro
 
 ### Multiple input semantics
 
-Supporting qwerty, steno, taipo, and artsey in one engine means there is no single universal key-processing model. The crate handles this by:
+Supporting qwerty, steno, and taipo in one engine means there is no single universal key-processing model. The crate handles this by:
 
 - centralizing mode selection
 - keeping per-mode logic separate
@@ -449,7 +432,7 @@ That is worth documenting carefully if user-facing mode descriptions are added l
 
 ### Static mapping tables
 
-Large static tables in qwerty, taipo, artsey, and steno make the code efficient and explicit, but hard to audit. This is a reasonable firmware tradeoff, though better generated documentation or comments around the intended physical layout would help.
+Large static tables in qwerty, taipo, and steno make the code efficient and explicit, but hard to audit. This is a reasonable firmware tradeoff, though better generated documentation or comments around the intended physical layout would help.
 
 ## Suggested Next Documentation Work
 
@@ -459,5 +442,5 @@ If this document is expanded later, the highest-value additions would be:
 - mode transition tables for two-row vs three-row boards
 - a visual map of logical key indices for `proto2` and `proto3`
 - qwerty combo timing and layer examples
-- taipo and artsey user-level semantics with diagrams
+- taipo user-level semantics with diagrams
 - a note declaring whether `serialize` or `ser2` is the intended long-term protocol

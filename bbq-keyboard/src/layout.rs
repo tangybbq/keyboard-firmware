@@ -10,7 +10,6 @@ use self::qwerty::QwertyManager;
 use self::steno::RawStenoHandler;
 use self::taipo::{TaipoManager, TaipoVariant};
 
-mod artsey;
 mod posh;
 mod qwerty;
 mod steno;
@@ -147,10 +146,6 @@ fn taipo_map(key: u8) -> Option<u8> {
 //   time, or held down and used as modifiers.  This is currently not implemented
 //   in bbq-keyboard, and I'm trying to design my layouts to not need them. I
 //   find them frustrating to use.
-// - Mostly chord. The Artsey layout (see the artsey module) mostly works with
-//   chords, but also has some keys that can be held down to work kind of like
-//   shift keys. These will generally be distinguished by small amounts of time
-//   passing.
 //
 // This module is responsible for coordinating between all of these different
 // ways of viewing the keyboard. The work of decoding each mode is handled by
@@ -178,8 +173,8 @@ fn taipo_map(key: u8) -> Option<u8> {
 //
 // This is implemented purely by remapping incoming scancodes (see
 // `lower_row_remap`), so the tables in the submodules only ever describe the
-// upper position. Qwerty, Artsey, and boards that physically have two rows are
-// not affected.
+// upper position. Qwerty and boards that physically have two rows are not
+// affected.
 //
 // Taipo variant:
 //
@@ -258,7 +253,6 @@ pub use async_traits::LayoutActions;
 /// - RawSteno
 pub struct LayoutManager {
     raw: steno::RawStenoHandler,
-    artsey: artsey::ArtseyManager,
     qwerty: qwerty::QwertyManager,
     taipo: taipo::TaipoManager,
 
@@ -290,7 +284,6 @@ impl LayoutManager {
     pub fn new(two_row: bool) -> Self {
         LayoutManager {
             raw: RawStenoHandler::new(),
-            artsey: artsey::ArtseyManager::default(),
             mode: ModeSelector::new(two_row),
             qwerty: QwertyManager::default(),
             taipo: TaipoManager::default(),
@@ -308,7 +301,6 @@ impl LayoutManager {
     // For now, just pass everything through.
     pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
         self.raw.tick(ticks);
-        self.artsey.tick(actions, ticks).await;
         self.qwerty.tick(actions, ticks).await;
 
         self.taipo.tick(actions, ticks, self.mode.is_steno()).await;
@@ -322,7 +314,6 @@ impl LayoutManager {
 
     pub fn poll(&mut self) {
         self.raw.poll();
-        self.artsey.poll();
         self.taipo.poll();
     }
 
@@ -346,9 +337,6 @@ impl LayoutManager {
 
         if !matches!(next, ModeNext::Discard) {
             match self.mode.get() {
-                LayoutMode::Artsey => {
-                    self.artsey.handle_event(event, actions).await;
-                }
                 LayoutMode::Taipo => {
                     self.taipo.handle_event(event, actions).await;
                 }
@@ -384,7 +372,7 @@ impl LayoutManager {
     #[cfg(feature = "proto3")]
     fn row_event(&mut self, event: KeyEvent) -> Option<KeyEvent> {
         // The 2-row modes on a 3-row board are the only place any of this
-        // applies.  Qwerty and Artsey use all three rows as they are.
+        // applies.  Qwerty uses all three rows as it is.
         if self.two_row || !self.mode.is_two_row_layout() {
             return Some(event);
         }
@@ -473,7 +461,6 @@ impl LayoutManager {
 pub enum LayoutMode {
     StenoDirect,
     Steno,
-    Artsey,
     Taipo,
     Qwerty,
     NKRO,
@@ -679,7 +666,6 @@ impl LayoutMode {
                 // These move to another mode, but can only be entered directly.
                 LayoutMode::Qwerty => LayoutMode::Steno,
                 LayoutMode::StenoDirect => LayoutMode::Taipo,
-                LayoutMode::Artsey => LayoutMode::Qwerty,
                 LayoutMode::NKRO => LayoutMode::Steno,
             }
         } else {
@@ -691,7 +677,6 @@ impl LayoutMode {
                 LayoutMode::Qwerty => LayoutMode::Steno,
 
                 // These move to another mode, but can only be entered directly.
-                LayoutMode::Artsey => LayoutMode::Qwerty,
                 LayoutMode::NKRO => LayoutMode::Steno,
             }
         }
@@ -704,7 +689,6 @@ impl defmt::Format for LayoutMode {
         match self {
             LayoutMode::Steno => defmt::write!(fmt, "steno"),
             LayoutMode::StenoDirect => defmt::write!(fmt, "StenoDirect"),
-            LayoutMode::Artsey => defmt::write!(fmt, "artsey"),
             LayoutMode::Qwerty => defmt::write!(fmt, "qwerty"),
             LayoutMode::NKRO => defmt::write!(fmt, "nkro"),
             LayoutMode::Taipo => defmt::write!(fmt, "taipo"),

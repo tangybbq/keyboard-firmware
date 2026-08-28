@@ -265,7 +265,6 @@ impl LayoutActions for Action {
 
     async fn set_sub_mode(&self, submode: MinorMode) {
         let indicator = match &submode {
-            MinorMode::ArtseyNav => &leds::manager::ARTSEY_NAV_INDICATOR,
             // The Zephyr port has no LED plan for the Taipo variant yet.
             MinorMode::Posh => &leds::manager::OFF_INDICATOR,
         };
@@ -505,7 +504,6 @@ fn get_mode_indicator(mode: LayoutMode, raw: bool) -> &'static leds::manager::In
     match mode {
         LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
         LayoutMode::Steno => get_steno_indicator(raw),
-        LayoutMode::Artsey => &leds::manager::ARTSEY_INDICATOR,
         LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
         LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
         LayoutMode::NKRO => &leds::manager::NKRO_INDICATOR,
@@ -516,7 +514,6 @@ fn get_mode_select_indicator(mode: LayoutMode, raw: bool) -> &'static leds::mana
     match mode {
         LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
         LayoutMode::Steno => get_steno_select_indicator(raw),
-        LayoutMode::Artsey => &leds::manager::ARTSEY_SELECT_INDICATOR,
         LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
         LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
         LayoutMode::NKRO => &leds::manager::NKRO_SELECT_INDICATOR,

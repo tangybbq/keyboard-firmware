@@ -178,24 +178,6 @@ pub static NKRO_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
-/// Artsey mode
-pub static ARTSEY_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(16, 0, 0),
-    count: 100,
-}]);
-
-/// Artsey select mode
-pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(16, 0, 0),
-        count: 1,
-    },
-    Step {
-        color: RGB8::new(0, 0, 0),
-        count: 1,
-    },
-]);
-
 /// Taipo mode
 pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 8, 24),
@@ -244,12 +226,6 @@ pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
         count: 1,
     },
 ]);
-
-/// Artsey Nav mode
-pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(20, 20, 0),
-    count: 100,
-}]);
 
 pub static STENO_NOSPACE_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(20, 0, 0),

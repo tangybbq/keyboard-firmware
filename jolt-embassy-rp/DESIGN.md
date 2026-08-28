@@ -54,7 +54,7 @@ The main data flow is:
 2. `Dispatch` receives those `KeyEvent`s.
 3. If the board is active/primary, `Dispatch` feeds them into `bbq-keyboard::LayoutManager`.
 4. `LayoutManager` emits:
-   - direct `KeyAction`s for qwerty/taipo/artsey
+   - direct `KeyAction`s for qwerty/taipo
    - raw steno `Stroke`s for steno modes
 5. Raw steno strokes go over a channel to `steno_task`.
 6. `steno_task` uses `bbq_keyboard::dict::Dict` and `bbq-steno` to produce `Joined` typing edits.

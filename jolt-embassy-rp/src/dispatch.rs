@@ -336,8 +336,6 @@ impl LayoutActions for Dispatch {
                 *self.posh.lock().await = true;
                 self.update_variant_led().await;
             }
-            // Artsey's nav mode has no indicator here.
-            MinorMode::ArtseyNav => (),
         }
     }
 
@@ -347,7 +345,6 @@ impl LayoutActions for Dispatch {
                 *self.posh.lock().await = false;
                 self.update_variant_led().await;
             }
-            MinorMode::ArtseyNav => (),
         }
     }
 

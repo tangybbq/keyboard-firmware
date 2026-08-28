@@ -52,8 +52,6 @@ various platform-independent crates, all starting with `bbq-`.
     between translating, and just sending the untranslated raw strokes.  I use this raw mode for
     various tests that run on the host, as well as the steno-drill program I use to learn and keep
     steno knowledge.
-  - `layout::artsey`: An implementation of artsey.  I don't know if this works any more, as I don't
-    use it.  I use Taipo now.
   - `layout::taipo`: An implementation of the Taipo layout.  I added this primarily to use with
     2-row, 30-key keyboards as it only needs 8 finger keys and two thumb keys per hand.  It turns
     out to be a pretty nice layout, especially with its identical layout per hand (mirrored) and

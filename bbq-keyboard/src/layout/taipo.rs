@@ -1,6 +1,6 @@
 //! Taipo keyboard support.
 //!
-//! The Taipo keyboard layout is a little bit similar to Artsey, in that each
+//! The Taipo keyboard layout is a chorded layout, in that each
 //! half of the keyboard is complete. However, it makes use of 2 thumb keys for
 //! each half, resulting in each half having 10 keys.
 //!

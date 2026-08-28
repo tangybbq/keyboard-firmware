@@ -117,22 +117,6 @@ pub static NKRO_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
-pub static ARTSEY_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(16, 0, 0),
-    count: 100,
-}]);
-
-pub static ARTSEY_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(16, 0, 0),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 1,
-    },
-]);
-
 pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 8, 24),
     count: 100,
@@ -164,11 +148,6 @@ pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
         count: 1,
     },
 ]);
-
-pub static ARTSEY_NAV_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(20, 20, 0),
-    count: 100,
-}]);
 
 pub static STENO_NOSPACE_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(20, 0, 0),
