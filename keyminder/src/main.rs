@@ -4,7 +4,7 @@ use std::{io::Write, path::Path, time::{Duration, Instant}};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use minder::{Reply, Request};
+use minder::{Reply, Request, PACKET_SIZE};
 use minicbor::{Decode, Encode};
 use rusb::{DeviceHandle, Direction, GlobalContext};
 use sha2::{Digest, Sha256};
@@ -460,6 +460,16 @@ impl VendorMinder {
             .write_bulk(self.send, &obuf, Duration::from_secs(1))?;
         if count != obuf.len() {
             panic!("Short write");
+        }
+
+        // The device ends a message at the first packet shorter than 64 bytes, so a message whose
+        // length is an exact multiple of that needs a zero-length packet to terminate it.  Without
+        // one the device waits for a continuation that never comes, and the request that does
+        // arrive next is appended to it and lost.  `Minder::bulk_write` does the same on the way
+        // back.
+        if obuf.len() % PACKET_SIZE == 0 {
+            self.handle
+                .write_bulk(self.send, &[], Duration::from_secs(1))?;
         }
 
         Ok(())

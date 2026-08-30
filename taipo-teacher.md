@@ -281,12 +281,20 @@ Notes from having written it:
   in order and returns the first ready: event, then new request, then timeout.
 - **The sequential loop is now load bearing and says so in a comment.**  `get_event` only runs
   while a `GetEvent` is being handled, so it can never overlap `program`.
-- **Untested on hardware.**  The keyboard is in daily use and was not flashed.
-- **A host-side hazard for phase 2**, not fixed here: `VendorMinder::send` does not send a
-  zero-length packet after a payload that is an exact multiple of 64 bytes, so the device's
-  short-packet loop would wait forever for one.  The device gets this right in `bulk_write`;
-  the host does not, and `GetEventLog` replies are the first messages likely to be sized by
-  the host rather than by whatever CBOR happens to produce.
+- **Tested on hardware.**  Long-poll timeout exact at 5.001 s; a test event raised while a poll
+  was parked arrived at 0.500 s with the queued rest drained immediately; a request interrupting
+  a parked poll answered `NoEvent` then its own reply in 0.4 ms.  Multi-packet requests were
+  exercised from 1 to 65 packets using a `Program` at a non-erase-aligned offset, which the
+  device rejects before it erases anything, and again as the *interrupting* request so the
+  stashed first packet was followed by 64 more.
+- **A host-side missing zero-length packet, found here and since fixed.**  `VendorMinder::send`
+  used one `write_bulk` and nothing else, so a request whose encoding was an exact multiple of
+  64 bytes never got the empty packet that ends a message.  Confirmed on hardware: the device
+  returned no reply at all, and then swallowed the *next* request as a continuation of the
+  stuck one — a silently lost request, not merely a stall.  64 of the 4096 possible `Program`
+  payload sizes land there, and `Flasher::check` sends the final page at whatever size is left
+  over, so `keyminder dict` had roughly a 1.6% chance of hitting it per flash.  Fixed by
+  mirroring what `Minder::bulk_write` already does on the way back; all 64 sizes verified.
 
 ### 1b. Version and identity
 
