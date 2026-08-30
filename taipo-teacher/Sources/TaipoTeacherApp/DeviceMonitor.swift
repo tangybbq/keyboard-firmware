@@ -20,6 +20,9 @@ public final class DeviceMonitor: ObservableObject {
     }
     /// Chords seen today, for the menu bar.
     @Published public private(set) var chordsToday = 0
+    /// Recording is suspended because macOS has secure keyboard entry on: a password field,
+    /// a `sudo` prompt, the login window, or the lock screen.
+    @Published public private(set) var secureInput = false
     /// Where the logs are being written.
     public let logDirectory = LogWriter.defaultDirectory
     /// The drill in progress, if the practice screen is showing.
@@ -97,8 +100,17 @@ public final class DeviceMonitor: ObservableObject {
     /// What the menu bar shows at a glance.
     public var menuBarSymbol: String {
         if case .failed = status { return "keyboard.badge.exclamationmark" }
+        if secureInput { return "keyboard.badge.eye" }
         if paused { return "keyboard" }
         return recording ? "keyboard.fill" : "keyboard"
+    }
+
+    /// What the app is doing, in a phrase.
+    public var activity: String {
+        if secureInput { return "Paused — password field" }
+        if paused { return "Paused" }
+        if recording { return "\(chordsToday) chords today" }
+        return "Not recording"
     }
 
     public func start() {
@@ -216,10 +228,19 @@ public final class DeviceMonitor: ObservableObject {
                 // Pausing stops the device recording, not just this end: the point of a
                 // pause is that nothing is being kept, and the records live on the
                 // keyboard until they are fetched.
-                let pause = self.isPaused
+                // Checked before anything is fetched, which is what makes it safe: a
+                // password keystroke is still sitting in the device's buffer at this
+                // point, so it is discarded rather than drained to disk.
+                let secure = SecureInput.isEnabled
+                Task { @MainActor [weak self] in self?.secureInput = secure }
+
+                let pause = self.isPaused || secure
                 if pause != wasPaused {
                     _ = try device.call(.setLogging(enabled: !pause, watermark: 1))
-                    if !pause { try self.discardBuffered(device) }
+                    // Discard on the way into a pause as well as out of one.  Going in,
+                    // the buffer may hold the first characters of a password; coming out,
+                    // it may hold whatever the device recorded before it was told to stop.
+                    try self.discardBuffered(device)
                     wasPaused = pause
                     Task { @MainActor [weak self] in self?.recording = !pause }
                 }
@@ -229,7 +250,7 @@ public final class DeviceMonitor: ObservableObject {
                 }
 
                 // A poll that expires is not an error, just a quiet moment.
-                _ = try device.call(.getEvent(timeoutMs: 1000), timeout: 5.0)
+                _ = try device.call(.getEvent(timeoutMs: 300), timeout: 5.0)
                 try self.drain(device, engine: engine, clock: &clock)
                 // Nothing arrived, but time still passed: a chord held past the window
                 // commits on the timer, and seven in ten do.
@@ -286,6 +307,9 @@ public final class DeviceMonitor: ObservableObject {
         _ device: MinderDevice, engine: ChordEngine, clock: inout Clock
     ) throws {
         while true {
+            // Re-checked each time round: a batch can span the moment a password field
+            // takes focus, and the rest of it must not be written.
+            if SecureInput.isEnabled { return }
             guard case .eventLog(let batch) = try device.call(.getEventLog(maxBytes: 800))
             else { return }
             let records = LogRecord.decodeAll(batch.records)

@@ -37,9 +37,7 @@ struct MenuContents: View {
 
     var body: some View {
         Text(monitor.status.summary)
-        Text(monitor.recording
-             ? "\(monitor.chordsToday) chords today"
-             : (monitor.paused ? "Paused" : "Not recording"))
+        Text(monitor.activity)
 
         Divider()
         Button(monitor.paused ? "Resume recording" : "Pause recording") {
