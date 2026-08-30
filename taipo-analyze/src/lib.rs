@@ -1,0 +1,44 @@
+//! What real typing actually looks like.
+//!
+//! `taipo-teacher.md` phase 3.  Replays the key logs `keyminder log` writes through the
+//! real chord engine and works out what went wrong and where the time went.
+//!
+//! A library as well as a CLI, because the plan is explicit that the Mac app should consume
+//! *this* analysis rather than grow a second one.  [`stats`] is all numbers; [`report`] is
+//! the prose, and nothing in `stats` depends on it.
+
+pub mod report;
+pub mod stats;
+
+/// The knobs the analysis takes.
+///
+/// Deliberately not the clap type: a library should not make its callers parse arguments.
+#[derive(Debug, Clone)]
+pub struct Options {
+    /// A same-hand pair only counts as an alternation fault when the two chords are closer
+    /// together than this.  After a pause either hand is equally correct, so a gap beyond
+    /// it is neither counted nor put in the denominator.
+    pub alternation_window_ms: u32,
+    /// A gap this many times a transition's own typical interval counts as a hesitation.
+    pub hesitation_factor: f64,
+    /// How many rows to show in each ranked list.
+    pub top: usize,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            alternation_window_ms: 2000,
+            hesitation_factor: 3.0,
+            top: 12,
+        }
+    }
+}
+
+/// Replay a log and analyse it, which is the whole pipeline in one call.
+pub fn analyze(text: &str, two_row: bool, opts: &Options) -> Result<stats::Analysis, String> {
+    let events = bbq_keyboard::replay::log_from_text(text)?;
+    let derived = bbq_keyboard::replay::replay(two_row, &events);
+    let chords = bbq_keyboard::replay::chords(&derived);
+    Ok(stats::Analysis::build(&chords, opts))
+}
