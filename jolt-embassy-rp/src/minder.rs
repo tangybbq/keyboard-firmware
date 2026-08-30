@@ -55,7 +55,15 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
     /// The main loop, reads requests and replies to them.
     pub async fn main_loop(mut self) -> ! {
         loop {
-            let rbuf = match self.bulk_read().await {
+            let first_len = match self.read_packet().await {
+                Ok(len) => len,
+                Err(err) => {
+                    warn!("Minder read error: {:?}", err);
+                    continue;
+                }
+            };
+
+            let rbuf = match self.bulk_read_rest(first_len).await {
                 Ok(rbuf) => rbuf,
                 Err(err) => {
                     warn!("Minder read error: {:?}", err);
@@ -113,15 +121,23 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
         Ok(())
     }
 
-    /// Read a full packet, via USB bulk, assembling it back into a proper packet.  Uses the
-    /// read-buf for each packet, and places the result into a Vec.
-    async fn bulk_read(&mut self) -> Result<Vec<u8>, EndpointError> {
+    /// Read a single USB bulk packet into the read buffer, returning its length.
+    ///
+    /// This is split out from the rest of the read so that waiting for a request to *start* can be
+    /// selected over.  Once a first packet has arrived, the remaining packets of that request must
+    /// be read without interruption, or the stream desynchronizes.
+    async fn read_packet(&mut self) -> Result<usize, EndpointError> {
+        self.reader.read(&mut self.read_buf).await
+    }
+
+    /// Assemble a full message, given the length of a first packet already sitting in the read
+    /// buffer.  Continues reading packets until a short one, and places the result into a Vec.
+    async fn bulk_read_rest(&mut self, first_len: usize) -> Result<Vec<u8>, EndpointError> {
         let mut result = Vec::new();
         let mut warned = false;
+        let mut len = first_len;
 
         loop {
-            let len = self.reader.read(&mut self.read_buf).await?;
-
             if result.len() + len < SIZE_LIMIT {
                 result.extend_from_slice(&self.read_buf[..len]);
             } else {
@@ -134,6 +150,8 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
             if len < 64 {
                 break;
             }
+
+            len = self.reader.read(&mut self.read_buf).await?;
         }
 
         Ok(result)
