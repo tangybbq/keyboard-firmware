@@ -269,3 +269,29 @@ impl VendorMinder {
         Ok(())
     }
 }
+
+/// The layout fingerprint recorded in the checked-in `layouts.json`.
+///
+/// Compared against the one a device reports in `Reply::Hello`: they differ when the
+/// firmware's chord tables are not the tables this host is reading, which is the case
+/// where replaying a key log produces a plausible wrong answer rather than an error.
+///
+/// Parsed rather than deserialized, because pulling in serde for one hex string in a
+/// generated file is not worth it.
+pub fn layouts_fingerprint() -> Option<u64> {
+    let json = include_str!("../../bbq-keyboard/layouts.json");
+    let tail = json.split("\"fingerprint\"").nth(1)?;
+    let value = tail.split('"').nth(1)?;
+    u64::from_str_radix(value.strip_prefix("0x")?, 16).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    /// The fingerprint really is readable out of the checked-in file.  This fails if the
+    /// export changes shape, which is exactly when the hand-rolled parse above would
+    /// otherwise start silently returning None and reporting "no fingerprint found".
+    #[test]
+    fn test_layouts_fingerprint_parses() {
+        assert!(super::layouts_fingerprint().is_some());
+    }
+}

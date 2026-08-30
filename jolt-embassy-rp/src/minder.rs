@@ -7,17 +7,18 @@
 // The minder packets use alloc, and we use alloc to manage the write buffer.
 extern crate alloc;
 
-use alloc::{format, vec::Vec};
+use alloc::{format, string::ToString, vec, vec::Vec};
 use core::cell::RefCell;
 use embassy_executor::Spawner;
 use embassy_futures::select::{select3, Either3};
-use embassy_rp::{flash::{Blocking, Flash}, peripherals::{FLASH, WATCHDOG}, watchdog::Watchdog};
+use bbq_keyboard::layout::fingerprint::layout_fingerprint;
+use embassy_rp::{clocks::RoscRng, flash::{Blocking, Flash}, peripherals::{FLASH, WATCHDOG}, watchdog::Watchdog};
 use embassy_sync::{blocking_mutex::{raw::CriticalSectionRawMutex, Mutex}, signal::Signal};
 use embassy_time::{Duration, Timer};
 use embassy_usb::driver::{EndpointError, EndpointIn, EndpointOut};
 use embedded_storage::nor_flash::NorFlash;
 use heapless::Deque;
-use minder::{Event, Reply, Request, VERSION};
+use minder::{cap, Event, Reply, Request, VERSION};
 use sha2::{Digest, Sha256};
 
 #[allow(unused_imports)]
@@ -37,6 +38,9 @@ where
     read_buf: [u8; 64],
 
     flash: FlashType,
+
+    /// Identifies this run of the firmware; see `Reply::Hello`.
+    boot_id: u64,
 }
 
 /// Size limit for read. Prevents memory loss from excessive data.
@@ -151,6 +155,9 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
             unique,
             read_buf: [0; 64],
             flash,
+            // The ROSC is free-running and is what the chip has to offer here.  This only
+            // has to differ from the last run, not be unpredictable.
+            boot_id: RoscRng.next_u64(),
         }
     }
 
@@ -315,11 +322,20 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
     }
 
     /// Given a hello pack, generate our detailed response.
+    ///
+    /// The host's version is not checked.  Capabilities are what it should branch on, and
+    /// a device that cannot do something simply does not list it.
     async fn hello(&mut self, _version: &str) -> Reply {
-        // For now, don't worry about protocol versions, and just return ours.
         Reply::Hello {
             version: VERSION.into(),
             info: self.unique.into(),
+            boot_id: Some(self.boot_id),
+            layout_fingerprint: Some(layout_fingerprint()),
+            capabilities: Some(vec![
+                cap::EVENTS.to_string(),
+                cap::TEST_EVENTS.to_string(),
+                cap::FLASH.to_string(),
+            ]),
         }
     }
 

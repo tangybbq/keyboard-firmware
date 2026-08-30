@@ -47,7 +47,27 @@ pub use encode::{HidWrite, hid_encode, SerialWrite, serial_encode};
 pub const PACKET_SIZE: usize = 64;
 
 // The version of the protocol described here.
-pub static VERSION: &'static str = "2024-11-01a";
+//
+// Bumped when `Reply::Hello` gained `boot_id`, `layout_fingerprint` and
+// `capabilities`.  The version is informational; `capabilities` is what a host should
+// actually branch on, because it degrades one feature at a time instead of assuming a
+// total order on releases.
+pub static VERSION: &'static str = "2026-08-30a";
+
+/// The capability names a device may report in [`Reply::Hello`].
+///
+/// A host asks "can this device do X" rather than "is this device newer than Y", so that
+/// a firmware built without some feature -- or a port that has not caught up -- degrades
+/// instead of hanging on a request that will never be answered.
+pub mod cap {
+    /// `GetEvent` long polling is answered.  Without this, a host must never issue one:
+    /// an old device does not recognize the request and simply never replies.
+    pub const EVENTS: &str = "events";
+    /// `TestEvent` will raise synthetic events, for checking the event path.
+    pub const TEST_EVENTS: &str = "test-events";
+    /// `Hash` and `Program` work, so flash can be updated.
+    pub const FLASH: &str = "flash";
+}
 
 #[derive(Debug, Encode, Decode, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -132,6 +152,31 @@ pub enum Reply {
         /// Version information about this device.
         #[n(2)]
         info: String,
+        /// A value that changes on every boot.
+        ///
+        /// A log stream is only continuous within one `boot_id`; a change means the
+        /// device restarted and whatever it was buffering is gone.
+        ///
+        /// `None` from firmware predating this field.
+        #[n(3)]
+        boot_id: Option<u64>,
+        /// Identifies the chord tables this firmware was built with.
+        ///
+        /// The host compares it against the `fingerprint` field of `layouts.json`.  They
+        /// differ when the firmware is older or newer than the tables the host is reading,
+        /// which makes replaying a key log through those tables quietly wrong -- so this
+        /// is what lets the host refuse rather than mislead.
+        ///
+        /// `None` from firmware predating this field.
+        #[n(4)]
+        layout_fingerprint: Option<u64>,
+        /// What this device can do; see [`crate::cap`].
+        ///
+        /// `None` from firmware predating this field, which is not the same as an empty
+        /// list: it means "did not say", and such a device still answers `Hash` and
+        /// `Program`.  [`Reply::supports`] treats it that way.
+        #[n(5)]
+        capabilities: Option<Vec<String>>,
     },
     #[n(2)]
     Log {
@@ -176,6 +221,21 @@ pub enum Reply {
     },
     #[n(255)]
     Reset,
+}
+
+impl Reply {
+    /// Whether a `Hello` reply claims a capability.
+    ///
+    /// Firmware predating the capability list reports nothing, and is treated as having
+    /// the capabilities that existed before the list did -- flash access -- rather than
+    /// as having none, which would make an old device look less capable than it is.
+    pub fn supports(&self, cap: &str) -> bool {
+        match self {
+            Reply::Hello { capabilities: Some(caps), .. } => caps.iter().any(|c| c == cap),
+            Reply::Hello { capabilities: None, .. } => cap == crate::cap::FLASH,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -297,6 +357,42 @@ mod tests_bulk {
     /// The new variants must not disturb the encoding of the old ones, since an old `keyminder`
     /// and the checked-in Swift spike's hard coded bytes both have to keep working.
     #[test]
+    /// A `Reply::Hello` from firmware predating `boot_id` and its neighbours still
+    /// decodes, with the fields it did not send reported as absent.
+    ///
+    /// These are the exact bytes a mesa1 running the 2024-11-01a firmware sent.  Adding
+    /// fields to a variant has to stay backward compatible in this direction, or a host
+    /// update would stop being able to talk to a keyboard until it was reflashed -- which
+    /// is precisely the situation where being able to talk to it matters.
+    #[test]
+    fn test_hello_from_older_firmware() {
+        let old: &[u8] = &[
+            0x82, 0x01, 0x83, 0xf6, 0x6b, 0x32, 0x30, 0x32, 0x34, 0x2d, 0x31, 0x31, 0x2d, 0x30,
+            0x31, 0x61, 0x76, 0x6d, 0x65, 0x73, 0x61, 0x31, 0x2d, 0x70, 0x6e, 0x62, 0x67, 0x6d,
+            0x6c, 0x69, 0x62, 0x64, 0x62, 0x69, 0x6a, 0x6b, 0x63, 0x61, 0x64,
+        ];
+        let reply: Reply = minicbor::decode(old).unwrap();
+        let Reply::Hello {
+            version,
+            info,
+            boot_id,
+            layout_fingerprint,
+            capabilities,
+        } = &reply
+        else {
+            panic!("decoded to the wrong variant: {reply:?}");
+        };
+        assert_eq!(version, "2024-11-01a");
+        assert_eq!(info, "mesa1-pnbgmlibdbijkcad");
+        assert_eq!(*boot_id, None);
+        assert_eq!(*layout_fingerprint, None);
+        assert_eq!(*capabilities, None);
+
+        // Such a device predates the capability list, but it can still flash.
+        assert!(reply.supports(crate::cap::FLASH));
+        assert!(!reply.supports(crate::cap::EVENTS));
+    }
+
     fn test_hello_bytes_unchanged() {
         let mut buf = Vec::new();
         minicbor::encode(&Request::Hello { version: "2024-11-01a".to_string() }, &mut buf).unwrap();

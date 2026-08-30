@@ -134,17 +134,50 @@ fn scan() -> Result<()> {
 }
 
 fn chat(args: &ChatArgs) -> Result<()> {
-    println!("Opening {:?}", args);
-
     let mut minder = VendorMinder::new(&args.serial)?;
+    // A device left mid-conversation by a killed client still owes a reply; without this
+    // the first one read here is that one, and everything after is off by one.
+    minder.drain()?;
 
-    // println!("send: {:#x}, recv: {:#x}", minder.send, minder.recv);
-
-    let req = Request::Hello {
+    let reply: Reply = minder.call(&Request::Hello {
         version: minder::VERSION.to_string(),
+    })?;
+
+    let Reply::Hello {
+        version,
+        info,
+        boot_id,
+        layout_fingerprint,
+        capabilities,
+    } = &reply
+    else {
+        return Err(anyhow::anyhow!("Unexpected reply to Hello: {:?}", reply));
     };
-    let reply: Reply = minder.call(&req)?;
-    println!("Hello: {:?}", reply);
+
+    println!("device:       {}", info);
+    println!("protocol:     {} (host {})", version, minder::VERSION);
+    match boot_id {
+        Some(id) => println!("boot id:      {:#018x}", id),
+        None => println!("boot id:      not reported"),
+    }
+    match capabilities {
+        Some(caps) => println!("capabilities: {}", caps.join(", ")),
+        None => println!("capabilities: not reported (firmware predates the list)"),
+    }
+
+    // The tables the device is running have to be the ones the host is reading, or
+    // replaying a key log through them is quietly wrong rather than visibly wrong.
+    match (layout_fingerprint, keyminder::layouts_fingerprint()) {
+        (Some(dev), Some(host)) if dev == &host => {
+            println!("layout:       {:#018x}  (matches layouts.json)", dev)
+        }
+        (Some(dev), Some(host)) => println!(
+            "layout:       {:#018x}  MISMATCH: layouts.json has {:#018x}",
+            dev, host
+        ),
+        (Some(dev), None) => println!("layout:       {:#018x}  (layouts.json unreadable)", dev),
+        (None, _) => println!("layout:       not reported"),
+    }
 
     Ok(())
 }
