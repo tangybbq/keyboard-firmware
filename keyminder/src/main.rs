@@ -1,6 +1,6 @@
 //! Keyminder.
 
-use std::{io::Write, path::Path, time::Duration};
+use std::{io::Write, path::Path, time::{Duration, Instant}};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -27,6 +27,8 @@ enum Commands {
     Scan,
     /// Chat with the device over USB bulk.
     Chat(ChatArgs),
+    /// Long poll the device for events.
+    Poll(PollArgs),
     /// Dictionary Upgraders
     Dict(DictArgs),
 }
@@ -36,6 +38,31 @@ struct ChatArgs {
     /// Serial number of the keyboard to talk to.
     #[arg(short, long)]
     serial: String,
+}
+
+#[derive(clap::Args, Debug)]
+struct PollArgs {
+    /// Serial number of the keyboard to talk to.
+    #[arg(short, long)]
+    serial: String,
+    /// How long the device should hold each poll open, in milliseconds.
+    #[arg(long, default_value_t = 5000)]
+    timeout_ms: u32,
+    /// Stop after this many polls.  Runs until interrupted if not given.
+    #[arg(long)]
+    count: Option<u32>,
+    /// Ask the device to raise this many test events before polling.
+    #[arg(long, default_value_t = 0)]
+    test: u32,
+    /// How long the device should wait before raising the test events.
+    ///
+    /// The default is long enough that they land while the first poll is already pending, which
+    /// is the case worth exercising.
+    #[arg(long, default_value_t = 500)]
+    test_delay_ms: u32,
+    /// Check that a request sent while a poll is pending is answered in order.
+    #[arg(long)]
+    interrupt: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -63,6 +90,9 @@ fn main() -> Result<()> {
         }
         Commands::Chat(args) => {
             chat(args)?;
+        }
+        Commands::Poll(args) => {
+            poll(args)?;
         }
         Commands::Dict(args) => {
             dict(args)?;
@@ -117,6 +147,77 @@ fn chat(args: &ChatArgs) -> Result<()> {
     };
     let reply: Reply = minder.call(&req)?;
     println!("Hello: {:?}", reply);
+
+    Ok(())
+}
+
+/// Long poll the device for events.
+///
+/// This is the host side of taipo-teacher.md phase 1a, and until phase 2 raises real events the
+/// only way to see the path work is `--test`, which asks the device to raise some.
+fn poll(args: &PollArgs) -> Result<()> {
+    let mut minder = VendorMinder::new(&args.serial)?;
+    minder.drain()?;
+
+    // The device's poll has to be allowed to expire before the read does, or every poll looks
+    // like a USB timeout.
+    minder.read_timeout = Duration::from_millis(args.timeout_ms as u64) + Duration::from_secs(5);
+
+    if args.interrupt {
+        interrupt_check(&mut minder, args)?;
+    }
+
+    if args.test > 0 {
+        let reply: Reply = minder.call(&Request::TestEvent {
+            count: args.test,
+            delay_ms: args.test_delay_ms,
+        })?;
+        println!("TestEvent: {:?}", reply);
+    }
+
+    let mut remaining = args.count;
+    loop {
+        match remaining {
+            Some(0) => break,
+            Some(ref mut n) => *n -= 1,
+            None => (),
+        }
+
+        let start = Instant::now();
+        let reply: Reply = minder.call(&Request::GetEvent {
+            timeout_ms: args.timeout_ms,
+        })?;
+        println!("[{:7.3}s] {:?}", start.elapsed().as_secs_f64(), reply);
+    }
+
+    Ok(())
+}
+
+/// Check the ordering rule that makes the long poll work without tagged requests.
+///
+/// Sends a `GetEvent` and then, without waiting for its reply, a `Hello`.  The device owes one
+/// reply per request, in order, so a `NoEvent` for the interrupted poll must come back first, and
+/// the `Hello` reply second.
+fn interrupt_check(minder: &mut VendorMinder, args: &PollArgs) -> Result<()> {
+    println!("Interrupt check: GetEvent, then Hello without waiting");
+
+    minder.send(&Request::GetEvent {
+        timeout_ms: args.timeout_ms,
+    })?;
+    minder.send(&Request::Hello {
+        version: minder::VERSION.to_string(),
+    })?;
+
+    let start = Instant::now();
+    let first: Reply = minder.recv()?;
+    println!("  first : [{:7.3}s] {:?}", start.elapsed().as_secs_f64(), first);
+    let second: Reply = minder.recv()?;
+    println!("  second: [{:7.3}s] {:?}", start.elapsed().as_secs_f64(), second);
+
+    match (&first, &second) {
+        (Reply::NoEvent, Reply::Hello { .. }) => println!("  ok"),
+        _ => println!("  WRONG: expected NoEvent then Hello"),
+    }
 
     Ok(())
 }
@@ -278,6 +379,9 @@ struct VendorMinder {
     /// Endpoints to use.
     send: u8,
     recv: u8,
+
+    /// How long to wait for a reply.  The long poll needs more than the default.
+    read_timeout: Duration,
 }
 
 impl VendorMinder {
@@ -324,6 +428,7 @@ impl VendorMinder {
                 rbuf: vec![0u8; 532],
                 send: send.unwrap(),
                 recv: recv.unwrap(),
+                read_timeout: Duration::from_secs(15),
             });
         }
 
@@ -336,6 +441,18 @@ impl VendorMinder {
         In: Decode<'d, ()>,
         Out: Encode<()>,
     {
+        self.send(req)?;
+        self.recv()
+    }
+
+    /// Send a request, without waiting for its reply.
+    ///
+    /// Split out from `call` so the long poll's ordering rule can be exercised: a request sent
+    /// while a `GetEvent` is pending is answered after the `NoEvent` that the poll is owed.
+    pub fn send<Out>(&mut self, req: &Out) -> Result<()>
+    where
+        Out: Encode<()>,
+    {
         let mut obuf = Vec::new();
         minicbor::encode(req, &mut obuf)?;
         let count = self
@@ -345,9 +462,17 @@ impl VendorMinder {
             panic!("Short write");
         }
 
+        Ok(())
+    }
+
+    /// Receive a single reply.
+    pub fn recv<'d, In>(&'d mut self) -> Result<In>
+    where
+        In: Decode<'d, ()>,
+    {
         let count = self
             .handle
-            .read_bulk(self.recv, &mut self.rbuf, Duration::from_secs(15))?;
+            .read_bulk(self.recv, &mut self.rbuf, self.read_timeout)?;
         let inbuf = &self.rbuf[..count];
 
         Ok(minicbor::decode(inbuf)?)
