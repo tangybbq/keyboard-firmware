@@ -306,8 +306,9 @@ fn types_field(key: crate::Keyboard, shifted: bool) -> String {
 /// The printable character a key types, with or without shift.
 ///
 /// Found by inverting [`crate::usb_typer::key_for_char`] over printable ASCII,
-/// so the answer is whatever the firmware would really send.
-fn char_for_key(key: crate::Keyboard, shifted: bool) -> Option<char> {
+/// so the answer is whatever the firmware would really send.  Keys with no
+/// printable character -- the arrows, the function keys, enter -- have none.
+pub fn char_for_key(key: crate::Keyboard, shifted: bool) -> Option<char> {
     let want = if shifted { Mods::SHIFT } else { Mods::empty() };
     (' '..='~').find(|ch| crate::usb_typer::key_for_char(*ch) == Some((key, want)))
 }

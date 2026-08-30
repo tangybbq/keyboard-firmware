@@ -31,6 +31,8 @@ pub mod usb_typer;
 pub mod layout;
 #[cfg(feature = "std")]
 pub mod replay;
+#[cfg(feature = "std")]
+pub mod synth;
 pub mod translate;
 #[cfg(feature = "steno")]
 pub mod steno_delay;
