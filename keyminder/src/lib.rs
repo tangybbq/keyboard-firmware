@@ -17,7 +17,7 @@
 use std::{io::Write, path::Path, time::Duration};
 
 use anyhow::Result;
-use minder::{Reply, Request, PACKET_SIZE};
+use minder::{cap, Event, Reply, Request, PACKET_SIZE};
 use minicbor::{Decode, Encode};
 use rusb::{DeviceHandle, Direction, GlobalContext};
 use sha2::{Digest, Sha256};
@@ -267,6 +267,98 @@ impl VendorMinder {
         }
 
         Ok(())
+    }
+}
+
+/// Whether an [`EventPump`] callback wants to keep going.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Flow {
+    Continue,
+    Stop,
+}
+
+/// A connection that owns the long-poll loop.
+///
+/// The device only speaks when spoken to, so "the device pushed an event" really means
+/// "a `GetEvent` was outstanding when the event happened".  Keeping exactly one
+/// outstanding is this type's job, so that a caller sees a stream of events rather than a
+/// polling protocol.  `taipo-teacher.md` phase 3's collector is the intended user; the
+/// `poll` subcommand is the current one.
+pub struct EventPump {
+    minder: VendorMinder,
+    timeout_ms: u32,
+}
+
+impl EventPump {
+    /// Connect, greet, and check that the device can actually do this.
+    ///
+    /// The capability check is the point of `Reply::Hello` carrying one.  Firmware
+    /// predating the long poll does not recognize `GetEvent` and simply never answers it,
+    /// so a host that issued one anyway would hang rather than fail, which is the failure
+    /// mode hardest to diagnose from the far end of a USB cable.
+    ///
+    /// Returns the `Hello` reply as well, since a caller generally wants the boot id and
+    /// the layout fingerprint from it.
+    pub fn connect(serial: &str, timeout_ms: u32) -> Result<(Self, Reply)> {
+        let mut minder = VendorMinder::new(serial)?;
+        // A device left mid-conversation by a killed client still owes a reply.
+        minder.drain()?;
+
+        let hello: Reply = minder.call(&Request::Hello {
+            version: minder::VERSION.to_string(),
+        })?;
+        if !hello.supports(cap::EVENTS) {
+            return Err(anyhow::anyhow!(
+                "device does not support the {:?} capability; it needs firmware with the \
+                 long poll.  It reported: {:?}",
+                cap::EVENTS,
+                hello,
+            ));
+        }
+
+        // The device's poll has to expire before the read does, or every poll looks like a
+        // USB timeout.
+        minder.read_timeout = Duration::from_millis(timeout_ms as u64) + Duration::from_secs(5);
+
+        Ok((Self { minder, timeout_ms }, hello))
+    }
+
+    /// The underlying connection, for requests that are not part of the event stream.
+    ///
+    /// Safe to use between [`poll_once`](Self::poll_once) calls: the pump never leaves a
+    /// request outstanding once it has returned.
+    pub fn minder(&mut self) -> &mut VendorMinder {
+        &mut self.minder
+    }
+
+    /// Wait for one event, or for the device's poll to expire.
+    ///
+    /// `Ok(None)` is a timeout, which is the normal quiet case and not an error.
+    pub fn poll_once(&mut self) -> Result<Option<Event>> {
+        let reply: Reply = self.minder.call(&Request::GetEvent {
+            timeout_ms: self.timeout_ms,
+        })?;
+        match reply {
+            Reply::Event { event } => Ok(Some(event)),
+            Reply::NoEvent => Ok(None),
+            other => Err(anyhow::anyhow!("Unexpected reply to GetEvent: {:?}", other)),
+        }
+    }
+
+    /// Poll until the callback says to stop, or a transport error ends it.
+    ///
+    /// The callback sees `None` for a poll that expired with nothing to report, so that it
+    /// can do periodic work without needing a timer of its own.
+    pub fn run<F>(&mut self, mut on_event: F) -> Result<()>
+    where
+        F: FnMut(Option<Event>) -> Flow,
+    {
+        loop {
+            let event = self.poll_once()?;
+            if on_event(event) == Flow::Stop {
+                return Ok(());
+            }
+        }
     }
 }
 

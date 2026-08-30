@@ -1,10 +1,10 @@
 //! Keyminder.
 
-use std::{io::Write, time::{Duration, Instant}};
+use std::{io::Write, time::Instant};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use keyminder::{FlashImage, Flasher, VendorMinder};
+use keyminder::{EventPump, FlashImage, Flasher, Flow, VendorMinder};
 use minder::{Reply, Request};
 
 #[derive(Parser)]
@@ -187,39 +187,43 @@ fn chat(args: &ChatArgs) -> Result<()> {
 /// This is the host side of taipo-teacher.md phase 1a, and until phase 2 raises real events the
 /// only way to see the path work is `--test`, which asks the device to raise some.
 fn poll(args: &PollArgs) -> Result<()> {
-    let mut minder = VendorMinder::new(&args.serial)?;
-    minder.drain()?;
-
-    // The device's poll has to be allowed to expire before the read does, or every poll looks
-    // like a USB timeout.
-    minder.read_timeout = Duration::from_millis(args.timeout_ms as u64) + Duration::from_secs(5);
+    let (mut pump, _hello) = EventPump::connect(&args.serial, args.timeout_ms)?;
 
     if args.interrupt {
-        interrupt_check(&mut minder, args)?;
+        interrupt_check(pump.minder(), args)?;
     }
 
     if args.test > 0 {
-        let reply: Reply = minder.call(&Request::TestEvent {
+        let reply: Reply = pump.minder().call(&Request::TestEvent {
             count: args.test,
             delay_ms: args.test_delay_ms,
         })?;
         println!("TestEvent: {:?}", reply);
     }
 
-    let mut remaining = args.count;
-    loop {
-        match remaining {
-            Some(0) => break,
-            Some(ref mut n) => *n -= 1,
-            None => (),
-        }
-
-        let start = Instant::now();
-        let reply: Reply = minder.call(&Request::GetEvent {
-            timeout_ms: args.timeout_ms,
-        })?;
-        println!("[{:7.3}s] {:?}", start.elapsed().as_secs_f64(), reply);
+    // `--count 0` asks for no polls at all, which is how the interrupt check is run on
+    // its own.  `run` would otherwise poll once before the callback could say to stop.
+    if args.count == Some(0) {
+        return Ok(());
     }
+
+    let mut remaining = args.count;
+    let mut start = Instant::now();
+    pump.run(|event| {
+        match event {
+            Some(event) => println!("[{:7.3}s] {:?}", start.elapsed().as_secs_f64(), event),
+            None => println!("[{:7.3}s] no event", start.elapsed().as_secs_f64()),
+        }
+        start = Instant::now();
+        match remaining {
+            Some(0) | Some(1) => Flow::Stop,
+            Some(ref mut n) => {
+                *n -= 1;
+                Flow::Continue
+            }
+            None => Flow::Continue,
+        }
+    })?;
 
     Ok(())
 }
