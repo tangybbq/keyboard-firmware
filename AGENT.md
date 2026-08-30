@@ -1,8 +1,10 @@
 # Overview
 
-This repository is a body of code implementing the firmware for a family of combination
-steno/qwerty/taipo keyboards. The current daily driver is the "Jolt 3", a 42-key split keyboard
-organized to make steno usage ergonomic, as well as regular qwerty use.
+This repository is a body of code implementing the firmware for a family of
+combination steno/qwerty/taipo keyboards. The current daily driver is the "Mesa
+1", a 30-key split keyboard designed primarily for Taipo/Posh use. Currently, it
+has the steno-only keys physically removed, and a mesa 2 is in production than
+will improve ergonomics, and only have the 20 Taipo keys present.
 
 The project is primarily written in Rust. There are two main firmware variants:
 
@@ -20,6 +22,7 @@ shield definitions for older keyboards such as the proto2/proto3/proto4).
 There are the following crates:
 
 ## Core implementation
+
 - bbq-steno: Implements the "Stroke" type to represent steno strokes, and implements an NFA-based
   dictionary lookup for translation to English.
 - bbq-steno-macros: A proc macro `stroke!()` that allows steno strokes to be referenced in code, and
@@ -38,6 +41,7 @@ There are the following crates:
   status.
 
 ## Firmware implementations
+
 - jolt-embassy-rp: The current running firmware. Board-specific initialization lives in
   `src/board.rs` (with modules for jolt3, jolt2, and jolt2dir); the board is identified at runtime
   from a `BoardInfo` CBOR block stored in flash (see `bbq-keyboard/src/boardinfo.rs`), so one
@@ -48,6 +52,7 @@ There are the following crates:
   the proto2.
 
 ## Utilities
+
 - bbq-tool: A tool for converting dictionaries from a few formats to the binary format used by the
   bbq-steno::Dict code. See `bbq-tool/CLAUDE.md`.
 - keyminder: A command line tool implementing the Host PC side of the 'minder' protocol.
@@ -73,16 +78,16 @@ Other directories can be ignored at this time.
   not to combine refactoring and functional changes into the same commit.
 - The developer prefers gradual and incremental review of changes to the code rather than
   large-scale changes that are difficult to understand.
-- Commit the work as part of doing it.  Do not leave finished changes sitting unstaged waiting
+- Commit the work as part of doing it. Do not leave finished changes sitting unstaged waiting
   for permission to commit; make the commit yourself as the natural end of each logical change.
   The developer reviews with git (`git log`, `git show`, `git diff`) before anything is pushed, so
-  a commit is a proposal, not a publication.  Nothing is ever pushed without the developer asking.
+  a commit is a proposal, not a publication. Nothing is ever pushed without the developer asking.
 - Amending, reordering, or otherwise rewriting commits that have not been pushed is fine when the
   developer's review asks for it.
 - The code should be committed to git with these guidelines:
   - Commit text should follow git conventions:
     - A short summary, followed by a blank line
-    - A textual description of the change.  The body of the commit should almost always be present,
+    - A textual description of the change. The body of the commit should almost always be present,
       giving a bit more detail than the short summary.
     - The body should be wrapped to 72 column max lines, when reasonable (long symbols may make it
       overflow)
@@ -91,7 +96,7 @@ Other directories can be ignored at this time.
 
 # Testing
 
-- Due to the complexity, each change requires manual testing of multiple systems.  That testing
+- Due to the complexity, each change requires manual testing of multiple systems. That testing
   happens during the developer's review of the commits, not before they are made; commit the work
   and say plainly in the response what has and has not been tested.
 
@@ -100,7 +105,7 @@ Other directories can be ignored at this time.
 ## Building `jolt-embassy-rp`
 
 - Build from the `jolt-embassy-rp` directory with `just build` (or `cargo build --bin
-  jolt-embassy-rp`; the target is `thumbv6m-none-eabi`).  This is a **taipo-only** firmware; the
+jolt-embassy-rp`; the target is `thumbv6m-none-eabi`). This is a **taipo-only** firmware; the
   qwerty and steno layouts are not compiled in.
 - `just build-full` (or `--features qwerty,steno`) builds with all three layouts.
 - `just uf2` converts the ELF to `main.uf2` and copies it to a keyboard in UF2 bootloader mode.
@@ -112,7 +117,7 @@ Other directories can be ignored at this time.
   The script changes into the `jolt` directory and, when the environment isn't already set up
   (e.g. in the Agent shell), sources the repository-root `.envrc` for the Zephyr environment.
   Once the `build` directory is present, the symlink in `.cargo/config.toml` will allow `cargo
-  check` and other cargo commands to work normally.
+check` and other cargo commands to work normally.
 
 # Current work tracking
 
