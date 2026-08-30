@@ -616,10 +616,15 @@ not linking against it.  See 1d for what keeps the two from drifting apart.
 
 The app is useful before any drill exists.
 
-- [ ] Menu-bar item: connection state, recording on / off / paused, today's numbers.
-- [ ] Background: connect, enable logging, drain continuously, append to the log file, update
-      the model.
-- [ ] Reset detection: the long-poll fails on USB re-enumeration; `boot_id` confirms it.  Mark
+- [X] Menu-bar item: connection state, recording on / off / paused, today's numbers.
+- [X] Background: connect, enable logging, drain continuously, append to the log file.
+      Updating a model is still to come; the logs are the store for now.
+- [X] **The app has to be the collector, and the plan said otherwise.**  The keyboard's
+      vendor interface can only be claimed by one process at a time — tested, the second
+      gets "no keyboard found" — so the CLI collector this plan proposed would have locked
+      the trainer out of its own keyboard.  `keyminder log` is still the right tool for a
+      one-off capture; it just cannot be the thing that runs all day.
+- [X] Reset detection: the long-poll fails on USB re-enumeration; `boot_id` confirms it.  Mark
       a discontinuity in the log and re-enable logging.
 - [ ] Table-hash mismatch: warn loudly and stop deriving, rather than deriving wrongly.
 - [ ] Stats window: the phase 3 analysis, rendered.  Chord heatmap over both tables, per-finger
