@@ -83,6 +83,9 @@ struct DrillView: View {
                     ? String(format: "%d (%.0f%%)", s.sameHand, s.sameHandRate * 100)
                     : "\(s.sameHand)",
                 bad: s.sameHand > 0)
+            if s.sameHandCorrections > 0 {
+                stat("…on backspace", "\(s.sameHandCorrections)", bad: true)
+            }
             if s.deadChords > 0 { stat("dead", "\(s.deadChords)", bad: true) }
             Spacer()
             stat("chords/min", String(format: "%.0f", s.chordsPerMinute))
@@ -110,11 +113,21 @@ struct DrillView: View {
                     .fill(live.chord.side == .left ? Color.blue : Color.purple)
                     .frame(width: 8, height: live.chord.end == .timerExpired ? 14 : 20)
                     .opacity(live.dead ? 0.3 : 1)
+                    // Every chord appears here, so this is where a fault on a chord that
+                    // types nothing -- a backspace, a modifier -- can be seen at all.
+                    .overlay(alignment: .top) {
+                        if live.sameHand {
+                            Circle().fill(Color.orange).frame(width: 5, height: 5)
+                                .offset(y: -7)
+                        }
+                    }
             }
             Spacer()
         }
         .frame(height: 22)
-        .help("Blue left, purple right.  Short bars waited out the chord window.")
+        .help(
+            "Blue left, purple right.  Short bars waited out the chord window.  "
+            + "An orange dot means that chord stayed on the previous hand.")
     }
 }
 

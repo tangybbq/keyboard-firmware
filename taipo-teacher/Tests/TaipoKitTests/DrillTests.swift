@@ -187,3 +187,73 @@ final class DrillControlTests: XCTestCase {
         XCTAssertEqual(session.sameHandOffsets, [])
     }
 }
+
+/// Alternation applies to corrections too: correcting is still typing.
+final class CorrectionHandTests: XCTestCase {
+
+    private func chord(code: UInt16, side: Side, at time: UInt32) -> Chord {
+        Chord(timeMs: time, side: side, code: code, variant: "taipo",
+              firstKeyMs: time, lastKeyMs: time, end: .allReleased)
+    }
+
+    /// A backspace on the same hand as the chord it deletes is a fault, and is counted
+    /// where it can be seen -- there is nothing in the target line to mark, because a
+    /// backspace types no character.
+    func testBackspaceOnTheSameHandIsAFault() throws {
+        let l = try Layouts.bundled()
+        let a = try XCTUnwrap(l.variants["taipo"]?.chords.first { $0.action.types == "a" }?.code)
+        let bk = try XCTUnwrap(l.variants["taipo"]?.chords.first {
+            $0.action.key == "DeleteBackspace"
+        }?.code)
+
+        let bad = DrillSession(target: DrillTarget(text: "at", layouts: l), layouts: l)
+        bad.feed(chord(code: a, side: .left, at: 0))
+        bad.feed(chord(code: bk, side: .left, at: 200))
+        XCTAssertEqual(bad.stats.sameHand, 1)
+        XCTAssertEqual(bad.stats.sameHandCorrections, 1)
+
+        // The same correction taken on the other hand is clean.
+        let good = DrillSession(target: DrillTarget(text: "at", layouts: l), layouts: l)
+        good.feed(chord(code: a, side: .left, at: 0))
+        good.feed(chord(code: bk, side: .right, at: 200))
+        XCTAssertEqual(good.stats.sameHand, 0)
+        XCTAssertEqual(good.stats.sameHandCorrections, 0)
+        XCTAssertEqual(good.stats.corrections, 1, "still a correction, just a tidy one")
+    }
+
+    /// A run of backspaces has to keep alternating, which is where it is easiest to stop.
+    func testBackspaceRunMustAlternate() throws {
+        let l = try Layouts.bundled()
+        let bk = try XCTUnwrap(l.variants["taipo"]?.chords.first {
+            $0.action.key == "DeleteBackspace"
+        }?.code)
+
+        let session = DrillSession(target: DrillTarget(text: "at", layouts: l), layouts: l)
+        for i in 0..<4 {
+            session.feed(chord(code: bk, side: .left, at: UInt32(i) * 200))
+        }
+        XCTAssertEqual(session.stats.sameHandCorrections, 3, "three of the four pairs")
+
+        let alternated = DrillSession(target: DrillTarget(text: "at", layouts: l), layouts: l)
+        for i in 0..<4 {
+            alternated.feed(
+                chord(code: bk, side: i.isMultiple(of: 2) ? .left : .right, at: UInt32(i) * 200))
+        }
+        XCTAssertEqual(alternated.stats.sameHandCorrections, 0)
+    }
+
+    /// And a pause still exempts it: stopping to work out what went wrong is not a fault.
+    func testPausedCorrectionIsExempt() throws {
+        let l = try Layouts.bundled()
+        let a = try XCTUnwrap(l.variants["taipo"]?.chords.first { $0.action.types == "a" }?.code)
+        let bk = try XCTUnwrap(l.variants["taipo"]?.chords.first {
+            $0.action.key == "DeleteBackspace"
+        }?.code)
+
+        let session = DrillSession(target: DrillTarget(text: "at", layouts: l), layouts: l)
+        session.feed(chord(code: a, side: .left, at: 0))
+        session.feed(chord(code: bk, side: .left, at: 6000))
+        XCTAssertEqual(session.stats.sameHandCorrections, 0)
+        XCTAssertEqual(session.stats.eligiblePairs, 0)
+    }
+}

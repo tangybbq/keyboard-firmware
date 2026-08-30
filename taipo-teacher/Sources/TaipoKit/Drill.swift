@@ -96,6 +96,12 @@ public struct DrillStats {
     public var spelled = 0
     public var sameHand = 0
     public var eligiblePairs = 0
+    /// Backspaces taken on the same hand as the chord they were correcting.
+    ///
+    /// Counted apart because a correction is where alternation is easiest to drop -- the
+    /// hand that made the mistake reaches for the fix -- and because it is otherwise
+    /// invisible: a backspace types no character, so there is nothing in the line to mark.
+    public var sameHandCorrections = 0
     /// Milliseconds from the first chord to the last.
     public var elapsedMs: UInt32 = 0
 
@@ -139,7 +145,12 @@ public final class DrillSession {
 
     /// A same-hand pair counts only when the chords are closer than this.  After a pause
     /// either hand is equally correct, and a trainer must never penalise stopping to think.
-    public var alternationWindowMs: UInt32 = 2000
+    public var alternationWindowMs: UInt32 {
+        get { alternation.windowMs }
+        set { alternation.windowMs = newValue }
+    }
+
+    private let alternation = AlternationTracker()
 
     public private(set) var typed = ""
     public private(set) var events: [DrillEvent] = []
@@ -150,8 +161,6 @@ public final class DrillSession {
     /// counted: a number in a corner is not something a writer reacts to.
     public private(set) var sameHandOffsets: Set<Int> = []
 
-    private var lastSide: Side?
-    private var lastChordEndMs: UInt32?
     private var firstChordMs: UInt32?
     /// A run of single-character chords, for spotting a gram that was spelled out.
     private var run: [(text: String, offset: Int)] = []
@@ -191,20 +200,10 @@ public final class DrillSession {
 
         // Alternation, judged before anything about the text: it is technique, and applies
         // to backspaces as much as to letters.
-        var sameHandHere = false
-        if let last = lastSide, let lastEnd = lastChordEndMs {
-            let gap = chord.firstKeyMs > lastEnd ? chord.firstKeyMs - lastEnd : 0
-            if gap < alternationWindowMs {
-                stats.eligiblePairs += 1
-                if last == chord.side {
-                    stats.sameHand += 1
-                    sameHandHere = true
-                    events.append(.sameHand(gapMs: gap))
-                }
-            }
-        }
-        lastSide = chord.side
-        lastChordEndMs = chord.lastKeyMs
+        let sameHandHere = alternation.note(chord)
+        stats.eligiblePairs = alternation.eligiblePairs
+        stats.sameHand = alternation.faults
+        if sameHandHere { events.append(.sameHand(gapMs: 0)) }
 
         guard let entry else {
             stats.deadChords += 1
@@ -216,6 +215,7 @@ public final class DrillSession {
         case "key" where entry.action.key == "DeleteBackspace":
             stats.corrections += 1
             events.append(.correction)
+            if sameHandHere { stats.sameHandCorrections += 1 }
             if !typed.isEmpty {
                 sameHandOffsets.remove(typed.count - 1)
                 typed.removeLast()

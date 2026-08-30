@@ -31,6 +31,9 @@ public final class DeviceMonitor: ObservableObject {
         "we should consider the question",
     ]
     private var corpusIndex = 0
+    /// The alternation rule, applied to everything that arrives.  The same class the drill
+    /// uses, so the strip and the score cannot disagree about what a fault is.
+    private let alternation = AlternationTracker()
 
     /// A chord, with what it typed, for display.
     public struct LiveChord: Identifiable {
@@ -38,6 +41,12 @@ public final class DeviceMonitor: ObservableObject {
         public let chord: TaipoKit.Chord
         public let types: String?
         public let dead: Bool
+        /// Stayed on the previous chord's hand when it need not have.
+        ///
+        /// Judged here rather than only in the drill, so that a chord which types nothing
+        /// -- a backspace, a modifier -- can still show its fault.  There is nowhere in the
+        /// target line to mark a backspace.
+        public let sameHand: Bool
     }
 
     public enum Status: Equatable {
@@ -254,11 +263,16 @@ public final class DeviceMonitor: ObservableObject {
     private nonisolated func publish(_ chords: [TaipoKit.Chord], engine: ChordEngine) {
         guard !chords.isEmpty else { return }
         let layouts = self.layoutsSync
-        let live = chords.map { chord -> LiveChord in
-            let entry = layouts?.chord(chord.code, variant: chord.variant)
-            return LiveChord(chord: chord, types: entry?.action.types, dead: entry == nil)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let live = chords.map { chord -> LiveChord in
+                let entry = layouts?.chord(chord.code, variant: chord.variant)
+                return LiveChord(
+                    chord: chord, types: entry?.action.types, dead: entry == nil,
+                    sameHand: self.alternation.note(chord))
+            }
+            self.append(live)
         }
-        Task { @MainActor [weak self] in self?.append(live) }
     }
 
     private nonisolated var layoutsSync: Layouts? {
