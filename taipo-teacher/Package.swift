@@ -20,6 +20,7 @@ let package = Package(
         .target(name: "MinderKit"),
         .target(name: "TaipoKit", resources: [.copy("layouts.json")]),
         .executableTarget(name: "minderctl", dependencies: ["MinderKit"]),
+        .executableTarget(name: "secwatch"),
         .executableTarget(
             name: "TaipoTeacherApp",
             dependencies: ["MinderKit", "TaipoKit"]

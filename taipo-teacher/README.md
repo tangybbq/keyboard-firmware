@@ -32,14 +32,21 @@ rather than about obscuring what was recorded.
 - Logs are plain text under `~/Library/Application Support/TaipoTeacher/logs`, one file a
   day.  Nothing is sent anywhere.
 
-### Checking that the pause works
+### Finding out what is actually covered
 
-Without typing a real password:
+Which situations turn secure input on depends on the app that owns the text field, and the
+answers are surprising enough not to take on trust.  `secwatch` reports the flag as it
+changes:
 
 ```
-sudo -v          # in a BARE terminal, not tmux; watch the menu bar, then Ctrl-C
+swift run secwatch
 ```
 
-The icon changes and the menu says "Paused — password field" while the prompt is waiting.
-Doing the same inside tmux will *not* pause it, which is the gap above, and is worth seeing
-for yourself so the difference is concrete.
+Then go and do the thing you want to know about — a password prompt in a bare shell, the
+same prompt inside tmux, a browser login, locking the screen.  Anything that prints `ON` is
+covered; anything that stays `OFF` is not, and wants **Pause** beforehand or **Discard
+recent typing** afterwards.
+
+Worth mapping this once for the terminal you actually use.  Terminal.app asserts secure
+input for a password prompt and iTerm2 may not: iTerm2's *Secure Keyboard Entry* is a menu
+toggle rather than something it turns on by itself.

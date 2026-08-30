@@ -47,11 +47,12 @@ struct MenuContents: View {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
-        Menu("Discard recent typing") {
-            Button("Last minute") { monitor.scrub(minutes: 1) }
-            Button("Last 5 minutes") { monitor.scrub(minutes: 5) }
-            Button("Last 30 minutes") { monitor.scrub(minutes: 30) }
-        }
+        // Flat, not a submenu.  A `Menu` inside `MenuBarExtra` opens and closes again
+        // before it can be clicked, which makes the one item here that has to work when it
+        // is wanted the one item that does not.
+        Button("Discard the last minute") { monitor.scrub(minutes: 1) }
+        Button("Discard the last 5 minutes") { monitor.scrub(minutes: 5) }
+        Button("Discard the last 30 minutes") { monitor.scrub(minutes: 30) }
         if let scrub = monitor.lastScrub {
             Text(scrub)
         }
