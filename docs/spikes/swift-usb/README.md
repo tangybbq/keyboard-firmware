@@ -52,3 +52,9 @@ Note the `f6` (null) in both: minicbor frames a variant as `[index, [fields...]]
 the inner array is positional and unused field numbers are filled with null.  `version`
 is `#[n(1)]`, so position 0 is null.  A Swift encoder emitting `[1, ["2024-11-01a"]]` is
 valid CBOR and will be rejected by the device.
+
+`minder/tests/wire-vectors.txt` is now the full set, generated from the crate and checked
+in, and it supersedes the two examples above as the thing to test a Swift decoder against.
+`Reply::Hello` has since grown `boot_id`, `layout_fingerprint` and `capabilities`, so the
+inner array may be 3 long (firmware predating them) or 6; this program no longer checks
+its length, which is what a real decoder should do too.

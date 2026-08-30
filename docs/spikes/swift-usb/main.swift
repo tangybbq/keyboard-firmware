@@ -76,9 +76,12 @@ do {
 let reply = Data(bytes: inBuf.bytes, count: got)
 print("ok: read \(got) bytes: \(hex(reply))")
 
-// Reply::Hello is [1, [null, version, info]] -- check the framing and pull the
-// two strings out, without pretending this is a real CBOR decoder.
-guard reply.count > 5, reply[0] == 0x82, reply[1] == 0x01, reply[2] == 0x83, reply[3] == 0xf6 else {
+// Reply::Hello is [1, [null, version, info, boot_id, fingerprint, capabilities]] --
+// or [1, [null, version, info]] from firmware predating those fields, which is why the
+// inner array length is not checked.  Pull the leading strings out without pretending
+// this is a real CBOR decoder; minder/tests/wire-vectors.txt has the exact bytes.
+guard reply.count > 4, reply[0] == 0x82, reply[1] == 0x01,
+      reply[2] & 0xe0 == 0x80, reply[3] == 0xf6 else {
     print("FAIL: not the Reply::Hello framing we expected")
     exit(1)
 }

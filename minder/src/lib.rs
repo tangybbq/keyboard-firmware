@@ -354,9 +354,6 @@ mod tests_bulk {
         check::<Reply>(&Reply::Ok);
     }
 
-    /// The new variants must not disturb the encoding of the old ones, since an old `keyminder`
-    /// and the checked-in Swift spike's hard coded bytes both have to keep working.
-    #[test]
     /// A `Reply::Hello` from firmware predating `boot_id` and its neighbours still
     /// decodes, with the fields it did not send reported as absent.
     ///
@@ -393,6 +390,9 @@ mod tests_bulk {
         assert!(!reply.supports(crate::cap::EVENTS));
     }
 
+    /// The new variants must not disturb the encoding of the old ones, since an old `keyminder`
+    /// and the checked-in Swift spike's hard coded bytes both have to keep working.
+    #[test]
     fn test_hello_bytes_unchanged() {
         let mut buf = Vec::new();
         minicbor::encode(&Request::Hello { version: "2024-11-01a".to_string() }, &mut buf).unwrap();
