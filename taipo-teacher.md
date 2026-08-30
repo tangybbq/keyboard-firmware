@@ -531,17 +531,17 @@ other hand started).
 
 ### What it looks for
 
-- [ ] **Corrections.**  A `Bk` chord, and what followed it.  Reconstruct what was deleted and
+- [X] **Corrections.**  A `Bk` chord, and what followed it.  Reconstruct what was deleted and
       what replaced it.  Classify: was the replacement one key different from what was sent
       (a misfingering), a different chord entirely (the wrong chord was recalled), or the same
       chord again (a split or dropped chord)?  The bit patterns make this mechanical.
-- [ ] **Dead chords.**  A chord code with no table entry types nothing; the writer sees a
+- [X] **Dead chords.**  A chord code with no table entry types nothing; the writer sees a
       missing letter and corrects.  These are unambiguous errors and are invisible to any
       host-side approach.
-- [ ] **Split chords.**  A chord committed by timer expiry, immediately followed on the same
+- [X] **Split chords.**  A chord committed by timer expiry, immediately followed on the same
       hand by keys that plausibly belonged with it.  This is the `CHORD_TIME = 100` window
       being hit, and it is a tuning signal for that constant as much as a technique signal.
-- [ ] **Hand alternation, but only within a burst.**  Every letter is available on both hands,
+- [X] **Hand alternation, but only within a burst.**  Every letter is available on both hands,
       so consecutive chords on the same hand are always avoidable — *while you are mid-flow*.
       After a pause, which hand you restart on carries no information: the fingers are back at
       rest and either hand is equally correct.
@@ -554,14 +554,14 @@ other hand started).
       session with a lot of thinking time scores better than one without.
       **Monitoring reports it, drilling scores it.**  In passive collection it is one metric
       among several; in a drill it is an error, counted like a wrong chord — see phase 4.
-- [ ] **Spelled-out grams.**  A run of single-letter chords whose text has a chord in the
+- [X] **Spelled-out grams.**  A run of single-letter chords whose text has a chord in the
       table.  Directly measures whether the 18 `Action::Text` entries are being used at all,
       which the drills currently cannot check.
-- [ ] **Hesitations.**  Inter-chord interval well above that *transition's* own baseline —
+- [X] **Hesitations.**  Inter-chord interval well above that *transition's* own baseline —
       the pause is the signal, and it needs the sequence context to be meaningful.  Not an
       error, and the more interesting category, since it finds what is not yet automatic
       without needing anything to go wrong.
-- [ ] **Variant switching.**  Segment the log by the `Variant` marker and report each layout
+- [X] **Variant switching.**  Segment the log by the `Variant` marker and report each layout
       separately, never pooled.  Beyond that: how often the switch happens, what was being typed
       just before it, and whether the numbers immediately after a switch differ from the steady
       state — a cost to switching would be worth knowing about, and no other instrument can see
@@ -571,17 +571,36 @@ other hand started).
       Something missed twice out of two matters less than something missed ten times out of
       fifty.
 
+### What landed
+
+`taipo-analyze`, a library and a CLI.  `stats` is all numbers and knows nothing about
+`report`, so phase 4 can take the analysis without the prose, and `Options` is a plain
+struct rather than the clap type.
+
+- **The correction classifier was wrong and the synthetic tests caught it.**  A key
+  *substituted* for its neighbour flips two bits, not one -- one off, one on -- so every
+  misfingering was being called a different chord.  Requiring the popcounts to match is what
+  separates a substitution from two unrelated chords that happen to be two bits apart.
+- **`bbq_keyboard::synth` is what makes any of this testable.**  Every check is against a
+  log whose faults were asked for in advance, including a control that clean typing reports
+  nothing at all -- without which the rest would only be measuring the generator.
+- Still in memory rather than a store; see below.
+
 ### Model store
 
-- [ ] Items are chords *and chord transitions* — the sequence case the whole thing is for.
+- [X] Items are chords *and chord transitions* — the sequence case the whole thing is for.
       Trigrams only for transitions that already look bad, to keep the state space sparse.
-- [ ] Per item: exponentially-weighted mean and variance of the interval, error count,
+- [X] Per item: median interval, error count and variance of the interval, error count,
       exposure count, last seen.  Keyed by `(variant, item)`, since Taipo and Posh are
       different skills.
 - [ ] SQLite in `~/Library/Application Support/`, written by the Rust CLI and read (and
       appended to, for drill results) by the app.  One store, two front ends, and SQLite is
       first class from both languages — no bridge needed for this either.  Schema versioned,
       with the app refusing a newer schema rather than corrupting it.
+      **Deliberately not built yet.**  The logs are append-only and re-analysing them is
+      cheap, so until the app exists there is no second reader and a store would only be a
+      cache with a schema to maintain.  Build it when phase 4 needs to write drill results
+      back, which is the first thing that genuinely cannot live in the logs.
 - [ ] Port the segmentation cost model from `words/ngrams.py` into this crate: the app needs
       "what is the cheapest chord sequence for this word" at runtime, to know what a word
       *should* have been typed as.  `words/ngrams.py` stays as the research tool; it does not
