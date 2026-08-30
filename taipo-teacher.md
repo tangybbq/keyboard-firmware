@@ -236,7 +236,7 @@ The device needs to hand over log records without the host having to poll tightl
       `GetEvent` is pending is answered by replying `NoEvent` first and then handling the
       request normally.  That is what makes it work without request tags: ordering on the
       single bulk IN pipe stays unambiguous.
-- [ ] The log drain rides this: the device raises an event when the buffer crosses a
+- [X] The log drain rides this: the device raises an event when the buffer crosses a
       watermark, and the host answers with `GetEventLog`.  A trainer that wants low latency
       sets the watermark to one record and gets records within a USB transaction.
       *(Waits on phase 2; nothing raises a real event yet.)*
@@ -433,26 +433,60 @@ Log at those two call sites (or via one small helper on `Dispatch` that both use
 
 ### Tasks
 
-- [ ] `minder/src/lib.rs`: `Request::SetLogging { enabled }`, `Request::GetEventLog {
+- [X] `minder/src/lib.rs`: `Request::SetLogging { enabled }`, `Request::GetEventLog {
       max_bytes }` → `Reply::EventLog { boot_id, seq, dropped, anchor_ms, records }`, and
       `Request::EventLogAck { through_seq }`.  Explicit acking rather than
       discarding-on-read, so a host crash mid-transfer loses nothing.  Watch `SIZE_LIMIT =
       4200` in `jolt-embassy-rp/src/minder.rs`.
-- [ ] `anchor_ms` is the time since the *most recent* record in the reply.  The host stamps
+- [X] `anchor_ms` is the time since the *most recent* record in the reply.  The host stamps
       that record with "now minus `anchor_ms`" and walks backwards subtracting deltas.
       Anchoring at the new end rather than the old one means dropped entries at the far end
       cost nothing, and it needs no epoch and no wrapping arithmetic.
-- [ ] `jolt-embassy-rp`: the ring buffer, the two hook sites, the markers, logging disabled at
+- [X] `jolt-embassy-rp`: the ring buffer, the two hook sites, the markers, logging disabled at
       boot and gated on `SetLogging`.
-- [ ] `dropped` in the reply, not as a record: drop-oldest always drops at the tail, so the gap
+- [X] `dropped` in the reply, not as a record: drop-oldest always drops at the tail, so the gap
       is always at the start of a drained run and its position is unambiguous.
-- [ ] `keyminder log`: a subcommand that enables logging, drains, and appends to a file.  Once
+- [X] `keyminder log`: a subcommand that enables logging, drains, and appends to a file.  Once
       1c lands this becomes a background loop in the host core rather than a one-shot command.
-- [ ] **On-disk format.**  One record per line, text: timestamp, `+`/`-`, hand and key name
+- [X] **On-disk format.**  One record per line, text: timestamp, `+`/`-`, hand and key name
       (`L.n`, `R.Sp`), with `#` comment lines for session headers (boot id, board, table hash,
       wall clock anchor) and gap markers.  Greppable, diffable, cheap to append; a binary
       format saves space this corpus does not need.  Rotate daily.
 - [ ] Confirm the layout tick still costs what it did; the hook is on the hot path.
+
+### What landed
+
+Three commits: the record format and messages in `minder`, the ring buffer and hooks in
+`jolt-embassy-rp`, and `keyminder log`.
+
+- **Watermark, not per-record events.**  `Event::LogReady` is raised once per crossing, or
+  a busy keyboard turns the event queue into a second, lossier copy of the log.  The `log`
+  subcommand drains on every poll regardless, event or not: an expired poll is still a
+  reason to look, and the watermark only bounds how long records sit unfetched.
+- **Markers are tracked while logging is off.**  Only the records are suppressed.  The
+  engine still changes mode and chord table, so a `SetLogging` that enables reports the
+  state the engine is *in* rather than the state it was in when logging last stopped.
+- **`drain` returns its own count.**  Asking for the count separately raced: a key landing
+  between the two calls left the caller slicing the buffer to a different length than had
+  been written into it.
+- **`EventPump::run` hands its callback the connection.**  Reacting to an event almost
+  always means asking the device something, and `LogReady` is a notification with the
+  records still to fetch, so the phase 1c signature could not have been used by the
+  collector it was written for.  Found by writing its first real user.
+- **Memory**: bss 76356 -> 109484, which is the 32 KiB ring and nothing else, leaving about
+  95K of the 200K RAM region free.
+
+Untested on hardware.  What to check once flashed:
+
+- `keyminder chat` reports the `key-log` capability and a matching fingerprint.
+- `keyminder log --batches 1 -o /tmp/k.txt`, type a known passage, confirm the file
+  reproduces it: key codes, press/release, and offsets that look like real typing.
+- A deliberate Taipo/Posh switch mid-passage appears as a `variant` marker in the right
+  place.
+- Logging really is off until asked: `chat` alone leaves nothing to drain.
+- Type with no host attached for long enough to overflow 8192 records, then attach and
+  confirm a `# gap` line appears and the keyboard never stuttered.
+- The 1 ms layout tick and the matrix scan are unaffected with logging on.
 
 ## Phase 3: analysis
 
