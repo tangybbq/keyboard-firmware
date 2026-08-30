@@ -1,0 +1,27 @@
+// swift-tools-version: 5.9
+import PackageDescription
+
+// Taipo Teacher: the Mac half of taipo-teacher.md.
+//
+// No external dependencies, deliberately.  The one that was considered was a CBOR library,
+// and it would not have earned its place: the protocol's framing is minicbor's positional
+// field arrays, which a generic CBOR library gives no help with, so the mapping is
+// hand-written either way and only the trivial byte-level encoding would have been saved.
+// `minder/tests/wire-vectors.txt` is what proves the encoding right, not the provenance of
+// the code.
+let package = Package(
+    name: "TaipoTeacher",
+    platforms: [.macOS(.v13)],
+    products: [
+        .library(name: "MinderKit", targets: ["MinderKit"]),
+    ],
+    targets: [
+        .target(name: "MinderKit"),
+        .executableTarget(name: "minderctl", dependencies: ["MinderKit"]),
+        .testTarget(
+            name: "MinderKitTests",
+            dependencies: ["MinderKit"],
+            resources: [.copy("wire-vectors.txt")]
+        ),
+    ]
+)
