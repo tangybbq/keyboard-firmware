@@ -34,7 +34,7 @@ whole point:
 | A chord with no table entry | Types nothing at all — a pure error signal that produces no HID traffic whatsoever |
 | Chorded vs spelled | `the` from the `ein` chord and `t`,`h`,`e` typed out are byte-identical to the host |
 | How a chord ended | Timer expiry, all keys released, or the other hand starting — three quite different pieces of technique |
-| Which table is live | Taipo or Posh; the device switches at runtime and the host is never told |
+| Which table is live | Taipo or Posh; the device switches at runtime and the host is never told — and *when* you switch is itself a data point |
 
 `docs/taipo-drills.md` already states the problem plainly: *"Nothing outside the keyboard can
 see whether a word was chorded or spelled out, so the lists do the enforcing."*  The drills
@@ -60,9 +60,16 @@ Settled up front so the phases can assume them.
   taipo case differs.
 - **Logging is off at boot** and must be enabled by the host each session.  A keyboard with no
   host attached accumulates nothing.  This is a privacy decision, not a memory one.
-- **Host app**: Swift/SwiftUI on macOS over a Rust core that owns the minder protocol, the
-  replay, and the model.  `staticlib` + a small hand-written C ABI + cbindgen, per the archived
-  plan's 1c.
+- **The single-MCU boards are the target.**  proto4 and mesa1 scan the whole keyboard from one
+  MCU, so every key event is timestamped by the same 1 ms loop and the log is exact.  The split
+  boards (jolt3, jolt2) work too, with a timing caveat on the remote half; fixing that is
+  phase 5 and is deliberately off the critical path.
+- **Two host implementations, on purpose.**  The Mac trainer is Swift all the way down,
+  including its own minder client.  The collector and the statistics stay a Rust CLI over the
+  `minder` crate.  Without steno there is no large Rust core worth bridging to — the protocol
+  is a handful of CBOR messages over a bulk endpoint — and an FFI boundary would cost more than
+  it saves.  What the two must agree on is pinned by tests rather than by shared code; see
+  "Two implementations, kept honest".
 - **One source of truth for the chord tables**: the Rust tables in `bbq-keyboard/src/layout/`,
   with a generated, checked-in JSON export for the Swift side.  Precedent is `bbq-consts`,
   which already extracts steno constants into a checked-in Rust file.
@@ -77,7 +84,9 @@ Settled up front so the phases can assume them.
 | Scan → (side, chord bit) | `taipo.rs`'s `SCAN_MAP` | plus `taipo_map` for the latch keys |
 | Row-position shift | `LayoutManager::row_event` in `layout.rs` | rotates the three main-row scan codes on 3-row boards |
 | Matrix scan | `jolt-embassy-rp/src/matrix.rs` | 1 ms full-matrix scan, `DEBOUNCE_COUNT = 20` |
-| Right half | `jolt-embassy-rp/src/inter.rs` | passive MCU debounces, sets a bitmap, asserts IRQ; active side reads over I2C |
+| Boards | `jolt-embassy-rp/src/board.rs` | proto4 and mesa1 are `Inter::None` — one MCU, whole 30-key board, `two_row` |
+| Split halves | `jolt-embassy-rp/src/inter.rs` | jolt3/jolt2 only: passive MCU debounces, sets a bitmap, asserts IRQ; active side reads over I2C |
+| Scan → key code | `jolt-embassy-rp/src/translate.rs` | per-board table into the proto3 numbering, codes 0..47, 255 for unmapped |
 | Key dispatch | `jolt-embassy-rp/src/dispatch.rs` | `MatrixAction::handle_key` (local) and `active_task` (remote) both call `LayoutManager::handle_event` |
 | Layout tick | `dispatch.rs:199` | `Ticker::every(1ms)`, `layout.tick(dispatch, 1)` |
 | Protocol | `minder/src/lib.rs` | `Request`/`Reply` CBOR enums, `VERSION = "2024-11-01a"` |
@@ -104,22 +113,24 @@ systematic and one is a genuine limitation.
   so *intervals between keys are unaffected* and only absolute latency is shifted.  Nothing in
   the analysis depends on absolute latency.  (It does mean the keyboard has 20 ms of input lag,
   which is a separate conversation the log can inform.)
-- **Left half, exact.**  The active MCU timestamps its own matrix events directly.
-- **Right half, quantized to the I2C read.**  The passive MCU debounces, sets a bit in a
-  bitmap, and asserts an IRQ; the active side then does a `ReadKeys` round trip.  A second key
-  landing *during* that round trip is folded into the same bitmap, so two keys get one
-  timestamp and their order is lost.  The round trip is short — a few bytes at 400 kHz — but
-  the case where it matters is precisely the case being measured: the fingers of a right-hand
-  chord landing within a millisecond or two of each other.
+- **On proto4 and mesa1, exact.**  One MCU scans all 30 keys in the same 1 ms loop and
+  timestamps every event itself.  Both hands are measured on one clock, with no protocol in
+  between.  These are the boards in daily use, so the interesting numbers are the good ones.
+- **On the split boards, the remote half is quantized to the I2C read.**  The passive MCU
+  debounces, sets a bit in a bitmap and asserts an IRQ; the active side then does a `ReadKeys`
+  round trip.  A second key landing *during* that round trip folds into the same bitmap, so two
+  keys get one timestamp and their order is lost — and that is exactly the case being measured,
+  the fingers of a chord landing a millisecond or two apart.
 
-That last point is the one real accuracy limit, and phase 3 addresses it — measurement first,
-then a fix only if the measurement says it matters.
+The second point is the one real accuracy limit, it applies only to jolt3/jolt2, and phase 5
+addresses it if and when a split board matters again.  Everything before phase 5 should be
+developed and judged on a single-MCU board, where the question does not arise.
 
 ---
 
 ## Phase 0: chord table export and a host replay harness
 
-No device change.  This exists so that phases 4 and 5 have something to develop against before
+No device change.  This exists so that phases 3 and 4 have something to develop against before
 any firmware lands, using synthetic logs.
 
 - [ ] **Machine-readable chord table.**  A generator that emits `layouts.json` from
@@ -179,12 +190,43 @@ The device needs to hand over log records without the host having to poll tightl
 
 ### 1c. `keyminder` as a library
 
+Still worth doing, but for the CLI's own sake now rather than for a Swift bridge: the collector
+wants a long-running connection object, and `main.rs` is the wrong place for one.
+
 - [ ] Move `VendorMinder`, `Flasher`, `FlashImage` out of `keyminder/src/main.rs` into a
       library (`keyminder/src/lib.rs`, or a `minder-host` crate if the CLI should stay thin).
       Pure refactor, its own commit.
 - [ ] Give it a connection object owning the long-poll loop, handing events to a callback.
-- [ ] Note for packaging: the app talks to a vendor-specific USB interface via libusb, so it
-      must be unsandboxed or carry `com.apple.security.device.usb`.
+
+### 1d. Two implementations, kept honest
+
+The Swift app speaks minder itself, so `minder/src/lib.rs` stops being the only definition of
+the protocol and starts being the *reference* one.  That is a real cost and it needs a real
+mechanism, not good intentions.
+
+- [ ] **The wire format is minicbor's, not "CBOR".**  `#[derive(Encode)]` with numbered fields
+      produces a specific framing — variant index and field indices, arrays rather than maps
+      unless asked — and a Swift CBOR library will happily encode something else that is still
+      valid CBOR.  Write down the actual byte layout of each message in `minder/`, next to the
+      enums.
+- [ ] **Golden byte vectors.**  A checked-in file of `(message, encoded bytes)` pairs, generated
+      by a Rust test and consumed by a Swift test.  Every `Request` and `Reply` variant, with
+      edge cases: an empty payload, a payload spanning several 64-byte packets, one that lands
+      exactly on a packet boundary (the zero-length-packet case in `Minder::bulk_write`).  A
+      protocol change that forgets Swift then fails a test rather than failing in the field.
+- [ ] **`Reply::Hello` is the guard rail.**  The version, capability list and table hash from 1b
+      mean an app built against an older protocol refuses to derive rather than deriving
+      wrongly.  Both clients must check it; neither may ignore it.
+- [ ] **USB access from Swift is the risk item — spike it first.**  A vendor-specific bulk
+      interface means `IOUSBHost` (or libusb through a bridging header), and macOS has opinions
+      about who may claim an interface: unsandboxed, or sandboxed with
+      `com.apple.security.device.usb`.  Before any of the app design is committed to, write the
+      smallest possible Swift program that opens the device and completes a `Hello` round trip.
+      If that turns out to be unpleasant, the fallback is a thin Rust `staticlib` doing USB and
+      framing only — a handful of C functions, and nothing else moves.
+- [ ] Pick the CBOR library during that spike.  SwiftCBOR and PotentCodables are the obvious
+      candidates; what decides it is which one can be made to match minicbor's framing without
+      a fight, which the golden vectors will answer in an afternoon.
 
 ## Phase 2: the device-side event log
 
@@ -199,13 +241,23 @@ byte 2   dt, high byte
 byte 3   aux
 ```
 
-- `tag` bit 7 clear → **key event**.  Bit 6 is press (1) / release (0); bits 5..0 are the
-  physical scan code.  Codes run 0..47 on the split boards (0..23 left, 24..47 right) and 0..29
-  on the proto4, so six bits is enough with room to spare.
-- `tag` bit 7 set → **marker**, kind in bits 6..0: `Mode`, `Variant`, `RowShift`, `Resume`,
-  `Pause`.  `aux` carries the new value.  Markers exist so that a *partial* drain is
-  self-describing: without them, a replay that starts after the buffer dropped its oldest
-  entries would not know which table to look chords up in.
+- `tag` bit 7 clear → **key event**.  Bit 6 is press (1) / release (0); bits 5..0 are the key
+  code *after* `translate.rs` and *before* the row shift — the space `SCAN_MAP` is indexed in,
+  so it is board-independent and directly replayable.  Codes run 0..47 across every board, so
+  six bits fits with room to spare; reserve 63 for "some physical key with no code", which is
+  what `translate.rs` returns 255 for, so a dead physical key still appears as an event.
+- `tag` bit 7 set → **marker**, kind in bits 6..0, with the new value in `aux`:
+  - `Variant` — **Taipo ⇄ Posh**.  Every derived event has to be attributed to the table that
+    was live when it happened, or the two layouts' statistics silently pool.  It is also
+    interesting on its own: when the switch happens, and how the numbers differ either side of
+    it, is one of the things worth knowing.
+  - `Mode` — taipo / qwerty / steno, so keystrokes that were never taipo are excluded.
+  - `RowShift` — the 3-row row-position toggle.  Always 0 on proto4 and mesa1, which are
+    `two_row`, but the log format should not care which board it came from.
+  - `Resume` / `Pause` — logging turned on and off, so a gap is distinguishable from silence.
+
+  Markers also make a *partial* drain self-describing: without them, a replay starting after
+  the buffer dropped its oldest entries would not know which table to look chords up in.
 - `dt` is the time since the previous record.  **If bit 15 is clear, the low 15 bits are
   milliseconds (0..32.7 s); if set, they are seconds (0..9.1 h).**  This keeps the fixed stride
   and needs no escape record, while spending resolution only on gaps where nobody cares about
@@ -233,8 +285,10 @@ Log at those two call sites (or via one small helper on `Dispatch` that both use
 
 - Logging must never block or drop a *key*.  A full buffer drops the oldest **record** and
   bumps a counter; the key being typed is never affected.
-- The markers are emitted from the places that already know: `LayoutActions::set_mode`, the
-  variant toggle, and the row-shift toggle.
+- The markers are emitted from the places that already know: `LayoutActions::set_mode` for
+  `Mode`, `TaipoManager::toggle_variant` (whose caller already reports `MinorMode::Posh` to the
+  LED) for `Variant`, and `LayoutManager::row_event` for `RowShift`.  Emit a full set at the
+  head of every drain as well, so a host that attaches mid-session is never guessing.
 
 ### Tasks
 
@@ -259,27 +313,7 @@ Log at those two call sites (or via one small helper on `Dispatch` that both use
       format saves space this corpus does not need.  Rotate daily.
 - [ ] Confirm the layout tick still costs what it did; the hook is on the hot path.
 
-## Phase 3: right-hand timing accuracy
-
-Measure first.  The fix is real work and may not be needed.
-
-- [ ] **Measure the collapse rate.**  In `inter.rs`'s `active_task`, count reads whose bitmap
-      delta contains more than one changed bit, and report it (over minder, alongside the log,
-      or just over RTT to start).  Type normally for a while.  If multi-bit reads are rare, the
-      remaining error is one I2C round trip and can simply be documented.
-- [ ] If they are not rare: **timestamp on the passive side.**  Replace (or supplement)
-      `Request::ReadKeys` with `Request::ReadEvents`, returning a small FIFO of
-      `(code, press, age_ms)` where `age_ms` is measured at reply time on the passive MCU.  The
-      active side rebases each onto its own clock as `now - age`.  This preserves both order
-      and inter-key intervals within the right hand, and the FIFO also removes the existing
-      bitmap's inability to represent a press and release of the same key between two reads.
-      - Keep `ReadKeys` working, so an old passive half against a new active half still types.
-      - Note the passive half is also subject to its own 20 ms debounce, which is the same 20
-        ms, so the halves stay comparable.
-- [ ] Either way, record the residual skew in this file, because every "which hand was
-      faster" number the app reports depends on it.
-
-## Phase 4: analysis
+## Phase 3: analysis
 
 A Rust CLI over the phase 0 replay, reading phase 2 logs.  This is the deliverable for goal 1,
 and its output is what the Mac app's model consumes — the app should not be the only way to
@@ -304,10 +338,19 @@ other hand started).
 - [ ] **Split chords.**  A chord committed by timer expiry, immediately followed on the same
       hand by keys that plausibly belonged with it.  This is the `CHORD_TIME = 100` window
       being hit, and it is a tuning signal for that constant as much as a technique signal.
-- [ ] **Hand alternation.**  Every letter is available on both hands, so consecutive chords on
-      the same hand are always avoidable.  Report the same-hand run rate overall, per bigram,
-      and over time.  Treat it as a tracked metric with a tunable weight rather than as a hard
-      error until the data says what a good rate actually looks like.
+- [ ] **Hand alternation, but only within a burst.**  Every letter is available on both hands,
+      so consecutive chords on the same hand are always avoidable — *while you are mid-flow*.
+      After a pause, which hand you restart on carries no information: the fingers are back at
+      rest and either hand is equally correct.
+      So the rule is: a same-hand pair counts only when the gap between the two chords is under
+      `ALTERNATION_WINDOW`.  Start it at 2 s, make it a setting, and let the interval
+      distribution set the real default — the gap histogram should be visibly bimodal (within a
+      word versus between them), and the window belongs in the valley.
+      The same rule governs what it is measured *against*: the denominator is eligible pairs,
+      meaning consecutive chords inside the window, not every pair in the session.  Otherwise a
+      session with a lot of thinking time scores better than one without.
+      **Monitoring reports it, drilling scores it.**  In passive collection it is one metric
+      among several; in a drill it is an error, counted like a wrong chord — see phase 4.
 - [ ] **Spelled-out grams.**  A run of single-letter chords whose text has a chord in the
       table.  Directly measures whether the 18 `Action::Text` entries are being used at all,
       which the drills currently cannot check.
@@ -315,6 +358,12 @@ other hand started).
       the pause is the signal, and it needs the sequence context to be meaningful.  Not an
       error, and the more interesting category, since it finds what is not yet automatic
       without needing anything to go wrong.
+- [ ] **Variant switching.**  Segment the log by the `Variant` marker and report each layout
+      separately, never pooled.  Beyond that: how often the switch happens, what was being typed
+      just before it, and whether the numbers immediately after a switch differ from the steady
+      state — a cost to switching would be worth knowing about, and no other instrument can see
+      it.  If one layout is being used far more than the other, say so plainly rather than
+      presenting two equally thin sets of statistics.
 - [ ] **Ranking.**  Weight by how often the item actually occurs in this writer's own text.
       Something missed twice out of two matters less than something missed ten times out of
       fifty.
@@ -326,18 +375,22 @@ other hand started).
 - [ ] Per item: exponentially-weighted mean and variance of the interval, error count,
       exposure count, last seen.  Keyed by `(variant, item)`, since Taipo and Posh are
       different skills.
-- [ ] SQLite in `~/Library/Application Support/`, written by the Rust core, readable by the
-      CLI.  One store, two front ends.
+- [ ] SQLite in `~/Library/Application Support/`, written by the Rust CLI and read (and
+      appended to, for drill results) by the app.  One store, two front ends, and SQLite is
+      first class from both languages — no bridge needed for this either.  Schema versioned,
+      with the app refusing a newer schema rather than corrupting it.
 - [ ] Port the segmentation cost model from `words/ngrams.py` into this crate: the app needs
       "what is the cheapest chord sequence for this word" at runtime, to know what a word
       *should* have been typed as.  `words/ngrams.py` stays as the research tool; it does not
       need to change.
 
-## Phase 5: the Mac app
+## Phase 4: the Mac app
 
-SwiftUI, menu bar plus a main window, over the Rust core.
+SwiftUI, menu bar plus a main window, Swift all the way down — its own minder client, its own
+chord assembly, sharing the model store and the generated `layouts.json` with the Rust CLI but
+not linking against it.  See 1d for what keeps the two from drifting apart.
 
-### 5a. Shell and passive collection — goal 1, standalone
+### 4a. Shell and passive collection — goal 1, standalone
 
 The app is useful before any drill exists.
 
@@ -347,11 +400,11 @@ The app is useful before any drill exists.
 - [ ] Reset detection: the long-poll fails on USB re-enumeration; `boot_id` confirms it.  Mark
       a discontinuity in the log and re-enable logging.
 - [ ] Table-hash mismatch: warn loudly and stop deriving, rather than deriving wrongly.
-- [ ] Stats window: the phase 4 analysis, rendered.  Chord heatmap over both tables, per-finger
+- [ ] Stats window: the phase 3 analysis, rendered.  Chord heatmap over both tables, per-finger
       breakdown, the transition matrix, alternation rate over time, corrections and hesitations
       ranked, "where the time actually goes".
 
-### 5b. The trainer
+### 4b. The trainer
 
 - [ ] **Input.**  Render what is typed from the app's own key events, so there is zero added
       latency — a trainer with laggy echo is unusable.  Annotate from the log, which arrives
@@ -370,25 +423,70 @@ The app is useful before any drill exists.
       - *Lessons*: `docs/drills/` as native lessons, but now able to enforce what those lists
         could only encourage, since the app can see whether the gram was chorded.
 - [ ] **Scoring.**  Chords per minute alongside WPM — for a chorded layout, CPM is the honest
-      number.  Accuracy split by the taxonomy in phase 4: wrong chord, dead chord, split chord,
+      number.  Accuracy split by the taxonomy in phase 3: wrong chord, dead chord, split chord,
       spelled-out gram, same-hand run, correction.  A correction counts as an error even when
       the final text is right, and alternation is judged **across** corrections rather than
       exempting them — hitting `Bk` on the same hand as the letter it deletes is the same
       technique fault as any other same-hand run.
+      Alternation is an **error** here where it was only a metric in passive collection: a
+      drill is where technique is deliberately being trained, and a soft number nobody reacts
+      to trains nothing.  It keeps the `ALTERNATION_WINDOW` exemption from phase 3, so pausing
+      to read the next word costs nothing — which is what stops the rule from punishing the one
+      thing a trainer must never punish, stopping to think.
 - [ ] **Chord hints.**  Two hands drawn, the next chord's keys lit, fading out as the item is
       learned — keybr's idea, and much more necessary here, since there is nothing on the keys.
       Live technique strip under the text: an L/R bead per chord, and a spread bar per chord.
 - [ ] **Variant awareness.**  Read the active variant from the log's `Variant` marker and
       follow it, so a drill always matches what the keyboard is actually doing.  The model is
       per-variant, which incidentally makes Taipo-vs-Posh comparable.
-- [ ] **Bridge.**  Keep the C ABI small: connect / disconnect, start-stop logging, a callback
-      delivering derived events, model queries, material generation, session results.  cbindgen
-      for the header.  `uniffi` is more machinery than this needs unless the surface grows.
+- [ ] **Chord assembly in Swift, checked against Rust.**  The app needs derived chords live,
+      so it assembles them itself rather than round-tripping through a Rust replay.  That is a
+      second implementation of `SideManager` — the chord window, the cross-hand commit, the
+      same-side rollover, `SCAN_MAP` and the row shift — and it is exactly the divergence the
+      "replay is the actual engine" decision was meant to prevent.
+      The answer is the same as for the protocol: **golden files.**  The phase 0 synthetic
+      generator produces key-event logs, the Rust replay produces the derived events, both are
+      checked in, and a Swift test must reproduce them exactly.  Divergence becomes a test
+      failure instead of a slow drift in the statistics.
+      The app is also allowed to be a little wrong in a way the CLI is not: it renders live
+      feedback, while the Rust CLI is what the model and the reported numbers come from.  If
+      the two ever disagree about a session, the CLI wins.
 
-### 5c. Rough order
+### 4c. Rough order
 
-Shell + connection → passive collector + log file → stats window → test mode → adaptive
-practice → hints and technique strip → lessons.  Each is usable on its own.
+USB spike (1d) → shell + connection → live chord assembly against the golden files → test mode
+→ stats window → adaptive practice → hints and technique strip → lessons.  Each is usable on
+its own, and the spike comes first because it is the only step that can invalidate the design.
+
+Note the app does *not* need the passive collector: that is the Rust CLI's job, running in the
+background, and the app reads the model store it writes.  Splitting it that way means goal 1 is
+delivered by phase 3 with no Swift at all, and the app is purely the trainer.
+
+## Phase 5: split-board timing accuracy
+
+**jolt3 and jolt2 only, and only if a split board becomes the daily driver again.**  proto4
+and mesa1 have one MCU and one clock, so nothing here applies to them.  Kept in the plan
+because the log format and the analysis are board-independent and should stay that way, and
+because the measurement is cheap enough to be worth having before it is needed.
+
+Measure first.  The fix is real work and may not be needed.
+
+- [ ] **Measure the collapse rate.**  In `inter.rs`'s `active_task`, count reads whose bitmap
+      delta contains more than one changed bit, and report it (over minder, alongside the log,
+      or just over RTT to start).  Type normally for a while.  If multi-bit reads are rare, the
+      remaining error is one I2C round trip and can simply be documented.
+- [ ] If they are not rare: **timestamp on the passive side.**  Replace (or supplement)
+      `Request::ReadKeys` with `Request::ReadEvents`, returning a small FIFO of
+      `(code, press, age_ms)` where `age_ms` is measured at reply time on the passive MCU.  The
+      active side rebases each onto its own clock as `now - age`.  This preserves both order
+      and inter-key intervals within the right hand, and the FIFO also removes the existing
+      bitmap's inability to represent a press and release of the same key between two reads.
+      - Keep `ReadKeys` working, so an old passive half against a new active half still types.
+      - Note the passive half is also subject to its own 20 ms debounce, which is the same 20
+        ms, so the halves stay comparable.
+- [ ] Either way, record the residual skew in this file, and have the analysis refuse to report
+      within-chord timing for a split-board log until it is known, rather than reporting a
+      number whose error bar it cannot state.
 
 ## Phase 6: Zephyr parity
 
@@ -416,41 +514,55 @@ letters — there is no redaction that keeps the data useful.
 
 ## Open questions
 
-- **Is a same-hand run really an error?**  It is always avoidable, but "avoidable" is not
-  "wrong", and some sequences may be genuinely fine or even faster.  Ship it as a metric with
-  a tunable weight and let the first month of real data set the default.
+- **Where does `ALTERNATION_WINDOW` actually belong?**  Settled in principle — a same-hand pair
+  only counts inside a burst, a metric when monitoring and an error when drilling — but 2 s is
+  a guess.  The inter-chord gap histogram from the first real corpus should show a valley
+  between "within a word" and "between words"; put the window there.  Worth checking whether it
+  wants to be a fixed number at all, rather than a multiple of the writer's own median gap,
+  which would make it track improvement instead of needing to be retuned.
 - **How much buffer?**  Falls out of how long the host is realistically detached.  16 bytes a
   character means a 64K ring is about 20 minutes of solid typing; if the app is running all
   the time, far less would do.
 - **Is `CHORD_TIME = 100` right?**  It has been a "starting guess, not a measured value" since
-  it was set.  The split-chord rate from phase 4 is the measurement that was missing.
+  it was set.  The split-chord rate from phase 3 is the measurement that was missing.
 - **Does the 20 ms debounce need to be 20 ms?**  Not this project's question, but this project
   is the instrument for asking it.
-- **What does a correction actually look like?**  The taxonomy in phase 4 is a guess at the
+- **What does a correction actually look like?**  The taxonomy in phase 3 is a guess at the
   categories; the first real corpus will say whether they are the right ones.
 - **Does the trainer need to drive the keyboard at all** — forcing a variant, or suppressing
   steno mode — or is reading enough?  Probably reading; revisit when the drill modes exist.
-- **How much of `words/ngrams.py` should move to Rust?**  The segmentation cost model must, for
-  the app.  The ease ranking and the corpus work probably should not.
+- **Where does the segmentation cost model live?**  The app needs "what is the cheapest chord
+  sequence for this word" at runtime to generate material, and so does the CLI.  With the two
+  no longer sharing code, that is a third implementation unless it is precomputed instead:
+  generating the segmentation for every word in `english_10k` once, into a checked-in table
+  beside `layouts.json`, would let both sides just look it up.  Probably the right answer;
+  decide when phase 3's model store is written.  `words/ngrams.py` stays the research tool
+  either way.
+- **Does the Swift side need the whole engine, or only chord assembly?**  Actions, modifiers
+  and the taipo latch may turn out not to matter for a trainer that already knows the target
+  text.  The smaller the Swift reimplementation, the less there is to drift.
 
 ## Testing notes
 
 Per the repo convention, changes are tested during review rather than before commit, and
 refactors land separately from functional change.  The refactors here that should be their own
-commits: splitting `keyminder` into a library (1c), and any `inter.rs` protocol change (3).
+commits: splitting `keyminder` into a library (1c), and any `inter.rs` protocol change (5).
 
 Hardware-only checks, collected:
 
 - long-poll round trip and preemption: issue `GetEvent`, then immediately a `Hash`, confirm
   `NoEvent` then `Hash` arrive in order (1a)
+- Swift `Hello` round trip over the vendor interface, sandboxed and not (1d)
 - log fidelity: type a known passage, drain, replay, confirm it reproduces exactly what was
   typed — including a deliberate misfingering, a dead chord, and a `Bk` correction (2)
 - gap handling: type with the host detached long enough to overflow the buffer, confirm the
   gap appears in the file and the keyboard itself never stutters (2)
-- markers: switch variant, mode and row position mid-session, confirm a drain that begins
-  after a drop still replays correctly (2)
+- markers: switch Taipo ⇄ Posh, change mode, and toggle row position mid-session; confirm a
+  drain that begins after a drop still replays correctly, and that a variant switch mid-word
+  attributes the chords either side of it to the right table (2)
 - hot path: confirm the 1 ms layout tick and the matrix scan are unaffected with logging on (2)
-- right-hand collapse rate, typing normally (3)
+- split-board collapse rate, typing normally, on a jolt3 — the only check that needs a board
+  other than proto4 or mesa1 (5)
 - reset: unplug and replug mid-session, confirm the discontinuity is marked and logging
-  resumes (5a)
-- secure input: focus a password field, confirm recording pauses on the device (5a)
+  resumes (4a)
+- secure input: focus a password field, confirm recording pauses on the device (4a)

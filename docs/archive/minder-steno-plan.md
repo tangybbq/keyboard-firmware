@@ -10,8 +10,11 @@
 >   the taipo event log streams over.
 > - **Phase 1b**, `boot_id` and capability negotiation — needed to mark a log
 >   discontinuity across a reset.
-> - **Phase 1c**, splitting `keyminder` into a library with a Swift bridge —
->   needed for the same reason, by a different app.
+> - **Phase 1c**, splitting `keyminder` into a library — still worth doing, though
+>   for the collector's own sake rather than for the Swift bridge this plan
+>   recommended.  Without a steno dictionary to bridge to, the Mac app speaks
+>   minder itself and the two host implementations are kept in step by golden
+>   byte vectors instead of by shared code.
 >
 > The reasoning about ring buffers, delta-vs-absolute timestamps, drop-oldest
 > accounting, and anchoring wall clock at the newest entry (phase 2) applies
