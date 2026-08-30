@@ -8,12 +8,16 @@
 extern crate alloc;
 
 use alloc::{format, vec::Vec};
+use core::cell::RefCell;
 use embassy_executor::Spawner;
+use embassy_futures::select::{select3, Either3};
 use embassy_rp::{flash::{Blocking, Flash}, peripherals::{FLASH, WATCHDOG}, watchdog::Watchdog};
+use embassy_sync::{blocking_mutex::{raw::CriticalSectionRawMutex, Mutex}, signal::Signal};
 use embassy_time::{Duration, Timer};
 use embassy_usb::driver::{EndpointError, EndpointIn, EndpointOut};
 use embedded_storage::nor_flash::NorFlash;
-use minder::{Reply, Request, VERSION};
+use heapless::Deque;
+use minder::{Event, Reply, Request, VERSION};
 use sha2::{Digest, Sha256};
 
 #[allow(unused_imports)]
@@ -39,6 +43,104 @@ where
 /// Value chosen so cbor data with 4k buffer in it should be fine.
 const SIZE_LIMIT: usize = 4200;
 
+/// How many events can be waiting for the host at once.
+///
+/// Events are notifications, not data: phase 2's log lives in its own ring buffer, and an event
+/// only says that there is something there to fetch.  A host that has fallen this far behind gains
+/// nothing from the older notifications, so the queue drops the oldest rather than blocking the
+/// side that raised it.
+const EVENT_QUEUE_DEPTH: usize = 8;
+
+/// Events waiting to be handed to the host.
+static EVENTS: EventQueue = EventQueue::new();
+
+/// A pending `TestEvent` request, picked up by [`test_event_task`].
+static TEST_EVENT_REQ: Signal<CriticalSectionRawMutex, (u32, u32)> = Signal::new();
+
+/// A small bounded queue of events for the host, which drops the oldest on overflow.
+///
+/// Push is non-blocking and callable from anywhere, which is what phase 2's key event hook needs:
+/// logging must never delay or drop a key.
+struct EventQueue {
+    queue: Mutex<CriticalSectionRawMutex, RefCell<Deque<Event, EVENT_QUEUE_DEPTH>>>,
+    waker: Signal<CriticalSectionRawMutex, ()>,
+}
+
+impl EventQueue {
+    const fn new() -> Self {
+        Self {
+            queue: Mutex::new(RefCell::new(Deque::new())),
+            waker: Signal::new(),
+        }
+    }
+
+    /// Queue an event, discarding the oldest if the queue is full.
+    fn push(&self, event: Event) {
+        self.queue.lock(|queue| {
+            let mut queue = queue.borrow_mut();
+            if queue.is_full() {
+                let _ = queue.pop_front();
+            }
+            let _ = queue.push_back(event);
+        });
+        self.waker.signal(());
+    }
+
+    fn pop(&self) -> Option<Event> {
+        self.queue.lock(|queue| queue.borrow_mut().pop_front())
+    }
+
+    /// Wait until there is an event, and take it.
+    ///
+    /// Cancel safe: an event is only removed from the queue by the poll that returns it, so
+    /// dropping this future in a `select` cannot lose one.  A stale signal only costs an extra
+    /// trip around the loop.
+    async fn wait(&self) -> Event {
+        loop {
+            if let Some(event) = self.pop() {
+                return event;
+            }
+            self.waker.wait().await;
+        }
+    }
+}
+
+/// Queue an event to be reported to the host on its next `GetEvent`.
+///
+/// Never blocks, and never fails; if the queue is full the oldest event is dropped.
+#[allow(dead_code)]
+pub fn push_event(event: Event) {
+    EVENTS.push(event);
+}
+
+/// How a pending `GetEvent` ended.
+enum GetEvent {
+    /// An event arrived.
+    Event(Event),
+    /// The requested timeout expired.
+    Timeout,
+    /// A new request started arriving; its first packet, of this length, is in the read buffer.
+    Interrupted(usize),
+    /// The read failed.
+    ReadError(EndpointError),
+}
+
+/// Raise the test events asked for by `Request::TestEvent`.
+///
+/// Kept as a task so the delay does not hold up the minder loop, which is the whole point: the
+/// events land while a `GetEvent` is already pending.  Only one batch can be pending at a time; a
+/// second request during the delay of a first replaces it.
+#[embassy_executor::task]
+async fn test_event_task() {
+    loop {
+        let (count, delay_ms) = TEST_EVENT_REQ.wait().await;
+        Timer::after(Duration::from_millis(delay_ms as u64)).await;
+        for seq in 1..=count {
+            EVENTS.push(Event::Test { seq });
+        }
+    }
+}
+
 impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
     pub fn new(reader: Rd, writer: Wr, unique: &'static str) -> Self {
         let flash = Flash::new_blocking(unsafe { FLASH::steal() });
@@ -53,14 +155,28 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
     }
 
     /// The main loop, reads requests and replies to them.
+    ///
+    /// Strictly sequential: exactly one request is read, dispatched and replied to at a time.  That
+    /// is what keeps a pending `GetEvent` from being able to fire inside `program`, which blocks
+    /// with interrupts masked.  It stays true only while this loop is sequential.
     pub async fn main_loop(mut self) -> ! {
+        let spawner = unsafe { Spawner::for_current_executor() }.await;
+        spawner.spawn(unwrap!(test_event_task()));
+
+        // The first packet of a request that arrived while a `GetEvent` was pending, already
+        // sitting in the read buffer.
+        let mut pending_first: Option<usize> = None;
+
         loop {
-            let first_len = match self.read_packet().await {
-                Ok(len) => len,
-                Err(err) => {
-                    warn!("Minder read error: {:?}", err);
-                    continue;
-                }
+            let first_len = match pending_first.take() {
+                Some(len) => len,
+                None => match self.read_packet().await {
+                    Ok(len) => len,
+                    Err(err) => {
+                        warn!("Minder read error: {:?}", err);
+                        continue;
+                    }
+                },
             };
 
             let rbuf = match self.bulk_read_rest(first_len).await {
@@ -81,6 +197,27 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
                 Ok(Request::Reset) => self.reset().await,
                 Ok(Request::Hash { offset, size }) => self.hash(offset, size),
                 Ok(Request::Program { offset, data }) => self.program(offset, data.into()),
+                Ok(Request::GetEvent { timeout_ms }) => match self.get_event(timeout_ms).await {
+                    GetEvent::Event(event) => Reply::Event { event },
+                    GetEvent::Timeout => Reply::NoEvent,
+                    GetEvent::Interrupted(len) => {
+                        // Answer the poll before the request that interrupted it.  Every request
+                        // still gets exactly one reply, in order, so the host can tell them apart
+                        // without the requests being tagged.
+                        pending_first = Some(len);
+                        Reply::NoEvent
+                    }
+                    GetEvent::ReadError(err) => {
+                        // Still answer the poll, or the host waits forever for a reply that the
+                        // accounting says is owed.
+                        warn!("Minder read error: {:?}", err);
+                        Reply::NoEvent
+                    }
+                },
+                Ok(Request::TestEvent { count, delay_ms }) => {
+                    TEST_EVENT_REQ.signal((count, delay_ms));
+                    Reply::Ok
+                }
                 Err(_) => {
                     warn!("Error decoding packet");
                     continue;
@@ -155,6 +292,26 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
         }
 
         Ok(result)
+    }
+
+    /// Wait, for up to `timeout_ms`, for something to report to the host.
+    ///
+    /// The select is deliberately over [`read_packet`](Self::read_packet) rather than a whole
+    /// request: a request that has started must be read to completion, or its remaining packets
+    /// desynchronize everything that follows.  The interrupting packet is handed back for the main
+    /// loop to finish reading, after the `NoEvent` for this poll has gone out.
+    ///
+    /// The order of the branches is the priority when more than one is ready: a queued event beats
+    /// a new request, and a new request beats the timeout.
+    async fn get_event(&mut self, timeout_ms: u32) -> GetEvent {
+        let timeout = Timer::after(Duration::from_millis(timeout_ms as u64));
+
+        match select3(EVENTS.wait(), self.read_packet(), timeout).await {
+            Either3::First(event) => GetEvent::Event(event),
+            Either3::Second(Ok(len)) => GetEvent::Interrupted(len),
+            Either3::Second(Err(err)) => GetEvent::ReadError(err),
+            Either3::Third(()) => GetEvent::Timeout,
+        }
     }
 
     /// Given a hello pack, generate our detailed response.
