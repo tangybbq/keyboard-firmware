@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import MinderKit
 import TaipoKit
@@ -95,6 +96,27 @@ public final class DeviceMonitor: ObservableObject {
         // Collecting starts with the app, not with a window: the point of the menu bar is
         // that it runs whether or not anything is on screen.
         start()
+
+        // Quitting has to tell the keyboard to stop, or it goes on recording into its own
+        // RAM with nobody draining it.  Nothing reaches disk -- the buffer is discarded on
+        // the next connect -- but "the keyboard is still logging" is not a state to leave
+        // behind when the app that asked for it is gone.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.shutDown() }
+        }
+    }
+
+    /// Stop, and wait for the device thread to put the keyboard back as it found it.
+    ///
+    /// Bounded: a keyboard that has been unplugged will never answer, and hanging the quit
+    /// on it would be worse than leaving it recording into RAM it loses at power off.
+    public func shutDown() {
+        running = false
+        let done = DispatchSemaphore(value: 0)
+        queue.async { done.signal() }
+        _ = done.wait(timeout: .now() + 2.0)
     }
 
     /// What the menu bar shows at a glance.
@@ -149,8 +171,11 @@ public final class DeviceMonitor: ObservableObject {
         while isRunning {
             let boot = runSession(previousBootID: lastBootID)
             if let boot { lastBootID = boot }
-            guard isRunning else { break }
-            Thread.sleep(forTimeInterval: 2.0)
+            // Backoff, in short steps, so quitting does not wait it out.
+            for _ in 0..<20 {
+                guard isRunning else { break }
+                Thread.sleep(forTimeInterval: 0.1)
+            }
         }
         Task { @MainActor [weak self] in
             self?.recording = false
