@@ -41,6 +41,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
 
+use minder::keylog::{Delta, Marker, Record};
 use minder::{cap, Event, Reply, Request, PACKET_SIZE};
 
 fn hex(bytes: &[u8]) -> String {
@@ -99,6 +100,9 @@ fn vectors() -> String {
         vector(&mut out, &format!("Request::Program{{{n} bytes}} (whole packets)"), &program(n));
     }
     vector(&mut out, "Request::Program{100 bytes}", &program(100));
+    vector(&mut out, "Request::SetLogging", &Request::SetLogging { enabled: true, watermark: 1 });
+    vector(&mut out, "Request::GetEventLog", &Request::GetEventLog { max_bytes: 4000 });
+    vector(&mut out, "Request::EventLogAck", &Request::EventLogAck { through_seq: 12345 });
 
     out.push_str("\n## Replies\n\n");
     vector(
@@ -153,7 +157,33 @@ fn vectors() -> String {
     // Event is the protocol's first nested enum, and worth its own vector: a Swift
     // library has to frame the inner variant the same way as the outer one.
     vector(&mut out, "Reply::Event", &Reply::Event { event: Event::Test { seq: 1 } });
+    vector(&mut out, "Reply::Event{LogReady}", &Reply::Event { event: Event::LogReady { pending: 64 } });
     vector(&mut out, "Reply::NoEvent", &Reply::NoEvent);
+    {
+        // A short, hand-built batch: a press, its release, and a variant switch.  Spelling
+        // the records out here rather than capturing them from a device keeps this a test
+        // of the encoding rather than of whatever the keyboard happened to be doing.
+        let mut records = Vec::new();
+        for rec in [
+            Record::key(Delta::from_millis(0), 5, true),
+            Record::key(Delta::from_millis(42), 5, false),
+            Record::marker(Delta::from_millis(1500), Marker::Variant, 1),
+        ] {
+            records.extend_from_slice(&rec.encode());
+        }
+        vector(
+            &mut out,
+            "Reply::EventLog (3 records)",
+            &Reply::EventLog {
+                boot_id: 0x0123_4567_89ab_cdef,
+                seq: 1000,
+                dropped: 0,
+                anchor_ms: 7,
+                records: records.into(),
+                remaining: 0,
+            },
+        );
+    }
     vector(&mut out, "Reply::Ok", &Reply::Ok);
     vector(&mut out, "Reply::Error", &Reply::Error { text: "Program not on erase boundary".into() });
     vector(&mut out, "Reply::Reset", &Reply::Reset);

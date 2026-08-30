@@ -39,6 +39,15 @@ Request::Program{118 bytes} (whole packets)
 Request::Program{100 bytes}
   len 110  packets 2  trailing-zlp false
   8205821a103000005864abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab
+Request::SetLogging
+  len 5  packets 1  trailing-zlp false
+  820882f501
+Request::GetEventLog
+  len 6  packets 1  trailing-zlp false
+  820981190fa0
+Request::EventLogAck
+  len 6  packets 1  trailing-zlp false
+  820a81193039
 
 ## Replies
 
@@ -66,9 +75,15 @@ Reply::ProgramDone
 Reply::Event
   len 7  packets 1  trailing-zlp false
   82068182018101
+Reply::Event{LogReady}
+  len 8  packets 1  trailing-zlp false
+  8206818202811840
 Reply::NoEvent
   len 3  packets 1  trailing-zlp false
   820780
+Reply::EventLog (3 records)
+  len 31  packets 1  trailing-zlp false
+  8209861b0123456789abcdef1903e800074c45000000052a000081dc050100
 Reply::Ok
   len 3  packets 1  trailing-zlp false
   820880

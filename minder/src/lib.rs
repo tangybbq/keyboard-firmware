@@ -40,6 +40,7 @@ mod decode;
 mod encode;
 
 pub mod cobs;
+pub mod keylog;
 
 pub use decode::{HidDecoder, SerialDecoder};
 pub use encode::{HidWrite, hid_encode, SerialWrite, serial_encode};
@@ -67,6 +68,8 @@ pub mod cap {
     pub const TEST_EVENTS: &str = "test-events";
     /// `Hash` and `Program` work, so flash can be updated.
     pub const FLASH: &str = "flash";
+    /// The key event log: `SetLogging`, `GetEventLog` and `EventLogAck` work.
+    pub const KEY_LOG: &str = "key-log";
 }
 
 #[derive(Debug, Encode, Decode, Eq, PartialEq)]
@@ -122,6 +125,37 @@ pub enum Request {
         #[n(1)]
         delay_ms: u32,
     },
+    /// Turn key event logging on or off, and say how eagerly to be told about it.
+    ///
+    /// Logging is off at boot and stays off until asked, so a keyboard with no host
+    /// attached accumulates nothing.  That is a privacy decision rather than a memory
+    /// one; see the Privacy section of `taipo-teacher.md`.
+    #[n(8)]
+    SetLogging {
+        #[n(0)]
+        enabled: bool,
+        /// Raise an `Event::LogReady` once this many records are waiting.  One means
+        /// "tell me immediately", which is what a trainer wanting low latency asks for;
+        /// a larger value batches.  Zero disables the notification, leaving the host to
+        /// poll on its own schedule.
+        #[n(1)]
+        watermark: u32,
+    },
+    /// Fetch up to `max_bytes` of buffered records, without consuming them.
+    #[n(9)]
+    GetEventLog {
+        #[n(0)]
+        max_bytes: u32,
+    },
+    /// Discard records up to and including `through_seq`.
+    ///
+    /// Acking explicitly, rather than the device discarding on read, means a host that
+    /// dies mid-transfer refetches instead of losing what it had not written down yet.
+    #[n(10)]
+    EventLogAck {
+        #[n(0)]
+        through_seq: u32,
+    },
     #[n(255)]
     Reset,
 }
@@ -138,6 +172,15 @@ pub enum Event {
     Test {
         #[n(0)]
         seq: u32,
+    },
+    /// The key log has at least the watermark's worth of records waiting.
+    ///
+    /// Raised once per crossing rather than once per record, so that a busy keyboard does not
+    /// turn the event queue into a second, lossier copy of the log.
+    #[n(2)]
+    LogReady {
+        #[n(0)]
+        pending: u32,
     },
 }
 
@@ -214,6 +257,38 @@ pub enum Reply {
     #[n(8)]
     /// A generic acknowledgement, for requests with nothing to say back.
     Ok,
+    /// A batch of key log records.
+    #[n(9)]
+    EventLog {
+        /// The device's boot id, repeated here so a batch can be attributed without
+        /// having to correlate it with a `Hello` that may predate a reset.
+        #[n(0)]
+        boot_id: u64,
+        /// Sequence number of the first record in `records`.
+        #[n(1)]
+        seq: u32,
+        /// Records dropped, oldest first, since the last batch was reported.
+        ///
+        /// Drop-oldest always drops at the tail, so the gap is always immediately before
+        /// `seq` and needs no marker record to place it.
+        #[n(2)]
+        dropped: u32,
+        /// Milliseconds since the *newest* record in this batch was written.
+        ///
+        /// The host stamps that record with "now minus this" and walks backwards
+        /// subtracting deltas.  Anchoring at the new end rather than the old one means
+        /// records dropped at the far end cost nothing, and it needs no epoch and no
+        /// wrapping arithmetic.  Meaningless when `records` is empty.
+        #[n(3)]
+        anchor_ms: u32,
+        /// Packed four-byte records; see [`crate::keylog`].
+        #[n(4)]
+        #[cfg_attr(feature = "defmt", defmt(Debug2Format))]
+        records: ByteVec,
+        /// Records still buffered after this batch.
+        #[n(5)]
+        remaining: u32,
+    },
     #[n(254)]
     Error {
         #[n(0)]
