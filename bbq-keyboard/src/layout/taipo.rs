@@ -117,7 +117,7 @@ pub struct TaipoManager {
 impl Default for TaipoManager {
     fn default() -> Self {
         TaipoManager {
-            sides: [Default::default(), Default::default()],
+            sides: [SideManager::new(Side::Left), SideManager::new(Side::Right)],
             variant: TaipoVariant::default(),
             keys: TaipoEvents::new(),
             oneshot: Mods::empty(),
@@ -182,6 +182,14 @@ impl TaipoManager {
                     self.taipo_latch = 0;
                 }
                 continue;
+            }
+
+            // Report the chord to whatever is watching, before looking it up.
+            // A chord with no table entry is exactly the interesting case, and
+            // so is a chord assembled in steno mode whose keys are never sent,
+            // so this is not gated on either.
+            if let Some(end) = tevent.end {
+                actions.taipo_chord(tevent.side, tevent.code, end).await;
             }
 
             // Look up the code to see if we have an action.  The tables are
@@ -329,7 +337,7 @@ impl TaipoManager {
             // rather than making it wait out its timer; this is what keeps the
             // chord window from having to be short enough to separate
             // alternating chords by time alone.
-            self.sides[1 - side.index()].force_down(&mut self.keys);
+            self.sides[1 - side.index()].force_down(&mut self.keys, ChordEnd::OtherHand);
             self.sides[side.index()].press(*tcode, &mut self.keys);
         } else {
             self.sides[side.index()].release(*tcode, &mut self.keys);
@@ -357,8 +365,10 @@ impl TaipoManager {
 }
 
 /// For each side, this tracks the state of keys pressed on that side.
-#[derive(Default)]
 struct SideManager {
+    /// Which hand this is.  Carried so that the events it emits can name the
+    /// hand without the caller having to add it back.
+    side: Side,
     /// Keys that are currently pressed.
     pressed: u16,
     /// Keys that are physically still held, but belong to a chord that has
@@ -396,6 +406,17 @@ struct SideManager {
 pub const CHORD_TIME: u32 = 100;
 
 impl SideManager {
+    fn new(side: Side) -> Self {
+        SideManager {
+            side,
+            pressed: 0,
+            inactive: 0,
+            seen: 0,
+            age: 0,
+            down: false,
+        }
+    }
+
     fn press(&mut self, tcode: u16, keys: &mut TaipoEvents) {
         // info!("smpress: down:{} seen:{}, age:{}", self.down, self.seen, self.age);
         if self.down {
@@ -403,7 +424,12 @@ impl SideManager {
             // End the old chord here, rather than waiting for its keys to come
             // up; they become inactive, and are only tracked until they are
             // released.
-            let _ = keys.push_back(TaipoEvent { is_press: false, code: self.seen });
+            let _ = keys.push_back(TaipoEvent {
+                is_press: false,
+                side: self.side,
+                code: self.seen,
+                end: None,
+            });
             // info!("taipo: rollover release {:x}", self.seen);
             self.inactive |= self.pressed;
             self.seen = 0;
@@ -433,10 +459,20 @@ impl SideManager {
         // hasn't expired, we need to send down, and then release.
         if self.pressed & !self.inactive == 0 && self.seen != 0 {
             if !self.down {
-                let _ = keys.push_back(TaipoEvent { is_press: true, code: self.seen });
+                let _ = keys.push_back(TaipoEvent {
+                    is_press: true,
+                    side: self.side,
+                    code: self.seen,
+                    end: Some(ChordEnd::AllReleased),
+                });
                 // info!("taipo: press {:x}", self.seen);
             }
-            let _ = keys.push_back(TaipoEvent { is_press: false, code: self.seen });
+            let _ = keys.push_back(TaipoEvent {
+                is_press: false,
+                side: self.side,
+                code: self.seen,
+                end: None,
+            });
             // info!("taipo: release {:x}", self.seen);
             self.seen = 0;
             self.age = 0;
@@ -453,7 +489,7 @@ impl SideManager {
         }
         self.age = self.age.saturating_add(ticks as u32);
         if self.age >= CHORD_TIME {
-            self.force_down(keys);
+            self.force_down(keys, ChordEnd::TimerExpired);
         }
     }
 
@@ -461,12 +497,19 @@ impl SideManager {
     ///
     /// The keys stay held; as with the timer, they take no further part in the
     /// chord, and are only tracked until they come back up.  Does nothing if
-    /// there is no chord in progress, or if it has already been sent.
-    fn force_down(&mut self, keys: &mut TaipoEvents) {
+    /// there is no chord in progress, or if it has already been sent.  `end`
+    /// is the reason to report, which is the timer for a `tick` and the other
+    /// hand for a key landing there.
+    fn force_down(&mut self, keys: &mut TaipoEvents, end: ChordEnd) {
         if self.down || self.seen == 0 {
             return;
         }
-        let _ = keys.push_back(TaipoEvent { is_press: true, code: self.seen });
+        let _ = keys.push_back(TaipoEvent {
+            is_press: true,
+            side: self.side,
+            code: self.seen,
+            end: Some(end),
+        });
         // info!("taipo: tpress {:x}", self.seen);
         self.down = true;
     }
@@ -474,7 +517,7 @@ impl SideManager {
 
 #[cfg(test)]
 mod test_side_manager {
-    use super::{SideManager, TaipoEvent, TaipoEvents};
+    use super::{ChordEnd, Side, SideManager, TaipoEvents};
 
     /// The chord window, in the units `spin` counts.  Taken from the layout
     /// itself, so that retuning the window doesn't silently invalidate every
@@ -484,13 +527,17 @@ mod test_side_manager {
     struct Tester {
         events: TaipoEvents,
         manager: SideManager,
+        /// The termination reasons of the chords committed by the last
+        /// `events` call, in order.
+        ends: Vec<ChordEnd>,
     }
 
     impl Tester {
         fn new() -> Tester {
             Tester {
                 events: TaipoEvents::new(),
-                manager: SideManager::default(),
+                manager: SideManager::new(Side::Left),
+                ends: Vec::new(),
             }
         }
 
@@ -506,13 +553,35 @@ mod test_side_manager {
             self.manager.tick(&mut self.events, ticks);
         }
 
-        fn events(&mut self, events: &[TaipoEvent]) {
+        /// A key landed on the other hand, which commits whatever this one was
+        /// building.  This is what `TaipoManager::handle_event` does.
+        fn other_hand(&mut self) {
+            self.manager
+                .force_down(&mut self.events, ChordEnd::OtherHand);
+        }
+
+        /// Check the events produced since the last call, as `(is_press,
+        /// code)` pairs.  The side is not checked, as there is only one, and
+        /// the termination reasons are checked by `ends`, so that these tests
+        /// stay about how the chord is assembled.
+        fn events(&mut self, events: &[(bool, u16)]) {
             // Ensure the events match.
             let mut gotten = Vec::new();
+            self.ends.clear();
             while let Some(ev) = self.events.pop_front() {
-                gotten.push(ev);
+                assert_eq!(ev.side, Side::Left);
+                assert_eq!(ev.is_press, ev.end.is_some());
+                if let Some(end) = ev.end {
+                    self.ends.push(end);
+                }
+                gotten.push((ev.is_press, ev.code));
             }
-            assert_eq!(&gotten, events);
+            assert_eq!(&gotten[..], events);
+        }
+
+        /// Check why each chord committed by the last `events` call ended.
+        fn ends(&self, ends: &[ChordEnd]) {
+            assert_eq!(&self.ends[..], ends);
         }
     }
 
@@ -526,8 +595,8 @@ mod test_side_manager {
         tester.spin(5);
         tester.events(&[]);
         tester.release(1);
-        tester.events(&[TaipoEvent { is_press: true, code: 1 },
-                        TaipoEvent { is_press: false, code: 1 }]);
+        tester.events(&[(true, 1),
+                        (false, 1)]);
     }
 
     /// The chord is committed by the timer at exactly the window, not before.
@@ -538,7 +607,7 @@ mod test_side_manager {
         tester.spin(CHORD_TIME - 1);
         tester.events(&[]);
         tester.spin(1);
-        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.events(&[(true, 1)]);
     }
 
     /// Several keys released before the timer expires still make up a single
@@ -552,8 +621,8 @@ mod test_side_manager {
         tester.release(1);
         tester.events(&[]);
         tester.release(2);
-        tester.events(&[TaipoEvent { is_press: true, code: 3 },
-                        TaipoEvent { is_press: false, code: 3 }]);
+        tester.events(&[(true, 3),
+                        (false, 3)]);
     }
 
     /// Releasing part of a chord that has already been sent doesn't do
@@ -564,11 +633,11 @@ mod test_side_manager {
         tester.press(1);
         tester.press(2);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+        tester.events(&[(true, 3)]);
         tester.release(1);
         tester.events(&[]);
         tester.release(2);
-        tester.events(&[TaipoEvent { is_press: false, code: 3 }]);
+        tester.events(&[(false, 3)]);
     }
 
     /// The window is measured from the first key of the chord: a key that
@@ -583,7 +652,7 @@ mod test_side_manager {
         tester.events(&[]);
         // The window after the first key, not after the second.
         tester.spin(1);
-        tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+        tester.events(&[(true, 3)]);
     }
 
     /// A key that arrives after the window has expired isn't merged into the
@@ -593,14 +662,14 @@ mod test_side_manager {
         let mut tester = Tester::new();
         tester.press(1);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.events(&[(true, 1)]);
         tester.press(2);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: false, code: 1 },
-                        TaipoEvent { is_press: true, code: 2 }]);
+        tester.events(&[(false, 1),
+                        (true, 2)]);
         tester.release(1);
         tester.release(2);
-        tester.events(&[TaipoEvent { is_press: false, code: 2 }]);
+        tester.events(&[(false, 2)]);
     }
 
     /// The event queue is fixed size, and events that don't fit are silently
@@ -619,8 +688,8 @@ mod test_side_manager {
             tester.release(1);
         }
         for _ in 0..(capacity / 2) {
-            expected.push(TaipoEvent { is_press: true, code: 1 });
-            expected.push(TaipoEvent { is_press: false, code: 1 });
+            expected.push((true, 1));
+            expected.push((false, 1));
         }
         tester.events(&expected[..]);
     }
@@ -634,11 +703,11 @@ mod test_side_manager {
         tester.spin(5);
         tester.press(2);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+        tester.events(&[(true, 3)]);
         tester.release(2);
         tester.events(&[]);
         tester.release(1);
-        tester.events(&[TaipoEvent { is_press: false, code: 3 }]);
+        tester.events(&[(false, 3)]);
     }
 
     /// Test rollover.  Once a set of keys has been pressed, and sent, other
@@ -649,15 +718,15 @@ mod test_side_manager {
         let mut tester = Tester::new();
         tester.press(1);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.events(&[(true, 1)]);
         tester.press(2);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: false, code: 1 },
-                        TaipoEvent { is_press: true, code: 2 }]);
+        tester.events(&[(false, 1),
+                        (true, 2)]);
         tester.release(1);
         tester.events(&[]);
         tester.release(2);
-        tester.events(&[TaipoEvent { is_press: false, code: 2 }]);
+        tester.events(&[(false, 2)]);
     }
 
     /// A rolled-over chord can also be committed by releasing it, while the
@@ -667,12 +736,12 @@ mod test_side_manager {
         let mut tester = Tester::new();
         tester.press(1);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.events(&[(true, 1)]);
         tester.press(2);
-        tester.events(&[TaipoEvent { is_press: false, code: 1 }]);
+        tester.events(&[(false, 1)]);
         tester.release(2);
-        tester.events(&[TaipoEvent { is_press: true, code: 2 },
-                        TaipoEvent { is_press: false, code: 2 }]);
+        tester.events(&[(true, 2),
+                        (false, 2)]);
         tester.release(1);
         tester.events(&[]);
     }
@@ -684,20 +753,65 @@ mod test_side_manager {
         let mut tester = Tester::new();
         tester.press(1);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.events(&[(true, 1)]);
         tester.press(2);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: false, code: 1 },
-                        TaipoEvent { is_press: true, code: 2 }]);
+        tester.events(&[(false, 1),
+                        (true, 2)]);
         tester.press(4);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: false, code: 2 },
-                        TaipoEvent { is_press: true, code: 4 }]);
+        tester.events(&[(false, 2),
+                        (true, 4)]);
         tester.release(1);
         tester.release(2);
         tester.events(&[]);
         tester.release(4);
-        tester.events(&[TaipoEvent { is_press: false, code: 4 }]);
+        tester.events(&[(false, 4)]);
+    }
+
+    /// Each of the three ways a chord can end reports itself, which is what
+    /// the host replay reads to tell a struck chord from a rolled one from one
+    /// that sat under the fingers until the window ran out.
+    #[test]
+    fn test_chord_end_reasons() {
+        // Every key back up while the window was still open.
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(5);
+        tester.release(1);
+        tester.events(&[(true, 1), (false, 1)]);
+        tester.ends(&[ChordEnd::AllReleased]);
+
+        // Held until the window ran out.
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(CHORD_TIME);
+        tester.events(&[(true, 1)]);
+        tester.ends(&[ChordEnd::TimerExpired]);
+
+        // Committed early, because the other hand started.
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(5);
+        tester.other_hand();
+        tester.events(&[(true, 1)]);
+        tester.ends(&[ChordEnd::OtherHand]);
+    }
+
+    /// A rolled-over chord on the same hand is committed by the timer or by
+    /// its release, exactly as a first chord is; the rollover only ends the
+    /// chord that came before, which was already committed.
+    #[test]
+    fn test_rollover_end_reason() {
+        let mut tester = Tester::new();
+        tester.press(1);
+        tester.spin(CHORD_TIME);
+        tester.events(&[(true, 1)]);
+        tester.ends(&[ChordEnd::TimerExpired]);
+        tester.press(2);
+        tester.release(2);
+        tester.events(&[(false, 1), (true, 2), (false, 2)]);
+        tester.ends(&[ChordEnd::AllReleased]);
     }
 
     /// An inactive key becomes available again as soon as it is released, and
@@ -707,24 +821,46 @@ mod test_side_manager {
         let mut tester = Tester::new();
         tester.press(1);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: true, code: 1 }]);
+        tester.events(&[(true, 1)]);
         tester.press(2);
-        tester.events(&[TaipoEvent { is_press: false, code: 1 }]);
+        tester.events(&[(false, 1)]);
         tester.release(1);
         tester.press(1);
         tester.spin(CHORD_TIME);
-        tester.events(&[TaipoEvent { is_press: true, code: 3 }]);
+        tester.events(&[(true, 3)]);
         tester.release(1);
         tester.release(2);
-        tester.events(&[TaipoEvent { is_press: false, code: 3 }]);
+        tester.events(&[(false, 3)]);
     }
+}
+
+/// Why a chord stopped accumulating and was committed.
+///
+/// Three quite different pieces of technique, and telling them apart is most
+/// of the point of observing the engine at all: a chord that was struck and
+/// released, one that was rolled out of, and one that sat under the fingers
+/// until the window ran out.
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum ChordEnd {
+    /// Every key of the chord came back up while the window was still open.
+    AllReleased,
+    /// The chord window expired with keys still held down.
+    TimerExpired,
+    /// A key landed on the other hand, which ends this hand's chord.
+    OtherHand,
 }
 
 /// A single press or release indicated by Taipo.
 #[derive(Debug, Eq, PartialEq)]
 struct TaipoEvent {
     is_press: bool,
+    /// The hand the chord was built on.
+    side: Side,
     code: u16,
+    /// Why the chord was committed.  `None` on a release, which just finishes
+    /// a chord that was committed earlier.
+    end: Option<ChordEnd>,
 }
 
 /// A queue of events recorded.

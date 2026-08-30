@@ -25,6 +25,10 @@ pub mod taipo;
 /// the same value the layout uses.
 pub use self::taipo::CHORD_TIME as TAIPO_CHORD_TIME;
 
+/// Why a taipo chord was committed, reported through
+/// [`LayoutActions::taipo_chord`].
+pub use self::taipo::ChordEnd;
+
 /// The mode key is the general key to switch modes.
 pub const MODE_KEY: u8 = 2;
 
@@ -215,8 +219,9 @@ mod async_traits {
     #[cfg(feature = "steno")]
     use bbq_steno::Stroke;
 
-    use crate::{KeyAction, MinorMode, Mods};
+    use crate::{KeyAction, MinorMode, Mods, Side};
 
+    use super::taipo::ChordEnd;
     use super::LayoutMode;
 
     /// The actions the layout manager is able to use.
@@ -256,6 +261,23 @@ mod async_traits {
         /// an indicator; implementations without one can leave it alone.
         async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
             let _ = (oneshot, sticky);
+        }
+
+        /// Report a taipo chord being committed.
+        ///
+        /// `side` is the hand it was built on, `code` the chord's ten-bit key
+        /// mask, and `end` why it stopped accumulating.  Called for every
+        /// chord the engine assembles, before the table is consulted, so a
+        /// chord the current table has no entry for -- which types nothing at
+        /// all, and is a pure error signal -- is reported like any other.  It
+        /// is also reported in steno mode, where the keys may never be sent;
+        /// the mode is known separately.
+        ///
+        /// This exists so that a host replay can derive what was typed from
+        /// the engine itself rather than from a second implementation of it.
+        /// The firmware has nothing to do here.
+        async fn taipo_chord(&self, side: Side, code: u16, end: ChordEnd) {
+            let _ = (side, code, end);
         }
     }
 }
