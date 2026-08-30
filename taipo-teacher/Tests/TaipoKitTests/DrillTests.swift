@@ -115,3 +115,75 @@ final class DrillTests: XCTestCase {
         }?.code
     }
 }
+
+/// Driving the app from the keyboard, and the numbers it reports.
+final class DrillControlTests: XCTestCase {
+
+    private func layouts() throws -> Layouts { try Layouts.bundled() }
+
+    private func chord(code: UInt16, side: Side, at time: UInt32) -> Chord {
+        Chord(timeMs: time, side: side, code: code, variant: "taipo",
+              firstKeyMs: time, lastKeyMs: time, end: .allReleased)
+    }
+
+    /// The two chords that type nothing are what move between lines, so the trainer never
+    /// needs the mouse.
+    func testControlChords() throws {
+        let l = try layouts()
+        let session = DrillSession(target: DrillTarget(text: "a", layouts: l), layouts: l)
+
+        // Enter is [o+t+e]; the null chord is both thumbs.
+        let enter = try XCTUnwrap(l.variants["taipo"]?.chords.first {
+            $0.action.key == "ReturnEnter"
+        }?.code)
+        let null = try XCTUnwrap(l.variants["taipo"]?.chords.first {
+            $0.action.kind == "release"
+        }?.code)
+
+        XCTAssertEqual(session.control(for: chord(code: enter, side: .left, at: 0)), .next)
+        XCTAssertEqual(session.control(for: chord(code: null, side: .left, at: 0)), .restart)
+
+        // A letter is not a control chord.
+        let a = try XCTUnwrap(l.variants["taipo"]?.chords.first { $0.action.types == "a" }?.code)
+        XCTAssertNil(session.control(for: chord(code: a, side: .left, at: 0)))
+    }
+
+    /// Words per minute on the standard five-characters-to-a-word convention, which is the
+    /// number a person can compare against anything else.
+    func testWordsPerMinute() throws {
+        let l = try layouts()
+        let session = DrillSession(target: DrillTarget(text: "the the", layouts: l), layouts: l)
+        let the = try XCTUnwrap(l.variants["taipo"]?.chords.first { $0.action.types == "the" }?.code)
+        let space = try XCTUnwrap(l.variants["taipo"]?.chords.first { $0.action.types == " " }?.code)
+
+        // "the the" is seven characters and three chords, which is the layout doing its
+        // job: 1.4 words in four seconds is 21 wpm, and 45 chords a minute produced it.
+        session.feed(chord(code: the, side: .left, at: 0))
+        session.feed(chord(code: space, side: .right, at: 2000))
+        session.feed(chord(code: the, side: .left, at: 4000))
+        XCTAssertTrue(session.finished)
+        XCTAssertEqual(session.stats.characters, 7)
+        XCTAssertEqual(session.stats.wordsPerMinute, 21, accuracy: 0.5)
+        XCTAssertEqual(session.stats.chordsPerMinute, 45, accuracy: 0.5)
+    }
+
+    /// A same-hand pair is recorded against the characters it produced, so it can be shown
+    /// where it happened rather than only counted.
+    func testSameHandIsAttributedToCharacters() throws {
+        let l = try layouts()
+        let session = DrillSession(target: DrillTarget(text: "at", layouts: l), layouts: l)
+        let a = try XCTUnwrap(l.variants["taipo"]?.chords.first { $0.action.types == "a" }?.code)
+        let t = try XCTUnwrap(l.variants["taipo"]?.chords.first { $0.action.types == "t" }?.code)
+
+        session.feed(chord(code: a, side: .left, at: 0))
+        session.feed(chord(code: t, side: .left, at: 200))
+        XCTAssertEqual(session.sameHandOffsets, [1], "the second character carries the fault")
+
+        // Backspacing over it takes the mark with it.
+        let bk = try XCTUnwrap(l.variants["taipo"]?.chords.first {
+            $0.action.key == "DeleteBackspace"
+        }?.code)
+        session.feed(chord(code: bk, side: .right, at: 400))
+        XCTAssertEqual(session.sameHandOffsets, [])
+    }
+}

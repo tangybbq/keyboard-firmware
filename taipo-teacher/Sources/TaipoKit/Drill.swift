@@ -99,8 +99,21 @@ public struct DrillStats {
     /// Milliseconds from the first chord to the last.
     public var elapsedMs: UInt32 = 0
 
-    /// Chords per minute, which is the honest rate for a chorded layout: words per minute
-    /// flatters a layout that types "the" in one chord and says nothing about the fingers.
+    /// Characters correctly typed, which is what words per minute is computed from.
+    public var characters = 0
+
+    /// Words per minute, on the standard five-characters-to-a-word convention.
+    ///
+    /// This is the number that means something to a person and can be compared against
+    /// every other typing measurement in the world.  Chords per minute is the more
+    /// *faithful* description of a chorded layout -- it says how much work the fingers did
+    /// -- but nobody has an intuition for it, so it is kept as a secondary figure rather
+    /// than made the headline.
+    public var wordsPerMinute: Double {
+        guard elapsedMs > 0 else { return 0 }
+        return Double(characters) / 5.0 * 60_000.0 / Double(elapsedMs)
+    }
+
     public var chordsPerMinute: Double {
         guard elapsedMs > 0 else { return 0 }
         return Double(chords) * 60_000.0 / Double(elapsedMs)
@@ -131,6 +144,11 @@ public final class DrillSession {
     public private(set) var typed = ""
     public private(set) var events: [DrillEvent] = []
     public private(set) var stats = DrillStats()
+    /// Target offsets typed by a chord that stayed on the previous chord's hand.
+    ///
+    /// Kept per character so the fault can be shown where it happened rather than only
+    /// counted: a number in a corner is not something a writer reacts to.
+    public private(set) var sameHandOffsets: Set<Int> = []
 
     private var lastSide: Side?
     private var lastChordEndMs: UInt32?
@@ -151,6 +169,20 @@ public final class DrillSession {
 
     public var finished: Bool { typed == target.text }
 
+    /// What a chord means to the app rather than to the text.
+    ///
+    /// A typing trainer that needs the mouse between lines is not a typing trainer, so the
+    /// two chords that type nothing are given jobs: Enter moves on, and the null chord --
+    /// both thumbs, which exists to release modifiers -- starts the line again.
+    public enum Control { case next, restart }
+
+    public func control(for chord: Chord) -> Control? {
+        guard let entry = layouts.chord(chord.code, variant: chord.variant) else { return nil }
+        if entry.action.kind == "release" { return .restart }
+        if entry.action.kind == "key" && entry.action.key == "ReturnEnter" { return .next }
+        return nil
+    }
+
     public func feed(_ chord: Chord) {
         let entry = layouts.chord(chord.code, variant: chord.variant)
         stats.chords += 1
@@ -159,12 +191,14 @@ public final class DrillSession {
 
         // Alternation, judged before anything about the text: it is technique, and applies
         // to backspaces as much as to letters.
+        var sameHandHere = false
         if let last = lastSide, let lastEnd = lastChordEndMs {
             let gap = chord.firstKeyMs > lastEnd ? chord.firstKeyMs - lastEnd : 0
             if gap < alternationWindowMs {
                 stats.eligiblePairs += 1
                 if last == chord.side {
                     stats.sameHand += 1
+                    sameHandHere = true
                     events.append(.sameHand(gapMs: gap))
                 }
             }
@@ -182,7 +216,11 @@ public final class DrillSession {
         case "key" where entry.action.key == "DeleteBackspace":
             stats.corrections += 1
             events.append(.correction)
-            if !typed.isEmpty { typed.removeLast() }
+            if !typed.isEmpty {
+                sameHandOffsets.remove(typed.count - 1)
+                typed.removeLast()
+                stats.characters = max(0, stats.characters - 1)
+            }
             run.removeAll()
             return
         case "oneshot", "release":
@@ -199,9 +237,13 @@ public final class DrillSession {
 
         let offset = typed.count
         typed += types
+        if sameHandHere {
+            for i in offset..<(offset + types.count) { sameHandOffsets.insert(i) }
+        }
         let expected = expectedText(at: offset, length: types.count)
         if target.text.hasPrefix(typed) {
             stats.correct += 1
+            stats.characters += types.count
             events.append(.correct)
             noteRun(types, at: offset)
         } else {

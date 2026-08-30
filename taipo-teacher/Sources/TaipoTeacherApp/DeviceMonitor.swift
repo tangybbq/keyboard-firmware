@@ -272,13 +272,26 @@ public final class DeviceMonitor: ObservableObject {
         if chords.count > historyLimit {
             chords.removeFirst(chords.count - historyLimit)
         }
-        // A finished drill keeps its result on screen until the next one is asked for.
-        if let drill, !drill.finished {
-            for live in new {
+        guard let drill else { return }
+        for live in new {
+            // The control chords are checked first and never reach the score.  Both type
+            // nothing anyway: Enter is not in any target, and the null chord exists to
+            // release modifiers.
+            switch drill.control(for: live.chord) {
+            case .next where drill.finished:
+                nextDrill()
+                return
+            case .restart:
+                restartDrill()
+                return
+            case .next, .none:
+                break
+            }
+            if !drill.finished {
                 drill.feed(live.chord)
             }
-            // DrillSession is a class, so SwiftUI needs telling that it changed.
-            objectWillChange.send()
         }
+        // DrillSession is a class, so SwiftUI needs telling that it changed.
+        objectWillChange.send()
     }
 }

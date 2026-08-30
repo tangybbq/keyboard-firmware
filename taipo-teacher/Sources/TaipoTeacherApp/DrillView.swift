@@ -11,11 +11,16 @@ struct DrillView: View {
                 target(drill)
                 Divider()
                 scoreboard(drill.stats)
-                HStack(spacing: 12) {
+                HStack(spacing: 14) {
                     if drill.finished {
-                        Button("Next", action: monitor.nextDrill)
+                        Label("Enter for the next line", systemImage: "return")
+                            .font(.callout)
+                            .foregroundStyle(Color.accentColor)
+                    } else {
+                        Text("Both thumbs to start over")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
-                    Button("Restart", action: monitor.restartDrill)
                     if !drill.onTrack {
                         Label(
                             "Off the target — backspace to fix it.",
@@ -52,7 +57,9 @@ struct DrillView: View {
                 } else {
                     state = .pending
                 }
-                return FlowText.Char(char: ch, state: state, gram: inGram(i, drill))
+                return FlowText.Char(
+                    char: ch, state: state, gram: inGram(i, drill),
+                    sameHand: drill.sameHandOffsets.contains(i))
             }
         )
     }
@@ -64,21 +71,30 @@ struct DrillView: View {
     }
 
     private func scoreboard(_ s: DrillStats) -> some View {
-        HStack(spacing: 22) {
-            stat("chords/min", String(format: "%.0f", s.chordsPerMinute))
+        HStack(alignment: .firstTextBaseline, spacing: 22) {
+            stat("wpm", String(format: "%.0f", s.wordsPerMinute), big: true)
             stat("accuracy", String(format: "%.0f%%", s.accuracy * 100))
             stat("wrong", "\(s.wrong)", bad: s.wrong > 0)
             stat("corrections", "\(s.corrections)", bad: s.corrections > 0)
             stat("spelled out", "\(s.spelled)", bad: s.spelled > 0)
-            stat("same hand", "\(s.sameHand)", bad: s.sameHand > 0)
+            stat(
+                "same hand",
+                s.eligiblePairs > 0
+                    ? String(format: "%d (%.0f%%)", s.sameHand, s.sameHandRate * 100)
+                    : "\(s.sameHand)",
+                bad: s.sameHand > 0)
             if s.deadChords > 0 { stat("dead", "\(s.deadChords)", bad: true) }
+            Spacer()
+            stat("chords/min", String(format: "%.0f", s.chordsPerMinute))
         }
     }
 
-    private func stat(_ label: String, _ value: String, bad: Bool = false) -> some View {
+    private func stat(
+        _ label: String, _ value: String, bad: Bool = false, big: Bool = false
+    ) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(value)
-                .font(.system(.title3, design: .monospaced))
+                .font(.system(big ? .largeTitle : .title3, design: .monospaced))
                 .foregroundStyle(bad ? Color.orange : Color.primary)
             Text(label).font(.caption2).foregroundStyle(.secondary)
         }
@@ -111,6 +127,10 @@ struct FlowText: View {
         let state: State
         /// Part of a gram the table would type in one chord.
         let gram: Bool
+        /// Typed on the same hand as the chord before it, close enough to have been
+        /// avoidable.  Marked where it happened, because a counter in the corner is not
+        /// something anyone reacts to mid-line.
+        let sameHand: Bool
     }
 
     let chars: [Char]
@@ -138,6 +158,9 @@ struct FlowText: View {
             }
             if c.gram {
                 piece.underlineStyle = .single
+            }
+            if c.sameHand {
+                piece.backgroundColor = .orange.opacity(0.35)
             }
             out += piece
         }
