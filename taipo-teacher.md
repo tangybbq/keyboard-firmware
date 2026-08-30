@@ -476,17 +476,45 @@ Three commits: the record format and messages in `minder`, the ring buffer and h
 - **Memory**: bss 76356 -> 109484, which is the 32 KiB ring and nothing else, leaving about
   95K of the 200K RAM region free.
 
-Untested on hardware.  What to check once flashed:
+### Tested on hardware
 
-- `keyminder chat` reports the `key-log` capability and a matching fingerprint.
-- `keyminder log --batches 1 -o /tmp/k.txt`, type a known passage, confirm the file
-  reproduces it: key codes, press/release, and offsets that look like real typing.
-- A deliberate Taipo/Posh switch mid-passage appears as a `variant` marker in the right
-  place.
-- Logging really is off until asked: `chat` alone leaves nothing to drain.
-- Type with no host attached for long enough to overflow 8192 records, then attach and
-  confirm a `# gap` line appears and the keyboard never stuttered.
-- The 1 ms layout tick and the matrix scan are unaffected with logging on.
+Against the mesa1.  Working: `chat` reports the `key-log` capability and a fingerprint
+matching `layouts.json`; enabling writes `resume` plus the three state markers and nothing
+else; a typed phrase replays back to the right chords, hands, spreads and endings,
+including a doubled letter and the backspace that corrected it.
+
+**Logging really is off until asked**: with logging disabled and 25 seconds of real typing,
+the device recorded zero records.
+
+Three integration faults found, all of them the two halves not quite fitting, and all fixed:
+the host's 532-byte receive buffer overflowed on the first real drain; `keyminder log` wrote
+key codes where the replay reads key names; and the replay's parser rejected marker lines.
+Records also survive a disable -- disabling stops recording, it does not discard what was
+not acked -- so `log` now clears the buffer before enabling rather than filing an earlier
+session's records under a new header.
+
+Still unchecked: buffer overflow with the host detached (the `# gap` path), and a
+Taipo/Posh switch mid-passage.
+
+### `CHORD_TIME` is longer than the typing it was measured against
+
+The first thing the log produced, and it answers an open question below rather than any
+question phase 2 asked.  Over 76 chords of ordinary typing:
+
+- **55 committed by the timer, 21 by all keys releasing, and `OtherHand` never once.**
+- The cross-hand shortcut cannot fire at this pace: chords are 200-400 ms apart while the
+  window is 100 ms, so the timer always wins the race it was added to avoid.
+- Which means most keystrokes wait out the full window.  Measured on one chord: keys down
+  at 219738 and 219739, committed at 219837 -- 99 ms -- and not released until 219860, so
+  the timer beat the release by 23 ms.  Add the 20 ms debounce and that is ~119 ms from
+  finger to HID report, on 72% of keystrokes.
+
+Caveat before anyone changes a constant: one short sample, one writer, typing a deliberate
+test phrase, which is likely slower and more careful than real work.  The finding to act on
+is that the instrument now exists -- `TASKS.md` has said since the window was widened that
+"100 is a starting guess, not a measured value; retune it from real typing", and this is the
+first data that could.  Retuning is a functional change and wants its own commit, and more
+than 76 chords.
 
 ## Phase 3: analysis
 
