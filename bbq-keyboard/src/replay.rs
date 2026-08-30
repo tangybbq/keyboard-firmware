@@ -103,6 +103,14 @@ impl KeyLogEvent {
         if line.is_empty() {
             return Ok(None);
         }
+        // A `=` line is a state marker written by `keyminder log`: the mode, chord
+        // table or row position changing.  It is not a key event, so it is skipped
+        // here; a consumer that needs the state reads it with [`marker_from_line`].
+        // Skipping rather than erroring is what lets the two halves of the log file
+        // share one parser.
+        if marker_from_line(line).is_some() {
+            return Ok(None);
+        }
         let mut fields = line.split_whitespace();
         let (Some(time), Some(dir), Some(name), None) = (
             fields.next(),
@@ -139,7 +147,39 @@ pub fn log_to_text(events: &[KeyLogEvent]) -> String {
     out
 }
 
-/// Parse a whole text log, ignoring blank and comment lines.
+/// A state marker line: `105018 = variant 1`.
+///
+/// Returns the offset, the marker's name, and its value.  The names are the ones
+/// `keyminder log` writes: `mode`, `variant`, `row`, `resume`, `pause`.
+///
+/// The replay does not act on these yet -- selecting the chord table from a `variant`
+/// marker is phase 3's job -- but they have to parse, or a log file containing them
+/// cannot be read at all.
+pub fn marker_from_line(line: &str) -> Option<(u32, &str, u8)> {
+    let line = match line.split_once('#') {
+        Some((head, _)) => head,
+        None => line,
+    }
+    .trim();
+    let mut fields = line.split_whitespace();
+    let (Some(time), Some("="), Some(name), Some(value), None) = (
+        fields.next(),
+        fields.next(),
+        fields.next(),
+        fields.next(),
+        fields.next(),
+    ) else {
+        return None;
+    };
+    Some((time.parse().ok()?, name, value.parse().ok()?))
+}
+
+/// Every state marker in a text log, in order.
+pub fn markers_from_text(text: &str) -> Vec<(u32, &str, u8)> {
+    text.lines().filter_map(marker_from_line).collect()
+}
+
+/// Parse a whole text log, ignoring blank lines, comments, and state markers.
 pub fn log_from_text(text: &str) -> Result<Vec<KeyLogEvent>, String> {
     let mut out = Vec::new();
     for (num, line) in text.lines().enumerate() {

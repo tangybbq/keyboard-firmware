@@ -304,6 +304,13 @@ fn log(args: &LogArgs) -> Result<()> {
         other => return Err(anyhow::anyhow!("Unexpected reply to Hello: {:?}", other)),
     };
 
+    // Anything already buffered predates this session: logging was off, so it is left over
+    // from an earlier one, and writing it under this header would date it wrongly.
+    let discarded = discard_buffered(pump.minder())?;
+    if discarded > 0 {
+        println!("discarded {discarded} records left from an earlier session");
+    }
+
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -353,6 +360,32 @@ fn log(args: &LogArgs) -> Result<()> {
     });
     println!("\n{total} records written to {}", args.output.display());
     result
+}
+
+/// Throw away whatever the device still holds, so a new session starts clean.
+///
+/// Records survive a `SetLogging{enabled:false}` -- disabling stops recording, it does not
+/// discard what was not acked -- which is right, but means a later session would otherwise
+/// find them and file them under its own header and wall clock.
+fn discard_buffered(minder: &mut VendorMinder) -> Result<usize> {
+    let mut total = 0;
+    loop {
+        let reply: Reply = minder.call(&Request::GetEventLog { max_bytes: 3200 })?;
+        let Reply::EventLog { seq, records, remaining, .. } = reply else {
+            return Err(anyhow::anyhow!("Unexpected reply to GetEventLog: {:?}", reply));
+        };
+        let count = records.len() / minder::keylog::RECORD_SIZE;
+        if count == 0 {
+            return Ok(total);
+        }
+        total += count;
+        let _: Reply = minder.call(&Request::EventLogAck {
+            through_seq: seq.wrapping_add(count as u32 - 1),
+        })?;
+        if remaining == 0 {
+            return Ok(total);
+        }
+    }
 }
 
 /// Fetch, append and ack, repeating while the device says more is waiting.

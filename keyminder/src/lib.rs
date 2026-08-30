@@ -192,7 +192,12 @@ impl VendorMinder {
 
             return Ok(Self {
                 handle,
-                rbuf: vec![0u8; 532],
+                // Big enough for the largest reply the device will send.  `Reply::EventLog`
+                // carries up to 900 records of 4 bytes plus its other fields, which is far
+                // past the 532 this held when the biggest reply was a hash.  libusb fails a
+                // read that does not fit with Overflow rather than truncating, so getting
+                // this wrong is at least loud.
+                rbuf: vec![0u8; 4400],
                 send: send.unwrap(),
                 recv: recv.unwrap(),
                 read_timeout: Duration::from_secs(15),
@@ -403,7 +408,7 @@ mod logfile_tests {
         ]);
         let mut t = 0;
         let text = format_batch(&batch, &mut t);
-        assert_eq!(text, "0 + 5\n42 - 5\n200 + 9\n");
+        assert_eq!(text, "0 + L.a\n42 - L.a\n200 + L.o\n");
         assert_eq!(t, 200);
     }
 
@@ -414,7 +419,7 @@ mod logfile_tests {
         let mut t = 0;
         format_batch(&pack(&[Record::key(Delta::from_millis(100), 1, true)]), &mut t);
         let text = format_batch(&pack(&[Record::key(Delta::from_millis(50), 2, true)]), &mut t);
-        assert_eq!(text, "150 + 2\n");
+        assert_eq!(text, "150 + k2\n");
     }
 
     /// A long idle gap survives the seconds-form delta, to the second.
@@ -422,7 +427,7 @@ mod logfile_tests {
     fn test_coarse_delta() {
         let mut t = 0;
         let text = format_batch(&pack(&[Record::key(Delta::from_millis(3_600_000), 1, true)]), &mut t);
-        assert_eq!(text, "3600000 + 1\n");
+        assert_eq!(text, "3600000 + k1\n");
     }
 
     #[test]
@@ -448,7 +453,7 @@ mod logfile_tests {
         let mut t = 0;
         let text = format_batch(&batch, &mut t);
         assert!(text.starts_with("# unknown record"), "{text}");
-        assert!(text.ends_with("7 + 3\n"), "{text}");
+        assert!(text.ends_with("7 + k3\n"), "{text}");
     }
 }
 
@@ -472,6 +477,11 @@ mod tests {
 /// Times are milliseconds since the start of the session, reconstructed from the deltas.
 /// The device has no clock, so the wall clock in the header is the host's, taken when the
 /// batch arrived; `anchor_ms` is what ties the two together.
+///
+/// Key lines are exactly the format `bbq_keyboard::replay` reads -- `120 + L.t` -- and the
+/// names come from that module rather than from a copy here, so a file written by this can
+/// be fed straight to the replay without a conversion step.  Getting that wrong is easy and
+/// silent: both formats are "offset, sign, key", and only the key naming differs.
 pub mod logfile {
     use super::*;
     use std::fmt::Write as _;
@@ -495,9 +505,10 @@ pub mod logfile {
                 Entry::Key { code, press } => {
                     let _ = writeln!(
                         out,
-                        "{t} {sign} {code}",
+                        "{t} {sign} {name}",
                         t = t0,
                         sign = if press { '+' } else { '-' },
+                        name = bbq_keyboard::replay::key_name(code),
                     );
                 }
                 Entry::Marker { marker, value } => {
