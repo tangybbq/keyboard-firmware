@@ -358,7 +358,7 @@ mechanism, not good intentions.
       - Round trip is **median 0.37 ms, p95 0.54 ms** to an idle device.
       Still untested: the App Sandbox path, which would need `com.apple.security.device.usb`.
       For a personal, locally built app, shipping unsandboxed avoids the question entirely.
-- [ ] Pick the CBOR library.  SwiftCBOR and PotentCodables are the obvious candidates; what
+- [X] Pick the CBOR library.  SwiftCBOR and PotentCodables are the obvious candidates; what
       decides it is which one can be made to match minicbor's framing without a fight, which
       the golden vectors will answer in an afternoon.  The spike deliberately left this open by
       hard-coding the `Hello` bytes, so the USB answer does not depend on the CBOR answer.
@@ -666,7 +666,7 @@ The app is useful before any drill exists.
 - [ ] **Variant awareness.**  Read the active variant from the log's `Variant` marker and
       follow it, so a drill always matches what the keyboard is actually doing.  The model is
       per-variant, which incidentally makes Taipo-vs-Posh comparable.
-- [ ] **Chord assembly in Swift, checked against Rust.**  The app needs derived chords live,
+- [X] **Chord assembly in Swift, checked against Rust.**  The app needs derived chords live,
       so it assembles them itself rather than round-tripping through a Rust replay.  That is a
       second implementation of `SideManager` — the chord window, the cross-hand commit, the
       same-side rollover, `SCAN_MAP` and the row shift — and it is exactly the divergence the
@@ -678,6 +678,33 @@ The app is useful before any drill exists.
       The app is also allowed to be a little wrong in a way the CLI is not: it renders live
       feedback, while the Rust CLI is what the model and the reported numbers come from.  If
       the two ever disagree about a session, the CLI wins.
+
+### What has landed so far
+
+`taipo-teacher/`, a SwiftPM package with no dependencies.
+
+- **`MinderKit`** — the protocol and the USB transport, proven against the mesa1 and against
+  every vector in `minder/tests/wire-vectors.txt` byte for byte.
+- **`TaipoKit`** — chord assembly, reproducing the Rust replay's chord lines exactly on both
+  golden logs.
+- **`minderctl`** — a CLI over MinderKit, so the Swift stack can be exercised without an app.
+
+**No CBOR library.**  The decision the plan left open resolves to "none": the difficulty is
+minicbor's positional field arrays with nulls in the gaps, which a generic CBOR library gives
+no help with, so the mapping is hand-written either way and only the trivial byte-level
+encoding would have been saved.  What proves it right is the vectors.
+
+Three faults the conformance tests caught, none of which would have been visible in use:
+key naming appended the thumbs twice; the chord deadline is `first + 99` rather than
+`first + 100`, because a press is delivered before its own millisecond's tick; and the
+`Vec<u8>` / `ByteVec` distinction means the same Swift field has to accept both an array of
+integers and a byte string.
+
+**A transport measurement that bears on the design.**  A reply fitting in one packet round
+trips in 0.43 ms; one spanning two packets takes 3.6 ms.  The cost is per packet, not per
+request, which means a full 900-record log drain would be tens of milliseconds.  For the
+trainer that argues for small frequent drains — watermark 1 and a small `max_bytes` — rather
+than large batches, which is what the watermark design already allows.
 
 ### 4c. Rough order
 
