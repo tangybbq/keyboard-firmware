@@ -51,7 +51,6 @@ mod inter;
 mod inter_uart;
 mod minder;
 mod matrix;
-mod translate;
 mod usb;
 
 #[cfg(not(any(feature = "defmt", feature = "log")))]

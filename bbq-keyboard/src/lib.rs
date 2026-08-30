@@ -29,6 +29,7 @@ pub mod serialize;
 pub mod modifiers;
 pub mod usb_typer;
 pub mod layout;
+pub mod translate;
 #[cfg(feature = "steno")]
 pub mod steno_delay;
 

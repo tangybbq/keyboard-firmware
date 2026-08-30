@@ -3,7 +3,11 @@
 //! The bbq-keyboard scancodes are based on the "proto3" keyboard, which is
 //! the largest keyboard I've built.  Other boards may have fewer keys, or
 //! different scancodes.  This module provides a translation for scancodes
-//! that is based on a Kconfig value.
+//! that is based on the board name from the board info block.
+//!
+//! The tables live here, rather than in a firmware crate, so that host tools
+//! can resolve a scan code the same way the firmware does.  Nothing in here
+//! needs `std`, and the translation is a plain function per board.
 
 pub fn get_translation(board: &str) -> fn(u8) -> u8 {
     match board {

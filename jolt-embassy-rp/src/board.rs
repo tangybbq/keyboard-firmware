@@ -28,7 +28,7 @@ mod jolt3 {
             LedSet,
         },
         matrix::Matrix,
-        translate, Irqs,
+        Irqs,
     };
 
     use super::{Board, UsbHandler};
@@ -169,7 +169,7 @@ mod jolt3 {
             .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
         );
 
-        let xlate = translate::get_translation("jolt3");
+        let xlate = bbq_keyboard::translate::get_translation("jolt3");
 
         Matrix::new(cols, rows, xlate, side)
     }
@@ -222,7 +222,7 @@ mod jolt2 {
     use embassy_rp::{gpio::{AnyPin, Input, Level, Output, Pull}, peripherals, uart::{BufferedUart, BufferedUartRx, BufferedUartTx, DataBits, Parity, StopBits}, Peri, Peripherals};
     use static_cell::StaticCell;
 
-    use crate::{inter_uart::InterPassive, leds::LedSet, matrix::Matrix, translate, Irqs};
+    use crate::{inter_uart::InterPassive, leds::LedSet, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
     use super::{Board, Inter};
@@ -294,7 +294,7 @@ mod jolt2 {
             .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
         );
 
-        let xlate = translate::get_translation("jolt2");
+        let xlate = bbq_keyboard::translate::get_translation("jolt2");
 
         Matrix::new(cols, rows, xlate, side)
     }
@@ -354,7 +354,7 @@ mod jolt2dir {
     use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
     use static_cell::StaticCell;
 
-    use crate::{inter_uart::InterActive, leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, translate, Irqs};
+    use crate::{inter_uart::InterActive, leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
     use super::{Board, Inter, UsbHandler};
@@ -440,7 +440,7 @@ mod jolt2dir {
             .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
         );
 
-        let xlate = translate::get_translation("jolt2");
+        let xlate = bbq_keyboard::translate::get_translation("jolt2");
 
         Matrix::new(cols, rows, xlate, side)
     }
@@ -537,7 +537,7 @@ mod proto4 {
     use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
     use static_cell::StaticCell;
 
-    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, translate, Irqs};
+    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
     use super::{Board, Inter, UsbHandler};
@@ -619,7 +619,7 @@ mod proto4 {
             .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
         );
 
-        let xlate = translate::get_translation("proto4");
+        let xlate = bbq_keyboard::translate::get_translation("proto4");
 
         // A single MCU scans the whole matrix, so there is no bias to apply to the scan codes.
         Matrix::new(cols, rows, xlate, Side::Left)
@@ -681,7 +681,7 @@ mod mesa1 {
     use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
     use static_cell::StaticCell;
 
-    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, translate, Irqs};
+    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
     use super::{Board, Inter, UsbHandler};
@@ -766,7 +766,7 @@ mod mesa1 {
             .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
         );
 
-        let xlate = translate::get_translation("mesa1");
+        let xlate = bbq_keyboard::translate::get_translation("mesa1");
 
         // A single MCU scans the whole matrix, so there is no bias to apply to the scan codes.
         Matrix::new(cols, rows, xlate, Side::Left)
