@@ -284,16 +284,29 @@ mechanism, not good intentions.
 - [ ] **`Reply::Hello` is the guard rail.**  The version, capability list and table hash from 1b
       mean an app built against an older protocol refuses to derive rather than deriving
       wrongly.  Both clients must check it; neither may ignore it.
-- [ ] **USB access from Swift is the risk item — spike it first.**  A vendor-specific bulk
-      interface means `IOUSBHost` (or libusb through a bridging header), and macOS has opinions
-      about who may claim an interface: unsandboxed, or sandboxed with
-      `com.apple.security.device.usb`.  Before any of the app design is committed to, write the
-      smallest possible Swift program that opens the device and completes a `Hello` round trip.
-      If that turns out to be unpleasant, the fallback is a thin Rust `staticlib` doing USB and
-      framing only — a handful of C functions, and nothing else moves.
-- [ ] Pick the CBOR library during that spike.  SwiftCBOR and PotentCodables are the obvious
-      candidates; what decides it is which one can be made to match minicbor's framing without
-      a fight, which the golden vectors will answer in an afternoon.
+- [X] **USB access from Swift — spiked, and it works.**  `docs/spikes/swift-usb/` matches the
+      vendor interface, claims it, and completes a `Hello` round trip, as an ordinary unsigned
+      binary with no root and no entitlement.  Claiming the vendor interface does not disturb
+      typing.  **The Rust `staticlib` fallback is not needed**; the Swift-native design stands.
+      Three things it learned, all recorded in that directory's README:
+      - `IOUSBHostInterface.createMatchingDictionary(...)` builds a dictionary that
+        `IOServiceGetMatchingServices` matches *nothing* against, silently — the properties
+        must be nested under `kIOPropertyMatchKey` instead.  This was most of the spike.
+      - IOUSBHost has no Swift overlay, so the API is reached through its
+        `NS_REFINED_FOR_SWIFT` `__` spellings, found by compiler error.
+      - Round trip is **median 0.37 ms, p95 0.54 ms** to an idle device.
+      Still untested: the App Sandbox path, which would need `com.apple.security.device.usb`.
+      For a personal, locally built app, shipping unsandboxed avoids the question entirely.
+- [ ] Pick the CBOR library.  SwiftCBOR and PotentCodables are the obvious candidates; what
+      decides it is which one can be made to match minicbor's framing without a fight, which
+      the golden vectors will answer in an afternoon.  The spike deliberately left this open by
+      hard-coding the `Hello` bytes, so the USB answer does not depend on the CBOR answer.
+      **The framing is now known concretely**, and it is worse than "numbered fields": minicbor
+      encodes a variant as `[index, [fields...]]` where the inner array is *positional* and
+      unused field numbers are filled with `null`.  `Request::Hello` is
+      `82 01 82 f6 6b …` — the `f6` is position 0, unused because `version` is `#[n(1)]`.  A
+      Swift encoder emitting the natural `[1, ["2024-11-01a"]]` is valid CBOR and will be
+      rejected.
 
 ## Phase 2: the device-side event log
 
@@ -474,7 +487,12 @@ The app is useful before any drill exists.
 ### 4b. The trainer
 
 - [ ] **Input.**  Render what is typed from the app's own key events, so there is zero added
-      latency — a trainer with laggy echo is unusable.  Annotate from the log, which arrives
+      latency — a trainer with laggy echo is unusable.  *Possibly over-cautious:* the spike
+      measured the transport at 0.37 ms median, and the log record and the HID report are
+      produced at the same instant on the device, so rendering from the log may cost nothing
+      measurable and would remove the two-stream join entirely.  Re-measure once the phase 1a
+      push path exists, under real typing rather than against an idle device, and simplify if
+      it holds.  Annotate from the log, which arrives
       milliseconds later.  Alignment is not a general stream-joining problem, because during a
       drill both streams are matched independently against the *known target text*; the target
       is the join.  If alignment drifts, drop the annotations for that test rather than
