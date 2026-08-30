@@ -68,7 +68,7 @@ use crate::Mods;
 use super::taipo::{Action, Entry};
 
 /// The mapping between each Posh chord and its action.
-pub(super) static POSH_ACTIONS: &[Entry] = &[
+pub static POSH_ACTIONS: &[Entry] = &[
     // The thumb keys by themselves, and together as the null key, as in Taipo.
     Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },

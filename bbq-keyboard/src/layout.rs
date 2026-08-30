@@ -12,19 +12,19 @@ use self::qwerty::QwertyManager;
 use self::steno::RawStenoHandler;
 use self::taipo::{TaipoManager, TaipoVariant};
 
-mod posh;
+pub mod posh;
 #[cfg(feature = "qwerty")]
 mod qwerty;
 #[cfg(feature = "steno")]
 mod steno;
-mod taipo;
+pub mod taipo;
 
 /// The taipo chord window, exposed so that tests can time their chords against
 /// the same value the layout uses.
 pub use self::taipo::CHORD_TIME as TAIPO_CHORD_TIME;
 
 /// The mode key is the general key to switch modes.
-const MODE_KEY: u8 = 2;
+pub const MODE_KEY: u8 = 2;
 
 // Define the 'upper middle" keys.  This is the top key of '^' and '+', which are the traditional
 // '*' keys, but we have used the lower key as these other modifiers, and the upper keys are for
@@ -52,7 +52,7 @@ cfg_if::cfg_if! {
 // the bottom two rows, selected at runtime by tapping the otherwise dead
 // top-left key.  See `RowPosition` and `lower_row_remap` below.
 #[cfg(feature = "proto3")]
-const ROW_TOGGLE_KEY: u8 = 0;
+pub const ROW_TOGGLE_KEY: u8 = 0;
 
 // The Taipo variant toggle.  This is the steno `#` key of the outer left
 // column, which has no meaning at all in Taipo mode (`SCAN_MAP` maps it to
@@ -60,7 +60,7 @@ const ROW_TOGGLE_KEY: u8 = 0;
 // Posh chord tables; see `posh_event` below.  On the 2-row boards this is the
 // lower of the two outer left keys, the mode key being the upper one.
 #[cfg(feature = "proto3")]
-const POSH_TOGGLE_KEY: u8 = 1;
+pub const POSH_TOGGLE_KEY: u8 = 1;
 
 /// Which pair of rows the 2-row layouts (Taipo and steno) occupy.
 ///
@@ -103,7 +103,7 @@ impl RowPosition {
 /// 0 is the toggle key itself, 1 is steno `#`, and 2 is the mode key.  The
 /// outer right column does rotate, as it carries real steno letters.
 #[cfg(feature = "proto3")]
-fn lower_row_remap(key: u8) -> u8 {
+pub fn lower_row_remap(key: u8) -> u8 {
     if key < 3 {
         return key;
     }
@@ -117,7 +117,7 @@ fn lower_row_remap(key: u8) -> u8 {
 }
 
 /// If this key is one of the taipo keys, return it's bit, otherwise None.
-fn taipo_map(key: u8) -> Option<u8> {
+pub fn taipo_map(key: u8) -> Option<u8> {
     match key {
         TAIPO_1 => Some(1),
         TAIPO_2 => Some(2),

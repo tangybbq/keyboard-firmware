@@ -744,7 +744,7 @@ type TaipoEvents = ArrayDeque<TaipoEvent, 16>;
 /// get here (see the row position discussion in the parent module), so there is
 /// only the one table.
 #[cfg(feature = "proto3")]
-static SCAN_MAP: [Option<(Side, u16)>; 48] = [
+pub static SCAN_MAP: [Option<(Side, u16)>; 48] = [
     // 0
     None,
     None,
@@ -815,7 +815,7 @@ static SCAN_MAP: [Option<(Side, u16)>; 48] = [
 ];
 
 #[cfg(feature = "proto2")]
-static SCAN_MAP: [Option<(Side, u16)>; 30] = [
+pub static SCAN_MAP: [Option<(Side, u16)>; 30] = [
     // 0
     Some((Side::Left, 0x200)),
     Some((Side::Left, 0x100)),
@@ -862,7 +862,10 @@ static SCAN_MAP: [Option<(Side, u16)>; 30] = [
 /// An Action is what should happen when particular key or combo is pressed.
 /// Taipo does not have anything that acts as a shift key, as all keys are
 /// pressed together (like steno).
-pub(super) enum Action {
+///
+/// Public so that host tools can walk the tables; see
+/// [`crate::layout::export`].
+pub enum Action {
     Simple(Keyboard),
     Shifted(Keyboard),
     /// Type a short sequence of characters, one keypress each.  The keys come
@@ -874,12 +877,12 @@ pub(super) enum Action {
 }
 
 /// The mapping between each key and its Action.
-pub(super) struct Entry {
-    pub(super) code: u16,
-    pub(super) action: Action,
+pub struct Entry {
+    pub code: u16,
+    pub action: Action,
 }
 
-static TAIPO_ACTIONS: &[Entry] = &[
+pub static TAIPO_ACTIONS: &[Entry] = &[
     // The thumb keys by themselves.
     Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },

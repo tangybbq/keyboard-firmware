@@ -9,6 +9,13 @@
 //! can resolve a scan code the same way the firmware does.  Nothing in here
 //! needs `std`, and the translation is a plain function per board.
 
+/// Every board name [`get_translation`] accepts.
+///
+/// The firmware only ever asks for the one name in its board info block; this
+/// is here so that host tools can walk every board without hardcoding the
+/// list.
+pub const BOARDS: &[&str] = &["proto3", "proto4", "mesa1", "jolt1", "jolt2", "jolt3"];
+
 pub fn get_translation(board: &str) -> fn(u8) -> u8 {
     match board {
         "proto3" => id,
@@ -170,5 +177,28 @@ fn jolt3(code: u8) -> u8 {
         JOLT4[code - 24] + 24
     } else {
         255
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{get_translation, BOARDS};
+
+    /// Every name in `BOARDS` is one `get_translation` knows, and every scan
+    /// code a matrix can produce lands in the 0..48 key code space, or on 255
+    /// for a position with no key.
+    ///
+    /// The scan codes stop at 48 because that is the largest board: `proto3`
+    /// and `jolt1` translate with the identity, which would happily pass a
+    /// larger code straight through.
+    #[test]
+    fn test_boards_translate() {
+        for board in BOARDS {
+            let xlate = get_translation(board);
+            for code in 0..48u8 {
+                let key = xlate(code);
+                assert!(key < 48 || key == 255, "board {board}: {code} -> {key}");
+            }
+        }
     }
 }
