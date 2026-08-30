@@ -47,6 +47,14 @@ struct MenuContents: View {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
+        Menu("Discard recent typing") {
+            Button("Last minute") { monitor.scrub(minutes: 1) }
+            Button("Last 5 minutes") { monitor.scrub(minutes: 5) }
+            Button("Last 30 minutes") { monitor.scrub(minutes: 30) }
+        }
+        if let scrub = monitor.lastScrub {
+            Text(scrub)
+        }
         Button("Reveal logs in Finder") {
             NSWorkspace.shared.selectFile(
                 nil, inFileViewerRootedAtPath: monitor.logDirectory.path)

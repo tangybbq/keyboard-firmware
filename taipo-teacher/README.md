@@ -20,8 +20,15 @@ rather than about obscuring what was recorded.
   fields in native apps, `sudo` and `ssh` prompts, the login window, and the lock screen.
   The check happens before each fetch, so a keystroke typed into a password field is
   discarded from the keyboard's buffer rather than written.
-- **The gap**: a web page's password field in a browser that does not ask for secure input.
-  Safari does; Chrome and Firefox generally do not.  Use **Pause** in the menu for those.
+- **The gaps**, which are real and worth knowing:
+  - **A password prompt inside tmux or screen.**  Terminal asserts secure input from its own
+    tty's state, and tmux owns that tty; `sudo` inside a tmux pane sets *its* pty to noecho,
+    which Terminal never sees.  A bare terminal is covered; a multiplexed one is not.
+  - A web page's password field in a browser that does not ask for secure input.  Safari
+    does; Chrome and Firefox generally do not.
+- For those, either **Pause** before typing, or **Discard recent typing** afterwards, which
+  truncates the log back to where it stood and clears the keyboard's buffer.  Prevention only
+  covers what the system tells us about, so there has to be a way to take something back.
 - Logs are plain text under `~/Library/Application Support/TaipoTeacher/logs`, one file a
   day.  Nothing is sent anywhere.
 
@@ -30,8 +37,9 @@ rather than about obscuring what was recorded.
 Without typing a real password:
 
 ```
-sudo -v          # then look at the menu bar, and Ctrl-C at the prompt
+sudo -v          # in a BARE terminal, not tmux; watch the menu bar, then Ctrl-C
 ```
 
 The icon changes and the menu says "Paused — password field" while the prompt is waiting.
-`ssh` to anything that asks for a password does the same.
+Doing the same inside tmux will *not* pause it, which is the gap above, and is worth seeing
+for yourself so the difference is concrete.

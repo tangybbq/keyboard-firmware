@@ -16,6 +16,17 @@ final class LogWriter {
     private var openedDay: String?
     /// Running offset within the current file, so a day reads as one timeline.
     private var offsetMs: UInt64 = 0
+    /// Where the file had got to *after* a write at a given wall-clock moment.
+    ///
+    /// After, not before.  A checkpoint taken before the write points at an offset that
+    /// still has that write ahead of it, so truncating there throws away something written
+    /// before the cutoff -- which a test caught immediately, deleting a line that should
+    /// have survived.
+    ///
+    /// This is what makes a retroactive scrub possible.  Prevention only covers what the
+    /// system tells us about, and it does not tell us about a password prompt inside tmux,
+    /// so there has to be a way to take something back after the fact.
+    private var checkpoints: [(at: Date, offset: UInt64)] = []
 
     /// Where the logs live.
     static var defaultDirectory: URL {
@@ -108,12 +119,45 @@ final class LogWriter {
     private func write(_ text: String) {
         guard !text.isEmpty, let data = text.data(using: .utf8) else { return }
         do {
-            let handle = try file(for: Date())
+            let now = Date()
+            let handle = try file(for: now)
             try handle.write(contentsOf: data)
+            checkpoints.append((now, try handle.offset()))
+            // An hour of checkpoints is far more than any scrub will reach back for.
+            let cutoff = now.addingTimeInterval(-3600)
+            checkpoints.removeAll { $0.at < cutoff }
         } catch {
             // Losing the log is not worth losing the session over; the drill and the live
             // view carry on regardless.
             NSLog("taipo-teacher: could not write the log: \(error)")
+        }
+    }
+
+    /// Throw away everything written since `date`, and report how many bytes went.
+    ///
+    /// Truncation rather than rewriting: the file is append-only and a scrub is meant to
+    /// leave nothing behind, so cutting it back to a known offset is both the simplest
+    /// thing and the one with no chance of leaving a fragment.
+    @discardableResult
+    func discard(since date: Date) -> UInt64 {
+        guard let handle else { return 0 }
+        // The last checkpoint at or before the cutoff is where the file has to go back to.
+        // Without one, everything in this file is newer than the cutoff.
+        let target = checkpoints.last { $0.at <= date }?.offset ?? 0
+        do {
+            let end = try handle.offset()
+            guard end > target else { return 0 }
+            try handle.truncate(atOffset: target)
+            try handle.seek(toOffset: target)
+            checkpoints.removeAll { $0.at > date }
+            // The timeline restarts: the offsets that followed are gone, and a fresh
+            // header will say so.
+            offsetMs = 0
+            write("# scrubbed \(end - target) bytes at \(UInt64(Date().timeIntervalSince1970))\n")
+            return end - target
+        } catch {
+            NSLog("taipo-teacher: could not scrub the log: \(error)")
+            return 0
         }
     }
 

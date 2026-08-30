@@ -24,6 +24,8 @@ public final class DeviceMonitor: ObservableObject {
     /// Recording is suspended because macOS has secure keyboard entry on: a password field,
     /// a `sudo` prompt, the login window, or the lock screen.
     @Published public private(set) var secureInput = false
+    /// What the last scrub did, so the menu can confirm it happened.
+    @Published public private(set) var lastScrub: String?
     /// Where the logs are being written.
     public let logDirectory = LogWriter.defaultDirectory
     /// The drill in progress, if the practice screen is showing.
@@ -105,6 +107,25 @@ public final class DeviceMonitor: ObservableObject {
             forName: NSApplication.willTerminateNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.shutDown() }
+        }
+    }
+
+    /// Throw away everything logged in the last `minutes`, on the device and on disk.
+    ///
+    /// For the cases prevention cannot reach.  macOS only asserts secure input when the
+    /// app that owns the text field asks it to, and a password prompt inside tmux never
+    /// does: Terminal sees tmux's tty, not sudo's.  Rather than pretend the cover is
+    /// complete, this is the way to take something back.
+    public func scrub(minutes: Int) {
+        let cutoff = Date().addingTimeInterval(-Double(minutes) * 60)
+        chords.removeAll()
+        drill.map { _ in restartDrill() }
+        queue.async { [weak self] in
+            guard let self else { return }
+            let bytes = self.log.discard(since: cutoff)
+            Task { @MainActor [weak self] in
+                self?.lastScrub = "Discarded \(bytes) bytes from the last \(minutes) min"
+            }
         }
     }
 
