@@ -100,6 +100,12 @@ pub fn layouts_json() -> String {
     );
     out.push_str(&format!("  \"scancode_set\": \"{}\",\n", SCANCODE_SET));
     out.push_str(&format!("  \"chord_time_ms\": {},\n", CHORD_TIME));
+    // The same number the device reports in `Reply::Hello`, so a host can tell
+    // whether the firmware it is talking to has the tables described here.
+    out.push_str(&format!(
+        "  \"fingerprint\": \"{:#018x}\",\n",
+        crate::layout::fingerprint::layout_fingerprint()
+    ));
     out.push_str(&format!("  \"bits\": [\n{}\n  ],\n", bits_json()));
     out.push_str(&format!("  \"special_keys\": {},\n", special_keys_json()));
     out.push_str(&format!("  \"scan_map\": {},\n", scan_map_json()));

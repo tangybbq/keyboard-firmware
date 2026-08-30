@@ -14,6 +14,7 @@ use self::taipo::{TaipoManager, TaipoVariant};
 
 #[cfg(feature = "std")]
 pub mod export;
+pub mod fingerprint;
 pub mod posh;
 #[cfg(feature = "qwerty")]
 mod qwerty;
