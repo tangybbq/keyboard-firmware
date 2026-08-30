@@ -14,10 +14,17 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [
         .library(name: "MinderKit", targets: ["MinderKit"]),
+        .library(name: "TaipoKit", targets: ["TaipoKit"]),
     ],
     targets: [
         .target(name: "MinderKit"),
+        .target(name: "TaipoKit", resources: [.copy("layouts.json")]),
         .executableTarget(name: "minderctl", dependencies: ["MinderKit"]),
+        .testTarget(
+            name: "TaipoKitTests",
+            dependencies: ["TaipoKit"],
+            resources: [.copy("golden")]
+        ),
         .testTarget(
             name: "MinderKitTests",
             dependencies: ["MinderKit"],
