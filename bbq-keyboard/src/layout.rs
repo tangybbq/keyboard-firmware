@@ -279,6 +279,18 @@ mod async_traits {
         async fn taipo_chord(&self, side: Side, code: u16, end: ChordEnd) {
             let _ = (side, code, end);
         }
+
+        /// Report the 2-row layouts moving between the top two rows of a
+        /// 3-row board and the bottom two.
+        ///
+        /// `lower` is true when they sit on the bottom two rows.  Two-row
+        /// boards never call this.  Like `taipo_chord`, this exists so that a
+        /// host replay learns the position from the layout rather than
+        /// tracking the toggle key itself; the firmware has nothing to do
+        /// here, though an indicator could.
+        async fn set_row_position(&self, lower: bool) {
+            let _ = lower;
+        }
     }
 }
 pub use async_traits::LayoutActions;
@@ -367,7 +379,7 @@ impl LayoutManager {
     /// Handle a single key event.
     pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT) {
         #[cfg(feature = "proto3")]
-        let event = match self.row_event(event) {
+        let event = match self.row_event(event, actions).await {
             Some(event) => event,
             // The toggle key was consumed.
             None => return,
@@ -420,7 +432,11 @@ impl LayoutManager {
     /// begins and ends with nothing else held.  So no key can be pressed under
     /// one mapping and released under another.
     #[cfg(feature = "proto3")]
-    fn row_event(&mut self, event: KeyEvent) -> Option<KeyEvent> {
+    async fn row_event<ACT: LayoutActions>(
+        &mut self,
+        event: KeyEvent,
+        actions: &ACT,
+    ) -> Option<KeyEvent> {
         // The 2-row modes on a 3-row board are the only place any of this
         // applies.  Qwerty uses all three rows as it is.
         if self.two_row || !self.mode.is_two_row_layout() {
@@ -436,6 +452,9 @@ impl LayoutManager {
                 KeyEvent::Release(_) => {
                     if self.row_arm && self.mode.pressed == 0 {
                         self.row_position = self.row_position.toggle();
+                        actions
+                            .set_row_position(self.row_position == RowPosition::Lower)
+                            .await;
                     }
                     self.row_arm = false;
                 }
