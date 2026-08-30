@@ -17,6 +17,7 @@
 use std::{io::Write, path::Path, time::Duration};
 
 use anyhow::Result;
+use minder::keylog::{Entry, Marker, Record, RECORD_SIZE};
 use minder::{cap, Event, Reply, Request, PACKET_SIZE};
 use minicbor::{Decode, Encode};
 use rusb::{DeviceHandle, Direction, GlobalContext};
@@ -349,13 +350,18 @@ impl EventPump {
     ///
     /// The callback sees `None` for a poll that expired with nothing to report, so that it
     /// can do periodic work without needing a timer of its own.
+    ///
+    /// It is also handed the connection, because reacting to an event almost always means
+    /// asking the device something -- an `Event::LogReady` is a notification, and the
+    /// records still have to be fetched.  Safe to use: the pump never leaves a request
+    /// outstanding while the callback runs.
     pub fn run<F>(&mut self, mut on_event: F) -> Result<()>
     where
-        F: FnMut(Option<Event>) -> Flow,
+        F: FnMut(&mut VendorMinder, Option<Event>) -> Flow,
     {
         loop {
             let event = self.poll_once()?;
-            if on_event(event) == Flow::Stop {
+            if on_event(&mut self.minder, event) == Flow::Stop {
                 return Ok(());
             }
         }
@@ -378,6 +384,75 @@ pub fn layouts_fingerprint() -> Option<u64> {
 }
 
 #[cfg(test)]
+mod logfile_tests {
+    use super::logfile::format_batch;
+    use minder::keylog::{Delta, Marker, Record};
+
+    fn pack(records: &[Record]) -> Vec<u8> {
+        records.iter().flat_map(|r| r.encode()).collect()
+    }
+
+    /// Deltas accumulate into absolute offsets, which is the whole job: the device records
+    /// gaps, and the file records positions.
+    #[test]
+    fn test_offsets_accumulate() {
+        let batch = pack(&[
+            Record::key(Delta::from_millis(0), 5, true),
+            Record::key(Delta::from_millis(42), 5, false),
+            Record::key(Delta::from_millis(158), 9, true),
+        ]);
+        let mut t = 0;
+        let text = format_batch(&batch, &mut t);
+        assert_eq!(text, "0 + 5\n42 - 5\n200 + 9\n");
+        assert_eq!(t, 200);
+    }
+
+    /// The offset carries across batches, so an appended file is one timeline rather than
+    /// a series of restarts.
+    #[test]
+    fn test_offset_carries_between_batches() {
+        let mut t = 0;
+        format_batch(&pack(&[Record::key(Delta::from_millis(100), 1, true)]), &mut t);
+        let text = format_batch(&pack(&[Record::key(Delta::from_millis(50), 2, true)]), &mut t);
+        assert_eq!(text, "150 + 2\n");
+    }
+
+    /// A long idle gap survives the seconds-form delta, to the second.
+    #[test]
+    fn test_coarse_delta() {
+        let mut t = 0;
+        let text = format_batch(&pack(&[Record::key(Delta::from_millis(3_600_000), 1, true)]), &mut t);
+        assert_eq!(text, "3600000 + 1\n");
+    }
+
+    #[test]
+    fn test_markers() {
+        let mut t = 0;
+        let text = format_batch(
+            &pack(&[
+                Record::marker(Delta::from_millis(0), Marker::Mode, 0),
+                Record::marker(Delta::from_millis(0), Marker::Variant, 1),
+                Record::marker(Delta::from_millis(10), Marker::Pause, 0),
+            ]),
+            &mut t,
+        );
+        assert_eq!(text, "0 = mode 0\n0 = variant 1\n10 = pause 0\n");
+    }
+
+    /// An unknown marker is newer firmware, not corruption: it is noted and skipped, and
+    /// the records after it still parse, because the stride is fixed.
+    #[test]
+    fn test_unknown_record_does_not_derail() {
+        let mut batch = vec![0x80 | 40, 0, 0, 0];
+        batch.extend_from_slice(&Record::key(Delta::from_millis(7), 3, true).encode());
+        let mut t = 0;
+        let text = format_batch(&batch, &mut t);
+        assert!(text.starts_with("# unknown record"), "{text}");
+        assert!(text.ends_with("7 + 3\n"), "{text}");
+    }
+}
+
+#[cfg(test)]
 mod tests {
     /// The fingerprint really is readable out of the checked-in file.  This fails if the
     /// export changes shape, which is exactly when the hand-rolled parse above would
@@ -385,5 +460,84 @@ mod tests {
     #[test]
     fn test_layouts_fingerprint_parses() {
         assert!(super::layouts_fingerprint().is_some());
+    }
+}
+
+/// Writing a drained key log to disk.
+///
+/// One record per line, text, because this corpus is small enough that a binary format
+/// would only buy space it does not need, and being greppable and diffable is worth more
+/// than the bytes.  `#` lines carry what is not a record: the session header, and gaps.
+///
+/// Times are milliseconds since the start of the session, reconstructed from the deltas.
+/// The device has no clock, so the wall clock in the header is the host's, taken when the
+/// batch arrived; `anchor_ms` is what ties the two together.
+pub mod logfile {
+    use super::*;
+    use std::fmt::Write as _;
+
+    /// Turn one batch of records into appendable text.
+    ///
+    /// `t0` is the running millisecond offset, advanced past the batch.  Returns the text.
+    pub fn format_batch(records: &[u8], t0: &mut u64) -> String {
+        let mut out = String::new();
+        for chunk in records.chunks_exact(RECORD_SIZE) {
+            let bytes: [u8; RECORD_SIZE] = chunk.try_into().expect("chunk size");
+            let Some(rec) = Record::decode(bytes) else {
+                // A marker this build does not know means newer firmware, not corruption.
+                // The stride is fixed, so skipping one costs nothing but itself.
+                *t0 += 0;
+                let _ = writeln!(out, "# unknown record {bytes:02x?}");
+                continue;
+            };
+            *t0 += rec.delta.as_millis();
+            match rec.entry {
+                Entry::Key { code, press } => {
+                    let _ = writeln!(
+                        out,
+                        "{t} {sign} {code}",
+                        t = t0,
+                        sign = if press { '+' } else { '-' },
+                    );
+                }
+                Entry::Marker { marker, value } => {
+                    let name = match marker {
+                        Marker::Mode => "mode",
+                        Marker::Variant => "variant",
+                        Marker::RowShift => "row",
+                        Marker::Resume => "resume",
+                        Marker::Pause => "pause",
+                    };
+                    let _ = writeln!(out, "{t} = {name} {value}", t = t0);
+                }
+            }
+        }
+        out
+    }
+
+    /// The `#` header that opens a session.
+    ///
+    /// Carries what a replay needs in order to know it is replaying the right thing: the
+    /// boot id the records belong to, and the layout fingerprint the device reported.  A
+    /// reader that finds a fingerprint other than its own `layouts.json` should stop rather
+    /// than derive something plausible and wrong.
+    pub fn session_header(boot_id: u64, fingerprint: Option<u64>, info: &str) -> String {
+        format!(
+            "# session device={info} boot_id={boot_id:#018x} layout={}\n\
+             # started {} (unix seconds)\n",
+            match fingerprint {
+                Some(f) => format!("{f:#018x}"),
+                None => "unknown".to_string(),
+            },
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+        )
+    }
+
+    /// The `#` line marking records the device dropped before the host could fetch them.
+    pub fn gap(dropped: u32, before_seq: u32) -> String {
+        format!("# gap {dropped} records dropped before seq {before_seq}\n")
     }
 }

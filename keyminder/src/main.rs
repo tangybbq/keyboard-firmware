@@ -1,6 +1,6 @@
 //! Keyminder.
 
-use std::{io::Write, time::Instant};
+use std::{fs::OpenOptions, io::Write, path::PathBuf, time::Instant};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -29,6 +29,27 @@ enum Commands {
     Poll(PollArgs),
     /// Dictionary Upgraders
     Dict(DictArgs),
+    /// Record the key event log to a file.
+    Log(LogArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct LogArgs {
+    /// Serial number of the keyboard to talk to.
+    #[arg(short, long)]
+    serial: String,
+    /// File to append to.
+    #[arg(short, long, default_value = "keylog.txt")]
+    output: PathBuf,
+    /// Raise an event once this many records are waiting.  1 is lowest latency.
+    #[arg(long, default_value_t = 32)]
+    watermark: u32,
+    /// How long the device holds each poll open, in milliseconds.
+    #[arg(long, default_value_t = 5000)]
+    timeout_ms: u32,
+    /// Stop after this many batches.  Runs until interrupted if not given.
+    #[arg(long)]
+    batches: Option<u32>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -94,6 +115,9 @@ fn main() -> Result<()> {
         }
         Commands::Dict(args) => {
             dict(args)?;
+        }
+        Commands::Log(args) => {
+            log(args)?;
         }
     }
 
@@ -209,7 +233,7 @@ fn poll(args: &PollArgs) -> Result<()> {
 
     let mut remaining = args.count;
     let mut start = Instant::now();
-    pump.run(|event| {
+    pump.run(|_minder, event| {
         match event {
             Some(event) => println!("[{:7.3}s] {:?}", start.elapsed().as_secs_f64(), event),
             None => println!("[{:7.3}s] no event", start.elapsed().as_secs_f64()),
@@ -255,6 +279,131 @@ fn interrupt_check(minder: &mut VendorMinder, args: &PollArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Record the key event log to a file.
+///
+/// taipo-teacher.md phase 2.  This is the one-shot form; phase 3 makes it a background loop
+/// in the collector, which is why the fetch/append/ack cycle lives in the library rather
+/// than here.
+///
+/// **This records everything typed on the keyboard.**  The device holds it in RAM only and
+/// loses it at power off, and this file is local, but it is a keylogger and the chord codes
+/// are the letters.  Logging is off on the device until this asks for it, and turned back
+/// off on the way out.
+fn log(args: &LogArgs) -> Result<()> {
+    let (mut pump, hello) = EventPump::connect(&args.serial, args.timeout_ms)?;
+    if !hello.supports(minder::cap::KEY_LOG) {
+        return Err(anyhow::anyhow!(
+            "device does not support the {:?} capability",
+            minder::cap::KEY_LOG
+        ));
+    }
+    let (boot_id, info) = match &hello {
+        Reply::Hello { boot_id, info, .. } => (boot_id.unwrap_or(0), info.clone()),
+        other => return Err(anyhow::anyhow!("Unexpected reply to Hello: {:?}", other)),
+    };
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&args.output)?;
+    file.write_all(
+        keyminder::logfile::session_header(boot_id, keyminder::layouts_fingerprint(), &info)
+            .as_bytes(),
+    )?;
+
+    println!("Recording to {}.  Interrupt to stop.", args.output.display());
+    let reply: Reply = pump.minder().call(&Request::SetLogging {
+        enabled: true,
+        watermark: args.watermark,
+    })?;
+    if !matches!(reply, Reply::Ok) {
+        return Err(anyhow::anyhow!("SetLogging refused: {:?}", reply));
+    }
+
+    let mut offset_ms = 0u64;
+    let mut batches = args.batches;
+    let mut total = 0usize;
+
+    let result = pump.run(|minder, _event| {
+        // Drain whether or not an event came: an expired poll still means it is time to
+        // look, and the watermark only bounds how long records sit unfetched.
+        match drain_all(minder, &mut file, &mut offset_ms, &mut total) {
+            Ok(()) => (),
+            Err(e) => {
+                eprintln!("drain failed: {e}");
+                return Flow::Stop;
+            }
+        }
+        match batches {
+            Some(0) | Some(1) => Flow::Stop,
+            Some(ref mut n) => {
+                *n -= 1;
+                Flow::Continue
+            }
+            None => Flow::Continue,
+        }
+    });
+
+    // Leave the device as it was found, whether the loop ended well or badly.
+    let _: Result<Reply> = pump.minder().call(&Request::SetLogging {
+        enabled: false,
+        watermark: 0,
+    });
+    println!("\n{total} records written to {}", args.output.display());
+    result
+}
+
+/// Fetch, append and ack, repeating while the device says more is waiting.
+///
+/// Acking only after the write lands is the point of acking separately: a crash between
+/// the fetch and the write refetches the same records rather than losing them.
+fn drain_all(
+    minder: &mut VendorMinder,
+    file: &mut std::fs::File,
+    offset_ms: &mut u64,
+    total: &mut usize,
+) -> Result<()> {
+    loop {
+        let reply: Reply = minder.call(&Request::GetEventLog { max_bytes: 3200 })?;
+        let Reply::EventLog {
+            seq,
+            dropped,
+            records,
+            remaining,
+            ..
+        } = reply
+        else {
+            return Err(anyhow::anyhow!("Unexpected reply to GetEventLog: {:?}", reply));
+        };
+
+        if dropped > 0 {
+            file.write_all(keyminder::logfile::gap(dropped, seq).as_bytes())?;
+        }
+        if records.is_empty() {
+            return Ok(());
+        }
+
+        let count = records.len() / minder::keylog::RECORD_SIZE;
+        let text = keyminder::logfile::format_batch(&records, offset_ms);
+        file.write_all(text.as_bytes())?;
+        file.flush()?;
+        *total += count;
+
+        let through = seq.wrapping_add(count as u32 - 1);
+        let ack: Reply = minder.call(&Request::EventLogAck { through_seq: through })?;
+        if !matches!(ack, Reply::Ok) {
+            return Err(anyhow::anyhow!("EventLogAck refused: {:?}", ack));
+        }
+
+        print!("\r{total} records");
+        let _ = std::io::stdout().flush();
+
+        if remaining == 0 {
+            return Ok(());
+        }
+    }
 }
 
 fn dict(args: &DictArgs) -> Result<()> {
