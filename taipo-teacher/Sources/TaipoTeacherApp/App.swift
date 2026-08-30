@@ -13,12 +13,45 @@ struct TaipoTeacherApp: App {
 
     var body: some Scene {
         WindowGroup("Taipo Teacher") {
-            LiveView(monitor: monitor)
-                .frame(minWidth: 560, minHeight: 420)
+            MainView(monitor: monitor)
+                .frame(minWidth: 680, minHeight: 460)
                 .onAppear { monitor.start() }
                 .onDisappear { monitor.stop() }
         }
         .windowResizability(.contentSize)
+    }
+}
+
+/// The window: a mode picker, the status line, and whichever screen is showing.
+struct MainView: View {
+    @ObservedObject var monitor: DeviceMonitor
+    @State private var mode: Mode = .practice
+
+    enum Mode: String, CaseIterable, Identifiable {
+        case practice = "Practice"
+        case live = "Live"
+        var id: String { rawValue }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $mode) {
+                ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+
+            switch mode {
+            case .practice: DrillView(monitor: monitor)
+            case .live: LiveView(monitor: monitor)
+            }
+        }
+        // The keyboard types into whichever window has focus, which is this one.  Nothing
+        // here wants the characters -- the chords come from the log -- so they are
+        // swallowed rather than left to beep.
+        .background(KeySwallower().frame(width: 0, height: 0))
     }
 }
 

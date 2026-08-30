@@ -13,6 +13,24 @@ public final class DeviceMonitor: ObservableObject {
     @Published public private(set) var status: Status = .disconnected
     @Published public private(set) var chords: [LiveChord] = []
     @Published public private(set) var recording = false
+    /// The drill in progress, if the practice screen is showing.
+    @Published public private(set) var drill: DrillSession?
+
+    /// Practice lines.
+    ///
+    /// A fixed list for now.  taipo-teacher.md's adaptive sampler wants the model store and
+    /// a corpus, and neither exists yet; these are chosen to put the n-gram chords in front
+    /// of the fingers, since phase 3 found six grams spelled out in the first 76 chords of
+    /// real typing.
+    private static let corpus = [
+        "the other thing is that",
+        "information for the nation",
+        "another one of these",
+        "he said that there were",
+        "in the morning and the evening",
+        "we should consider the question",
+    ]
+    private var corpusIndex = 0
 
     /// A chord, with what it typed, for display.
     public struct LiveChord: Identifiable {
@@ -59,6 +77,14 @@ public final class DeviceMonitor: ObservableObject {
         running = false
     }
 
+    /// Start the next practice line.
+    public func nextDrill() {
+        guard let layouts else { return }
+        let text = Self.corpus[corpusIndex % Self.corpus.count]
+        corpusIndex += 1
+        drill = DrillSession(target: DrillTarget(text: text, layouts: layouts), layouts: layouts)
+    }
+
     /// The whole device loop: connect, greet, enable logging, drain forever.
     private nonisolated func run() {
         let device: MinderDevice
@@ -86,6 +112,7 @@ public final class DeviceMonitor: ObservableObject {
         Task { @MainActor [weak self] in
             self?.layouts = layouts
             self?.status = .connected(device: hello.info, fingerprintMatches: matches)
+            self?.nextDrill()
         }
 
         guard hello.supports(Capability.keyLog) else {
@@ -218,6 +245,14 @@ public final class DeviceMonitor: ObservableObject {
         chords.append(contentsOf: new)
         if chords.count > historyLimit {
             chords.removeFirst(chords.count - historyLimit)
+        }
+        // A finished drill keeps its result on screen until the next one is asked for.
+        if let drill, !drill.finished {
+            for live in new {
+                drill.feed(live.chord)
+            }
+            // DrillSession is a class, so SwiftUI needs telling that it changed.
+            objectWillChange.send()
         }
     }
 }
