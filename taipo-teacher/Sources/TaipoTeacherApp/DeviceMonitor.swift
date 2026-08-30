@@ -13,6 +13,15 @@ public final class DeviceMonitor: ObservableObject {
     @Published public private(set) var status: Status = .disconnected
     @Published public private(set) var chords: [LiveChord] = []
     @Published public private(set) var recording = false
+    /// Paused by the user.  Stops the *device* recording, not just this end, so a pause
+    /// means the keyboard is not keeping anything either.
+    @Published public var paused = false {
+        didSet { pauseRequested = paused }
+    }
+    /// Chords seen today, for the menu bar.
+    @Published public private(set) var chordsToday = 0
+    /// Where the logs are being written.
+    public let logDirectory = LogWriter.defaultDirectory
     /// The drill in progress, if the practice screen is showing.
     @Published public private(set) var drill: DrillSession?
 
@@ -72,14 +81,31 @@ public final class DeviceMonitor: ObservableObject {
     private let queue = DispatchQueue(label: "org.davidb.taipo-teacher.device")
     private var running = false
     private var layouts: Layouts?
+    /// Only ever touched from `queue`, which is a single serial queue, so this is safe
+    /// outside the actor.  Saying so explicitly rather than letting the isolation be
+    /// implied: it is the kind of invariant that quietly stops being true.
+    nonisolated(unsafe) private let log = LogWriter()
+    /// Read from the device thread; written from the main one.
+    private var pauseRequested = false
 
-    public init() {}
+    public init() {
+        // Collecting starts with the app, not with a window: the point of the menu bar is
+        // that it runs whether or not anything is on screen.
+        start()
+    }
+
+    /// What the menu bar shows at a glance.
+    public var menuBarSymbol: String {
+        if case .failed = status { return "keyboard.badge.exclamationmark" }
+        if paused { return "keyboard" }
+        return recording ? "keyboard.fill" : "keyboard"
+    }
 
     public func start() {
         guard !running else { return }
         running = true
         status = .connecting
-        queue.async { [weak self] in self?.run() }
+        queue.async { [weak self] in self?.reconnectLoop() }
     }
 
     public func stop() {
@@ -100,8 +126,29 @@ public final class DeviceMonitor: ObservableObject {
         drill = DrillSession(target: DrillTarget(text: text, layouts: layouts), layouts: layouts)
     }
 
-    /// The whole device loop: connect, greet, enable logging, drain forever.
-    private nonisolated func run() {
+    /// Reconnect until told to stop.
+    ///
+    /// A keyboard gets unplugged, and a keyboard gets reflashed.  Either way the poll fails
+    /// and the right answer is to wait and try again rather than to give up until the app
+    /// is restarted -- a collector that quietly stops collecting is worse than one that
+    /// never started.
+    private nonisolated func reconnectLoop() {
+        var lastBootID: UInt64?
+        while isRunning {
+            let boot = runSession(previousBootID: lastBootID)
+            if let boot { lastBootID = boot }
+            guard isRunning else { break }
+            Thread.sleep(forTimeInterval: 2.0)
+        }
+        Task { @MainActor [weak self] in
+            self?.recording = false
+            self?.running = false
+        }
+    }
+
+    /// One connection's worth of collecting.  Returns the boot id it saw.
+    @discardableResult
+    private nonisolated func runSession(previousBootID: UInt64?) -> UInt64? {
         let device: MinderDevice
         let hello: HelloInfo
         let layouts: Layouts
@@ -113,11 +160,8 @@ public final class DeviceMonitor: ObservableObject {
             else { throw MinderDevice.DeviceError.notFound(serial: nil) }
             hello = info
         } catch {
-            Task { @MainActor [weak self] in
-                self?.status = .failed("\(error)")
-                self?.running = false
-            }
-            return
+            Task { @MainActor [weak self] in self?.status = .failed("\(error)") }
+            return nil
         }
 
         // The tables the app names chords with have to be the ones the keyboard is running,
@@ -135,8 +179,18 @@ public final class DeviceMonitor: ObservableObject {
                 self?.status = .failed("firmware has no key log")
                 self?.running = false
             }
-            return
+            return hello.bootID
         }
+
+        // A different boot id means the keyboard restarted: whatever it was buffering is
+        // gone, and the timeline it was writing has a hole in it.  Say so in the file
+        // rather than letting the deltas imply continuity that is not there.
+        if let previous = previousBootID, previous != hello.bootID {
+            self.log.noteReset()
+        }
+        self.log.beginSession(
+            device: hello.info, bootID: hello.bootID,
+            fingerprint: hello.layoutFingerprint)
 
         let engine = ChordEngine(layouts: layouts)
         // The device's own timeline, rebuilt from the record deltas.  `Clock` also tracks
@@ -157,7 +211,23 @@ public final class DeviceMonitor: ObservableObject {
             _ = try device.call(.setLogging(enabled: true, watermark: 1))
             Task { @MainActor [weak self] in self?.recording = true }
 
+            var wasPaused = false
             while self.isRunning {
+                // Pausing stops the device recording, not just this end: the point of a
+                // pause is that nothing is being kept, and the records live on the
+                // keyboard until they are fetched.
+                let pause = self.isPaused
+                if pause != wasPaused {
+                    _ = try device.call(.setLogging(enabled: !pause, watermark: 1))
+                    if !pause { try self.discardBuffered(device) }
+                    wasPaused = pause
+                    Task { @MainActor [weak self] in self?.recording = !pause }
+                }
+                if pause {
+                    Thread.sleep(forTimeInterval: 0.25)
+                    continue
+                }
+
                 // A poll that expires is not an error, just a quiet moment.
                 _ = try device.call(.getEvent(timeoutMs: 1000), timeout: 5.0)
                 try self.drain(device, engine: engine, clock: &clock)
@@ -166,14 +236,23 @@ public final class DeviceMonitor: ObservableObject {
                 self.publish(engine.advance(toMs: clock.estimatedNowMs), engine: engine)
             }
         } catch {
-            Task { @MainActor [weak self] in self?.status = .failed("\(error)") }
+            // An unplug looks exactly like this.  Report it and let the outer loop retry.
+            Task { @MainActor [weak self] in
+                self?.status = .failed("\(error)")
+                self?.recording = false
+            }
+            return hello.bootID
         }
 
         _ = try? device.call(.setLogging(enabled: false, watermark: 0))
-        Task { @MainActor [weak self] in
-            self?.recording = false
-            self?.running = false
-        }
+        Task { @MainActor [weak self] in self?.recording = false }
+        return hello.bootID
+    }
+
+    private nonisolated var isPaused: Bool {
+        var value = false
+        DispatchQueue.main.sync { value = MainActor.assumeIsolated { self.pauseRequested } }
+        return value
     }
 
     private nonisolated var isRunning: Bool {
@@ -211,6 +290,15 @@ public final class DeviceMonitor: ObservableObject {
             else { return }
             let records = LogRecord.decodeAll(batch.records)
             if records.isEmpty { return }
+
+            // To disk before acking: acking is what lets the device forget, so anything
+            // written after it would be lost by a crash in between.
+            if batch.dropped > 0 {
+                self.log.noteGap(dropped: batch.dropped, beforeSeq: batch.seq)
+            }
+            if let layouts = self.layoutsSync {
+                self.log.append(records, layouts: layouts)
+            }
 
             var produced: [TaipoKit.Chord] = []
             for record in records {
@@ -282,6 +370,7 @@ public final class DeviceMonitor: ObservableObject {
     }
 
     private func append(_ new: [LiveChord]) {
+        chordsToday += new.count
         chords.append(contentsOf: new)
         if chords.count > historyLimit {
             chords.removeFirst(chords.count - historyLimit)

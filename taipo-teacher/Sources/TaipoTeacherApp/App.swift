@@ -10,15 +10,52 @@ import TaipoKit
 @main
 struct TaipoTeacherApp: App {
     @StateObject private var monitor = DeviceMonitor()
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        WindowGroup("Taipo Teacher") {
+        // The menu bar is the app's real home.  Collecting has to keep going whether or
+        // not a window is open, and the keyboard's vendor interface can only be claimed by
+        // one process, so this app has to be the one that holds it -- an always-on CLI
+        // collector would lock the trainer out of its own keyboard.
+        MenuBarExtra {
+            MenuContents(monitor: monitor)
+        } label: {
+            Image(systemName: monitor.menuBarSymbol)
+        }
+
+        Window("Taipo Teacher", id: "main") {
             MainView(monitor: monitor)
                 .frame(minWidth: 680, minHeight: 460)
-                .onAppear { monitor.start() }
-                .onDisappear { monitor.stop() }
         }
         .windowResizability(.contentSize)
+    }
+}
+
+struct MenuContents: View {
+    @ObservedObject var monitor: DeviceMonitor
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Text(monitor.status.summary)
+        Text(monitor.recording
+             ? "\(monitor.chordsToday) chords today"
+             : (monitor.paused ? "Paused" : "Not recording"))
+
+        Divider()
+        Button(monitor.paused ? "Resume recording" : "Pause recording") {
+            monitor.paused.toggle()
+        }
+        Button("Practice…") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        Button("Reveal logs in Finder") {
+            NSWorkspace.shared.selectFile(
+                nil, inFileViewerRootedAtPath: monitor.logDirectory.path)
+        }
+        Divider()
+        Button("Quit") { NSApp.terminate(nil) }
+            .keyboardShortcut("q")
     }
 }
 
