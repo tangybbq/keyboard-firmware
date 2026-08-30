@@ -183,6 +183,22 @@ public final class ChordEngine {
         }
     }
 
+    /// Advance the clock without a key event, committing any chord whose window has now
+    /// expired.
+    ///
+    /// Live use needs this and replaying a finished log does not, which is why it was
+    /// missing at first.  A chord that is *tapped* commits on the release of its last key,
+    /// but one that is *held* past the window commits on the timer -- and on real typing
+    /// that is about seven chords in ten.  Without a way to move time forward between
+    /// keystrokes, each of those would sit unreported until the next key arrived, so the
+    /// display would run a chord behind.
+    @discardableResult
+    public func advance(toMs time: UInt32) -> [Chord] {
+        var out = [Chord]()
+        advance(to: time, into: &out)
+        return out
+    }
+
     /// Commit anything still open, for the end of a log.
     public func finish() -> [Chord] {
         var out = [Chord]()

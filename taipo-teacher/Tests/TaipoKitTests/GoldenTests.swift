@@ -103,3 +103,43 @@ final class GoldenTests: XCTestCase {
         XCTAssertGreaterThan(l.variants["posh"]?.chords.count ?? 0, 100)
     }
 }
+
+/// Live behaviour, which the golden files cannot cover: they are finished logs, and every
+/// chord in them is followed by another event.
+final class LiveTests: XCTestCase {
+
+    private func engine() throws -> ChordEngine {
+        ChordEngine(layouts: try Layouts.bundled())
+    }
+
+    /// A chord held past the window commits on the timer, and needs the clock moved for
+    /// that to happen.  Seven chords in ten end this way in real typing, so an engine that
+    /// only advances on key events shows the display a chord behind.
+    func testHeldChordCommitsWhenTimeAdvances() throws {
+        let e = try engine()
+        // `L.t` is key 6 in the upper scan map; press it and hold.
+        let key = try XCTUnwrap(
+            (try Layouts.bundled()).scanMap.upper.first { $0.side == "left" && $0.name == "t" }?.key)
+
+        XCTAssertTrue(e.feed(key: key, press: true, timeMs: 1000).isEmpty,
+                      "nothing commits while the window is open")
+        XCTAssertTrue(e.advance(toMs: 1050).isEmpty, "still open at 50ms")
+
+        let committed = e.advance(toMs: 1200)
+        XCTAssertEqual(committed.count, 1, "the window should have expired")
+        XCTAssertEqual(committed.first?.end, .timerExpired)
+        XCTAssertEqual(committed.first?.timeMs, 1099, "first + window - 1")
+    }
+
+    /// A tapped chord needs no help: it commits on the release of its last key.
+    func testTappedChordCommitsOnRelease() throws {
+        let e = try engine()
+        let key = try XCTUnwrap(
+            (try Layouts.bundled()).scanMap.upper.first { $0.side == "left" && $0.name == "t" }?.key)
+
+        XCTAssertTrue(e.feed(key: key, press: true, timeMs: 1000).isEmpty)
+        let committed = e.feed(key: key, press: false, timeMs: 1040)
+        XCTAssertEqual(committed.count, 1)
+        XCTAssertEqual(committed.first?.end, .allReleased)
+    }
+}

@@ -97,7 +97,10 @@ public final class DeviceMonitor: ObservableObject {
         }
 
         let engine = ChordEngine(layouts: layouts)
-        var clock: UInt64 = 0
+        // The device's own timeline, rebuilt from the record deltas.  `Clock` also tracks
+        // how long ago that was in host time, so the engine's window can expire between
+        // keystrokes rather than waiting for the next one.
+        var clock = Clock()
 
         do {
             // Watermark 1: tell us as soon as there is anything.  Batches cost a USB frame
@@ -109,6 +112,9 @@ public final class DeviceMonitor: ObservableObject {
                 // A poll that expires is not an error, just a quiet moment.
                 _ = try device.call(.getEvent(timeoutMs: 1000), timeout: 5.0)
                 try self.drain(device, engine: engine, clock: &clock)
+                // Nothing arrived, but time still passed: a chord held past the window
+                // commits on the timer, and seven in ten do.
+                self.publish(engine.advance(toMs: clock.estimatedNowMs), engine: engine)
             }
         } catch {
             Task { @MainActor [weak self] in self?.status = .failed("\(error)") }
@@ -128,8 +134,28 @@ public final class DeviceMonitor: ObservableObject {
     }
 
     /// Fetch, decode, feed, and ack, until the device says there is no more.
+    /// The device's millisecond timeline, and how to guess where it is now.
+    struct Clock {
+        /// Sum of the record deltas seen so far.
+        var deviceMs: UInt64 = 0
+        /// Host time when `deviceMs` was last known to be current.
+        var syncedAt = Date()
+        /// Whether `deviceMs` has ever been anchored to the present.
+        var anchored = false
+
+        /// Where the device's clock is now, as well as can be told.
+        ///
+        /// Between drains this is the last anchor plus host elapsed time.  Drift over a
+        /// second or two of quiet is irrelevant: it is only used to decide that a 100ms
+        /// window has expired.
+        var estimatedNowMs: UInt32 {
+            let elapsed = anchored ? Date().timeIntervalSince(syncedAt) * 1000 : 0
+            return UInt32(truncatingIfNeeded: deviceMs + UInt64(max(0, elapsed)))
+        }
+    }
+
     private nonisolated func drain(
-        _ device: MinderDevice, engine: ChordEngine, clock: inout UInt64
+        _ device: MinderDevice, engine: ChordEngine, clock: inout Clock
     ) throws {
         while true {
             guard case .eventLog(let batch) = try device.call(.getEventLog(maxBytes: 800))
@@ -139,11 +165,12 @@ public final class DeviceMonitor: ObservableObject {
 
             var produced: [TaipoKit.Chord] = []
             for record in records {
-                clock += record.delta.milliseconds
+                clock.deviceMs += record.delta.milliseconds
                 switch record {
                 case .key(let code, let press, _):
                     produced += engine.feed(
-                        key: Int(code), press: press, timeMs: UInt32(truncatingIfNeeded: clock))
+                        key: Int(code), press: press,
+                        timeMs: UInt32(truncatingIfNeeded: clock.deviceMs))
                 case .marker(let marker, let value, _):
                     engine.marker(marker.name, value: value)
                 case .unknown:
@@ -154,16 +181,31 @@ public final class DeviceMonitor: ObservableObject {
             let count = UInt32(records.count)
             _ = try device.call(.eventLogAck(throughSeq: batch.seq &+ count &- 1))
 
-            if !produced.isEmpty {
-                let live = produced.map { chord -> LiveChord in
-                    let entry = self.layoutsSync?.chord(chord.code, variant: chord.variant)
-                    return LiveChord(
-                        chord: chord, types: entry?.action.types, dead: entry == nil)
-                }
-                Task { @MainActor [weak self] in self?.append(live) }
+            // `anchor_ms` measures from the newest record in the batch, which is exactly
+            // what ties the device's timeline to the present.  It is only meaningful for a
+            // complete batch; a partial one reports a sentinel, because the device keeps no
+            // timestamp per record and a plausible wrong number would be worse than none.
+            if batch.remaining == 0 && batch.anchorMs != UInt32.max {
+                clock.deviceMs += UInt64(batch.anchorMs)
+                clock.syncedAt = Date()
+                clock.anchored = true
+                produced += engine.advance(toMs: UInt32(truncatingIfNeeded: clock.deviceMs))
             }
+
+            self.publish(produced, engine: engine)
             if batch.remaining == 0 { return }
         }
+    }
+
+    /// Send finished chords to the display.
+    private nonisolated func publish(_ chords: [TaipoKit.Chord], engine: ChordEngine) {
+        guard !chords.isEmpty else { return }
+        let layouts = self.layoutsSync
+        let live = chords.map { chord -> LiveChord in
+            let entry = layouts?.chord(chord.code, variant: chord.variant)
+            return LiveChord(chord: chord, types: entry?.action.types, dead: entry == nil)
+        }
+        Task { @MainActor [weak self] in self?.append(live) }
     }
 
     private nonisolated var layoutsSync: Layouts? {
