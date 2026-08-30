@@ -230,7 +230,7 @@ Lifted from the archived plan; nothing here is taipo-specific.
 
 The device needs to hand over log records without the host having to poll tightly.
 
-- [ ] `Request::GetEvent { timeout_ms }` → `Reply::Event { .. }` / `Reply::NoEvent`, with at
+- [X] `Request::GetEvent { timeout_ms }` → `Reply::Event { .. }` / `Reply::NoEvent`, with at
       most one outstanding at a time.  The firmware's minder loop becomes
       `select(reader.read(), event_channel.receive())`, and a request arriving while a
       `GetEvent` is pending is answered by replying `NoEvent` first and then handling the
@@ -239,9 +239,54 @@ The device needs to hand over log records without the host having to poll tightl
 - [ ] The log drain rides this: the device raises an event when the buffer crosses a
       watermark, and the host answers with `GetEventLog`.  A trainer that wants low latency
       sets the watermark to one record and gets records within a USB transaction.
-- [ ] Flash program/erase on the RP2040 blocks with interrupts masked; the sequential loop
+      *(Waits on phase 2; nothing raises a real event yet.)*
+- [X] Flash program/erase on the RP2040 blocks with interrupts masked; the sequential loop
       already prevents a pending `GetEvent` from firing inside that window, but it stays true
       only while the loop is sequential.
+
+#### What landed
+
+Four commits.  The protocol, the device handler, and a `keyminder poll` to drive it.
+
+- `minder/src/lib.rs` — `Request::GetEvent`/`TestEvent` and `Reply::Event`/`NoEvent`/`Ok`,
+  all at unused `#[n(..)]` indices, plus an `Event` enum whose only variant so far is
+  `Test { seq }`.  `Reply` gains `Eq, PartialEq` so replies round trip in tests like requests
+  do, and a new `tests_bulk` module round trips over plain minicbor — which is what the vendor
+  bulk endpoint carries, with neither the HID nor the serial framing involved.
+  `test_hello_bytes_unchanged` pins the `Request::Hello` bytes recorded in the Swift spike's
+  README, so adding variants cannot quietly break the spike or an old `keyminder`.
+- `jolt-embassy-rp/src/minder.rs` — `bulk_read` split, in its own refactor commit, into
+  `read_packet` (one packet) and `bulk_read_rest` (assemble, given a first packet).  **The
+  select is over the first packet only**: winning the race midway through a multi-packet
+  request would strand its remaining packets and misframe everything after it.  An
+  interrupting packet is stashed and finished by the main loop *after* the `NoEvent` goes
+  out.  `EventQueue` is a `heapless::Deque` behind a `CriticalSectionRawMutex` with a `Signal`
+  to wake the waiter; `push_event` never blocks and drops the oldest at depth 8, which is what
+  phase 2's key hook needs.  `EventQueue::wait` is cancel safe: an event leaves the queue only
+  on the poll that returns it.
+- `keyminder poll` — `--test N` raises test events after a delay that outlasts the first
+  poll, so they land while it is pending; `--interrupt` sends a `GetEvent` and a `Hello`
+  back to back and checks that `NoEvent` comes back first.  `VendorMinder::call` is split into
+  `send`/`recv` for that, and its read timeout becomes a field, since a long poll outlasts the
+  old hardcoded 15 seconds.
+
+Notes from having written it:
+
+- **`TestEvent` is a protocol variant, not a debug feature.**  Nothing raises a real event
+  until phase 2, and an event path that cannot be exercised cannot be reviewed.  It costs one
+  task and a `Signal`, and it stays useful afterwards as a way to check the transport when the
+  log itself is the thing under suspicion.  Phase 1d's golden vectors should cover it like any
+  other message.
+- **The select's branch order is the priority order**, since `embassy_futures::select3` polls
+  in order and returns the first ready: event, then new request, then timeout.
+- **The sequential loop is now load bearing and says so in a comment.**  `get_event` only runs
+  while a `GetEvent` is being handled, so it can never overlap `program`.
+- **Untested on hardware.**  The keyboard is in daily use and was not flashed.
+- **A host-side hazard for phase 2**, not fixed here: `VendorMinder::send` does not send a
+  zero-length packet after a payload that is an exact multiple of 64 bytes, so the device's
+  short-packet loop would wait forever for one.  The device gets this right in `bulk_write`;
+  the host does not, and `GetEventLog` replies are the first messages likely to be sized by
+  the host rather than by whatever CBOR happens to produce.
 
 ### 1b. Version and identity
 
