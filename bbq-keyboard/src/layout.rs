@@ -12,6 +12,8 @@ use self::qwerty::QwertyManager;
 use self::steno::RawStenoHandler;
 use self::taipo::{TaipoManager, TaipoVariant};
 
+#[cfg(feature = "std")]
+pub mod export;
 pub mod posh;
 #[cfg(feature = "qwerty")]
 mod qwerty;
