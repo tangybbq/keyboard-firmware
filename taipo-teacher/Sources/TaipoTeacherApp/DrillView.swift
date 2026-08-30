@@ -11,14 +11,19 @@ struct DrillView: View {
                 target(drill)
                 Divider()
                 scoreboard(drill.stats)
-                if !drill.onTrack {
-                    Label("Off the target — backspace to fix it.", systemImage: "exclamationmark.triangle")
+                HStack(spacing: 12) {
+                    if drill.finished {
+                        Button("Next", action: monitor.nextDrill)
+                    }
+                    Button("Restart", action: monitor.restartDrill)
+                    if !drill.onTrack {
+                        Label(
+                            "Off the target — backspace to fix it.",
+                            systemImage: "exclamationmark.triangle"
+                        )
                         .font(.callout)
                         .foregroundStyle(.orange)
-                }
-                if drill.finished {
-                    Button("Next", action: monitor.nextDrill)
-                        .keyboardShortcut(.defaultAction)
+                    }
                 }
             } else {
                 Text("Connecting…").foregroundStyle(.secondary)

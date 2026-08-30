@@ -85,6 +85,12 @@ public final class DeviceMonitor: ObservableObject {
         drill = DrillSession(target: DrillTarget(text: text, layouts: layouts), layouts: layouts)
     }
 
+    /// Start the current line over.
+    public func restartDrill() {
+        guard let layouts, let text = drill?.target.text else { return }
+        drill = DrillSession(target: DrillTarget(text: text, layouts: layouts), layouts: layouts)
+    }
+
     /// The whole device loop: connect, greet, enable logging, drain forever.
     private nonisolated func run() {
         let device: MinderDevice
@@ -130,6 +136,13 @@ public final class DeviceMonitor: ObservableObject {
         var clock = Clock()
 
         do {
+            // Anything already buffered predates this session.  Records survive a
+            // `SetLogging(false)` -- disabling stops recording, it does not discard what
+            // was never acked -- so without this the first drain replays an earlier
+            // session's typing into the drill, and the target goes red before a key is
+            // touched.  `keyminder log` learned the same lesson; this is the same fix.
+            try self.discardBuffered(device)
+
             // Watermark 1: tell us as soon as there is anything.  Batches cost a USB frame
             // per packet, so many small drains beat one big one for latency.
             _ = try device.call(.setLogging(enabled: true, watermark: 1))
@@ -220,6 +233,19 @@ public final class DeviceMonitor: ObservableObject {
             }
 
             self.publish(produced, engine: engine)
+            if batch.remaining == 0 { return }
+        }
+    }
+
+    /// Throw away whatever the device still holds, so a session starts clean.
+    private nonisolated func discardBuffered(_ device: MinderDevice) throws {
+        while true {
+            guard case .eventLog(let batch) = try device.call(.getEventLog(maxBytes: 3200))
+            else { return }
+            let count = batch.records.count / LogRecord.size
+            if count == 0 { return }
+            _ = try device.call(
+                .eventLogAck(throughSeq: batch.seq &+ UInt32(count) &- 1))
             if batch.remaining == 0 { return }
         }
     }
