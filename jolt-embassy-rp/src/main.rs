@@ -48,6 +48,7 @@ mod board;
 mod dispatch;
 mod leds;
 mod inter;
+mod keylog;
 mod inter_uart;
 mod minder;
 mod matrix;

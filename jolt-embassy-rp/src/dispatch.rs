@@ -27,12 +27,14 @@ use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Ticker};
 #[cfg(feature = "steno")]
 use embassy_time::{Instant, Timer};
+use minder::keylog::{mode_code, Marker};
 use static_cell::StaticCell;
 
 use crate::board::{Inter, KeyChannel, UsbHandler};
 #[cfg(feature = "steno")]
 use crate::leds::manager::{get_steno_state, Indication};
 use crate::leds::manager::{self, get_mods_color, LedManager};
+use crate::keylog;
 use crate::logging::unwrap;
 use crate::matrix::Matrix;
 use crate::{board::Board, matrix::MatrixAction};
@@ -310,6 +312,8 @@ async fn active_task(dispatch: &'static Dispatch, chan: KeyChannel) -> ! {
     let layout = dispatch.layout.as_ref().unwrap();
     loop {
         let event = chan.receive().await;
+        // The remote half's keys arrive here rather than through `handle_key`.
+        keylog::log_key(event.key(), event.is_press());
         layout.lock().await.handle_event(event, dispatch).await;
     }
 }
@@ -318,6 +322,10 @@ impl MatrixAction for Dispatch {
     async fn handle_key(&self, event: bbq_keyboard::KeyEvent) {
         // info!("Matrix Key: {:?}", event);
         if let Some(layout) = &self.layout {
+            // Logged before the layout sees it, and timestamped here rather than in
+            // `bbq-keyboard`, which stays time-free and no_std.  This is the local half; the
+            // remote half's keys come through `active_task`.
+            keylog::log_key(event.key(), event.is_press());
             layout.lock().await.handle_event(event, self).await
         } else if let Inter::PassiveI2C(passive) = &self.inter {
             passive.update(event).await;
@@ -326,6 +334,25 @@ impl MatrixAction for Dispatch {
         } else {
             panic!("Matrix event with no destination");
         }
+    }
+}
+
+/// The log's own numbering for a mode.
+///
+/// `LayoutMode`'s discriminants shift with the `qwerty` and `steno` cargo features, so a
+/// log written by a taipo-only firmware would otherwise disagree with one written by a full
+/// build about what "1" means.
+fn mode_marker(mode: LayoutMode) -> u8 {
+    match mode {
+        LayoutMode::Taipo => mode_code::TAIPO,
+        #[cfg(feature = "steno")]
+        LayoutMode::Steno => mode_code::STENO,
+        #[cfg(feature = "steno")]
+        LayoutMode::StenoDirect => mode_code::STENO_DIRECT,
+        #[cfg(feature = "qwerty")]
+        LayoutMode::Qwerty => mode_code::QWERTY,
+        #[cfg(feature = "qwerty")]
+        LayoutMode::NKRO => mode_code::NKRO,
     }
 }
 
@@ -342,6 +369,7 @@ impl LayoutActions for Dispatch {
         };
         self.leds.lock().await.set_base(0, next);
         *self.current_mode.lock().await = mode;
+        keylog::log_marker(Marker::Mode, mode_marker(mode));
 
         // Steno output is buffered briefly before being typed.  Leaving steno mode, get it out
         // now, rather than having it appear in the middle of what is typed next.  Signalling with
@@ -376,6 +404,7 @@ impl LayoutActions for Dispatch {
         match submode {
             MinorMode::Posh => {
                 *self.posh.lock().await = true;
+                keylog::log_marker(Marker::Variant, 1);
                 self.update_variant_led().await;
             }
         }
@@ -385,6 +414,7 @@ impl LayoutActions for Dispatch {
         match submode {
             MinorMode::Posh => {
                 *self.posh.lock().await = false;
+                keylog::log_marker(Marker::Variant, 0);
                 self.update_variant_led().await;
             }
         }
@@ -393,6 +423,10 @@ impl LayoutActions for Dispatch {
     #[cfg(feature = "steno")]
     async fn send_raw_steno(&self, stroke: Stroke) {
         self.stroke_sender.send(stroke).await;
+    }
+
+    async fn set_row_position(&self, lower: bool) {
+        keylog::log_marker(Marker::RowShift, lower as u8);
     }
 
     async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
