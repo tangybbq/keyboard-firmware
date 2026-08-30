@@ -165,8 +165,7 @@ fn test_hands() {
 fn test_overlap_ends_chords_early() {
     let style = Style {
         hold_ms: 40,
-        overlap_ms: 20,
-        gap_ms: 0,
+        gap_ms: -20,
         ..Style::default()
     };
     let (_, derived) = round_trip("aeiou", &style);
@@ -278,7 +277,7 @@ fn test_untypable() {
 fn test_log_is_well_formed() {
     let style = Style {
         spread_ms: 8,
-        overlap_ms: 15,
+        gap_ms: -15,
         same_hand_every: 5,
         spell_every: 3,
         split_every: 7,
@@ -298,4 +297,37 @@ fn test_log_is_well_formed() {
     assert_eq!(downs, ups);
     // And the replay made something of all of it.
     assert!(!chords(&derived).is_empty());
+}
+
+/// With every knob but the splitter turned up, the log still says exactly what
+/// the plan says it does: one chord per planned chord, the dead ones only
+/// where they were planted, and the target text at the end of it.
+///
+/// This is the property the whole generator exists for, and the one that a
+/// careless overlap breaks: two chords rolled together on the same hand are
+/// one chord, and usually a dead one.
+#[test]
+fn test_ground_truth_survives_sloppiness() {
+    let style = Style {
+        spread_ms: 12,
+        hold_ms: 40,
+        gap_ms: -15,
+        same_hand_every: 3,
+        spell_every: 4,
+        error_every: 5,
+        errors: vec![ErrorKind::DeadChord],
+        ..Style::default()
+    };
+    let (log, derived) = round_trip("the rain in spain falls mainly on the plain", &style);
+    let chords = chords(&derived);
+    assert_eq!(chords.len(), log.planned.len());
+    for (derived, planned) in chords.iter().zip(&log.planned) {
+        assert_eq!(derived.code, planned.code, "{}", derived.to_line());
+        assert_eq!(derived.side, planned.side, "{}", derived.to_line());
+        assert_eq!(derived.first_key_ms, planned.press_ms, "{}", derived.to_line());
+    }
+    let dead = chords.iter().filter(|c| c.is_dead()).count();
+    assert_eq!(dead, log.count(Purpose::Error(ErrorKind::DeadChord)));
+    assert!(dead > 0);
+    assert_eq!(typed(&derived), "the rain in spain falls mainly on the plain");
 }

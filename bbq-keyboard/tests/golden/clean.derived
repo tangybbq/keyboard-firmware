@@ -1,0 +1,124 @@
+chord 30 L taipo 0x08c [t+e+i] released spread=0 text "the"
+key 30 KeyPress(T, Mods(0x0))
+key 30 KeyRelease
+key 30 KeyPress(H, Mods(0x0))
+key 30 KeyRelease
+key 30 KeyPress(E, Mods(0x0))
+key 30 KeyRelease
+chord 120 R taipo 0x100 [Sp] released spread=0 key Space
+key 120 KeyPress(Space, Mods(0x0))
+key 120 KeyRelease
+chord 210 L taipo 0x005 [a+t] released spread=0 key Q
+key 210 KeyPress(Q, Mods(0x0))
+key 210 KeyRelease
+chord 300 R taipo 0x006 [o+t] released spread=0 key U
+key 300 KeyPress(U, Mods(0x0))
+key 300 KeyRelease
+chord 390 L taipo 0x080 [i] released spread=0 key I
+key 390 KeyPress(I, Mods(0x0))
+key 390 KeyRelease
+chord 480 R taipo 0x00a [o+e] released spread=0 key C
+key 480 KeyPress(C, Mods(0x0))
+key 480 KeyRelease
+chord 570 L taipo 0x082 [o+i] released spread=0 key K
+key 570 KeyPress(K, Mods(0x0))
+key 570 KeyRelease
+chord 660 R taipo 0x100 [Sp] released spread=0 key Space
+key 660 KeyPress(Space, Mods(0x0))
+key 660 KeyRelease
+chord 750 L taipo 0x030 [r+s] released spread=0 key B
+key 750 KeyPress(B, Mods(0x0))
+key 750 KeyRelease
+chord 840 R taipo 0x010 [r] released spread=0 key R
+key 840 KeyPress(R, Mods(0x0))
+key 840 KeyRelease
+chord 930 L taipo 0x002 [o] released spread=0 key O
+key 930 KeyPress(O, Mods(0x0))
+key 930 KeyRelease
+chord 1020 R taipo 0x081 [a+i] released spread=0 key W
+key 1020 KeyPress(W, Mods(0x0))
+key 1020 KeyRelease
+chord 1110 L taipo 0x040 [n] released spread=0 key N
+key 1110 KeyPress(N, Mods(0x0))
+key 1110 KeyRelease
+chord 1200 R taipo 0x100 [Sp] released spread=0 key Space
+key 1200 KeyPress(Space, Mods(0x0))
+key 1200 KeyRelease
+chord 1290 L taipo 0x0a0 [s+i] released spread=0 key F
+key 1290 KeyPress(F, Mods(0x0))
+key 1290 KeyRelease
+chord 1380 R taipo 0x002 [o] released spread=0 key O
+key 1380 KeyPress(O, Mods(0x0))
+key 1380 KeyRelease
+chord 1470 L taipo 0x014 [t+r] released spread=0 key X
+key 1470 KeyPress(X, Mods(0x0))
+key 1470 KeyRelease
+chord 1560 R taipo 0x100 [Sp] released spread=0 key Space
+key 1560 KeyPress(Space, Mods(0x0))
+key 1560 KeyRelease
+chord 1650 L taipo 0x041 [a+n] released spread=0 key J
+key 1650 KeyPress(J, Mods(0x0))
+key 1650 KeyRelease
+chord 1740 R taipo 0x006 [o+t] released spread=0 key U
+key 1740 KeyPress(U, Mods(0x0))
+key 1740 KeyRelease
+chord 1830 L taipo 0x018 [e+r] released spread=0 key M
+key 1830 KeyPress(M, Mods(0x0))
+key 1830 KeyRelease
+chord 1920 R taipo 0x060 [s+n] released spread=0 key P
+key 1920 KeyPress(P, Mods(0x0))
+key 1920 KeyRelease
+chord 2010 L taipo 0x020 [s] released spread=0 key S
+key 2010 KeyPress(S, Mods(0x0))
+key 2010 KeyRelease
+chord 2100 R taipo 0x100 [Sp] released spread=0 key Space
+key 2100 KeyPress(Space, Mods(0x0))
+key 2100 KeyRelease
+chord 2190 L taipo 0x002 [o] released spread=0 key O
+key 2190 KeyPress(O, Mods(0x0))
+key 2190 KeyRelease
+chord 2280 R taipo 0x028 [e+s] released spread=0 key V
+key 2280 KeyPress(V, Mods(0x0))
+key 2280 KeyRelease
+chord 2370 L taipo 0x04c [t+e+n] released spread=0 text "er"
+key 2370 KeyPress(E, Mods(0x0))
+key 2370 KeyRelease
+key 2370 KeyPress(R, Mods(0x0))
+key 2370 KeyRelease
+chord 2460 R taipo 0x100 [Sp] released spread=0 key Space
+key 2460 KeyPress(Space, Mods(0x0))
+key 2460 KeyRelease
+chord 2550 L taipo 0x08c [t+e+i] released spread=0 text "the"
+key 2550 KeyPress(T, Mods(0x0))
+key 2550 KeyRelease
+key 2550 KeyPress(H, Mods(0x0))
+key 2550 KeyRelease
+key 2550 KeyPress(E, Mods(0x0))
+key 2550 KeyRelease
+chord 2640 R taipo 0x100 [Sp] released spread=0 key Space
+key 2640 KeyPress(Space, Mods(0x0))
+key 2640 KeyRelease
+chord 2730 L taipo 0x003 [a+o] released spread=0 key L
+key 2730 KeyPress(L, Mods(0x0))
+key 2730 KeyRelease
+chord 2820 R taipo 0x001 [a] released spread=0 key A
+key 2820 KeyPress(A, Mods(0x0))
+key 2820 KeyRelease
+chord 2910 L taipo 0x050 [r+n] released spread=0 key Z
+key 2910 KeyPress(Z, Mods(0x0))
+key 2910 KeyRelease
+chord 3000 R taipo 0x0c0 [n+i] released spread=0 key Y
+key 3000 KeyPress(Y, Mods(0x0))
+key 3000 KeyRelease
+chord 3090 L taipo 0x100 [Sp] released spread=0 key Space
+key 3090 KeyPress(Space, Mods(0x0))
+key 3090 KeyRelease
+chord 3180 R taipo 0x009 [a+e] released spread=0 key D
+key 3180 KeyPress(D, Mods(0x0))
+key 3180 KeyRelease
+chord 3270 L taipo 0x002 [o] released spread=0 key O
+key 3270 KeyPress(O, Mods(0x0))
+key 3270 KeyRelease
+chord 3360 R taipo 0x090 [r+i] released spread=0 key G
+key 3360 KeyPress(G, Mods(0x0))
+key 3360 KeyRelease

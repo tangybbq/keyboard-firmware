@@ -34,6 +34,11 @@ use crate::Side;
 /// The longest string any table entry types, which bounds the greedy match.
 const MAX_GRAM: usize = 8;
 
+/// How many keys a deliberately dead chord may use.  Bounded so that it stays
+/// a plausible mistake, and so that it still assembles inside the chord window
+/// at any sensible spread.
+const MAX_DEAD_KEYS: u32 = 4;
+
 //////////////////////////////////////////////////////////////////////////////
 // Style
 //////////////////////////////////////////////////////////////////////////////
@@ -55,11 +60,12 @@ pub struct Style {
     /// How long a chord is held after its last key lands.
     pub hold_ms: u32,
     /// Milliseconds from a chord's release to the next chord's first key.
-    pub gap_ms: u32,
-    /// How far the next chord's first key lands *before* this one's release,
-    /// which is what rolling from one hand to the other looks like.  Capped so
-    /// that a chord always has at least one millisecond to itself.
-    pub overlap_ms: u32,
+    ///
+    /// Negative rolls the next chord into this one -- its first key lands
+    /// before this one's last key comes up -- which is what alternating hands
+    /// at speed actually looks like, and the only way to end a chord with the
+    /// other hand.  A chord always keeps at least one millisecond to itself.
+    pub gap_ms: i32,
     /// Every Nth chord goes on the same hand as the one before it, instead of
     /// alternating.  Zero never does.
     pub same_hand_every: u32,
@@ -84,7 +90,6 @@ impl Default for Style {
             spread_ms: 0,
             hold_ms: 30,
             gap_ms: 60,
-            overlap_ms: 0,
             same_hand_every: 0,
             spell_every: 0,
             split_every: 0,
@@ -207,12 +212,34 @@ pub fn synth(target: &str, style: &Style) -> Result<SynthLog, String> {
     let table = table_for(style.variant);
     let units = segment(target, table, style)?;
     let mut planned = plan(&units, table, style);
+    check_spread(&planned, style)?;
     let events = emit(&mut planned, style);
     Ok(SynthLog {
         events,
         planned,
         target: target.to_string(),
     })
+}
+
+/// A chord whose keys are further apart than the chord window would not be
+/// one chord at all, and the plan would be describing something the engine
+/// never sees.  Say so rather than generating it.
+fn check_spread(planned: &[Planned], style: &Style) -> Result<(), String> {
+    for chord in planned {
+        if chord.split {
+            continue;
+        }
+        let keys = chord.code.count_ones();
+        let spread = style.spread_ms * keys.saturating_sub(1);
+        if keys > 1 && spread >= CHORD_TIME {
+            return Err(format!(
+                "a {keys}-key chord at spread_ms {} takes {spread}ms to assemble, \
+                 which the {CHORD_TIME}ms chord window would split",
+                style.spread_ms
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// The chord table for a variant.
@@ -409,17 +436,25 @@ fn misfinger(intended: u16, table: &'static [Entry]) -> u16 {
 }
 
 /// A chord the table has no entry for, as close to the intended one as
-/// possible: the intended chord with one more finger down.
+/// possible: the nearest unmapped chord by how many keys differ.
+///
+/// Nearest, rather than "one more finger down", because the space chord's
+/// every one-key neighbour is a real chord, and the fallback of pressing the
+/// whole hand is not a plausible mistake -- and is so wide that it would not
+/// even assemble inside the chord window.
 fn dead_code(intended: u16, table: &'static [Entry]) -> u16 {
-    for bit in 0..10 {
-        let extra = intended | (1 << bit);
-        if extra != intended && !table.iter().any(|entry| entry.code == extra) {
-            return extra;
+    for distance in 1..=4 {
+        for candidate in 1..0x400u16 {
+            if (candidate ^ intended).count_ones() == distance
+                && candidate.count_ones() <= MAX_DEAD_KEYS
+                && !table.iter().any(|entry| entry.code == candidate)
+            {
+                return candidate;
+            }
         }
     }
-    // Every neighbour is a real chord, which the tables make unlikely; fall
-    // back to the whole hand, which neither table maps.
-    0x3ff
+    // Neither table is anywhere near full, so this cannot happen.
+    unreachable!("every chord near {intended:#05x} is mapped")
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -432,8 +467,9 @@ fn dead_code(intended: u16, table: &'static [Entry]) -> u16 {
 fn emit(planned: &mut [Planned], style: &Style) -> Vec<KeyLogEvent> {
     let mut events: Vec<KeyLogEvent> = Vec::new();
     let mut cursor = style.start_ms;
+    let sides: Vec<Side> = planned.iter().map(|chord| chord.side).collect();
 
-    for chord in planned.iter_mut() {
+    for (num, chord) in planned.iter_mut().enumerate() {
         let keys: Vec<u8> = (0..10)
             .filter(|bit| chord.code & (1 << bit) != 0)
             .map(|bit| scan_for(chord.side, bit))
@@ -473,10 +509,14 @@ fn emit(planned: &mut [Planned], style: &Style) -> Vec<KeyLogEvent> {
         }
 
         // The next chord starts after the gap, or early enough to roll into
-        // this one when there is an overlap.  It never starts before this
+        // this one when the gap is negative.  A negative gap only applies
+        // between hands: two chords overlapping on the *same* hand are not two
+        // chords, they are one, which the engine would be quite right to say
+        // and which would make the plan a lie.  It never starts before this
         // chord's own first key.
-        let overlap = style.overlap_ms.min(hold - 1);
-        cursor = (release_ms + style.gap_ms).saturating_sub(overlap);
+        let rolls = sides.get(num + 1).is_some_and(|next| *next != chord.side);
+        let gap = if rolls { style.gap_ms } else { style.gap_ms.max(1) };
+        cursor = release_ms.saturating_add_signed(gap);
         cursor = cursor.max(first_ms + 1);
     }
 

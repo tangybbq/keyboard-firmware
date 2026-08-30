@@ -1,0 +1,147 @@
+chord 55 L taipo 0x08c [t+e+i] other-hand spread=28 text "the"
+key 55 KeyPress(T, Mods(0x0))
+key 55 KeyRelease
+key 55 KeyPress(H, Mods(0x0))
+key 55 KeyRelease
+key 55 KeyPress(E, Mods(0x0))
+key 73 KeyRelease
+chord 82 R taipo 0x100 [Sp] other-hand spread=0 key Space
+key 82 KeyPress(Space, Mods(0x0))
+key 100 KeyRelease
+chord 109 L taipo 0x010 [r] other-hand spread=0 key R
+key 109 KeyPress(R, Mods(0x0))
+key 127 KeyRelease
+chord 154 R taipo 0x001 [a] released spread=0 key A
+key 154 KeyPress(A, Mods(0x0))
+key 154 KeyRelease
+chord 210 R taipo 0x0c8 [e+n+i] other-hand spread=28 text "in"
+key 210 KeyPress(I, Mods(0x0))
+key 210 KeyRelease
+key 210 KeyPress(N, Mods(0x0))
+key 228 KeyRelease
+chord 237 L taipo 0x100 [Sp] other-hand spread=0 key Space
+key 237 KeyPress(Space, Mods(0x0))
+key 255 KeyRelease
+chord 264 R taipo 0x040 [n] other-hand spread=0 key N
+key 264 KeyPress(N, Mods(0x0))
+key 282 KeyRelease
+chord 291 L taipo 0x200 [Bk] other-hand spread=0 key DeleteBackspace
+key 291 KeyPress(DeleteBackspace, Mods(0x0))
+key 309 KeyRelease
+chord 318 R taipo 0x080 [i] other-hand spread=0 key I
+key 318 KeyPress(I, Mods(0x0))
+key 336 KeyRelease
+chord 345 L taipo 0x040 [n] other-hand spread=0 key N
+key 345 KeyPress(N, Mods(0x0))
+key 363 KeyRelease
+chord 390 R taipo 0x100 [Sp] released spread=0 key Space
+key 390 KeyPress(Space, Mods(0x0))
+key 390 KeyRelease
+chord 418 R taipo 0x020 [s] other-hand spread=0 key S
+key 418 KeyPress(S, Mods(0x0))
+key 436 KeyRelease
+chord 517 L taipo 0x020 [s] timer spread=0 key S
+key 517 KeyPress(S, Mods(0x0))
+key 523 KeyRelease
+chord 550 L taipo 0x040 [n] other-hand spread=0 key N
+key 550 KeyPress(N, Mods(0x0))
+key 568 KeyRelease
+chord 577 R taipo 0x001 [a] other-hand spread=0 key A
+key 577 KeyPress(A, Mods(0x0))
+key 595 KeyRelease
+chord 632 L taipo 0x0c8 [e+n+i] other-hand spread=28 text "in"
+key 632 KeyPress(I, Mods(0x0))
+key 632 KeyRelease
+key 632 KeyPress(N, Mods(0x0))
+key 650 KeyRelease
+chord 673 R taipo 0x0a0 [s+i] other-hand spread=14 key F
+key 673 KeyPress(F, Mods(0x0))
+key 691 KeyRelease
+chord 700 L taipo 0x200 [Bk] other-hand spread=0 key DeleteBackspace
+key 700 KeyPress(DeleteBackspace, Mods(0x0))
+key 718 KeyRelease
+chord 745 R taipo 0x100 [Sp] released spread=0 key Space
+key 745 KeyPress(Space, Mods(0x0))
+key 745 KeyRelease
+chord 787 R taipo 0x0a0 [s+i] other-hand spread=14 key F
+key 787 KeyPress(F, Mods(0x0))
+key 805 KeyRelease
+chord 842 L taipo 0x02a [o+e+s] other-hand spread=28 text "al"
+key 842 KeyPress(A, Mods(0x0))
+key 842 KeyRelease
+key 842 KeyPress(L, Mods(0x0))
+key 860 KeyRelease
+chord 883 R taipo 0x003 [a+o] other-hand spread=14 key L
+key 883 KeyPress(L, Mods(0x0))
+key 901 KeyRelease
+chord 910 L taipo 0x020 [s] other-hand spread=0 key S
+key 910 KeyPress(S, Mods(0x0))
+key 928 KeyRelease
+chord 955 R taipo 0x100 [Sp] released spread=0 key Space
+key 955 KeyPress(Space, Mods(0x0))
+key 955 KeyRelease
+chord 997 R taipo 0x018 [e+r] other-hand spread=14 key M
+key 997 KeyPress(M, Mods(0x0))
+key 1015 KeyRelease
+chord 1052 L taipo 0x007 [a+o+t] other-hand spread=28 dead
+chord 1079 R taipo 0x001 [a] other-hand spread=0 key A
+key 1079 KeyPress(A, Mods(0x0))
+key 1097 KeyRelease
+chord 1106 L taipo 0x080 [i] other-hand spread=0 key I
+key 1106 KeyPress(I, Mods(0x0))
+key 1124 KeyRelease
+chord 1133 R taipo 0x040 [n] other-hand spread=0 key N
+key 1133 KeyPress(N, Mods(0x0))
+key 1151 KeyRelease
+chord 1192 L taipo 0x003 [a+o] released spread=14 key L
+key 1192 KeyPress(L, Mods(0x0))
+key 1192 KeyRelease
+chord 1234 L taipo 0x0c0 [n+i] other-hand spread=14 key Y
+key 1234 KeyPress(Y, Mods(0x0))
+key 1252 KeyRelease
+chord 1261 R taipo 0x100 [Sp] other-hand spread=0 key Space
+key 1261 KeyPress(Space, Mods(0x0))
+key 1279 KeyRelease
+chord 1316 L taipo 0x08a [o+e+i] other-hand spread=28 text "on"
+key 1316 KeyPress(O, Mods(0x0))
+key 1316 KeyRelease
+key 1316 KeyPress(N, Mods(0x0))
+key 1334 KeyRelease
+chord 1371 R taipo 0x301 [a+Sp+Bk] other-hand spread=28 dead
+chord 1398 L taipo 0x200 [Bk] other-hand spread=0 key DeleteBackspace
+key 1398 KeyPress(DeleteBackspace, Mods(0x0))
+key 1416 KeyRelease
+chord 1425 R taipo 0x100 [Sp] other-hand spread=0 key Space
+key 1425 KeyPress(Space, Mods(0x0))
+key 1443 KeyRelease
+chord 1498 L taipo 0x08c [t+e+i] released spread=28 text "the"
+key 1498 KeyPress(T, Mods(0x0))
+key 1498 KeyRelease
+key 1498 KeyPress(H, Mods(0x0))
+key 1498 KeyRelease
+key 1498 KeyPress(E, Mods(0x0))
+key 1498 KeyRelease
+chord 1526 L taipo 0x100 [Sp] other-hand spread=0 key Space
+key 1526 KeyPress(Space, Mods(0x0))
+key 1544 KeyRelease
+chord 1567 R taipo 0x060 [s+n] other-hand spread=14 key P
+key 1567 KeyPress(P, Mods(0x0))
+key 1585 KeyRelease
+chord 1608 L taipo 0x003 [a+o] other-hand spread=14 key L
+key 1608 KeyPress(L, Mods(0x0))
+key 1626 KeyRelease
+chord 1635 R taipo 0x001 [a] other-hand spread=0 key A
+key 1635 KeyPress(A, Mods(0x0))
+key 1653 KeyRelease
+chord 1680 L taipo 0x080 [i] released spread=0 key I
+key 1680 KeyPress(I, Mods(0x0))
+key 1680 KeyRelease
+chord 1708 L taipo 0x080 [i] other-hand spread=0 key I
+key 1708 KeyPress(I, Mods(0x0))
+key 1726 KeyRelease
+chord 1735 R taipo 0x200 [Bk] other-hand spread=0 key DeleteBackspace
+key 1735 KeyPress(DeleteBackspace, Mods(0x0))
+key 1753 KeyRelease
+chord 1780 L taipo 0x040 [n] released spread=0 key N
+key 1780 KeyPress(N, Mods(0x0))
+key 1780 KeyRelease
