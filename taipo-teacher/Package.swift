@@ -11,7 +11,7 @@ import PackageDescription
 // the code.
 let package = Package(
     name: "TaipoTeacher",
-    platforms: [.macOS(.v13)],
+    platforms: [.macOS(.v14)],
     products: [
         .library(name: "MinderKit", targets: ["MinderKit"]),
         .library(name: "TaipoKit", targets: ["TaipoKit"]),
@@ -20,6 +20,10 @@ let package = Package(
         .target(name: "MinderKit"),
         .target(name: "TaipoKit", resources: [.copy("layouts.json")]),
         .executableTarget(name: "minderctl", dependencies: ["MinderKit"]),
+        .executableTarget(
+            name: "TaipoTeacherApp",
+            dependencies: ["MinderKit", "TaipoKit"]
+        ),
         .testTarget(
             name: "TaipoKitTests",
             dependencies: ["TaipoKit"],

@@ -169,3 +169,49 @@ final class WireVectorsTests: XCTestCase {
         XCTAssertEqual(reply, .unknown(index: 200))
     }
 }
+
+/// The key log's record format, against the same vectors.
+final class KeyLogTests: XCTestCase {
+
+    /// The three records inside `Reply::EventLog` in the vectors, decoded.
+    ///
+    /// The Rust side built them as a press, its release 42ms later, and a variant switch
+    /// 1500ms after that, so this checks the whole stride: tag bits, little-endian delta,
+    /// and aux.
+    func testRecordsFromTheEventLogVector() throws {
+        let bytes: [UInt8] = [
+            0x45, 0x00, 0x00, 0x00,
+            0x05, 0x2a, 0x00, 0x00,
+            0x81, 0xdc, 0x05, 0x01,
+        ]
+        let records = LogRecord.decodeAll(bytes)
+        XCTAssertEqual(records.count, 3)
+        XCTAssertEqual(records[0], .key(code: 5, press: true, delta: Delta(raw: 0)))
+        XCTAssertEqual(records[1], .key(code: 5, press: false, delta: Delta(raw: 42)))
+        XCTAssertEqual(records[2], .marker(marker: .variant, value: 1, delta: Delta(raw: 1500)))
+        XCTAssertEqual(records[1].delta.milliseconds, 42)
+        XCTAssertEqual(records[2].delta.milliseconds, 1500)
+    }
+
+    /// Above 32.7 seconds the delta switches to whole seconds, so an idle keyboard needs no
+    /// escape record and the stride survives.
+    func testCoarseDelta() {
+        let fine = Delta(raw: 0x7fff)
+        XCTAssertFalse(fine.isCoarse)
+        XCTAssertEqual(fine.milliseconds, 32767)
+
+        let hour = Delta(raw: 0x8000 | 3600)
+        XCTAssertTrue(hour.isCoarse)
+        XCTAssertEqual(hour.milliseconds, 3_600_000)
+    }
+
+    /// An unrecognized marker keeps its delta, so the timeline stays right even though the
+    /// record means nothing to this build.  The fixed stride is what makes that possible.
+    func testUnknownMarkerKeepsItsPlace() {
+        let records = LogRecord.decodeAll([0x80 | 40, 0x10, 0x00, 0x00, 0x45, 0x05, 0x00, 0x00])
+        XCTAssertEqual(records.count, 2)
+        guard case .unknown(_, let delta) = records[0] else { return XCTFail("not unknown") }
+        XCTAssertEqual(delta.milliseconds, 16)
+        XCTAssertEqual(records[1], .key(code: 5, press: true, delta: Delta(raw: 5)))
+    }
+}
