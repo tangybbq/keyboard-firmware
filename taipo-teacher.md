@@ -298,12 +298,20 @@ Notes from having written it:
 
 ### 1b. Version and identity
 
-- [ ] Bump `VERSION` in `minder/src/lib.rs`.
-- [ ] Add a capability list to `Reply::Hello`, so a new host against old firmware degrades
+Landed.  All three new `Reply::Hello` fields are `Option`, which turned out to be the
+whole point rather than a detail: non-optional fields would have made a host update stop
+being able to talk to an unflashed keyboard, which is exactly when talking to it matters.
+Verified against a mesa1 still running the older firmware.  The layout fingerprint is
+FNV-1a over the tables (`bbq-keyboard/src/layout/fingerprint.rs`), computed on the device
+from the tables it actually has rather than reported from a constant, and mirrored into
+`layouts.json` where the existing staleness test keeps it honest.
+
+- [X] Bump `VERSION` in `minder/src/lib.rs`.
+- [X] Add a capability list to `Reply::Hello`, so a new host against old firmware degrades
       rather than hanging on an unanswered request.
-- [ ] Add `boot_id` to `Reply::Hello` — changes every boot.  A log stream is only continuous
+- [X] Add `boot_id` to `Reply::Hello` — changes every boot.  A log stream is only continuous
       within one `boot_id`.
-- [ ] Add a **layout table hash** to `Reply::Hello`: a hash over `TAIPO_ACTIONS` +
+- [X] Add a **layout table hash** to `Reply::Hello`: a hash over `TAIPO_ACTIONS` +
       `POSH_ACTIONS` + `SCAN_MAP`, computed at build time.  Replay against a table the firmware
       no longer has must be *detectable* rather than quietly wrong.  Same argument as the
       archived plan's dictionary hash.
@@ -313,10 +321,10 @@ Notes from having written it:
 Still worth doing, but for the CLI's own sake now rather than for a Swift bridge: the collector
 wants a long-running connection object, and `main.rs` is the wrong place for one.
 
-- [ ] Move `VendorMinder`, `Flasher`, `FlashImage` out of `keyminder/src/main.rs` into a
+- [X] Move `VendorMinder`, `Flasher`, `FlashImage` out of `keyminder/src/main.rs` into a
       library (`keyminder/src/lib.rs`, or a `minder-host` crate if the CLI should stay thin).
       Pure refactor, its own commit.
-- [ ] Give it a connection object owning the long-poll loop, handing events to a callback.
+- [X] Give it a connection object owning the long-poll loop, handing events to a callback.
 
 ### 1d. Two implementations, kept honest
 
@@ -324,17 +332,17 @@ The Swift app speaks minder itself, so `minder/src/lib.rs` stops being the only 
 the protocol and starts being the *reference* one.  That is a real cost and it needs a real
 mechanism, not good intentions.
 
-- [ ] **The wire format is minicbor's, not "CBOR".**  `#[derive(Encode)]` with numbered fields
+- [X] **The wire format is minicbor's, not "CBOR".**  `#[derive(Encode)]` with numbered fields
       produces a specific framing — variant index and field indices, arrays rather than maps
       unless asked — and a Swift CBOR library will happily encode something else that is still
       valid CBOR.  Write down the actual byte layout of each message in `minder/`, next to the
       enums.
-- [ ] **Golden byte vectors.**  A checked-in file of `(message, encoded bytes)` pairs, generated
+- [X] **Golden byte vectors.**  A checked-in file of `(message, encoded bytes)` pairs, generated
       by a Rust test and consumed by a Swift test.  Every `Request` and `Reply` variant, with
       edge cases: an empty payload, a payload spanning several 64-byte packets, one that lands
       exactly on a packet boundary (the zero-length-packet case in `Minder::bulk_write`).  A
       protocol change that forgets Swift then fails a test rather than failing in the field.
-- [ ] **`Reply::Hello` is the guard rail.**  The version, capability list and table hash from 1b
+- [X] **`Reply::Hello` is the guard rail.**  The version, capability list and table hash from 1b
       mean an app built against an older protocol refuses to derive rather than deriving
       wrongly.  Both clients must check it; neither may ignore it.
 - [X] **USB access from Swift — spiked, and it works.**  `docs/spikes/swift-usb/` matches the
