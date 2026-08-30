@@ -56,15 +56,18 @@ const FORMAT_VERSION: u32 = 1;
 
 /// The name of each chord bit, in bit order, as `TAIPO.md` names them: the
 /// bottom row from pinky to index, then the top row, then the two thumbs.
-const BIT_NAMES: [&str; 10] = ["a", "o", "t", "e", "r", "s", "n", "i", "Sp", "Bk"];
+///
+/// These are the names everything outside the firmware uses for a key: the
+/// JSON export, the replay's log format, and the drills.
+pub const BIT_NAMES: [&str; 10] = ["a", "o", "t", "e", "r", "s", "n", "i", "Sp", "Bk"];
 
 /// The finger each chord bit is struck with.
-const BIT_FINGERS: [&str; 10] = [
+pub const BIT_FINGERS: [&str; 10] = [
     "pinky", "ring", "middle", "index", "pinky", "ring", "middle", "index", "thumb", "thumb",
 ];
 
 /// The row each chord bit sits on.
-const BIT_ROWS: [&str; 10] = [
+pub const BIT_ROWS: [&str; 10] = [
     "bottom", "bottom", "bottom", "bottom", "top", "top", "top", "top", "thumb", "thumb",
 ];
 
@@ -354,4 +357,92 @@ fn quote(text: &str) -> String {
     }
     out.push('"');
     out
+}
+
+/// The bit a key name refers to, or `None` if nothing is called that.
+///
+/// The lookup is case sensitive, matching [`BIT_NAMES`]: the finger keys are
+/// lower case and the two thumbs are `Sp` and `Bk`.
+pub fn bit_for_name(name: &str) -> Option<usize> {
+    BIT_NAMES.iter().position(|n| *n == name)
+}
+
+/// The names of the keys making up a chord code, joined with `+`.
+///
+/// The inverse of [`code_for_names`], and the spelling the log format and the
+/// drills use.
+pub fn name_for_code(code: u16) -> String {
+    let mut out = String::new();
+    for (bit, name) in BIT_NAMES.iter().enumerate() {
+        if code & (1 << bit) != 0 {
+            if !out.is_empty() {
+                out.push('+');
+            }
+            out.push_str(name);
+        }
+    }
+    out
+}
+
+/// The chord code for a `+`-joined list of key names, or `None` if any of them
+/// is not a key name.
+pub fn code_for_names(names: &str) -> Option<u16> {
+    let mut code = 0;
+    for name in names.split('+') {
+        code |= 1 << bit_for_name(name)?;
+    }
+    Some(code)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{bit_for_name, code_for_names, layouts_json, name_for_code, BIT_NAMES};
+
+    /// Names round trip through a chord code.
+    #[test]
+    fn test_name_round_trip() {
+        for code in 1..0x400u16 {
+            let names = name_for_code(code);
+            assert_eq!(code_for_names(&names), Some(code), "code {code:#05x}");
+        }
+        assert_eq!(bit_for_name("nope"), None);
+        assert_eq!(code_for_names("a+nope"), None);
+        for (bit, name) in BIT_NAMES.iter().enumerate() {
+            assert_eq!(bit_for_name(name), Some(bit));
+        }
+    }
+
+    /// The document parses as JSON.
+    ///
+    /// There is no JSON parser in this crate's dependencies, so this is a
+    /// structural sanity check rather than a real parse: braces and brackets
+    /// balance, and every quote is closed.
+    #[test]
+    fn test_json_balanced() {
+        let text = layouts_json();
+        let mut depth = 0i32;
+        let mut in_string = false;
+        let mut escaped = false;
+        for ch in text.chars() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
+            match ch {
+                '"' => in_string = true,
+                '{' | '[' => depth += 1,
+                '}' | ']' => depth -= 1,
+                _ => (),
+            }
+            assert!(depth >= 0, "unbalanced close in layouts.json");
+        }
+        assert!(!in_string, "unterminated string in layouts.json");
+        assert_eq!(depth, 0, "unbalanced layouts.json");
+    }
 }
