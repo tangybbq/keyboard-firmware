@@ -14,7 +14,9 @@
 use std::{cell::RefCell, collections::VecDeque};
 
 use bbq_keyboard::{
-    layout::{LayoutActions, LayoutManager, TAIPO_CHORD_TIME},
+    layout::{
+        lower_row_remap, taipo::SCAN_MAP, LayoutActions, LayoutManager, TAIPO_CHORD_TIME,
+    },
     KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods, Side,
 };
 use bbq_steno::Stroke;
@@ -63,22 +65,27 @@ mod posh {
 const LEFT: Side = Side::Left;
 const RIGHT: Side = Side::Right;
 
-/// The proto3 scan code for each taipo key, indexed by side and then by the bit
-/// number within the chord (0 is `A`, 9 is `BK`).  This is the inverse of the
-/// `SCAN_MAP` table in `layout/taipo.rs`.
-static SCANS: [[u8; 10]; 2] = [
-    // A   O   T   E   R  S   N   I   SP  BK
-    [5, 9, 13, 17, 4, 8, 12, 16, 19, 23],
-    [29, 33, 37, 41, 28, 32, 36, 40, 43, 47],
-];
+/// The proto3 scan code for each taipo key, indexed by side and then by the
+/// bit number within the chord (0 is `A`, 9 is `BK`).
+///
+/// Computed by inverting `SCAN_MAP` rather than written out, so that the tests
+/// cannot end up describing a keyboard the layout no longer has.
+fn scan_of(side: Side, bit: usize) -> u8 {
+    let mask = 1u16 << bit;
+    (0..SCAN_MAP.len() as u8)
+        .find(|code| SCAN_MAP[*code as usize] == Some((side, mask)))
+        .unwrap_or_else(|| panic!("no key for {side:?} bit {bit}"))
+}
 
-/// The same keys, one physical row further down, which is where they live when
-/// the layout is in the "lower" row position.  The thumb keys don't move.
-static SCANS_LOWER: [[u8; 10]; 2] = [
-    // A   O   T   E   R  S   N   I   SP  BK
-    [6, 10, 14, 18, 5, 9, 13, 17, 19, 23],
-    [30, 34, 38, 42, 29, 33, 37, 41, 43, 47],
-];
+/// The same key, one physical row further down, which is where it has to be
+/// pressed when the layout is in the "lower" row position: the physical code
+/// the row shift maps onto the upper-position one.  The thumbs don't move.
+fn scan_of_lower(side: Side, bit: usize) -> u8 {
+    let want = scan_of(side, bit);
+    (0..SCAN_MAP.len() as u8)
+        .find(|code| lower_row_remap(*code) == want)
+        .unwrap_or_else(|| panic!("nothing maps onto {want} in the lower position"))
+}
 
 /// The mode selection key.
 const MODE_KEY: u8 = 2;
@@ -99,17 +106,15 @@ const POSH_TOGGLE_KEY: u8 = 1;
 
 /// The scan codes of the keys making up a chord, in bit order.
 fn scans(side: Side, chord: u16, lower: bool) -> impl Iterator<Item = u8> {
-    let row = if lower {
-        SCANS_LOWER[side.index()]
-    } else {
-        SCANS[side.index()]
-    };
     (0..10).filter_map(move |bit| {
-        if chord & (1 << bit) != 0 {
-            Some(row[bit])
-        } else {
-            None
+        if chord & (1 << bit) == 0 {
+            return None;
         }
+        Some(if lower {
+            scan_of_lower(side, bit)
+        } else {
+            scan_of(side, bit)
+        })
     })
 }
 
