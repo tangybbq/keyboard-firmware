@@ -37,8 +37,30 @@ impl Default for Options {
 
 /// Replay a log and analyse it, which is the whole pipeline in one call.
 pub fn analyze(text: &str, two_row: bool, opts: &Options) -> Result<stats::Analysis, String> {
-    let events = bbq_keyboard::replay::log_from_text(text)?;
-    let derived = bbq_keyboard::replay::replay(two_row, &events);
-    let chords = bbq_keyboard::replay::chords(&derived);
-    Ok(stats::Analysis::build(&chords, opts))
+    analyze_files(&[text], two_row, opts)
+}
+
+/// The same, over several log files.
+///
+/// Each file is split into its sessions before anything is replayed, and each session is
+/// replayed on its own.  Both splits matter: a log file is appended to across collector
+/// runs, so its own offsets restart partway through, and two files have no timeline in
+/// common at all.  Concatenating either would hand the replay a step backwards in time.
+pub fn analyze_files(
+    texts: &[&str],
+    two_row: bool,
+    opts: &Options,
+) -> Result<stats::Analysis, String> {
+    let mut sessions = Vec::new();
+    for text in texts {
+        sessions.extend(bbq_keyboard::replay::sessions_from_text(text)?);
+    }
+    let derived = bbq_keyboard::replay::replay_sessions(two_row, &sessions);
+    let chords: Vec<Vec<&bbq_keyboard::replay::Chord>> = derived
+        .iter()
+        .map(|d| bbq_keyboard::replay::chords(d))
+        .collect();
+    let per_session: Vec<&[&bbq_keyboard::replay::Chord]> =
+        chords.iter().map(|c| c.as_slice()).collect();
+    Ok(stats::Analysis::build(&per_session, opts))
 }

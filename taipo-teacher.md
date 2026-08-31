@@ -584,6 +584,15 @@ struct rather than the clap type.
 - **`bbq_keyboard::synth` is what makes any of this testable.**  Every check is against a
   log whose faults were asked for in advance, including a control that clean typing reports
   nothing at all -- without which the rest would only be measuring the generator.
+- **A log file holds several timelines, not one.**  The collector appends to one file per
+  day and starts its offsets at zero each time it connects, so a day's file steps backwards
+  in time at every join -- which is exactly what the replay's monotonic assert is there to
+  catch, and it fired on the first multi-session file.  `sessions_from_text` splits a log at
+  the lines that break the timeline (`# session`, `# scrubbed`, `# device reset`) and each
+  session is replayed on its own engine, so nothing -- an interval, an alternation pair, a
+  correction, a spelled gram -- is ever measured across a join.  Times in the report are
+  session relative (`s2 +128456ms`), since that is the only timeline they have; the
+  `# started` header is host wall clock at connect, not an anchor the offsets count from.
 - Still in memory rather than a store; see below.
 
 ### Model store

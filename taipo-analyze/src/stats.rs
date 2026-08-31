@@ -66,11 +66,24 @@ pub struct ItemStats {
     pub same_hand: usize,
 }
 
+/// A point in the log: which session, and how far into that session.
+///
+/// A log file has no single timeline -- each session's offsets count from its own zero --
+/// so a bare millisecond does not identify anything.  This is what a time in the analysis
+/// has to be for the reader to find it again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct At {
+    /// Which session of the log, counting from zero.
+    pub session: usize,
+    /// Milliseconds into that session.
+    pub time_ms: u32,
+}
+
 /// One observation of an interval.
 #[derive(Debug, Clone, Copy)]
 pub struct Sample {
     pub gap_ms: u32,
-    pub time_ms: u32,
+    pub at: At,
 }
 
 impl ItemStats {
@@ -112,7 +125,7 @@ pub struct Correction {
 
 #[derive(Debug, Clone)]
 pub struct Hesitation {
-    pub time_ms: u32,
+    pub at: At,
     pub item: Item,
     pub interval_ms: u32,
     pub typical_ms: u32,
@@ -129,6 +142,9 @@ pub struct SameHandRun {
 
 #[derive(Debug, Default)]
 pub struct Analysis {
+    /// How many sessions the log held.  More than one means the file was appended to
+    /// across collector runs, and nothing is measured across the joins.
+    pub sessions: usize,
     pub total_chords: usize,
     /// Chords assembled while not in taipo mode.  Counted, then excluded from everything
     /// else: they were never taipo typing and would only add noise.
@@ -140,8 +156,8 @@ pub struct Analysis {
     pub ended_other_hand: usize,
 
     pub spreads: Vec<u32>,
-    pub dead: Vec<(u32, u16, VariantKey)>,
-    pub split: Vec<(u32, u16)>,
+    pub dead: Vec<(At, u16, VariantKey)>,
+    pub split: Vec<(At, u16)>,
 
     pub eligible_pairs: usize,
     pub same_hand: Vec<SameHandRun>,
@@ -193,12 +209,34 @@ fn classify(deleted: Option<u16>, replacement: Option<u16>) -> CorrectionKind {
 }
 
 impl Analysis {
-    pub fn build(chords: &[&Chord], opts: &Options) -> Analysis {
+    /// Analyse a log, one chord stream per session.
+    ///
+    /// Sessions rather than one stream because a log file holds several timelines: the
+    /// offsets restart whenever the collector reconnects.  Nothing that needs two chords --
+    /// an interval, an alternation pair, a correction, a spelled gram -- is ever computed
+    /// across a boundary, since the two chords either side of one may be minutes or hours
+    /// apart and their times cannot even be subtracted.
+    pub fn build(sessions: &[&[&Chord]], opts: &Options) -> Analysis {
         let mut a = Analysis::default();
-        a.total_chords = chords.len();
+        a.sessions = sessions.len();
+        for (num, chords) in sessions.iter().enumerate() {
+            a.add_session(num, chords, opts);
+        }
+        // Wants every session's samples, since a transition's typical interval is a fact
+        // about the writer rather than about one sitting.
+        a.find_hesitations(opts);
+        a
+    }
 
+    /// Fold one session's chords into the analysis.
+    fn add_session(&mut self, session: usize, chords: &[&Chord], opts: &Options) {
+        let a = self;
+        a.total_chords += chords.len();
+
+        // Summed per session, so the hours between sittings are not counted as time spent
+        // typing.  It is the denominator of the chords-per-minute figure.
         if let (Some(first), Some(last)) = (chords.first(), chords.last()) {
-            a.span_ms = last.time_ms.saturating_sub(first.first_key_ms);
+            a.span_ms += last.time_ms.saturating_sub(first.first_key_ms);
         }
 
         // Taipo-mode chords only.  A chord assembled in steno or qwerty mode was still
@@ -211,8 +249,10 @@ impl Analysis {
                 keep
             })
             .collect();
-        a.non_taipo = chords.len() - taipo.len();
+        a.non_taipo += chords.len() - taipo.len();
 
+        // Starts as `None` in each session: the table in use at the end of one sitting
+        // says nothing about the one the next begins with.
         let mut last_variant: Option<VariantKey> = None;
         for chord in &taipo {
             let v = VariantKey::of(chord.variant);
@@ -230,7 +270,14 @@ impl Analysis {
             a.spreads.push(chord.spread_ms());
 
             if chord.is_dead() {
-                a.dead.push((chord.time_ms, chord.code, v));
+                a.dead.push((
+                    At {
+                        session,
+                        time_ms: chord.time_ms,
+                    },
+                    chord.code,
+                    v,
+                ));
             }
         }
 
@@ -238,18 +285,22 @@ impl Analysis {
         // The replay does the mechanical part; what it means is a judgement this reports
         // rather than makes.
         for idx in bbq_keyboard::replay::split_chords(&taipo, opts.alternation_window_ms.min(300)) {
-            a.split.push((taipo[idx].time_ms, taipo[idx].code));
+            a.split.push((
+                At {
+                    session,
+                    time_ms: taipo[idx].time_ms,
+                },
+                taipo[idx].code,
+            ));
         }
 
-        a.walk_pairs(&taipo, opts);
+        a.walk_pairs(session, &taipo, opts);
         a.find_corrections(&taipo);
-        a.find_hesitations(opts);
-        a.spelled = find_spelled_grams(&taipo);
-        a
+        a.spelled.extend(find_spelled_grams(&taipo));
     }
 
     /// Everything that needs two consecutive chords: intervals, transitions, alternation.
-    fn walk_pairs(&mut self, taipo: &[&Chord], opts: &Options) {
+    fn walk_pairs(&mut self, session: usize, taipo: &[&Chord], opts: &Options) {
         for pair in taipo.windows(2) {
             let (prev, next) = (pair[0], pair[1]);
             let v = VariantKey::of(next.variant);
@@ -271,7 +322,10 @@ impl Analysis {
             entry.count += 1;
             entry.intervals.push(Sample {
                 gap_ms: gap,
-                time_ms: next.first_key_ms,
+                at: At {
+                    session,
+                    time_ms: next.first_key_ms,
+                },
             });
 
             let chord_item = Item::Chord {
@@ -282,7 +336,10 @@ impl Analysis {
             centry.count += 1;
             centry.intervals.push(Sample {
                 gap_ms: gap,
-                time_ms: next.first_key_ms,
+                at: At {
+                    session,
+                    time_ms: next.first_key_ms,
+                },
             });
 
             // Alternation only means anything inside a burst.  After a pause the fingers
@@ -365,7 +422,7 @@ impl Analysis {
             for sample in &stats.intervals {
                 if (sample.gap_ms as f64) > typical as f64 * opts.hesitation_factor {
                     found.push(Hesitation {
-                        time_ms: sample.time_ms,
+                        at: sample.at,
                         item: *item,
                         interval_ms: sample.gap_ms,
                         typical_ms: typical,
@@ -432,7 +489,13 @@ mod tests {
             count: 5,
             intervals: [100, 110, 120, 130, 9000]
                 .into_iter()
-                .map(|gap_ms| Sample { gap_ms, time_ms: 0 })
+                .map(|gap_ms| Sample {
+                    gap_ms,
+                    at: At {
+                        session: 0,
+                        time_ms: 0,
+                    },
+                })
                 .collect(),
             ..Default::default()
         };

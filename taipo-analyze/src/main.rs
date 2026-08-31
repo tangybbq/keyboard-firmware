@@ -36,20 +36,21 @@ fn main() -> Result<()> {
         top: cli.top,
     };
 
-    // Concatenated, so several days of logs analyse as one body of typing.  The offsets are
-    // per file, which only matters for the absolute times in the hesitation list.
-    let mut text = String::new();
+    // Several days of logs analyse as one body of typing, but each file is kept apart until
+    // it has been split into its sessions: no two of them share a timeline.
+    let mut texts = Vec::new();
     for path in &cli.logs {
-        text.push_str(
-            &std::fs::read_to_string(path)
+        texts.push(
+            std::fs::read_to_string(path)
                 .with_context(|| format!("reading {}", path.display()))?,
         );
-        text.push('\n');
     }
+    let texts: Vec<&str> = texts.iter().map(String::as_str).collect();
 
     // The boards in use are two-row.  A three-row log carries RowShift markers, which the
     // replay does not act on yet.
-    let analysis = taipo_analyze::analyze(&text, true, &opts).map_err(|e| anyhow::anyhow!(e))?;
+    let analysis =
+        taipo_analyze::analyze_files(&texts, true, &opts).map_err(|e| anyhow::anyhow!(e))?;
     if analysis.total_chords == 0 {
         println!("No chords found.");
         return Ok(());

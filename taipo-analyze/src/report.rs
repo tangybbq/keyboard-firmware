@@ -5,7 +5,7 @@
 
 use bbq_keyboard::layout::taipo::CHORD_TIME;
 
-use crate::stats::{Analysis, CorrectionKind, Item};
+use crate::stats::{Analysis, At, CorrectionKind, Item};
 use crate::Options;
 
 /// The chord code as the keys it uses, e.g. `[r+s]`.
@@ -30,6 +30,16 @@ fn item_name(item: &Item) -> String {
     }
 }
 
+/// A point in the log, as `s2 +128456ms`.
+///
+/// Relative to its own session, because that is the only timeline it has: the sessions in
+/// a file each count from their own zero, and the file's `# session` headers are what a
+/// reader counts through to find `s2`.  Sessions are numbered from one here, so `s1` is
+/// the first header in the first file given.
+fn at_name(at: At) -> String {
+    format!("s{} +{}ms", at.session + 1, at.time_ms)
+}
+
 fn pct(n: usize, d: usize) -> f64 {
     if d == 0 {
         0.0
@@ -43,6 +53,12 @@ pub fn print(a: &Analysis, opts: &Options) {
 
     println!("== Summary ==");
     println!("  chords            {}", a.total_chords);
+    if a.sessions > 1 {
+        println!(
+            "  sessions          {} (each its own timeline; nothing is measured across a join)",
+            a.sessions
+        );
+    }
     if a.non_taipo > 0 {
         println!(
             "  not taipo mode    {} (excluded from everything below)",
@@ -262,8 +278,8 @@ pub fn print(a: &Analysis, opts: &Options) {
         );
         for h in a.hesitations.iter().take(opts.top) {
             println!(
-                "    at {:>8}ms: {:>6}ms (usually {:>4}ms)  {}",
-                h.time_ms,
+                "    at {:>14}: {:>6}ms (usually {:>4}ms)  {}",
+                at_name(h.at),
                 h.interval_ms,
                 h.typical_ms,
                 item_name(&h.item)

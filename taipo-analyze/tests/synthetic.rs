@@ -32,6 +32,63 @@ fn analyze(target: &str, style: &Style) -> Analysis {
     taipo_analyze::analyze(&text, true, &Options::default()).expect("analyze")
 }
 
+/// The same typing twice, as two sessions of one file.
+///
+/// What a day's log actually looks like: the collector appends to it each time it
+/// connects, and each session's offsets count from its own zero.
+fn analyze_twice(target: &str, style: &Style) -> Analysis {
+    let log = synth(target, style).expect("synth");
+    let one = log_to_text(&log.events);
+    let text = format!(
+        "# session device=mesa1 boot_id=0x1 layout=0x2\n         # started 1788121960 (unix seconds)\n         {one}         # session device=mesa1 boot_id=0x1 layout=0x2\n         # started 1788122340 (unix seconds)\n         {one}"
+    );
+    taipo_analyze::analyze(&text, true, &Options::default()).expect("analyze")
+}
+
+/// A file with two sessions is two timelines, and neither one leaks into the other.
+///
+/// The second session's offsets restart at zero, which as a single stream is a step
+/// backwards in time.  Everything countable should simply double, and the pair that would
+/// straddle the join -- the last chord of one session against the first of the next --
+/// should not exist: it is two chords that may be hours apart, whose times cannot even be
+/// subtracted from each other.
+#[test]
+fn test_two_sessions_do_not_join_up() {
+    let target = "the quick brown fox jumps over the lazy dog";
+    let one = analyze(target, &clean());
+    let two = analyze_twice(target, &clean());
+
+    assert_eq!(two.sessions, 2);
+    assert_eq!(one.sessions, 1);
+    assert_eq!(two.total_chords, one.total_chords * 2);
+    // Summed per session, so the gap between sittings is not counted as typing time.
+    assert_eq!(two.span_ms, one.span_ms * 2);
+    // The join contributes no pair.  Flattened it would have contributed one more.
+    assert_eq!(two.eligible_pairs, one.eligible_pairs * 2);
+    assert_eq!(two.spelled.len(), one.spelled.len() * 2);
+
+    // And the hesitation times say which session they are in.
+    assert!(two
+        .hesitations
+        .iter()
+        .all(|h| h.at.session < 2 && h.at.time_ms <= one.span_ms));
+}
+
+/// A same-hand pair that straddles a session boundary is not a same-hand pair.
+///
+/// The clean writer alternates, so the last chord of one session and the first of the next
+/// land on the same hand.  Read as one stream that is a same-hand pair inside the window,
+/// which is exactly the false fault a naive concatenation invents.
+#[test]
+fn test_a_session_join_invents_no_fault() {
+    let target = "the quick brown fox";
+    let one = analyze(target, &clean());
+    let two = analyze_twice(target, &clean());
+    assert_eq!(one.same_hand.len(), 0, "the control alternates");
+    assert_eq!(two.same_hand.len(), 0, "and the join adds nothing");
+    assert_eq!(two.corrections.len(), one.corrections.len() * 2);
+}
+
 /// A clean writer produces a clean report.  This is the control: if it fails, everything
 /// below is measuring the generator rather than the analysis.
 #[test]
