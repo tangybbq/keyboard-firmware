@@ -19,10 +19,16 @@
 //! delivered first and the tick runs after, so a chord finished by releasing
 //! its last key at time `t` is reported at `t`.
 //!
-//! The log's times are milliseconds from the start of the log; nothing here
-//! cares where the zero is.  The device's 20 ms debounce shifts every press
-//! and release by the same amount, so intervals — which is all any of this
-//! looks at — are unaffected.
+//! The log's times are milliseconds from the start of the *session*; nothing
+//! here cares where the zero is.  The device's 20 ms debounce shifts every
+//! press and release by the same amount, so intervals — which is all any of
+//! this looks at — are unaffected.
+//!
+//! A log file generally holds more than one session: the collector appends to
+//! one file per day and starts counting from zero each time it connects.
+//! [`sessions_from_text`] is what splits those apart, and [`replay_sessions`]
+//! gives each one its own engine.  Feeding a whole file to [`replay`] as a
+//! single stream is a step backwards in time, which it refuses.
 //!
 //! # Key codes
 //!
@@ -179,16 +185,97 @@ pub fn markers_from_text(text: &str) -> Vec<(u32, &str, u8)> {
     text.lines().filter_map(marker_from_line).collect()
 }
 
-/// Parse a whole text log, ignoring blank lines, comments, and state markers.
+/// Parse a whole text log that has a single timeline.
+///
+/// Blank lines, comments and state markers are ignored.  A file holding more than one
+/// session is an error rather than a flattened event list: its offsets restart with each
+/// session, so the concatenation would step backwards in time.  Use
+/// [`sessions_from_text`] for those.
 pub fn log_from_text(text: &str) -> Result<Vec<KeyLogEvent>, String> {
-    let mut out = Vec::new();
+    let mut sessions = sessions_from_text(text)?;
+    if sessions.len() > 1 {
+        return Err(format!(
+            "log has {} sessions, each with its own timeline; use sessions_from_text",
+            sessions.len()
+        ));
+    }
+    Ok(match sessions.pop() {
+        Some(session) => session.events,
+        None => Vec::new(),
+    })
+}
+
+/// One stretch of log with a single, continuous timeline.
+///
+/// A log file is appended to across connections and across runs of whatever is doing the
+/// collecting, and each of those starts its own offset accumulator at zero.  A session is
+/// the span between two such restarts: within one, times only go forwards; across one,
+/// they mean nothing to each other.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LogSession {
+    /// Unix seconds from the `# started` line, when the log carried one.
+    ///
+    /// Only good for ordering and labelling sessions.  It is when the collector connected,
+    /// not when the events happened: the offsets inside the session start at its first
+    /// record, which comes some unknown time later.
+    pub started_unix: Option<u64>,
+    /// The events, in non-decreasing time order.
+    pub events: Vec<KeyLogEvent>,
+}
+
+/// Whether a comment line ends the timeline that precedes it.
+///
+/// All three are written by the collector, and all three mean the offsets that follow
+/// count from a new zero: `# session` when it connects, `# scrubbed` when a retroactive
+/// discard truncated the file, and `# device reset` when the keyboard rebooted and threw
+/// away what it was buffering.
+fn breaks_timeline(line: &str) -> bool {
+    let line = line.trim();
+    line.starts_with("# session")
+        || line.starts_with("# scrubbed")
+        || line.starts_with("# device reset")
+}
+
+/// The unix seconds from a `# started 1788121960 (unix seconds)` line.
+fn started_from_line(line: &str) -> Option<u64> {
+    let mut fields = line.trim().split_whitespace();
+    match (fields.next(), fields.next()) {
+        (Some("#"), Some("started")) => fields.next()?.parse().ok(),
+        _ => None,
+    }
+}
+
+/// Split a text log into its sessions and parse each one.
+///
+/// Sessions with no events are dropped: a header written just before the collector lost
+/// the device says nothing about any typing.
+pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
+    let mut out: Vec<LogSession> = Vec::new();
+    let mut current = LogSession {
+        started_unix: None,
+        events: Vec::new(),
+    };
     for (num, line) in text.lines().enumerate() {
+        if breaks_timeline(line) {
+            out.push(current);
+            current = LogSession {
+                started_unix: None,
+                events: Vec::new(),
+            };
+            continue;
+        }
+        if let Some(started) = started_from_line(line) {
+            current.started_unix = Some(started);
+            continue;
+        }
         match KeyLogEvent::from_line(line) {
-            Ok(Some(event)) => out.push(event),
+            Ok(Some(event)) => current.events.push(event),
             Ok(None) => (),
             Err(e) => return Err(format!("line {}: {}", num + 1, e)),
         }
     }
+    out.push(current);
+    out.retain(|session| !session.events.is_empty());
     Ok(out)
 }
 
@@ -496,6 +583,19 @@ pub fn replay(two_row: bool, events: &[KeyLogEvent]) -> Vec<Derived> {
         replay.feed(*event);
     }
     replay.finish()
+}
+
+/// Replay each session of a log, one derived stream per session.
+///
+/// Every session gets its own [`Replay`], which is the whole point: the timeline restarts
+/// at a session boundary, and so does the engine.  A chord still under the fingers when the
+/// collector disconnected is committed at the end of its own session rather than merging
+/// into the first chord of the next one, and no interval spans the boundary.
+pub fn replay_sessions(two_row: bool, sessions: &[LogSession]) -> Vec<Vec<Derived>> {
+    sessions
+        .iter()
+        .map(|session| replay(two_row, &session.events))
+        .collect()
 }
 
 //////////////////////////////////////////////////////////////////////////////

@@ -10,8 +10,8 @@
 use bbq_keyboard::layout::taipo::{ChordEnd, TaipoVariant};
 use bbq_keyboard::layout::TAIPO_CHORD_TIME;
 use bbq_keyboard::replay::{
-    chords, key_for_name, log_from_text, log_to_text, replay, split_chords, ChordAction, Chord,
-    Derived, KeyLogEvent,
+    chords, key_for_name, log_from_text, log_to_text, replay, replay_sessions, sessions_from_text,
+    split_chords, ChordAction, Chord, Derived, KeyLogEvent,
 };
 use bbq_keyboard::{Keyboard, LayoutMode, Mods, Side};
 
@@ -129,6 +129,68 @@ fn test_log_text_round_trip() {
     assert!(log_from_text("12 ? L.a").is_err());
     assert!(log_from_text("12 + L.nope").is_err());
     assert!(log_from_text("hello + L.a").is_err());
+}
+
+/// A file holding several sessions is split at the lines that break the timeline.
+///
+/// This is what a real log looks like: the collector appends to one file per day, and each
+/// time it connects it starts counting from zero again.  Read as one stream those offsets
+/// step backwards, which the replay refuses; read as sessions each one is in order.
+#[test]
+fn test_sessions_split_at_a_timeline_break() {
+    let mut first = Log::new();
+    first.tap('L', "a", 20).wait(50).tap('R', "e+i", 30);
+    let mut second = Log::new();
+    second.tap('R', "t", 20).wait(40).tap('L', "o", 25);
+
+    for breaker in [
+        "# session device=mesa1 boot_id=0x1 layout=0x2\n# started 1788121960 (unix seconds)\n",
+        "# scrubbed 400 bytes at 1788121960\n",
+        "# device reset\n",
+    ] {
+        let text = format!(
+            "{}{breaker}{}",
+            log_to_text(&first.events),
+            log_to_text(&second.events)
+        );
+        let sessions = sessions_from_text(&text).expect("parses");
+        assert_eq!(sessions.len(), 2, "{breaker:?} should break the timeline");
+        assert_eq!(sessions[0].events, first.events);
+        assert_eq!(sessions[1].events, second.events);
+
+        // Read as one stream it is not a log at all, and says so rather than panicking
+        // once the events reach the replay.
+        assert!(log_from_text(&text).is_err());
+
+        // Each session is replayed on its own, so the second one's chords keep their own
+        // times rather than being read as a step backwards.
+        let derived = replay_sessions(true, &sessions);
+        assert_eq!(derived.len(), 2);
+        assert_eq!(chord_list(&derived[0]).len(), 2);
+        assert_eq!(chord_list(&derived[1]).len(), 2);
+    }
+}
+
+/// The `# started` header is kept, and a header with nothing after it is not a session.
+#[test]
+fn test_session_headers_and_empty_sessions() {
+    let mut log = Log::new();
+    log.tap('L', "a", 20);
+    let text = format!(
+        "# session device=mesa1 boot_id=0x1 layout=0x2\n         # started 1788121960 (unix seconds)\n         {}         # session device=mesa1 boot_id=0x1 layout=0x2\n         # started 1788122340 (unix seconds)\n",
+        log_to_text(&log.events)
+    );
+    let sessions = sessions_from_text(&text).expect("parses");
+    // The leading header opens the file, and the trailing one caught no typing before the
+    // collector went away; neither is a session with anything in it.
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].started_unix, Some(1788121960));
+    assert_eq!(sessions[0].events, log.events);
+
+    // A log with no header at all is still one session.
+    let bare = sessions_from_text(&log_to_text(&log.events)).expect("parses");
+    assert_eq!(bare.len(), 1);
+    assert_eq!(bare[0].started_unix, None);
 }
 
 //////////////////////////////////////////////////////////////////////////////
