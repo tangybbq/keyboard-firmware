@@ -23,6 +23,12 @@ struct Cli {
     #[arg(long, default_value_t = 3.0)]
     hesitation_factor: f64,
 
+    /// Beyond this, two chords are too far apart to be typing: the writer stopped.  Such
+    /// a pair contributes no interval, so it can neither raise a transition's typical time
+    /// nor be reported as a hesitation.
+    #[arg(long, default_value_t = 5000)]
+    idle_ms: u32,
+
     /// How many rows to show in each ranked list.
     #[arg(long, default_value_t = 12)]
     top: usize,
@@ -33,6 +39,7 @@ fn main() -> Result<()> {
     let opts = Options {
         alternation_window_ms: cli.alternation_window_ms,
         hesitation_factor: cli.hesitation_factor,
+        idle_ms: cli.idle_ms,
         top: cli.top,
     };
 

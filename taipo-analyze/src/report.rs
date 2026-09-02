@@ -272,22 +272,28 @@ pub fn print(a: &Analysis, opts: &Options) {
         println!("  none found (needs several samples of the same transition)");
     } else {
         println!(
-            "  {} gaps over {}x the transition's own typical interval",
+            "  {} gaps over {}x the transition's own typical interval, of the {} pairs\n  \
+             close enough together to be typing at all ({} were further apart than {}ms)",
             a.hesitations.len(),
-            opts.hesitation_factor
+            opts.hesitation_factor,
+            a.gaps.len() - a.idle_pairs,
+            a.idle_pairs,
+            opts.idle_ms,
         );
         for h in a.hesitations.iter().take(opts.top) {
             println!(
-                "    at {:>14}: {:>6}ms (usually {:>4}ms)  {}",
+                "    at {:>14}: {:>6}ms (usually {:>4}ms, {:>4.1}x)  {}",
                 at_name(h.at),
                 h.interval_ms,
                 h.typical_ms,
+                h.interval_ms as f64 / h.typical_ms.max(1) as f64,
                 item_name(&h.item)
             );
         }
     }
 
     println!("\n== Slowest transitions with enough samples ==");
+    println!("  (typical interval, over the samples that were typing rather than pauses)");
     let mut rows: Vec<_> = a
         .items
         .iter()

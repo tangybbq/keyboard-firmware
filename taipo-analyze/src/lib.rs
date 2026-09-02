@@ -21,6 +21,19 @@ pub struct Options {
     pub alternation_window_ms: u32,
     /// A gap this many times a transition's own typical interval counts as a hesitation.
     pub hesitation_factor: f64,
+    /// Beyond this, the gap between two chords is not typing at all.
+    ///
+    /// The writer stopped: read something, ran a command, left the room.  Such a pair is
+    /// counted as an occurrence but contributes no interval, so it neither inflates a
+    /// transition's typical time nor gets reported as a hesitation.  Without it the first
+    /// real corpus reported a 64-minute "hesitation" after Return, measured against a
+    /// baseline of 24 seconds that was made of other pauses exactly like it.
+    ///
+    /// Five seconds is judgement, from the gap distribution: it is above the 98th
+    /// percentile, so it costs almost nothing, and recalling a chord you half know is a
+    /// matter of a second or two.  Past that the pause is about what to write rather than
+    /// how to type it, which is not what this measures.
+    pub idle_ms: u32,
     /// How many rows to show in each ranked list.
     pub top: usize,
 }
@@ -30,6 +43,7 @@ impl Default for Options {
         Options {
             alternation_window_ms: 2000,
             hesitation_factor: 3.0,
+            idle_ms: 5000,
             top: 12,
         }
     }

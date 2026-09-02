@@ -161,6 +161,14 @@ pub struct Analysis {
 
     pub eligible_pairs: usize,
     pub same_hand: Vec<SameHandRun>,
+    /// Consecutive chords too far apart to be typing, so no interval was recorded for
+    /// them.  Reported, because a corpus that is mostly this is a corpus about something
+    /// other than typing.
+    pub idle_pairs: usize,
+    /// Every recorded gap, for the distribution.  What decides `alternation_window_ms` and
+    /// `idle_ms` is the shape of this, and the shape is worth showing rather than
+    /// summarising into the two constants it justifies.
+    pub gaps: Vec<u32>,
 
     pub corrections: Vec<Correction>,
     pub hesitations: Vec<Hesitation>,
@@ -313,6 +321,24 @@ impl Analysis {
             // key of the next.  Rollover can make that negative, which is zero here.
             let gap = next.first_key_ms.saturating_sub(prev.last_key_ms);
 
+            self.gaps.push(gap);
+            // A gap past the ceiling is the writer having stopped.  The pair still
+            // happened, so it counts as an exposure, but its interval measures an
+            // absence and is not recorded: an interval kept here would be averaged into
+            // the transition's typical time and then reported as a hesitation against
+            // the baseline it had just raised.
+            let typing = gap < opts.idle_ms;
+            if !typing {
+                self.idle_pairs += 1;
+            }
+            let sample = Sample {
+                gap_ms: gap,
+                at: At {
+                    session,
+                    time_ms: next.first_key_ms,
+                },
+            };
+
             let item = Item::Transition {
                 variant: v,
                 from: prev.code,
@@ -320,13 +346,9 @@ impl Analysis {
             };
             let entry = self.items.entry(item).or_default();
             entry.count += 1;
-            entry.intervals.push(Sample {
-                gap_ms: gap,
-                at: At {
-                    session,
-                    time_ms: next.first_key_ms,
-                },
-            });
+            if typing {
+                entry.intervals.push(sample);
+            }
 
             let chord_item = Item::Chord {
                 variant: v,
@@ -334,13 +356,9 @@ impl Analysis {
             };
             let centry = self.items.entry(chord_item).or_default();
             centry.count += 1;
-            centry.intervals.push(Sample {
-                gap_ms: gap,
-                at: At {
-                    session,
-                    time_ms: next.first_key_ms,
-                },
-            });
+            if typing {
+                centry.intervals.push(sample);
+            }
 
             // Alternation only means anything inside a burst.  After a pause the fingers
             // are back at rest and either hand is equally correct, so a pair that far apart
@@ -410,7 +428,10 @@ impl Analysis {
 
         let mut found = Vec::new();
         for (item, stats) in &self.items {
-            if !matches!(item, Item::Transition { .. }) || stats.count < MIN_SAMPLES {
+            // On the recorded intervals rather than the occurrences: a transition seen
+            // ten times, always across a break, has no typing interval to be slow
+            // against.
+            if !matches!(item, Item::Transition { .. }) || stats.intervals.len() < MIN_SAMPLES {
                 continue;
             }
             let Some(typical) = stats.median() else {
@@ -430,7 +451,13 @@ impl Analysis {
                 }
             }
         }
-        found.sort_by_key(|h| std::cmp::Reverse(h.interval_ms));
+        // By how far above its own typical the gap was, not by the gap itself.  Sorted by
+        // raw milliseconds the list is just everything that reached the idle ceiling; four
+        // seconds on a transition that usually takes 192ms is the one worth looking at,
+        // and four seconds on one that usually takes 1021ms is barely a pause.
+        found.sort_by_key(|h| {
+            std::cmp::Reverse((h.interval_ms as u64 * 1000) / h.typical_ms.max(1) as u64)
+        });
         self.hesitations = found;
     }
 
