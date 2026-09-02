@@ -117,3 +117,28 @@ fn test_golden_sloppy() {
         true,
     );
 }
+
+/// A writer whose fingers land on the wrong row, and on the wrong finger.
+///
+/// The two shapes that dominate real corrections, generated deliberately so the
+/// analysis and the Swift trainer both have something with a known answer to be
+/// checked against.  Chords are struck and hands alternate, so the mistakes are
+/// the only thing in it.
+#[test]
+fn test_golden_slips() {
+    let style = Style {
+        error_every: 3,
+        errors: vec![
+            ErrorKind::RowSlip,
+            ErrorKind::Misfingering,
+            ErrorKind::RowSlip,
+        ],
+        ..Style::default()
+    };
+    golden(
+        "slips",
+        "some of those seasons matter to no one at all",
+        &style,
+        true,
+    );
+}
