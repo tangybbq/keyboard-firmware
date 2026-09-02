@@ -363,3 +363,81 @@ fn test_a_foreign_layout_is_reported() {
     // edits the tables, and the numbers are worth having so long as the warning is there.
     assert!(a.total_chords > 0);
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// Confusions
+//////////////////////////////////////////////////////////////////////////////
+
+/// The shape of a misfingering, on chords chosen so the answer is not in doubt.
+///
+/// Bits 0..3 are the bottom row, pinky to index, and 4..7 the top; a finger's two keys are
+/// four bits apart.  Every case here is written as the hand would describe it.
+#[test]
+fn test_confusions_are_classified_by_shape() {
+    use taipo_analyze::stats::Confusion;
+
+    // One finger on the wrong row: `o` (bottom ring) for `s` (top ring), the corpus's
+    // commonest mistake, and the same thing on two fingers at once.
+    assert_eq!(Confusion::of(0x002, 0x020), Confusion::WrongRow);
+    assert_eq!(Confusion::of(0x020, 0x002), Confusion::WrongRow);
+    assert_eq!(Confusion::of(0x009, 0x090), Confusion::WrongRow);
+    // Only one of the two fingers slipping is still a row slip.
+    assert_eq!(Confusion::of(0x009, 0x081), Confusion::WrongRow);
+
+    // The right row, the wrong finger: `s` (top ring) for `n` (top middle).
+    assert_eq!(Confusion::of(0x020, 0x040), Confusion::WrongFinger);
+    // A two-key chord whose keys moved along, staying one per row.
+    assert_eq!(Confusion::of(0x012, 0x024), Confusion::WrongFinger);
+
+    // A key too few and a key too many, named from what was typed.
+    assert_eq!(Confusion::of(0x002, 0x006), Confusion::DroppedKey);
+    assert_eq!(Confusion::of(0x006, 0x002), Confusion::AddedKey);
+
+    // The right fingers under the wrong thumb is the wrong layer, not a misfingering.
+    assert_eq!(Confusion::of(0x002, 0x102), Confusion::WrongLayer);
+    assert_eq!(Confusion::of(0x102, 0x202), Confusion::WrongLayer);
+
+    // The whole shape shifted a column over is still a finger slip, even though the ring
+    // finger is holding a key in both chords.  This is the case that a narrower rule got
+    // wrong.
+    assert_eq!(Confusion::of(0x012, 0x022), Confusion::WrongFinger);
+
+    // A thumb difference *and* a finger difference has no single shape.
+    assert_eq!(Confusion::of(0x002, 0x120), Confusion::Unrelated);
+    // Nor has a chord with a different number of keys on a row that is not simply the
+    // other with a key added or removed.
+    assert_eq!(Confusion::of(0x002, 0x044), Confusion::Unrelated);
+}
+
+/// The generator's misfingerings are misfingerings, and clean typing produces none.
+#[test]
+fn test_synthetic_misfingerings_are_shaped() {
+    use taipo_analyze::stats::Confusion;
+
+    let a = analyze("the quick brown fox jumps over the lazy dog", &clean());
+    assert!(
+        a.corrections.iter().all(|c| c.confusion.is_none()),
+        "clean typing corrects nothing, so nothing has a shape"
+    );
+
+    let style = Style {
+        error_every: 4,
+        errors: vec![ErrorKind::Misfingering],
+        ..clean()
+    };
+    let b = analyze("the quick brown fox jumps over the lazy dog", &style);
+    let shaped: Vec<Confusion> = b.corrections.iter().filter_map(|c| c.confusion).collect();
+    assert!(!shaped.is_empty(), "the generator was asked to misfinger");
+    // `synth::misfinger` moves a key to the adjacent finger on the same row, so what it
+    // makes is finger slips and never row slips.  That the classifier says so is the tie
+    // between the two, and it is the claim that would break first if the bit layout moved
+    // underneath either of them.
+    assert!(
+        shaped.iter().filter(|k| **k == Confusion::WrongFinger).count() * 2 > shaped.len(),
+        "most of a misfingering run should be finger slips: {shaped:?}"
+    );
+    assert!(
+        !shaped.contains(&Confusion::WrongRow),
+        "the generator cannot slip a row, so nothing should read as one: {shaped:?}"
+    );
+}

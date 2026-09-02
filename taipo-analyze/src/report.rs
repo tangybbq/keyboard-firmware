@@ -7,7 +7,7 @@ use bbq_keyboard::layout::export::char_for_key;
 use bbq_keyboard::layout::posh::POSH_ACTIONS;
 use bbq_keyboard::layout::taipo::{Action, CHORD_TIME, TAIPO_ACTIONS};
 
-use crate::stats::{Analysis, At, CorrectionKind, Item, VariantKey};
+use crate::stats::{Analysis, At, Confusion, CorrectionKind, Item, VariantKey};
 use crate::Options;
 
 /// What a chord types, in the table it was looked up in: `"w"`, `"the"`, `Bksp`.
@@ -342,6 +342,63 @@ pub fn print(a: &Analysis, opts: &Options) {
                         rn
                     ),
                     None => println!("    {:>3}x  {}", n, chord_keys(code)),
+                }
+            }
+        }
+    }
+
+    println!("\n== The shape of the misfingerings ==");
+    {
+        let shaped: Vec<(Confusion, u16, u16)> = a
+            .corrections
+            .iter()
+            .filter_map(|c| Some((c.confusion?, c.deleted?, c.replacement?)))
+            .collect();
+        if shaped.is_empty() {
+            println!("  nothing was retyped as a different chord");
+        } else {
+            println!(
+                "  {} corrections retyped a different chord.  What the hand did, as opposed\n  \
+                 to how far off it was:",
+                shaped.len()
+            );
+            let mut counts: std::collections::HashMap<Confusion, usize> = Default::default();
+            for (k, _, _) in &shaped {
+                *counts.entry(*k).or_default() += 1;
+            }
+            let mut rows: Vec<_> = counts.into_iter().collect();
+            rows.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+            for (k, n) in rows {
+                println!(
+                    "    {:<14} {:>5}  {:>5.1}%",
+                    k.name(),
+                    n,
+                    pct(n, shaped.len())
+                );
+            }
+
+            // The pairs themselves, unordered: confusing o for s and s for o is one
+            // problem with the ring finger, not two, and a drill would treat it as one.
+            println!(
+                "\n  Most confused pairs, either direction, for the two shapes a drill can\n  \
+                 be built from:"
+            );
+            for want in [Confusion::WrongRow, Confusion::WrongFinger] {
+                let mut pairs: std::collections::HashMap<(u16, u16), usize> = Default::default();
+                for (k, d, r) in shaped.iter().filter(|(k, _, _)| *k == want) {
+                    let _ = k;
+                    *pairs.entry((*d.min(r), *d.max(r))).or_default() += 1;
+                }
+                let mut rows: Vec<_> = pairs.into_iter().collect();
+                rows.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+                let total: usize = rows.iter().map(|(_, n)| *n).sum();
+                println!("    -- {} ({total}) --", want.name());
+                for ((x, y), n) in rows.into_iter().take(opts.top) {
+                    let name = |c: u16| match chord_types(VariantKey::Taipo, c) {
+                        Some(t) => format!("{} {t}", chord_keys(c)),
+                        None => format!("{} (dead)", chord_keys(c)),
+                    };
+                    println!("      {n:>4}x  {}  <->  {}", name(x), name(y));
                 }
             }
         }

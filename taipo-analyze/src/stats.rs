@@ -118,6 +118,110 @@ pub enum CorrectionKind {
     NoReplacement,
 }
 
+/// What each of the four columns and two thumbs was asked to do by a chord.
+///
+/// `0` nothing, `1` the bottom key, `2` the top key, `3` both.  Working per finger rather
+/// than per bit is what makes the shape of a mistake legible: two chords two bits apart
+/// can be one finger on the wrong row or two fingers doing unrelated things, and the bit
+/// count cannot tell those apart.
+fn finger_states(code: u16) -> [u8; 6] {
+    let mut s = [0u8; 6];
+    for col in 0..4 {
+        s[col] = (code >> col & 1) as u8 | ((code >> (col + 4) & 1) as u8) << 1;
+    }
+    s[4] = (code >> 8 & 1) as u8;
+    s[5] = (code >> 9 & 1) as u8;
+    s
+}
+
+/// How a mistyped chord differed in shape from the one that replaced it.
+///
+/// `CorrectionKind` says how *far* the mistake was -- one key, or a different chord
+/// entirely.  This says what the hand actually did, which is the part a drill can be built
+/// from: the corpus turns out to be dominated by two shapes, and they want different
+/// practice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Confusion {
+    /// The right fingers, one or more of them on the wrong row.
+    WrongRow,
+    /// The right rows, a key struck by the wrong finger.
+    WrongFinger,
+    /// The right chord with a key missing.
+    DroppedKey,
+    /// The right chord with an extra key.
+    AddedKey,
+    /// The right finger keys under the wrong thumb, so the wrong layer.
+    WrongLayer,
+    /// Nothing systematic.  More likely the wrong chord recalled than a misfingering.
+    Unrelated,
+}
+
+impl Confusion {
+    pub fn name(self) -> &'static str {
+        match self {
+            Confusion::WrongRow => "wrong row",
+            Confusion::WrongFinger => "wrong finger",
+            Confusion::DroppedKey => "key dropped",
+            Confusion::AddedKey => "key added",
+            Confusion::WrongLayer => "wrong layer",
+            Confusion::Unrelated => "unrelated",
+        }
+    }
+
+    /// Classify the chord that was typed against the one that replaced it.
+    ///
+    /// The order of the tests is the classification: each is narrower than the next and
+    /// the first that fits wins.  A chord differing on one finger by row *and* on another
+    /// by finger has no single name, and falls through to `Unrelated` rather than being
+    /// filed under whichever test happened to run first.
+    pub fn of(typed: u16, meant: u16) -> Confusion {
+        if typed == meant {
+            return Confusion::Unrelated;
+        }
+        let (t, m) = (finger_states(typed), finger_states(meant));
+        let differ: Vec<usize> = (0..6).filter(|&i| t[i] != m[i]).collect();
+        let thumbs = differ.iter().any(|&i| i >= 4);
+        let fingers = differ.iter().any(|&i| i < 4);
+
+        if thumbs {
+            // A thumb selects the layer, so a thumb difference is a different chord rather
+            // than a misfingering -- unless it is the only difference.
+            return if fingers {
+                Confusion::Unrelated
+            } else {
+                Confusion::WrongLayer
+            };
+        }
+
+        // Every finger that differs is on the other row: the hand had the right shape and
+        // put it in the wrong place.
+        if differ
+            .iter()
+            .all(|&i| (t[i] == 1 && m[i] == 2) || (t[i] == 2 && m[i] == 1))
+        {
+            return Confusion::WrongRow;
+        }
+
+        // The same number of keys on each row, so the rows were right and the keys are
+        // simply under the wrong fingers.  Nothing narrower than this works: the whole
+        // shape can shift a column over, which leaves a finger holding a key in both
+        // chords -- a different key, but a per-finger "one of these is empty" test reads
+        // that as unrelated and it is the plainest finger slip there is.
+        let row_counts = |c: u16| ((c & 0x0f).count_ones(), (c & 0xf0).count_ones());
+        if row_counts(typed) == row_counts(meant) {
+            return Confusion::WrongFinger;
+        }
+
+        if typed & meant == typed {
+            return Confusion::DroppedKey;
+        }
+        if typed & meant == meant {
+            return Confusion::AddedKey;
+        }
+        Confusion::Unrelated
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Correction {
     pub deleted: Option<u16>,
@@ -131,6 +235,8 @@ pub struct Correction {
     /// measure between -- nothing was retyped, or the log does not reach back to what was
     /// deleted.
     pub cost_ms: Option<u32>,
+    /// The shape of the mistake, when both ends are known and they differ.
+    pub confusion: Option<Confusion>,
 }
 
 #[derive(Debug, Clone)]
@@ -486,11 +592,17 @@ impl Analysis {
                 .map(|(d, r)| taipo[r].time_ms.saturating_sub(taipo[d].time_ms))
                 .filter(|&ms| ms <= opts.idle_ms);
 
+            let confusion = deleted
+                .zip(replacement)
+                .filter(|(d, r)| d != r)
+                .map(|(d, r)| Confusion::of(d, r));
+
             self.corrections.push(Correction {
                 deleted,
                 replacement,
                 kind: classify(deleted, replacement),
                 cost_ms,
+                confusion,
             });
 
             if let Some(code) = deleted {
