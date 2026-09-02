@@ -109,6 +109,13 @@ pub enum ErrorKind {
     /// One key different from what was meant: an adjacent finger on the same
     /// row.  Usually types some other letter.
     Misfingering,
+    /// The right fingers, one of them on the wrong row.
+    ///
+    /// The commonest real mistake by some way -- a third of the corrections in
+    /// the first corpus -- and the one `Misfingering` cannot make, since that
+    /// moves along a row and this moves across one.  Without it nothing here
+    /// can generate the shape the analysis most needs to be tested against.
+    RowSlip,
     /// A different chord entirely -- the next chord of the text, typed early,
     /// which is what recalling the wrong chord tends to look like.
     WrongChord,
@@ -410,6 +417,7 @@ fn wrong_code(
 ) -> u16 {
     match kind {
         ErrorKind::Misfingering => misfinger(intended, table),
+        ErrorKind::RowSlip => row_slip(intended, table),
         ErrorKind::WrongChord => match next {
             Some(next) if next != intended => next,
             _ => misfinger(intended, table),
@@ -419,8 +427,12 @@ fn wrong_code(
 }
 
 /// One key different: the lowest finger key of the chord, moved to the
-/// adjacent finger on the same row.  The two rows and the thumbs pair up as
-/// bits `2n` and `2n+1`, so the neighbour is one xor away.
+/// adjacent finger on the same row.
+///
+/// Bits 0..3 are the bottom row, pinky to index, and 4..7 the top, so `bit ^ 1`
+/// stays on the row and steps between pinky and ring, or between middle and
+/// index.  It never reaches the ring-to-middle pair, which is a limitation of
+/// the generator rather than of the layout.
 fn misfinger(intended: u16, table: &'static [Entry]) -> u16 {
     for bit in 0..8 {
         if intended & (1 << bit) == 0 {
@@ -432,6 +444,29 @@ fn misfinger(intended: u16, table: &'static [Entry]) -> u16 {
         }
     }
     // Nothing to move: add a key instead, which is still one key different.
+    dead_code(intended, table)
+}
+
+/// The right fingers, one on the wrong row: the lowest finger key of the chord,
+/// moved to the other row of the same column.
+///
+/// A finger's two keys are four bits apart, so the other row is one xor away.
+/// The move is skipped where the destination is already held, since that would
+/// drop a key rather than move one and the result would not be a row slip at
+/// all.
+fn row_slip(intended: u16, table: &'static [Entry]) -> u16 {
+    for bit in 0..8 {
+        if intended & (1 << bit) == 0 {
+            continue;
+        }
+        let other = 1 << (bit ^ 4);
+        if intended & other != 0 {
+            continue;
+        }
+        return (intended & !(1 << bit)) | other;
+    }
+    // A chord of thumbs only has no row to slip on; fall back to something that
+    // is at least wrong.
     dead_code(intended, table)
 }
 

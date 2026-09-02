@@ -438,6 +438,25 @@ fn test_synthetic_misfingerings_are_shaped() {
     );
     assert!(
         !shaped.contains(&Confusion::WrongRow),
-        "the generator cannot slip a row, so nothing should read as one: {shaped:?}"
+        "a misfingering moves along a row, so nothing should read as crossing one: {shaped:?}"
+    );
+
+    // And the other way round: `ErrorKind::RowSlip` moves across a row and never along
+    // one, so a run of those reads as row slips and as nothing else.
+    let style = Style {
+        error_every: 4,
+        errors: vec![ErrorKind::RowSlip],
+        ..clean()
+    };
+    let c = analyze("the quick brown fox jumps over the lazy dog", &style);
+    let shaped: Vec<Confusion> = c.corrections.iter().filter_map(|c| c.confusion).collect();
+    assert!(!shaped.is_empty(), "the generator was asked to slip rows");
+    assert!(
+        shaped.iter().filter(|k| **k == Confusion::WrongRow).count() * 2 > shaped.len(),
+        "most of a row-slip run should be row slips: {shaped:?}"
+    );
+    assert!(
+        !shaped.contains(&Confusion::WrongFinger),
+        "a row slip keeps its fingers: {shaped:?}"
     );
 }
