@@ -1,0 +1,205 @@
+chord 30 L taipo 0x020 [s] released spread=0 key S
+key 30 KeyPress(S, Mods(0x0))
+key 30 KeyRelease
+chord 120 R taipo 0x002 [o] released spread=0 key O
+key 120 KeyPress(O, Mods(0x0))
+key 120 KeyRelease
+chord 210 L taipo 0x090 [r+i] released spread=0 key G
+key 210 KeyPress(G, Mods(0x0))
+key 210 KeyRelease
+chord 300 R taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 300 KeyPress(DeleteBackspace, Mods(0x0))
+key 300 KeyRelease
+chord 390 L taipo 0x018 [e+r] released spread=0 key M
+key 390 KeyPress(M, Mods(0x0))
+key 390 KeyRelease
+chord 480 R taipo 0x008 [e] released spread=0 key E
+key 480 KeyPress(E, Mods(0x0))
+key 480 KeyRelease
+chord 570 L taipo 0x100 [Sp] released spread=0 key Space
+key 570 KeyPress(Space, Mods(0x0))
+key 570 KeyRelease
+chord 660 R taipo 0x001 [a] released spread=0 key A
+key 660 KeyPress(A, Mods(0x0))
+key 660 KeyRelease
+chord 750 L taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 750 KeyPress(DeleteBackspace, Mods(0x0))
+key 750 KeyRelease
+chord 840 R taipo 0x002 [o] released spread=0 key O
+key 840 KeyPress(O, Mods(0x0))
+key 840 KeyRelease
+chord 930 L taipo 0x0a0 [s+i] released spread=0 key F
+key 930 KeyPress(F, Mods(0x0))
+key 930 KeyRelease
+chord 1020 R taipo 0x100 [Sp] released spread=0 key Space
+key 1020 KeyPress(Space, Mods(0x0))
+key 1020 KeyRelease
+chord 1110 L taipo 0x040 [n] released spread=0 key N
+key 1110 KeyPress(N, Mods(0x0))
+key 1110 KeyRelease
+chord 1200 R taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 1200 KeyPress(DeleteBackspace, Mods(0x0))
+key 1200 KeyRelease
+chord 1290 L taipo 0x004 [t] released spread=0 key T
+key 1290 KeyPress(T, Mods(0x0))
+key 1290 KeyRelease
+chord 1380 R taipo 0x00c [t+e] released spread=0 key H
+key 1380 KeyPress(H, Mods(0x0))
+key 1380 KeyRelease
+chord 1470 L taipo 0x002 [o] released spread=0 key O
+key 1470 KeyPress(O, Mods(0x0))
+key 1470 KeyRelease
+chord 1560 R taipo 0x002 [o] released spread=0 key O
+key 1560 KeyPress(O, Mods(0x0))
+key 1560 KeyRelease
+chord 1650 L taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 1650 KeyPress(DeleteBackspace, Mods(0x0))
+key 1650 KeyRelease
+chord 1740 R taipo 0x020 [s] released spread=0 key S
+key 1740 KeyPress(S, Mods(0x0))
+key 1740 KeyRelease
+chord 1830 L taipo 0x008 [e] released spread=0 key E
+key 1830 KeyPress(E, Mods(0x0))
+key 1830 KeyRelease
+chord 1920 R taipo 0x100 [Sp] released spread=0 key Space
+key 1920 KeyPress(Space, Mods(0x0))
+key 1920 KeyRelease
+chord 2010 L taipo 0x010 [r] released spread=0 key R
+key 2010 KeyPress(R, Mods(0x0))
+key 2010 KeyRelease
+chord 2100 R taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 2100 KeyPress(DeleteBackspace, Mods(0x0))
+key 2100 KeyRelease
+chord 2190 L taipo 0x020 [s] released spread=0 key S
+key 2190 KeyPress(S, Mods(0x0))
+key 2190 KeyRelease
+chord 2280 R taipo 0x008 [e] released spread=0 key E
+key 2280 KeyPress(E, Mods(0x0))
+key 2280 KeyRelease
+chord 2370 L taipo 0x001 [a] released spread=0 key A
+key 2370 KeyPress(A, Mods(0x0))
+key 2370 KeyRelease
+chord 2460 R taipo 0x002 [o] released spread=0 key O
+key 2460 KeyPress(O, Mods(0x0))
+key 2460 KeyRelease
+chord 2550 L taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 2550 KeyPress(DeleteBackspace, Mods(0x0))
+key 2550 KeyRelease
+chord 2640 R taipo 0x020 [s] released spread=0 key S
+key 2640 KeyPress(S, Mods(0x0))
+key 2640 KeyRelease
+chord 2730 L taipo 0x08a [o+e+i] released spread=0 text "on"
+key 2730 KeyPress(O, Mods(0x0))
+key 2730 KeyRelease
+key 2730 KeyPress(N, Mods(0x0))
+key 2730 KeyRelease
+chord 2820 R taipo 0x020 [s] released spread=0 key S
+key 2820 KeyPress(S, Mods(0x0))
+key 2820 KeyRelease
+chord 2910 L taipo 0x301 [a+Sp+Bk] released spread=0 dead
+chord 3000 R taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 3000 KeyPress(DeleteBackspace, Mods(0x0))
+key 3000 KeyRelease
+chord 3090 L taipo 0x100 [Sp] released spread=0 key Space
+key 3090 KeyPress(Space, Mods(0x0))
+key 3090 KeyRelease
+chord 3180 R taipo 0x018 [e+r] released spread=0 key M
+key 3180 KeyPress(M, Mods(0x0))
+key 3180 KeyRelease
+chord 3270 L taipo 0x0a2 [o+s+i] released spread=0 text "at"
+key 3270 KeyPress(A, Mods(0x0))
+key 3270 KeyRelease
+key 3270 KeyPress(T, Mods(0x0))
+key 3270 KeyRelease
+chord 3360 R taipo 0x008 [e] released spread=0 key E
+key 3360 KeyPress(E, Mods(0x0))
+key 3360 KeyRelease
+chord 3450 L taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 3450 KeyPress(DeleteBackspace, Mods(0x0))
+key 3450 KeyRelease
+chord 3540 R taipo 0x004 [t] released spread=0 key T
+key 3540 KeyPress(T, Mods(0x0))
+key 3540 KeyRelease
+chord 3630 L taipo 0x04c [t+e+n] released spread=0 text "er"
+key 3630 KeyPress(E, Mods(0x0))
+key 3630 KeyRelease
+key 3630 KeyPress(R, Mods(0x0))
+key 3630 KeyRelease
+chord 3720 R taipo 0x100 [Sp] released spread=0 key Space
+key 3720 KeyPress(Space, Mods(0x0))
+key 3720 KeyRelease
+chord 3810 L taipo 0x040 [n] released spread=0 key N
+key 3810 KeyPress(N, Mods(0x0))
+key 3810 KeyRelease
+chord 3900 R taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 3900 KeyPress(DeleteBackspace, Mods(0x0))
+key 3900 KeyRelease
+chord 3990 L taipo 0x004 [t] released spread=0 key T
+key 3990 KeyPress(T, Mods(0x0))
+key 3990 KeyRelease
+chord 4080 R taipo 0x002 [o] released spread=0 key O
+key 4080 KeyPress(O, Mods(0x0))
+key 4080 KeyRelease
+chord 4170 L taipo 0x100 [Sp] released spread=0 key Space
+key 4170 KeyPress(Space, Mods(0x0))
+key 4170 KeyRelease
+chord 4260 R taipo 0x004 [t] released spread=0 key T
+key 4260 KeyPress(T, Mods(0x0))
+key 4260 KeyRelease
+chord 4350 L taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 4350 KeyPress(DeleteBackspace, Mods(0x0))
+key 4350 KeyRelease
+chord 4440 R taipo 0x040 [n] released spread=0 key N
+key 4440 KeyPress(N, Mods(0x0))
+key 4440 KeyRelease
+chord 4530 L taipo 0x002 [o] released spread=0 key O
+key 4530 KeyPress(O, Mods(0x0))
+key 4530 KeyRelease
+chord 4620 R taipo 0x100 [Sp] released spread=0 key Space
+key 4620 KeyPress(Space, Mods(0x0))
+key 4620 KeyRelease
+chord 4710 L taipo 0x089 [a+e+i] released spread=0 dead
+chord 4800 R taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 4800 KeyPress(DeleteBackspace, Mods(0x0))
+key 4800 KeyRelease
+chord 4890 L taipo 0x08a [o+e+i] released spread=0 text "on"
+key 4890 KeyPress(O, Mods(0x0))
+key 4890 KeyRelease
+key 4890 KeyPress(N, Mods(0x0))
+key 4890 KeyRelease
+chord 4980 R taipo 0x008 [e] released spread=0 key E
+key 4980 KeyPress(E, Mods(0x0))
+key 4980 KeyRelease
+chord 5070 L taipo 0x100 [Sp] released spread=0 key Space
+key 5070 KeyPress(Space, Mods(0x0))
+key 5070 KeyRelease
+chord 5160 R taipo 0x02a [o+e+s] released spread=0 text "al"
+key 5160 KeyPress(A, Mods(0x0))
+key 5160 KeyRelease
+key 5160 KeyPress(L, Mods(0x0))
+key 5160 KeyRelease
+chord 5250 L taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 5250 KeyPress(DeleteBackspace, Mods(0x0))
+key 5250 KeyRelease
+chord 5340 R taipo 0x0a2 [o+s+i] released spread=0 text "at"
+key 5340 KeyPress(A, Mods(0x0))
+key 5340 KeyRelease
+key 5340 KeyPress(T, Mods(0x0))
+key 5340 KeyRelease
+chord 5430 L taipo 0x100 [Sp] released spread=0 key Space
+key 5430 KeyPress(Space, Mods(0x0))
+key 5430 KeyRelease
+chord 5520 R taipo 0x02a [o+e+s] released spread=0 text "al"
+key 5520 KeyPress(A, Mods(0x0))
+key 5520 KeyRelease
+key 5520 KeyPress(L, Mods(0x0))
+key 5520 KeyRelease
+chord 5610 L taipo 0x012 [o+r] released spread=0 key Semicolon
+key 5610 KeyPress(Semicolon, Mods(0x0))
+key 5610 KeyRelease
+chord 5700 R taipo 0x200 [Bk] released spread=0 key DeleteBackspace
+key 5700 KeyPress(DeleteBackspace, Mods(0x0))
+key 5700 KeyRelease
+chord 5790 L taipo 0x003 [a+o] released spread=0 key L
+key 5790 KeyPress(L, Mods(0x0))
+key 5790 KeyRelease

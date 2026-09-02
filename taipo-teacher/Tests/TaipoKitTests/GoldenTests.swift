@@ -93,6 +93,11 @@ final class GoldenTests: XCTestCase {
         try compare("sloppy")
     }
 
+    /// A writer whose fingers land on the wrong row and on the wrong finger.
+    func testSlipsLogMatchesRust() throws {
+        try compare("slips")
+    }
+
     /// The tables the app resolves chords with must be the ones the keyboard is running,
     /// or every chord it names is a plausible lie.  The device reports this in `Hello`.
     func testFingerprintIsReadable() throws {
