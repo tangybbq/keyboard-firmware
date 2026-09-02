@@ -535,6 +535,12 @@ other hand started).
       what replaced it.  Classify: was the replacement one key different from what was sent
       (a misfingering), a different chord entirely (the wrong chord was recalled), or the same
       chord again (a split or dropped chord)?  The bit patterns make this mechanical.
+      - **And a second axis, which the corpus asked for**: not how *far* off the chord was but
+        what *shape* the mistake had.  `Confusion` works per finger rather than per bit —
+        two chords two bits apart can be one finger on the wrong row or two fingers doing
+        unrelated things, and a bit count cannot tell those apart.  Wrong row, wrong finger,
+        key added, key dropped, wrong layer, or nothing systematic.  This is the axis a
+        drill can be built from, and phase 4b's is.
 - [X] **Dead chords.**  A chord code with no table entry types nothing; the writer sees a
       missing letter and corrects.  These are unambiguous errors and are invisible to any
       host-side approach.
@@ -628,8 +634,12 @@ letters spelled out that had a chord, costing 4,219 extra chords: `"er"` 332 tim
 326, `"at"` 299, `"in"` 260, `"ing"` 232.  This is the measurement `docs/taipo-drills.md`
 said nothing outside the keyboard could make, and it is the clearest single answer in the
 corpus: the chords were chosen well (the n-gram analysis says they are worth about a third
-of all typing) and then never entered the fingers.  It is the obvious first thing for
-phase 4b to drill.
+of all typing) and then never entered the fingers.
+
+**Not being drilled, deliberately.**  The obvious use of that finding is to teach the
+thirteen grams, and the developer's judgement is that the benefit is not established
+enough to spend practice on.  The measurement stands and the drills go elsewhere; if the
+question reopens, `docs/drills/` already has lists for every one of them.
 
 **Corrections run 6.3 per 100 chords**, of which 1,114 are one key off — a misfingering,
 the technique category — against 548 where a different chord entirely was recalled.  The
@@ -740,6 +750,10 @@ The app is useful before any drill exists.
       - *Test* (MonkeyType-shaped): timed or word-count, results screen.
       - *Focus*: pick one item and drill its neighbourhoods — the "increase the amount of
         various troublespots" dial, made explicit.
+      - [X] *Confusions*: the mode the corpus argued for, and the one that shipped.  Take
+        the pairs of chords the writer's own corrections say get mixed up, worst first, and
+        for each give a warmup of the two against each other and then words whose cheapest
+        segmentation asks for both.  See "Drilling the confusions" below.
       - *Lessons*: `docs/drills/` as native lessons, but now able to enforce what those lists
         could only encourage, since the app can see whether the gram was chorded.
 - [ ] **Scoring.**  Chords per minute alongside WPM — for a chorded layout, CPM is the honest
@@ -798,6 +812,48 @@ trips in 0.43 ms; one spanning two packets takes 3.6 ms.  The cost is per packet
 request, which means a full 900-record log drain would be tens of milliseconds.  For the
 trainer that argues for small frequent drains — watermark 1 and a small `max_bytes` — rather
 than large batches, which is what the watermark design already allows.
+
+### Drilling the confusions
+
+The first drill mode to ship, and it exists because the corpus said what to practise rather
+than because the plan guessed.
+
+**What the corrections turned out to be.**  Of the 1,682 that retyped a different chord,
+a third are the right fingers on the wrong row and a quarter are the right rows under the
+wrong fingers.  The pairs are concentrated enough to name: `o`/`s` alone is 143 of them,
+then `d`/`g` at 68, `t`/`n` at 65, `l`/`b` at 58, `e`/`i` at 43 — the ring, the pinky and
+index together, the middle, the index, each reaching to the wrong row.  Then the finger
+slips, `s`/`n`, `n`/`i`, `o`/`t`, `r`/`s`.  A small enough set to drill directly, and not
+something a host-side trainer could have found: the host sees the letter that came out, not
+which finger was on which row.
+
+**Where it lives.**  In the app, deriving from the logs the collector is already writing.
+That is a change from what this plan assumed — the CLI was to own the model and the app to
+read it — and it follows from the same fact 4a ran into: the vendor interface takes one
+process, so the app is the collector and the logs are what it has.  Replaying three days of
+them takes well under a second, so there is nothing to precompute and no store to keep in
+step.  `ConfusionModel` is rebuilt when the practice screen opens; the logs only grow, so
+it can be stale by at most one sitting.
+
+**A second implementation, pinned the way the plan says to pin one.**  `CorrectionScanner`
+and `Confusion` in Swift are `taipo_analyze::stats` again, because the trainer cannot
+round-trip through a Rust CLI to find out what the writer got wrong.
+`taipo-analyze/tests/golden/*.corrections` are generated from the same synthetic logs the
+chord engine's goldens use, copied into the Swift test resources, and a Swift test has to
+reproduce them line for line.  `bbq_keyboard::synth` gained `ErrorKind::RowSlip` for this:
+its only misfingering moved along a row, so the commonest real mistake was ungeneratable
+and there was nothing with a known answer to check either side against.
+
+**What the material is.**  A warmup of the two chords against each other in short groups —
+`os so oso sos oos sso oss soo` — then words whose cheapest segmentation asks for both,
+drawn nearest-together first.  Two things the first output settled: sorting strictly by
+distance gave `d`/`g` as `knowledge budget edge bridge judge lodge ridge`, which is exactly
+on target and nearly the same word seven times, so the draw is round robin across the
+distances; and `english_10k` has proper nouns in it, which want a thumb chord as well, so
+they are dropped rather than teach two things at once.
+
+Only row and finger slips are drilled.  A chord recalled wrongly is a vocabulary problem
+rather than a technique one, and practising the pair would not touch it.
 
 ### 4c. Rough order
 
@@ -880,11 +936,13 @@ letters — there is no redaction that keeps the data useful.
   same-hand rolls is a thing to feel rather than to compute.
 - **Does the 20 ms debounce need to be 20 ms?**  Not this project's question, but this project
   is the instrument for asking it.
-- **What does a correction actually look like?**  Answered: the categories hold.  6.3 per
-  100 chords, 1,114 one key off against 548 a different chord entirely, so misfingering and
-  failed recall are both real and separable.  The one surprise is `NoReplacement` at 1,095 —
-  deleting and moving on, which is editing rather than correcting and probably wants its own
-  name.
+- **What does a correction actually look like?**  Answered, and then answered better.  The
+  plan's categories hold — 6.3 per 100 chords, 1,114 one key off against 548 a different
+  chord entirely — but "how far off" turned out to be the less useful axis.  Classifying by
+  *shape* instead says a third of them are the right fingers on the wrong row and a quarter
+  the right rows under the wrong fingers, which is a thing a drill can attack; "one key off"
+  is not.  The remaining surprise is `NoReplacement` at 1,095 — deleting and moving on,
+  which is editing rather than correcting and probably wants its own name.
 - **Does the trainer need to drive the keyboard at all** — forcing a variant, or suppressing
   steno mode — or is reading enough?  Probably reading; revisit when the drill modes exist.
 - **Where does the segmentation cost model live?**  The app needs "what is the cheapest chord
