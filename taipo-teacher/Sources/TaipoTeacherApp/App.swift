@@ -23,11 +23,14 @@ struct TaipoTeacherApp: App {
             Image(systemName: monitor.menuBarSymbol)
         }
 
+        // No `.windowResizability(.contentSize)`.  It makes the window track the content's
+        // size extrema, which has `NSHostingView` re-measuring the whole view tree on every
+        // display cycle; with a min size on the content and nothing wanting to be sized to
+        // fit, it bought nothing and cost the main thread dearly.
         Window("Taipo Teacher", id: "main") {
             MainView(monitor: monitor)
                 .frame(minWidth: 680, minHeight: 460)
         }
-        .windowResizability(.contentSize)
     }
 }
 
@@ -66,7 +69,7 @@ struct MenuContents: View {
     }
 }
 
-/// The window: a mode picker, the status line, and whichever screen is showing.
+/// The window: a tab strip, the status line, and whichever screen is showing.
 struct MainView: View {
     @ObservedObject var monitor: DeviceMonitor
     @State private var mode: Mode = .practice
@@ -79,13 +82,9 @@ struct MainView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $mode) {
-                ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
+            tabs
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
 
             switch mode {
             case .practice: DrillView(monitor: monitor)
@@ -96,6 +95,44 @@ struct MainView: View {
         // here wants the characters -- the chords come from the log -- so they are
         // swallowed rather than left to beep.
         .background(KeySwallower().frame(width: 0, height: 0))
+    }
+
+    /// The tab strip: two buttons, drawn to look like the segmented control it replaces.
+    ///
+    /// It *was* a segmented `Picker`, and that turned out to be what made the window
+    /// unusable after a day or two.  The AppKit segmented control behind
+    /// `.pickerStyle(.segmented)` sizes itself by asking AppKit, which re-enters the
+    /// SwiftUI view graph to measure the label inside each segment -- and every one of
+    /// those passes left the picker's tag machinery behind.  A day and a half of ordinary
+    /// collecting had leaked 223,683 copies of it and twice that many observation
+    /// registrars, and since each redraw walks what the last one leaked, the app got
+    /// steadily slower until the main thread was doing nothing else.
+    ///
+    /// Plain buttons carry none of that: no tags, no AppKit control, no measurement that
+    /// re-enters the graph.
+    private var tabs: some View {
+        HStack(spacing: 2) {
+            ForEach(Mode.allCases) { tab in
+                Button {
+                    mode = tab
+                } label: {
+                    Text(tab.rawValue)
+                        .font(.system(size: 13, weight: mode == tab ? .semibold : .regular))
+                        .foregroundStyle(mode == tab ? Color.primary : Color.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(Color(nsColor: .controlBackgroundColor))
+                                .opacity(mode == tab ? 1 : 0)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: 7).fill(.quaternary))
     }
 }
 
