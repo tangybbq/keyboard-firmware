@@ -27,6 +27,12 @@ final class LogWriter {
     /// system tells us about, and it does not tell us about a password prompt inside tmux,
     /// so there has to be a way to take something back after the fact.
     private var checkpoints: [(at: Date, offset: UInt64)] = []
+    /// The header of the session in progress, so a day rollover can repeat it.
+    ///
+    /// A new file is a new timeline, and a timeline with no header is one a reader cannot
+    /// check the fingerprint of.  Sessions outlive midnight, so the header has to be
+    /// reproducible rather than only written when the device connects.
+    private var sessionHeader: String?
 
     /// Where the logs live.
     static var defaultDirectory: URL {
@@ -35,8 +41,14 @@ final class LogWriter {
             .appendingPathComponent("TaipoTeacher/logs", isDirectory: true)
     }
 
-    init(directory: URL = LogWriter.defaultDirectory) {
+    /// What the writer reads the clock as.  Injectable so that a test can cross midnight
+    /// without waiting for one: the day rollover is the part of this that has been wrong,
+    /// and it is unreachable otherwise.
+    private let now: () -> Date
+
+    init(directory: URL = LogWriter.defaultDirectory, now: @escaping () -> Date = Date.init) {
         self.directory = directory
+        self.now = now
     }
 
     private static let dayFormatter: DateFormatter = {
@@ -45,6 +57,12 @@ final class LogWriter {
         return f
     }()
 
+    /// The handle for `date`'s file, opening -- and starting -- a new day's file if the
+    /// one in hand is not it.
+    ///
+    /// Callers that are about to format records must go through `rollOver` first: this
+    /// resets the offset a new file counts from, and records formatted before it runs
+    /// would carry the previous file's offsets into the new one.
     private func file(for date: Date) throws -> FileHandle {
         let day = Self.dayFormatter.string(from: date)
         if day == openedDay, let handle { return handle }
@@ -57,11 +75,31 @@ final class LogWriter {
         }
         let handle = try FileHandle(forWritingTo: url)
         try handle.seekToEnd()
+        let opening = openedDay
         self.handle = handle
         openedDay = day
-        // A new file starts a new timeline; the session header that follows says when.
+        // A new file starts a new timeline, counting from a fresh zero.
         offsetMs = 0
+        checkpoints.removeAll()
+        // Carry the session across midnight.  `opening == nil` is the first write of the
+        // run, where `beginSession` is about to write the header itself; anything else is
+        // a rollover in the middle of a session, and the new file needs its own copy or
+        // it opens with records whose device, boot and tables are nowhere stated.
+        if opening != nil, let header = sessionHeader {
+            try handle.write(contentsOf: Data(header.utf8))
+        }
         return handle
+    }
+
+    /// Open today's file, if today is not the day the open one belongs to.
+    ///
+    /// Separate from `write` because the offset it resets is read while records are being
+    /// formatted, which happens first.  Rolling over inside `write` stamped a whole batch
+    /// with the closing day's offsets and then filed it under the opening one -- a step
+    /// backwards in the middle of a file, and the only record in it not covered by a
+    /// session header.
+    private func rollOver() {
+        _ = try? file(for: now())
     }
 
     /// Open a session: a header saying which keyboard, which boot, and which tables.
@@ -72,24 +110,35 @@ final class LogWriter {
     func beginSession(device: String, bootID: UInt64?, fingerprint: UInt64?) {
         let boot = bootID.map { String(format: "%#018llx", $0) } ?? "unknown"
         let layout = fingerprint.map { String(format: "%#018llx", $0) } ?? "unknown"
-        let now = UInt64(Date().timeIntervalSince1970)
-        write(
-            "# session device=\(device) boot_id=\(boot) layout=\(layout)\n"
-            + "# started \(now) (unix seconds)\n")
+        let started = UInt64(now().timeIntervalSince1970)
+        rollOver()
+        let header = "# session device=\(device) boot_id=\(boot) layout=\(layout)\n"
+        // The `# started` line is when the collector connected, so it is not repeated at
+        // a rollover: the session did not start again at midnight.
+        sessionHeader = header
+        write(header + "# started \(started) (unix seconds)\n")
     }
 
     /// Note that the device restarted, so the reader knows the timeline broke.
     func noteReset() {
+        rollOver()
+        // The offsets carry on; it is the header that stops applying, since the session
+        // it described is over and `beginSession` is what says what replaced it.
+        sessionHeader = nil
         write("# device reset\n")
     }
 
     /// Note records the device dropped before they could be fetched.
     func noteGap(dropped: UInt32, beforeSeq: UInt32) {
+        rollOver()
         write("# gap \(dropped) records dropped before seq \(beforeSeq)\n")
     }
 
     /// Append a batch, advancing the timeline.
     func append(_ records: [LogRecord], layouts: Layouts) {
+        // Before a single offset is read: the file this lands in decides where they count
+        // from.
+        rollOver()
         var text = ""
         for record in records {
             offsetMs += record.delta.milliseconds
@@ -119,12 +168,12 @@ final class LogWriter {
     private func write(_ text: String) {
         guard !text.isEmpty, let data = text.data(using: .utf8) else { return }
         do {
-            let now = Date()
-            let handle = try file(for: now)
+            let at = now()
+            let handle = try file(for: at)
             try handle.write(contentsOf: data)
-            checkpoints.append((now, try handle.offset()))
+            checkpoints.append((at, try handle.offset()))
             // An hour of checkpoints is far more than any scrub will reach back for.
-            let cutoff = now.addingTimeInterval(-3600)
+            let cutoff = at.addingTimeInterval(-3600)
             checkpoints.removeAll { $0.at < cutoff }
         } catch {
             // Losing the log is not worth losing the session over; the drill and the live
@@ -153,7 +202,7 @@ final class LogWriter {
             // The timeline restarts: the offsets that followed are gone, and a fresh
             // header will say so.
             offsetMs = 0
-            write("# scrubbed \(end - target) bytes at \(UInt64(Date().timeIntervalSince1970))\n")
+            write("# scrubbed \(end - target) bytes at \(UInt64(now().timeIntervalSince1970))\n")
             return end - target
         } catch {
             NSLog("taipo-teacher: could not scrub the log: \(error)")

@@ -30,6 +30,12 @@ let package = Package(
             dependencies: ["TaipoKit"],
             resources: [.copy("golden")]
         ),
+        // The app is an executable target, which SwiftPM will link into a test bundle so
+        // long as it has no `main.swift`; `App.swift`'s `@main` is what allows this.
+        .testTarget(
+            name: "AppTests",
+            dependencies: ["TaipoTeacherApp", "MinderKit", "TaipoKit"]
+        ),
         .testTarget(
             name: "MinderKitTests",
             dependencies: ["MinderKit"],
