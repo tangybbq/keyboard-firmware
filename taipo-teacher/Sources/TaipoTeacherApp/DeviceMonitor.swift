@@ -85,17 +85,50 @@ public final class DeviceMonitor: ObservableObject {
     public enum Status: Equatable {
         case disconnected
         case connecting
-        case connected(device: String, fingerprintMatches: Bool)
+        case connected(device: String, mismatch: LayoutMismatch?)
         case failed(String)
 
         public var summary: String {
             switch self {
             case .disconnected: return "Not connected"
             case .connecting: return "Connecting…"
-            case .connected(let device, let ok):
-                return ok ? device : "\(device) — layout mismatch"
+            case .connected(let device, let mismatch):
+                guard mismatch != nil else { return device }
+                return "\(device) — wrong chord tables"
             case .failed(let why): return "Failed: \(why)"
             }
+        }
+
+        /// The two fingerprints, when they disagree, so the label can say which is which.
+        public var mismatch: LayoutMismatch? {
+            if case .connected(_, let mismatch) = self { return mismatch }
+            return nil
+        }
+    }
+
+    /// The keyboard's tables and the app's, when they are not the same tables.
+    ///
+    /// Both halves, because which one is behind is the whole question and the answer is
+    /// usually not the obvious one.  The first time this fired in earnest the keyboard was
+    /// running exactly the right firmware and the app was shipping a `layouts.json` two
+    /// commits out of date -- and "layout mismatch" on its own reads as an accusation
+    /// against the keyboard, which sent the developer looking in the wrong place.
+    public struct LayoutMismatch: Equatable, Sendable {
+        public let device: UInt64?
+        public let app: UInt64?
+
+        public var detail: String {
+            let name = { (v: UInt64?) in v.map { String(format: "%#018llx", $0) } ?? "unknown" }
+            return """
+                The keyboard is running chord tables this app does not have a copy of, so \
+                every chord it names may be wrong.
+
+                keyboard  \(name(device))
+                app       \(name(app))
+
+                If the keyboard is the newer one, the app needs rebuilding from a checkout \
+                that has those tables.  If the app is, the keyboard needs reflashing.
+                """
         }
     }
 
@@ -313,10 +346,13 @@ public final class DeviceMonitor: ObservableObject {
         // The tables the app names chords with have to be the ones the keyboard is running,
         // or every chord it shows is a plausible lie.  Reported rather than fatal: the app
         // is still useful, and saying so is better than refusing.
-        let matches = hello.layoutFingerprint == layouts.fingerprintValue
+        let mismatch =
+            hello.layoutFingerprint == layouts.fingerprintValue
+            ? nil
+            : LayoutMismatch(device: hello.layoutFingerprint, app: layouts.fingerprintValue)
         Task { @MainActor [weak self] in
             self?.layouts = layouts
-            self?.status = .connected(device: hello.info, fingerprintMatches: matches)
+            self?.status = .connected(device: hello.info, mismatch: mismatch)
             self?.nextDrill()
         }
 

@@ -169,6 +169,16 @@ struct LiveView: View {
                      : "Not recording.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                // Spelled out where it happens, rather than left as a label to be asked
+                // about.  It names both fingerprints because which side is behind is the
+                // whole question, and it is not always the keyboard.
+                if let mismatch = monitor.status.mismatch {
+                    Text(mismatch.detail)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .textSelection(.enabled)
+                        .padding(.top, 4)
+                }
             }
             Spacer()
         }
@@ -177,7 +187,7 @@ struct LiveView: View {
 
     private var statusColor: Color {
         switch monitor.status {
-        case .connected(_, let ok): return ok ? .green : .orange
+        case .connected(_, let mismatch): return mismatch == nil ? .green : .orange
         case .connecting: return .yellow
         case .failed: return .red
         case .disconnected: return .secondary
