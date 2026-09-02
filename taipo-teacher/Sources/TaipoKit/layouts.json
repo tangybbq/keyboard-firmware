@@ -1,9 +1,9 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "generator": "bbq-keyboard/src/layout/export.rs; regenerate with `cargo run --example gen-layouts > layouts.json`",
   "scancode_set": "proto3",
   "chord_time_ms": 100,
-  "fingerprint": "0xeef6b320a04a3492",
+  "fingerprint": "0xb51f8c7bfe41ee88",
   "bits": [
     { "bit": 0, "mask": 1, "name": "a", "finger": "pinky", "row": "bottom" },
     { "bit": 1, "mask": 2, "name": "o", "finger": "ring", "row": "bottom" },
@@ -128,13 +128,14 @@
     "proto3": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47],
     "proto4": [2, 1, 4, 28, 25, 24, 5, 8, 9, 33, 32, 29, 12, 13, 16, 40, 37, 36, 17, 20, 21, 45, 44, 41, 18, 19, 23, 47, 43, 42, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255],
     "mesa1": [2, 12, 1, 13, 18, 4, 16, 5, 17, 19, 8, 20, 9, 21, 23, 24, 36, 25, 37, 42, 28, 40, 29, 41, 43, 32, 44, 33, 45, 47, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255],
+    "mesa2": [4, 8, 12, 16, 19, 5, 9, 13, 17, 23, 40, 36, 32, 28, 47, 41, 37, 33, 29, 43, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255],
     "jolt1": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47],
     "jolt2": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 19, 15, 255, 255, 255, 24, 25, 26, 28, 29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 39, 43, 47, 255, 255, 255],
     "jolt3": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 19, 15, 255, 255, 255, 24, 25, 26, 28, 29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 39, 43, 47, 255, 255, 255]
   },
   "variants": {
     "taipo": {
-      "count": 162,
+      "count": 164,
       "chords": [
         { "code": 256, "code_hex": "0x100", "keys": ["Sp"], "action": { "kind": "key", "key": "Space", "usage": 44, "types": " " } },
         { "code": 512, "code_hex": "0x200", "keys": ["Bk"], "action": { "kind": "key", "key": "DeleteBackspace", "usage": 42 } },
@@ -297,11 +298,13 @@
         { "code": 848, "code_hex": "0x350", "keys": ["r", "n", "Sp", "Bk"], "action": { "kind": "key", "key": "F8", "usage": 65 } },
         { "code": 816, "code_hex": "0x330", "keys": ["r", "s", "Sp", "Bk"], "action": { "kind": "key", "key": "F9", "usage": 66 } },
         { "code": 808, "code_hex": "0x328", "keys": ["e", "s", "Sp", "Bk"], "action": { "kind": "key", "key": "F11", "usage": 68 } },
-        { "code": 897, "code_hex": "0x381", "keys": ["a", "i", "Sp", "Bk"], "action": { "kind": "key", "key": "F12", "usage": 69 } }
+        { "code": 897, "code_hex": "0x381", "keys": ["a", "i", "Sp", "Bk"], "action": { "kind": "key", "key": "F12", "usage": 69 } },
+        { "code": 240, "code_hex": "0x0f0", "keys": ["r", "s", "n", "i"], "action": { "kind": "variant", "variant": "taipo" } },
+        { "code": 15, "code_hex": "0x00f", "keys": ["a", "o", "t", "e"], "action": { "kind": "variant", "variant": "posh" } }
       ]
     },
     "posh": {
-      "count": 134,
+      "count": 136,
       "chords": [
         { "code": 256, "code_hex": "0x100", "keys": ["Sp"], "action": { "kind": "key", "key": "Space", "usage": 44, "types": " " } },
         { "code": 512, "code_hex": "0x200", "keys": ["Bk"], "action": { "kind": "key", "key": "DeleteBackspace", "usage": 42 } },
@@ -436,7 +439,9 @@
         { "code": 294, "code_hex": "0x126", "keys": ["o", "t", "s", "Sp"], "action": { "kind": "shifted", "key": "Dot", "usage": 55, "types": ">" } },
         { "code": 550, "code_hex": "0x226", "keys": ["o", "t", "s", "Bk"], "action": { "kind": "shifted", "key": "Comma", "usage": 54, "types": "<" } },
         { "code": 70, "code_hex": "0x046", "keys": ["o", "t", "n"], "action": { "kind": "key", "key": "PrintScreen", "usage": 70 } },
-        { "code": 168, "code_hex": "0x0a8", "keys": ["e", "s", "i"], "action": { "kind": "key", "key": "Insert", "usage": 73 } }
+        { "code": 168, "code_hex": "0x0a8", "keys": ["e", "s", "i"], "action": { "kind": "key", "key": "Insert", "usage": 73 } },
+        { "code": 240, "code_hex": "0x0f0", "keys": ["r", "s", "n", "i"], "action": { "kind": "variant", "variant": "taipo" } },
+        { "code": 15, "code_hex": "0x00f", "keys": ["a", "o", "t", "e"], "action": { "kind": "variant", "variant": "posh" } }
       ]
     }
   }
