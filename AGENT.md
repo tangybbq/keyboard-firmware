@@ -43,12 +43,12 @@ There are the following crates:
 ## Firmware implementations
 
 - jolt-embassy-rp: The current running firmware. Board-specific initialization lives in
-  `src/board.rs` (with modules for jolt3, jolt2, jolt2dir, proto4, and mesa1); the board is
+  `src/board.rs` (with modules for jolt3, jolt2, jolt2dir, proto4, mesa1, and mesa2); the board is
   identified at runtime from a `BoardInfo` CBOR block stored in flash (see
-  `bbq-keyboard/src/boardinfo.rs`), so one binary serves all supported boards. The proto4 and
-  mesa1 are `Inter::None`: one MCU scans the whole board, so the mesa1 is split only in its
-  case. Scancode translation per board is in `bbq-keyboard/src/translate.rs`, shared with the
-  host tools.
+  `bbq-keyboard/src/boardinfo.rs`), so one binary serves all supported boards. The proto4, mesa1
+  and mesa2 are `Inter::None`: one MCU scans the whole board, so the mesa1 is split only in its
+  case and the mesa2 is a unibody. Scancode translation per board is in
+  `bbq-keyboard/src/translate.rs`, shared with the host tools.
 - jolt: The start of a new project to make the current firmware run on Zephyr.
 - zbbq: A different branch of earlier versions of the Zephyr version.
 - proto: The older pre-Zephyr (rtic-based) firmware; superseded, but a reference for boards like

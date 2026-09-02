@@ -807,6 +807,156 @@ mod mesa1 {
     }
 }
 
+mod mesa2 {
+    //! The mesa2 is a 20-key, 2-row unibody board built around the Pimoroni Tiny 2040.  It carries
+    //! exactly the Taipo key set and nothing else: no mode key, no row-position toggle, no steno
+    //! keys.  As with the proto4 and the mesa1, the single MCU scans the whole matrix and there is
+    //! no inter-board protocol; it is one physical piece.
+    //!
+    //! Electrically it is the mesa1 -- one Tiny 2040, four ws2812 LEDs on GP26 -- but the matrix is
+    //! wired the other way round.  The mesa2's diodes conduct from row to column, so the scanner
+    //! drives the board's *rows* (`ROW_A`..`ROW_D`, two per hand) and senses its *columns*
+    //! (`COL_1`..`COL_5`, shared by both hands, with `COL_5` the thumbs).  The scanner's `cols`
+    //! argument is therefore the mesa2's rows and its `rows` argument the mesa2's columns, which is
+    //! the mesa1's swap inverted.  Scan codes run `ROW_x * 5 + COL_n`; see the `mesa2` table in
+    //! `bbq_keyboard::translate`.
+    //!
+    //! Because the board has only the 20 Taipo keys, the variant is chosen with a chord rather than
+    //! a key: `r+s+n+i` selects Taipo and `a+o+t+e` selects Posh (see POSH.md).
+    //!
+    //! As on the proto4 and the mesa1, the Tiny 2040's PWM RGB LED is not yet supported, only the 4
+    //! ws2812 LEDs on the keyboard itself.
+
+    use bbq_keyboard::{KeyAction, Side};
+    use embassy_executor::SendSpawner;
+    use embassy_rp::{gpio::{AnyPin, Input, Level, Output, Pull}, peripherals, pio::Pio, pio_programs::ws2812::{PioWs2812, PioWs2812Program}, Peri, Peripherals};
+    use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+    use static_cell::StaticCell;
+
+    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
+    use crate::logging::unwrap;
+
+    use super::{Board, Inter, UsbHandler};
+
+    /// The PIO instance that drives the RGB LEDs.
+    type RgbPIO = peripherals::PIO0;
+
+    /// The number of ws2812 LEDs on the keyboard.
+    const NUM_LEDS: usize = 4;
+
+    // Split up the peripherals.  Named for the mesa2 nets, not for the scanner's roles.  The
+    // Tiny 2040's analog pads are A0=GP26, A1=GP27, A2=GP28, A3=GP29.
+    struct MatrixResources {
+        row_a: Peri<'static, peripherals::PIN_28>,
+        row_b: Peri<'static, peripherals::PIN_27>,
+        row_c: Peri<'static, peripherals::PIN_0>,
+        row_d: Peri<'static, peripherals::PIN_1>,
+        col_1: Peri<'static, peripherals::PIN_4>,
+        col_2: Peri<'static, peripherals::PIN_5>,
+        col_3: Peri<'static, peripherals::PIN_6>,
+        col_4: Peri<'static, peripherals::PIN_7>,
+        col_5: Peri<'static, peripherals::PIN_29>,
+    }
+
+    struct RgbResources {
+        rgb_pin: Peri<'static, peripherals::PIN_26>,
+        pio: Peri<'static, RgbPIO>,
+        dma: Peri<'static, peripherals::DMA_CH0>,
+    }
+
+    struct UsbResources {
+        usb: Peri<'static, peripherals::USB>,
+    }
+
+    pub fn new(p: Peripherals, spawner: SendSpawner, unique: &'static str) -> Board {
+        let matrix = matrix_init(MatrixResources {
+            row_a: p.PIN_28, row_b: p.PIN_27, row_c: p.PIN_0, row_d: p.PIN_1,
+            col_1: p.PIN_4, col_2: p.PIN_5, col_3: p.PIN_6, col_4: p.PIN_7,
+            col_5: p.PIN_29,
+        });
+        let leds = leds_init(RgbResources {
+            rgb_pin: p.PIN_26, pio: p.PIO0, dma: p.DMA_CH0,
+        }, spawner);
+
+        let usb = usb_init(UsbResources { usb: p.USB }, spawner, unique);
+
+        Board {
+            matrix,
+            leds,
+            inter: Inter::None,
+            usb: Some(usb),
+            two_row: true,
+        }
+    }
+
+    fn matrix_init(r: MatrixResources) -> Matrix {
+        // Driven: the mesa2's rows, which the diodes let feed the columns.  This is the opposite of
+        // the mesa1, whose diodes point the other way.
+        static COLS: StaticCell<[Output<'static>; 4]> = StaticCell::new();
+        let cols = COLS.init(
+            [
+                r.row_a.into(),
+                r.row_b.into(),
+                r.row_c.into(),
+                r.row_d.into(),
+            ]
+            .map(|p: Peri<'static, AnyPin>| Output::new(p, Level::Low)),
+        );
+
+        // Sensed: the mesa2's columns, shared by both hands.
+        static ROWS: StaticCell<[Input<'static>; 5]> = StaticCell::new();
+        let rows = ROWS.init(
+            [
+                r.col_1.into(),
+                r.col_2.into(),
+                r.col_3.into(),
+                r.col_4.into(),
+                r.col_5.into(),
+            ]
+            .map(|p: Peri<'static, AnyPin>| Input::new(p, Pull::Down)),
+        );
+
+        let xlate = bbq_keyboard::translate::get_translation("mesa2");
+
+        // A single MCU scans the whole matrix, so there is no bias to apply to the scan codes.
+        Matrix::new(cols, rows, xlate, Side::Left)
+    }
+
+    fn leds_init(r: RgbResources, spawner: SendSpawner) -> LedSet {
+        // The PIO and DMA are used for the LED driver.
+        let Pio {
+            mut common, sm0, ..
+        } = Pio::new(r.pio, Irqs);
+        let program = PioWs2812Program::new(&mut common);
+        let ws2812 = PioWs2812::new(&mut common, sm0, r.dma, Irqs, r.rgb_pin, &program);
+
+        let leds = LedStripGroup::new(ws2812);
+
+        static STRIP: StaticCell<LedStripHandle> = StaticCell::new();
+        let strip = STRIP.init(leds.get_handle());
+        spawner.spawn(unwrap!(led_task(leds)));
+
+        LedSet::new([strip])
+    }
+
+    #[embassy_executor::task]
+    async fn led_task(leds: LedStripGroup<'static, RgbPIO, 0, NUM_LEDS>) {
+        leds.update_task().await;
+    }
+
+    fn usb_init(r: UsbResources, spawner: SendSpawner, unique: &'static str) -> UsbHandler {
+        static KEYS: StaticCell<Channel<CriticalSectionRawMutex, KeyAction, 8>> = StaticCell::new();
+
+        let usb = UsbHandler {
+            keys: KEYS.init(Channel::new()),
+        };
+
+        spawner.spawn(unwrap!(crate::usb::setup_usb(r.usb, unique, usb.keys.receiver())));
+
+        usb
+    }
+}
+
 /// Channel type for key event messages.
 pub type KeyChannel = Receiver<'static, CriticalSectionRawMutex, KeyEvent, 1>;
 
@@ -898,6 +1048,16 @@ impl Board {
             }
             BoardInfo { name, side: None } if name == "mesa1" => {
                 let mut this = mesa1::new(p, spawner, unique);
+                this.leds.update(&[
+                    RGB8::new(8, 0, 0),
+                    RGB8::new(0, 8, 0),
+                    RGB8::new(0, 0, 8),
+                    RGB8::new(8, 8, 0),
+                ]);
+                this
+            }
+            BoardInfo { name, side: None } if name == "mesa2" => {
+                let mut this = mesa2::new(p, spawner, unique);
                 this.leds.update(&[
                     RGB8::new(8, 0, 0),
                     RGB8::new(0, 8, 0),
