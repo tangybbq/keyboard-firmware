@@ -17,7 +17,7 @@ public final class DeviceMonitor: ObservableObject {
     /// Paused by the user.  Stops the *device* recording, not just this end, so a pause
     /// means the keyboard is not keeping anything either.
     @Published public var paused = false {
-        didSet { pauseRequested = paused }
+        didSet { pausedFlag.current = paused }
     }
     /// Chords seen today, for the menu bar.
     @Published public private(set) var chordsToday = 0
@@ -84,15 +84,32 @@ public final class DeviceMonitor: ObservableObject {
     /// How many chords to keep on screen.
     private let historyLimit = 40
 
+    /// A flag the device thread reads and the main actor writes.
+    ///
+    /// These are checked once or twice per poll.  They used to be fetched with
+    /// `DispatchQueue.main.sync`, which meant the collector stopped dead for as long as the
+    /// main thread was busy -- and a stalled collector does not merely lag: the keyboard's
+    /// ring buffer fills and drops the records nobody arrived to fetch.  A sample taken
+    /// while the window was misbehaving found the device thread spending four fifths of its
+    /// time waiting on exactly this.
+    private final class Flag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value: Bool
+        init(_ value: Bool) { self.value = value }
+        var current: Bool {
+            get { lock.lock(); defer { lock.unlock() }; return value }
+            set { lock.lock(); value = newValue; lock.unlock() }
+        }
+    }
+
     private let queue = DispatchQueue(label: "org.davidb.taipo-teacher.device")
-    private var running = false
+    private let runningFlag = Flag(false)
+    private let pausedFlag = Flag(false)
     private var layouts: Layouts?
     /// Only ever touched from `queue`, which is a single serial queue, so this is safe
     /// outside the actor.  Saying so explicitly rather than letting the isolation be
     /// implied: it is the kind of invariant that quietly stops being true.
     nonisolated(unsafe) private let log = LogWriter()
-    /// Read from the device thread; written from the main one.
-    private var pauseRequested = false
 
     public init() {
         // Collecting starts with the app, not with a window: the point of the menu bar is
@@ -134,7 +151,7 @@ public final class DeviceMonitor: ObservableObject {
     /// Bounded: a keyboard that has been unplugged will never answer, and hanging the quit
     /// on it would be worse than leaving it recording into RAM it loses at power off.
     public func shutDown() {
-        running = false
+        runningFlag.current = false
         let done = DispatchSemaphore(value: 0)
         queue.async { done.signal() }
         _ = done.wait(timeout: .now() + 2.0)
@@ -157,14 +174,14 @@ public final class DeviceMonitor: ObservableObject {
     }
 
     public func start() {
-        guard !running else { return }
-        running = true
+        guard !runningFlag.current else { return }
+        runningFlag.current = true
         status = .connecting
         queue.async { [weak self] in self?.reconnectLoop() }
     }
 
     public func stop() {
-        running = false
+        runningFlag.current = false
     }
 
     /// Start the next practice line.
@@ -198,10 +215,8 @@ public final class DeviceMonitor: ObservableObject {
                 Thread.sleep(forTimeInterval: 0.1)
             }
         }
-        Task { @MainActor [weak self] in
-            self?.recording = false
-            self?.running = false
-        }
+        runningFlag.current = false
+        Task { @MainActor [weak self] in self?.recording = false }
     }
 
     /// One connection's worth of collecting.  Returns the boot id it saw.
@@ -233,9 +248,9 @@ public final class DeviceMonitor: ObservableObject {
         }
 
         guard hello.supports(Capability.keyLog) else {
+            runningFlag.current = false
             Task { @MainActor [weak self] in
                 self?.status = .failed("firmware has no key log")
-                self?.running = false
             }
             return hello.bootID
         }
@@ -270,6 +285,9 @@ public final class DeviceMonitor: ObservableObject {
             Task { @MainActor [weak self] in self?.recording = true }
 
             var wasPaused = false
+            // Unknown to start with, so the first pass always publishes and a session that
+            // begins where the last one left off cannot inherit a stale flag.
+            var wasSecure: Bool?
             while self.isRunning {
                 // Pausing stops the device recording, not just this end: the point of a
                 // pause is that nothing is being kept, and the records live on the
@@ -278,7 +296,16 @@ public final class DeviceMonitor: ObservableObject {
                 // password keystroke is still sitting in the device's buffer at this
                 // point, so it is discarded rather than drained to disk.
                 let secure = SecureInput.isEnabled
-                Task { @MainActor [weak self] in self?.secureInput = secure }
+                // Only when it changes.  This is read three or four times a second and the
+                // answer is the same almost every time; assigning it regardless still fires
+                // `objectWillChange`, and every one of those redrew the whole window and
+                // the menu bar for nothing.  That was not merely wasted work -- each pass
+                // leaked a little SwiftUI observation state, so an idle poll made the app
+                // slower the longer it ran.
+                if secure != wasSecure {
+                    wasSecure = secure
+                    Task { @MainActor [weak self] in self?.secureInput = secure }
+                }
 
                 let pause = self.isPaused || secure
                 if pause != wasPaused {
@@ -297,10 +324,10 @@ public final class DeviceMonitor: ObservableObject {
 
                 // A poll that expires is not an error, just a quiet moment.
                 _ = try device.call(.getEvent(timeoutMs: 300), timeout: 5.0)
-                try self.drain(device, engine: engine, clock: &clock)
+                try self.drain(device, engine: engine, clock: &clock, layouts: layouts)
                 // Nothing arrived, but time still passed: a chord held past the window
                 // commits on the timer, and seven in ten do.
-                self.publish(engine.advance(toMs: clock.estimatedNowMs), engine: engine)
+                self.publish(engine.advance(toMs: clock.estimatedNowMs), layouts: layouts)
             }
         } catch {
             // An unplug looks exactly like this.  Report it and let the outer loop retry.
@@ -316,17 +343,9 @@ public final class DeviceMonitor: ObservableObject {
         return hello.bootID
     }
 
-    private nonisolated var isPaused: Bool {
-        var value = false
-        DispatchQueue.main.sync { value = MainActor.assumeIsolated { self.pauseRequested } }
-        return value
-    }
+    private nonisolated var isPaused: Bool { pausedFlag.current }
 
-    private nonisolated var isRunning: Bool {
-        var value = false
-        DispatchQueue.main.sync { value = MainActor.assumeIsolated { self.running } }
-        return value
-    }
+    private nonisolated var isRunning: Bool { runningFlag.current }
 
     /// Fetch, decode, feed, and ack, until the device says there is no more.
     /// The device's millisecond timeline, and how to guess where it is now.
@@ -350,7 +369,7 @@ public final class DeviceMonitor: ObservableObject {
     }
 
     private nonisolated func drain(
-        _ device: MinderDevice, engine: ChordEngine, clock: inout Clock
+        _ device: MinderDevice, engine: ChordEngine, clock: inout Clock, layouts: Layouts
     ) throws {
         while true {
             // Re-checked each time round: a batch can span the moment a password field
@@ -366,9 +385,7 @@ public final class DeviceMonitor: ObservableObject {
             if batch.dropped > 0 {
                 self.log.noteGap(dropped: batch.dropped, beforeSeq: batch.seq)
             }
-            if let layouts = self.layoutsSync {
-                self.log.append(records, layouts: layouts)
-            }
+            self.log.append(records, layouts: layouts)
 
             var produced: [TaipoKit.Chord] = []
             for record in records {
@@ -399,7 +416,7 @@ public final class DeviceMonitor: ObservableObject {
                 produced += engine.advance(toMs: UInt32(truncatingIfNeeded: clock.deviceMs))
             }
 
-            self.publish(produced, engine: engine)
+            self.publish(produced, layouts: layouts)
             if batch.remaining == 0 { return }
         }
     }
@@ -418,25 +435,18 @@ public final class DeviceMonitor: ObservableObject {
     }
 
     /// Send finished chords to the display.
-    private nonisolated func publish(_ chords: [TaipoKit.Chord], engine: ChordEngine) {
+    private nonisolated func publish(_ chords: [TaipoKit.Chord], layouts: Layouts) {
         guard !chords.isEmpty else { return }
-        let layouts = self.layoutsSync
         Task { @MainActor [weak self] in
             guard let self else { return }
             let live = chords.map { chord -> LiveChord in
-                let entry = layouts?.chord(chord.code, variant: chord.variant)
+                let entry = layouts.chord(chord.code, variant: chord.variant)
                 return LiveChord(
                     chord: chord, types: entry?.action.types, dead: entry == nil,
                     sameHand: self.alternation.note(chord))
             }
             self.append(live)
         }
-    }
-
-    private nonisolated var layoutsSync: Layouts? {
-        var value: Layouts?
-        DispatchQueue.main.sync { value = MainActor.assumeIsolated { self.layouts } }
-        return value
     }
 
     private func append(_ new: [LiveChord]) {
