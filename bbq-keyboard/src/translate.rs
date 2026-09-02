@@ -14,13 +14,14 @@
 /// The firmware only ever asks for the one name in its board info block; this
 /// is here so that host tools can walk every board without hardcoding the
 /// list.
-pub const BOARDS: &[&str] = &["proto3", "proto4", "mesa1", "jolt1", "jolt2", "jolt3"];
+pub const BOARDS: &[&str] = &["proto3", "proto4", "mesa1", "mesa2", "jolt1", "jolt2", "jolt3"];
 
 pub fn get_translation(board: &str) -> fn(u8) -> u8 {
     match board {
         "proto3" => id,
         "proto4" => proto4,
         "mesa1" => mesa1,
+        "mesa2" => mesa2,
         "jolt1" => id,
         "jolt2" => jolt2,
         "jolt3" => jolt3,
@@ -132,6 +133,50 @@ fn mesa1(code: u8) -> u8 {
     *MESA1.get(code as usize).unwrap_or(&255)
 }
 
+/// The Mesa2 has 20 keys, exactly the Taipo set and nothing else: no mode key, no row toggle, no
+/// steno keys.  Every matrix position is a real key, which makes it the first board here with no
+/// holes in its table.
+///
+/// Five sensed lines (`COL_1`..`COL_5`) are shared by both hands, and each hand gets two driven
+/// lines (`ROW_A`/`ROW_B` left, `ROW_C`/`ROW_D` right).  The two hands number their columns in
+/// opposite order -- left `COL_1`..`COL_4` is pinky to index, right `COL_1`..`COL_4` is index to
+/// pinky -- so a given column carries the same key pair on both hands.  `COL_5` is the thumbs.
+///
+/// Beware of the naming, which is the mesa1's the other way round: on the mesa2 the diodes conduct
+/// from row to column, so the scanner drives the board's *rows* and senses its *columns* (see the
+/// `mesa2` module in `board.rs`).  Scan codes therefore run `ROW_x * 5 + COL_n`, four groups of
+/// five, and each group is one hand's row plus that hand's thumb.
+static MESA2: [u8; 20] = [
+    // ROW_A, the left hand's far row
+    4,  // L-r
+    8,  // L-s
+    12, // L-n
+    16, // L-i
+    19, // L-Sp
+    // ROW_B, the left hand's near row
+    5,  // L-a
+    9,  // L-o
+    13, // L-t
+    17, // L-e
+    23, // L-Bk
+    // ROW_C, the right hand's far row
+    40, // R-i
+    36, // R-n
+    32, // R-s
+    28, // R-r
+    47, // R-Bk
+    // ROW_D, the right hand's near row
+    41, // R-e
+    37, // R-t
+    33, // R-o
+    29, // R-a
+    43, // R-Sp
+];
+
+fn mesa2(code: u8) -> u8 {
+    *MESA2.get(code as usize).unwrap_or(&255)
+}
+
 /// The Jolt4 has a different scan order that puts the keys allnicely in order.
 static JOLT4: [u8; 21] = [
     // The main part is just a span of 3 instead of 4.
@@ -200,5 +245,38 @@ mod tests {
                 assert!(key < 48 || key == 255, "board {board}: {code} -> {key}");
             }
         }
+    }
+
+    /// The mesa2's 20 positions are exactly the 20 taipo keys, once each.
+    ///
+    /// This is the one thing about that table a transcription error would
+    /// break silently: a wrong code would still be a valid key, and the board
+    /// would simply type the wrong letter.  Asking `SCAN_MAP` makes the table
+    /// answer for itself instead.
+    #[test]
+    #[cfg(feature = "proto3")]
+    fn test_mesa2_is_the_taipo_keys() {
+        use crate::layout::taipo::SCAN_MAP;
+
+        let xlate = get_translation("mesa2");
+        let mut seen: Vec<u8> = (0..20u8).map(xlate).collect();
+
+        for key in &seen {
+            assert!(
+                SCAN_MAP[*key as usize].is_some(),
+                "mesa2 scan maps to {key}, which is not a taipo key",
+            );
+        }
+
+        // Every taipo key, once: no duplicates, and nothing left out.
+        seen.sort();
+        let mut want: Vec<u8> = (0..SCAN_MAP.len() as u8)
+            .filter(|k| SCAN_MAP[*k as usize].is_some())
+            .collect();
+        want.sort();
+        assert_eq!(seen, want);
+
+        // And nothing past the matrix.
+        assert_eq!(xlate(20), 255);
     }
 }
