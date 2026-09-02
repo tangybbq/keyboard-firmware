@@ -171,6 +171,33 @@ fn test_sessions_split_at_a_timeline_break() {
     }
 }
 
+/// A timeline break with nothing announcing it still splits.
+///
+/// The collector's day rollover produced exactly this: a batch formatted with yesterday's
+/// offsets, appended to today's file, with no header in between.  The offsets on either
+/// side count from different zeros whether or not anyone wrote that down.
+#[test]
+fn test_sessions_split_at_an_unmarked_step_backwards() {
+    let mut first = Log::new();
+    first.tap('L', "a", 20).wait(50).tap('R', "e+i", 30);
+    let mut second = Log::new();
+    second.tap('R', "t", 20).wait(40).tap('L', "o", 25);
+
+    let text = format!(
+        "{}{}",
+        log_to_text(&first.events),
+        log_to_text(&second.events)
+    );
+    let sessions = sessions_from_text(&text).expect("parses");
+    assert_eq!(sessions.len(), 2);
+    assert_eq!(sessions[0].events, first.events);
+    assert_eq!(sessions[1].events, second.events);
+
+    let derived = replay_sessions(true, &sessions);
+    assert_eq!(chord_list(&derived[0]).len(), 2);
+    assert_eq!(chord_list(&derived[1]).len(), 2);
+}
+
 /// The `# started` header is kept, and a header with nothing after it is not a session.
 #[test]
 fn test_session_headers_and_empty_sessions() {

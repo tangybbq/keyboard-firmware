@@ -249,6 +249,11 @@ fn started_from_line(line: &str) -> Option<u64> {
 ///
 /// Sessions with no events are dropped: a header written just before the collector lost
 /// the device says nothing about any typing.
+///
+/// A timeline also breaks wherever the times step backwards, header or no header.  That
+/// is not merely tolerance for a malformed file: the offsets on either side of such a
+/// step count from different zeros, so replaying across it would report intervals,
+/// alternation pairs and corrections that never happened.
 pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
     let mut out: Vec<LogSession> = Vec::new();
     let mut current = LogSession {
@@ -269,7 +274,24 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
             continue;
         }
         match KeyLogEvent::from_line(line) {
-            Ok(Some(event)) => current.events.push(event),
+            Ok(Some(event)) => {
+                // A step backwards is a restart the collector did not announce -- the
+                // day-rollover case, where the file changed under a batch that had
+                // already been given the old file's offsets.  The break is real
+                // whether or not anything wrote a header for it, and splitting here
+                // is what keeps the replay's monotonic assert meaning "corrupt within
+                // a session" rather than "this log spans two of them".
+                if current.events.last().is_some_and(|last| event.time_ms < last.time_ms) {
+                    out.push(core::mem::replace(
+                        &mut current,
+                        LogSession {
+                            started_unix: None,
+                            events: Vec::new(),
+                        },
+                    ));
+                }
+                current.events.push(event)
+            }
             Ok(None) => (),
             Err(e) => return Err(format!("line {}: {}", num + 1, e)),
         }
