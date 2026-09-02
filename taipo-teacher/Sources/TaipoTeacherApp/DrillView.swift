@@ -8,6 +8,14 @@ struct DrillView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let drill = monitor.drill {
+                // What this line is for.  A drill built from the writer's own mistakes is
+                // worth naming: `"o" / "s" — ring, wrong-row` says why these words, and
+                // without it the material looks arbitrary.
+                if let title = monitor.drillTitle {
+                    Text(title)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
                 target(drill)
                 Divider()
                 scoreboard(drill.stats)

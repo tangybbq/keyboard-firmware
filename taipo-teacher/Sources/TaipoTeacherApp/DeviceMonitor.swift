@@ -37,6 +37,11 @@ public final class DeviceMonitor: ObservableObject {
     /// a corpus, and neither exists yet; these are chosen to put the n-gram chords in front
     /// of the fingers, since phase 3 found six grams spelled out in the first 76 chords of
     /// real typing.
+    /// Something to type before the logs have anything to say.
+    ///
+    /// Only used until there are corrections to build a drill from -- a keyboard on its
+    /// first day has nothing the writer is known to get wrong, and an empty practice
+    /// screen would be worse than an arbitrary one.
     private static let corpus = [
         "the other thing is that",
         "information for the nation",
@@ -46,6 +51,19 @@ public final class DeviceMonitor: ObservableObject {
         "we should consider the question",
     ]
     private var corpusIndex = 0
+
+    /// The practice programme, built from what the writer keeps correcting.
+    ///
+    /// Rebuilt when the practice screen opens rather than kept up to date continuously:
+    /// the logs only grow, so the model can only be stale by one sitting, and re-reading
+    /// three days of them takes well under a second.  There is nothing stored between
+    /// runs, which is the point -- the logs are the model.
+    @Published public private(set) var programme: [Drill] = []
+    /// Which line of which drill is up.
+    private var drillIndex = 0
+    private var lineIndex = 0
+    /// The heading for the line being typed, for the practice screen to show.
+    @Published public private(set) var drillTitle: String?
     /// The alternation rule, applied to everything that arrives.  The same class the drill
     /// uses, so the strip and the score cannot disagree about what a fault is.
     private let alternation = AlternationTracker()
@@ -195,22 +213,55 @@ public final class DeviceMonitor: ObservableObject {
     private var practicing = false
 
     /// The practice screen has appeared: start a fresh line and begin scoring.
+    ///
+    /// The programme is rebuilt off the main thread first, since replaying the logs and
+    /// segmenting the word list takes a couple of seconds and the window is already up.
+    /// Until it arrives the fallback corpus is what gets typed.
     public func beginPractice() {
         practicing = true
         nextDrill()
+        guard let layouts else { return }
+        let directory = logDirectory
+        Task.detached(priority: .userInitiated) {
+            let model = ConfusionModel.build(logDirectory: directory, layouts: layouts)
+            let programme = DrillMaker(layouts: layouts).programme(model)
+            await MainActor.run { [weak self] in
+                guard let self, self.practicing, !programme.isEmpty else { return }
+                self.programme = programme
+                self.drillIndex = 0
+                self.lineIndex = 0
+                self.nextDrill()
+            }
+        }
     }
 
     /// The practice screen has gone away.  Collecting carries on; scoring does not.
     public func endPractice() {
         practicing = false
         drill = nil
+        drillTitle = nil
     }
 
     /// Start the next practice line.
+    ///
+    /// Walks the programme a line at a time and then moves on to the next confusion, so a
+    /// pair is warmed up and then practised in words before the next one starts.
     public func nextDrill() {
         guard let layouts else { return }
-        let text = Self.corpus[corpusIndex % Self.corpus.count]
-        corpusIndex += 1
+        let text: String
+        if programme.isEmpty {
+            text = Self.corpus[corpusIndex % Self.corpus.count]
+            corpusIndex += 1
+            drillTitle = nil
+        } else {
+            if lineIndex >= programme[drillIndex].lines.count {
+                drillIndex = (drillIndex + 1) % programme.count
+                lineIndex = 0
+            }
+            text = programme[drillIndex].lines[lineIndex]
+            drillTitle = programme[drillIndex].title
+            lineIndex += 1
+        }
         drill = DrillSession(target: DrillTarget(text: text, layouts: layouts), layouts: layouts)
     }
 
