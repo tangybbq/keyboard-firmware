@@ -3,10 +3,41 @@
 //! Kept apart from the arithmetic so that phase 4's app can take the numbers without
 //! taking the prose.
 
-use bbq_keyboard::layout::taipo::CHORD_TIME;
+use bbq_keyboard::layout::export::char_for_key;
+use bbq_keyboard::layout::posh::POSH_ACTIONS;
+use bbq_keyboard::layout::taipo::{Action, CHORD_TIME, TAIPO_ACTIONS};
 
-use crate::stats::{Analysis, At, CorrectionKind, Item};
+use crate::stats::{Analysis, At, CorrectionKind, Item, VariantKey};
 use crate::Options;
+
+/// What a chord types, in the table it was looked up in: `"w"`, `"the"`, `Bksp`.
+///
+/// The fingers are what a drill has to reproduce, so they stay the primary name, but a
+/// list of finger patterns is close to unreadable and the letters are what the writer
+/// recognises.  Both, then.  `None` for a chord with no entry, which is a dead chord and
+/// is the one case where there is nothing to say.
+fn chord_types(variant: VariantKey, code: u16) -> Option<String> {
+    let table = match variant {
+        VariantKey::Taipo => TAIPO_ACTIONS,
+        VariantKey::Posh => POSH_ACTIONS,
+    };
+    let action = &table.iter().find(|e| e.code == code)?.action;
+    Some(match action {
+        Action::Simple(k) => match char_for_key(*k, false) {
+            Some(' ') => "space".to_string(),
+            Some(c) => format!("\"{c}\""),
+            None => format!("{k:?}"),
+        },
+        Action::Shifted(k) => match char_for_key(*k, true) {
+            Some(c) => format!("\"{c}\""),
+            None => format!("shift-{k:?}"),
+        },
+        Action::Text(t) => format!("\"{t}\""),
+        Action::OneShot(m) => format!("{m:?}"),
+        Action::Release => "release".to_string(),
+        Action::Variant(v) => format!("select {v:?}"),
+    })
+}
 
 /// The chord code as the keys it uses, e.g. `[r+s]`.
 ///
@@ -19,6 +50,23 @@ fn chord_keys(code: u16) -> String {
         .map(|b| BITS[b])
         .collect();
     format!("[{}]", names.join("+"))
+}
+
+/// An item named by its fingers and, where there is one, by what it types.
+fn item_label(item: &Item) -> String {
+    match item {
+        Item::Chord { variant, code } => match chord_types(*variant, *code) {
+            Some(t) => format!("{} {t}", chord_keys(*code)),
+            None => format!("{} (dead)", chord_keys(*code)),
+        },
+        Item::Transition { variant, from, to } => {
+            let name = |c: u16| match chord_types(*variant, c) {
+                Some(t) => format!("{} {t}", chord_keys(c)),
+                None => format!("{} (dead)", chord_keys(c)),
+            };
+            format!("{} -> {}", name(*from), name(*to))
+        }
+    }
 }
 
 fn item_name(item: &Item) -> String {
@@ -356,6 +404,60 @@ pub fn print(a: &Analysis, opts: &Options) {
         for (median, count, item) in rows.into_iter().take(opts.top) {
             println!("    {:>5}ms  {:>3}x  {}", median, count, item_name(item));
         }
+    }
+
+    // Last, because it is the answer the rest of the sections are the working for.
+    println!("\n== Where the time goes ==");
+    let baseline = a.baseline_ms();
+    println!(
+        "  Ranked by time lost: milliseconds spent above this writer's own {baseline}ms\n  \
+         average gap, plus measured time spent correcting.  A sum rather than a rate,\n  \
+         so an item fumbled twice out of two ranks below one fumbled ten times out of\n  \
+         fifty -- which is the whole reason for weighting by how often it comes up.\n  \
+         Chords and transitions are separate lists: a slow interval belongs to both, and\n  \
+         one list over the two would count every millisecond twice.  Only chords that\n  \
+         type a character: a one-shot Cmd, a Return or an arrow key is working the\n  \
+         machine rather than typing, and deciding what to do takes long enough that\n  \
+         those take the whole top of the list if they are left in.\n  \
+         A transition is measured against the other transitions out of the same chord,\n  \
+         since starting a word is slower than continuing one and every transition out\n  \
+         of space would otherwise inherit that."
+    );
+    for (label, transitions) in [("chords", false), ("transitions", true)] {
+        let rows = a.ranked(transitions);
+        println!("\n  -- {label} --");
+        if rows.is_empty() {
+            println!("    nothing has cost anything yet");
+            continue;
+        }
+        println!(
+            "    {:>8}  {:>7}  {:>6}  {:>6}  {:>5}  {}",
+            "lost", "of which", "seen", "median", "corr", "item"
+        );
+        println!(
+            "    {:>8}  {:>7}  {:>6}  {:>6}  {:>5}",
+            "total", "fixing", "", "", ""
+        );
+        for r in rows.iter().take(opts.top) {
+            println!(
+                "    {:>7.1}s  {:>6.1}s  {:>6}  {:>4}ms  {:>5}  {}",
+                r.cost_ms as f64 / 1000.0,
+                r.correction_ms as f64 / 1000.0,
+                r.exposure,
+                r.median_ms,
+                r.corrections,
+                item_label(&r.item),
+            );
+        }
+        let total: u64 = rows.iter().map(|r| r.cost_ms).sum();
+        let shown: u64 = rows.iter().take(opts.top).map(|r| r.cost_ms).sum();
+        println!(
+            "    {:.0}s over {} {label} in all; the {} above are {:.0}% of it",
+            total as f64 / 1000.0,
+            rows.len(),
+            opts.top.min(rows.len()),
+            shown as f64 / total.max(1) as f64 * 100.0,
+        );
     }
 
     if typed < 500 {

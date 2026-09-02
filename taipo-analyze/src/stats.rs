@@ -62,6 +62,8 @@ pub struct ItemStats {
     pub intervals: Vec<Sample>,
     /// How many times a correction followed within a few chords.
     pub corrections: usize,
+    /// What those corrections cost in total, measured rather than priced.
+    pub correction_ms: u64,
     /// How many times this was a same-hand pair inside the alternation window.
     pub same_hand: usize,
 }
@@ -121,6 +123,14 @@ pub struct Correction {
     pub deleted: Option<u16>,
     pub replacement: Option<u16>,
     pub kind: CorrectionKind,
+    /// What it cost, from the mistyped chord being committed to its replacement being
+    /// committed: noticing, the backspaces, and the retype.
+    ///
+    /// Measured rather than priced at some number of chords, since the noticing is most
+    /// of it and no constant would have that in it.  `None` when there is nothing to
+    /// measure between -- nothing was retyped, or the log does not reach back to what was
+    /// deleted.
+    pub cost_ms: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -129,6 +139,32 @@ pub struct Hesitation {
     pub item: Item,
     pub interval_ms: u32,
     pub typical_ms: u32,
+}
+
+/// One item, with what it cost the writer.
+///
+/// The currency is milliseconds, which is what makes the two halves comparable: time spent
+/// above this writer's own pace, plus time spent undoing what went wrong.  Both are
+/// measured from the log; neither is a weight anyone chose.
+#[derive(Debug, Clone, Copy)]
+pub struct Ranked {
+    pub item: Item,
+    /// How many times it occurred at all.
+    pub exposure: usize,
+    /// How many of those had an interval that was typing rather than a pause.
+    pub samples: usize,
+    /// Its own typical interval.
+    pub median_ms: u32,
+    /// Total time above the writer's baseline pace.
+    pub slow_ms: u64,
+    pub corrections: usize,
+    /// Total measured time spent correcting it.
+    pub correction_ms: u64,
+    /// Same-hand pairs, reported rather than charged: alternation is a metric while
+    /// monitoring and an error only while drilling.
+    pub same_hand: usize,
+    /// `slow_ms + correction_ms`, which is what the list is ordered by.
+    pub cost_ms: u64,
 }
 
 /// A same-hand pair that was close enough together to be avoidable.
@@ -165,6 +201,9 @@ pub struct Analysis {
     /// them.  Reported, because a corpus that is mostly this is a corpus about something
     /// other than typing.
     pub idle_pairs: usize,
+    /// The ceiling that was used, so the methods here can tell a typing gap from a pause
+    /// without being handed the options again.
+    pub idle_ms: u32,
     /// Every recorded gap, for the distribution.  What decides `alternation_window_ms` and
     /// `idle_ms` is the shape of this, and the shape is worth showing rather than
     /// summarising into the two constants it justifies.
@@ -177,6 +216,33 @@ pub struct Analysis {
     pub variant_chords: HashMap<VariantKey, usize>,
     pub variant_switches: usize,
     pub spelled: Vec<SpelledGram>,
+}
+
+/// Whether a chord types a printable character, in the table it was looked up in.
+///
+/// What separates typing from working the machine.  A one-shot Cmd, a Return, an arrow
+/// key: nobody drills those, and the pause in front of one is a decision about which
+/// command to run rather than anything about the chord.  Left in the ranking they take
+/// the top of it, because deciding what to do takes far longer than typing does.
+///
+/// Space counts.  It is a character, it is a third of the transitions, and pausing at a
+/// word boundary is a fact about this writer's typing worth seeing.
+pub fn types_a_character(variant: VariantKey, code: u16) -> bool {
+    let table = match variant {
+        VariantKey::Taipo => bbq_keyboard::layout::taipo::TAIPO_ACTIONS,
+        VariantKey::Posh => bbq_keyboard::layout::posh::POSH_ACTIONS,
+    };
+    let Some(entry) = table.iter().find(|e| e.code == code) else {
+        return false;
+    };
+    use bbq_keyboard::layout::export::char_for_key;
+    use bbq_keyboard::layout::taipo::Action;
+    match &entry.action {
+        Action::Simple(k) => char_for_key(*k, false).is_some(),
+        Action::Shifted(k) => char_for_key(*k, true).is_some(),
+        Action::Text(_) => true,
+        Action::OneShot(_) | Action::Release | Action::Variant(_) => false,
+    }
 }
 
 /// Whether a chord's action is a backspace, which is what a correction looks like.
@@ -227,6 +293,7 @@ impl Analysis {
     pub fn build(sessions: &[&[&Chord]], opts: &Options) -> Analysis {
         let mut a = Analysis::default();
         a.sessions = sessions.len();
+        a.idle_ms = opts.idle_ms;
         for (num, chords) in sessions.iter().enumerate() {
             a.add_session(num, chords, opts);
         }
@@ -303,7 +370,7 @@ impl Analysis {
         }
 
         a.walk_pairs(session, &taipo, opts);
-        a.find_corrections(&taipo);
+        a.find_corrections(&taipo, opts);
         a.spelled.extend(find_spelled_grams(&taipo));
     }
 
@@ -380,30 +447,42 @@ impl Analysis {
     }
 
     /// A backspace, what it deleted, and what replaced it.
-    fn find_corrections(&mut self, taipo: &[&Chord]) {
+    fn find_corrections(&mut self, taipo: &[&Chord], opts: &Options) {
         for (i, chord) in taipo.iter().enumerate() {
             if !is_backspace(chord) {
                 continue;
             }
             // What it deleted: the nearest preceding chord that typed something.
-            let deleted = taipo[..i].iter().rev().find(|c| is_text(c)).map(|c| c.code);
+            let deleted_at = taipo[..i].iter().rposition(|c| is_text(c));
+            let deleted = deleted_at.map(|j| taipo[j].code);
             // What replaced it: the next chord that types, as long as it is not another
             // backspace.  A run of backspaces is one correction, not several.
-            let replacement = taipo[i + 1..]
+            let replaced_at = taipo[i + 1..]
                 .iter()
-                .find(|c| is_text(c) || is_backspace(c))
-                .filter(|c| !is_backspace(c))
-                .map(|c| c.code);
+                .position(|c| is_text(c) || is_backspace(c))
+                .map(|j| j + i + 1)
+                .filter(|&j| !is_backspace(taipo[j]));
+            let replacement = replaced_at.map(|j| taipo[j].code);
 
             // Only the first backspace of a run opens a correction.
             if i > 0 && is_backspace(taipo[i - 1]) {
                 continue;
             }
 
+            // The whole span, noticing included.  Capped at the idle ceiling: a
+            // correction that took longer than that had the writer doing something else
+            // in the middle of it, and charging the item for that is the same mistake the
+            // ceiling exists to stop.
+            let cost_ms = deleted_at
+                .zip(replaced_at)
+                .map(|(d, r)| taipo[r].time_ms.saturating_sub(taipo[d].time_ms))
+                .filter(|&ms| ms <= opts.idle_ms);
+
             self.corrections.push(Correction {
                 deleted,
                 replacement,
                 kind: classify(deleted, replacement),
+                cost_ms,
             });
 
             if let Some(code) = deleted {
@@ -411,7 +490,9 @@ impl Analysis {
                     variant: VariantKey::of(chord.variant),
                     code,
                 };
-                self.items.entry(item).or_default().corrections += 1;
+                let entry = self.items.entry(item).or_default();
+                entry.corrections += 1;
+                entry.correction_ms += cost_ms.unwrap_or(0) as u64;
             }
         }
     }
@@ -478,6 +559,117 @@ impl Analysis {
             return 0.0;
         }
         self.same_hand.len() as f64 / self.eligible_pairs as f64
+    }
+
+    /// The writer's own pace: the *mean* gap between two chords that were typing.
+    ///
+    /// Everything in the ranking is measured against this rather than against an absolute
+    /// number of milliseconds, so the ranking says "slow for you" and keeps saying it as
+    /// the writer gets faster.
+    ///
+    /// The mean and not the median, which is the difference between a ranking that works
+    /// and one that only re-sorts the frequency table.  Gaps are strongly right skewed --
+    /// median 275ms against a mean nearer 400 -- so against the median every item
+    /// accumulates excess from its own tail, at a rate set by how often it occurs, and the
+    /// list comes out as `Bk`, `Sp`, `s`, `t`: the commonest chords, in order.  Against
+    /// the mean a typical item scores about zero however often it is typed, and what is
+    /// left is the items that really are slower than the rest.  The idle ceiling is what
+    /// makes a mean usable at all here; without it one afternoon away from the keyboard
+    /// would set it.
+    pub fn baseline_ms(&self) -> u32 {
+        let typing: Vec<u32> = self
+            .gaps
+            .iter()
+            .copied()
+            .filter(|&g| g < self.idle_ms)
+            .collect();
+        if typing.is_empty() {
+            return 0;
+        }
+        (typing.iter().map(|&g| g as u64).sum::<u64>() / typing.len() as u64) as u32
+    }
+
+    /// The trouble spots, most expensive first.
+    ///
+    /// The point of ranking, and the reason it is a sum rather than a rate: something
+    /// fumbled twice out of two occurrences matters less than something fumbled ten times
+    /// out of fifty, and only a total weighted by how often the item actually comes up in
+    /// this writer's own text can say so.  A rate on its own promotes whatever is rarest.
+    ///
+    /// Chords and transitions are ranked separately because they are not additive: a slow
+    /// interval belongs to a chord *and* to the transition that led into it, and one list
+    /// over both would count every millisecond twice.
+    pub fn ranked(&self, transitions: bool) -> Vec<Ranked> {
+        // What a transition is slow *against* is the other transitions out of the same
+        // chord, not the corpus average.  Starting a word takes longer than continuing
+        // one, and every transition out of space inherits that; measured against the
+        // corpus the transition list came out as `space -> s`, `space -> c`, `space ->
+        // d`, which is one fact about word boundaries repeated twenty times.  Against
+        // the average gap out of space, what is left is the chords that are slow *after
+        // a space in particular* -- which is the sequence effect the whole item type
+        // exists for.
+        let mut out_of: HashMap<(VariantKey, u16), (u64, usize)> = HashMap::new();
+        for (item, stats) in &self.items {
+            if let Item::Transition { variant, from, .. } = item {
+                let entry = out_of.entry((*variant, *from)).or_default();
+                entry.0 += stats.intervals.iter().map(|s| s.gap_ms as u64).sum::<u64>();
+                entry.1 += stats.intervals.len();
+            }
+        }
+
+        let corpus = self.baseline_ms();
+        let mut rows: Vec<Ranked> = self
+            .items
+            .iter()
+            .filter(|(item, _)| matches!(item, Item::Transition { .. }) == transitions)
+            .filter(|(item, _)| match item {
+                Item::Chord { variant, code } => types_a_character(*variant, *code),
+                // Both ends: a transition into a letter from Return is the writer having
+                // read something, and out of one to Cmd is the writer having decided to
+                // do something else.
+                Item::Transition { variant, from, to } => {
+                    types_a_character(*variant, *from) && types_a_character(*variant, *to)
+                }
+            })
+            .map(|(item, stats)| {
+                // Transitions against their own starting chord, chords against the
+                // corpus.  A chord has no narrower neighbourhood to be judged in.
+                let baseline = match item {
+                    Item::Transition { variant, from, .. } => out_of
+                        .get(&(*variant, *from))
+                        .filter(|(_, n)| *n > 0)
+                        .map(|(sum, n)| (sum / *n as u64) as u32)
+                        .unwrap_or(corpus),
+                    Item::Chord { .. } => corpus,
+                };
+                // Time above the writer's own pace, over every occurrence that was
+                // typing.  Signed per sample and only the total clamped: an item that is
+                // quicker than average on most of its occurrences has genuinely earned
+                // that time back, and truncating each sample at zero would charge it for
+                // its tail while crediting it with nothing.  That asymmetry is what made
+                // the first version of this list rank by frequency.
+                let total: i64 = stats
+                    .intervals
+                    .iter()
+                    .map(|s| s.gap_ms as i64 - baseline as i64)
+                    .sum();
+                let slow_ms = total.max(0) as u64;
+                Ranked {
+                    item: *item,
+                    exposure: stats.count,
+                    samples: stats.intervals.len(),
+                    median_ms: stats.median().unwrap_or(0),
+                    slow_ms,
+                    corrections: stats.corrections,
+                    correction_ms: stats.correction_ms,
+                    same_hand: stats.same_hand,
+                    cost_ms: slow_ms + stats.correction_ms,
+                }
+            })
+            .filter(|r| r.cost_ms > 0)
+            .collect();
+        rows.sort_by_key(|r| std::cmp::Reverse(r.cost_ms));
+        rows
     }
 
     /// Percentile of the inter-chord gap distribution, in milliseconds.

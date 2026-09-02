@@ -7,7 +7,7 @@
 use bbq_keyboard::layout::taipo::TaipoVariant;
 use bbq_keyboard::replay::log_to_text;
 use bbq_keyboard::synth::{synth, ErrorKind, Style};
-use taipo_analyze::stats::{Analysis, CorrectionKind};
+use taipo_analyze::stats::{Analysis, CorrectionKind, Item};
 use taipo_analyze::Options;
 
 /// A writer who does everything right: alternating hands, chording every gram, no errors.
@@ -211,4 +211,130 @@ fn test_chord_endings() {
     let b = analyze("the quick brown fox", &slow);
     assert!(b.ended_timer > 0);
     assert_eq!(b.ended_other_hand, 0, "nothing should overlap at this pace");
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Ranking
+//////////////////////////////////////////////////////////////////////////////
+
+/// Typing at a mix of paces, none of which is any item's fault, ranks nothing.
+///
+/// This is the regression test for what the first version of the ranking did, and the
+/// pace has to vary for it to be one.  Real gaps are strongly right skewed, and summing
+/// `max(0, gap - median)` charges every item for its own right tail while crediting it
+/// with nothing for being quick, so the total grew with exposure alone: the list came out
+/// as the frequency table in order, space first, then the commonest letters.  Against the
+/// mean, and clamping only the total, a writer whose speed varies for reasons that have
+/// nothing to do with any particular chord has nothing to show.
+///
+/// Uniform synthetic gaps cannot catch this -- with no tail there is nothing for the
+/// truncation to keep -- so the log here is four sittings of the same text, three brisk
+/// and one slow.
+#[test]
+fn test_a_mix_of_paces_ranks_nothing() {
+    let target = "the quick brown fox jumps over the lazy dog and the dog does not mind";
+    let brisk = log_to_text(&synth(target, &clean()).expect("synth").events);
+    let slow = log_to_text(
+        &synth(
+            target,
+            &Style {
+                gap_ms: 600,
+                ..clean()
+            },
+        )
+        .expect("synth")
+        .events,
+    );
+    // Each sitting is its own session, which is what a day's log is.
+    let text = [&brisk, &brisk, &brisk, &slow]
+        .iter()
+        .map(|s| format!("# session device=mesa1 boot_id=0x1 layout=0x2\n{s}"))
+        .collect::<String>();
+    let a = taipo_analyze::analyze(&text, true, &Options::default()).expect("analyze");
+    let rows = a.ranked(false);
+    let total: u64 = rows.iter().map(|r| r.cost_ms).sum();
+    assert!(
+        total < a.span_ms as u64 / 20,
+        "a change of pace is nobody's trouble spot; got {total}ms over {}ms",
+        a.span_ms
+    );
+
+    // And in particular the ranking is not the frequency table.  The commonest chord is
+    // typed many times more than the rarest and must not be at the top for it.
+    let commonest = a
+        .items
+        .iter()
+        .filter(|(i, _)| matches!(i, Item::Chord { .. }))
+        .max_by_key(|(_, s)| s.count)
+        .map(|(i, _)| *i)
+        .expect("something was typed");
+    assert!(
+        rows.first().map(|r| r.item) != Some(commonest) || rows.len() <= 1,
+        "the ranking has come out as the frequency table again"
+    );
+}
+
+/// One item really being slow is what the ranking is supposed to find.
+///
+/// Two writers of the same text, differing only in pace: the slow one's every item is
+/// above the fast one's baseline, but the baseline is its own, so it still ranks nothing.
+/// What must rank is an item that is slow *relative to the writer it belongs to*, which is
+/// what the corrections give us here -- they are the one thing in the generator that costs
+/// a specific chord a specific amount of extra time.
+#[test]
+fn test_corrections_carry_their_measured_cost() {
+    let style = Style {
+        error_every: 4,
+        ..clean()
+    };
+    let a = analyze("the quick brown fox jumps over the lazy dog", &style);
+    let rows = a.ranked(false);
+    assert!(!rows.is_empty(), "corrections should cost something");
+
+    // Every correction that had a replacement is priced, and the prices add up to what the
+    // items were charged.
+    let priced: u64 = a
+        .corrections
+        .iter()
+        .filter_map(|c| c.cost_ms.filter(|_| c.deleted.is_some()))
+        .map(|ms| ms as u64)
+        .sum();
+    let charged: u64 = a
+        .items
+        .values()
+        .map(|s| s.correction_ms)
+        .sum();
+    assert_eq!(priced, charged, "every correction is charged to what it deleted");
+    assert!(priced > 0, "the generator was asked for errors");
+
+    // A correction costs more than nothing and less than the ceiling, which is the only
+    // claim the measurement makes.
+    for c in &a.corrections {
+        if let Some(ms) = c.cost_ms {
+            assert!(ms > 0 && ms <= Options::default().idle_ms, "cost {ms}ms");
+        }
+    }
+}
+
+/// Working the machine is not typing, and stays out of the ranking.
+#[test]
+fn test_the_ranking_is_only_of_chords_that_type() {
+    use bbq_keyboard::layout::taipo::{Action, TAIPO_ACTIONS};
+    use taipo_analyze::stats::{types_a_character, VariantKey};
+
+    for entry in TAIPO_ACTIONS {
+        let types = types_a_character(VariantKey::Taipo, entry.code);
+        match &entry.action {
+            Action::OneShot(_) | Action::Release | Action::Variant(_) => {
+                assert!(!types, "0x{:03x} is not typing", entry.code)
+            }
+            Action::Text(_) => assert!(types, "0x{:03x} types text", entry.code),
+            // Return, the arrows and the function keys have no character; the letters,
+            // the digits, the punctuation and space all do.
+            Action::Simple(_) | Action::Shifted(_) => (),
+        }
+    }
+    assert!(types_a_character(VariantKey::Taipo, 0x100), "space types");
+    // A code with no entry at all is a dead chord, which types nothing by definition.
+    assert!(!types_a_character(VariantKey::Taipo, 0x1ff));
 }
