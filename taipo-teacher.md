@@ -567,7 +567,7 @@ other hand started).
       state — a cost to switching would be worth knowing about, and no other instrument can see
       it.  If one layout is being used far more than the other, say so plainly rather than
       presenting two equally thin sets of statistics.
-- [ ] **Ranking.**  Weight by how often the item actually occurs in this writer's own text.
+- [X] **Ranking.**  Weight by how often the item actually occurs in this writer's own text.
       Something missed twice out of two matters less than something missed ten times out of
       fifty.
 
@@ -594,6 +594,85 @@ struct rather than the clap type.
   session relative (`s2 +128456ms`), since that is the only timeline they have; the
   `# started` header is host wall clock at connect, not an anchor the offsets count from.
 - Still in memory rather than a store; see below.
+
+### What the first real corpus said
+
+Three days, 45,351 chords, 22.7 hours of active typing across 15 sessions, all on the
+mesa1.  Reading it needed two collector bugs fixed first — see "Two bugs the corpus
+found" below — and then it answered three of the open questions and moved a fourth.
+
+**`CHORD_TIME = 100` is roughly three times longer than the typing it serves.**  The
+phase 2 sample of 76 chords is confirmed at six hundred times the size: **80.9% of chords
+commit on the timer, 16.9% on all keys releasing, and 2.2% on the other hand starting.**
+The chords themselves are struck, not assembled — spread is **median 0ms, p90 11ms, p99
+31ms, max 98ms** — so a 100ms window is being spent waiting for keys that landed in the
+first 30.  Four out of five keystrokes carry the full 100ms, plus the 20ms debounce, and
+the cross-hand shortcut added to avoid exactly this fires on one chord in fifty.  A window
+somewhere around 40ms would cover the 99th percentile of spread.  Retuning it is a
+functional change and wants its own commit and a hardware session; the number is no longer
+the missing part.
+
+**The gap histogram is not bimodal, so `ALTERNATION_WINDOW` cannot be read off a valley.**
+The plan predicted two humps, within a word and between them, with the window in the
+trough.  What the corpus shows is a single hump peaking at 200-400ms and decaying smoothly
+for four orders of magnitude: median 275ms, p90 869ms, p95 1395ms, p99 9287ms.  There is
+no trough.  What that leaves is a judgement about how long a burst lasts, and two facts to
+make it with: 2000ms is 7.3x this writer's median gap, and moving it excludes or admits
+very little — only 3.0% of pairs are beyond it at all.  The window is not a sensitive
+parameter, and the plan's own alternative — a multiple of the writer's median, so it
+tracks improvement — is the better form for a constant this insensitive.  The report now
+draws the histogram, so the question can be re-asked rather than re-argued.
+
+**The thirteen assigned n-gram chords are essentially not being used.**  3,318 runs of
+letters spelled out that had a chord, costing 4,219 extra chords: `"er"` 332 times, `"the"`
+326, `"at"` 299, `"in"` 260, `"ing"` 232.  This is the measurement `docs/taipo-drills.md`
+said nothing outside the keyboard could make, and it is the clearest single answer in the
+corpus: the chords were chosen well (the n-gram analysis says they are worth about a third
+of all typing) and then never entered the fingers.  It is the obvious first thing for
+phase 4b to drill.
+
+**Corrections run 6.3 per 100 chords**, of which 1,114 are one key off — a misfingering,
+the technique category — against 548 where a different chord entirely was recalled.  The
+taxonomy the plan guessed at holds up; `NoReplacement` at 1,095 is larger than expected and
+is mostly deleting and moving on rather than fixing anything.  **Dead chords are rare**: 39
+in three days, so the tables have no hole anyone is falling into.
+
+**Same-hand pairs are 14.9% of eligible pairs, and the top offender by a factor of ten is
+`Bk` after `Bk`** — 1,861 of them, a repeated backspace on one hand.  That is not a
+sequence anyone chose; it is what deleting several characters looks like.  Whether it
+should count at all is a question for the drill scoring, which is where alternation becomes
+an error.
+
+Where the time goes, once the ranking is applied: `"."`, `"c"`, `"g"`, `"s"`, `"o"`, space.
+The transitions are more interesting than the chords, because they are less obvious —
+`space -> "1"` at a 1366ms median, `space -> "q"` at 1104ms, `"I" -> "'"` at 558ms, `"u" ->
+"g"` at 709ms.
+
+### Two bugs the corpus found
+
+Neither was visible in use, and both were in the join between the two halves rather than in
+either of them.  The plan's own habit — "found by writing its first real user" — held.
+
+- **The app's day rollover stranded a batch.**  `LogWriter.append` rendered its records and
+  then handed the text to `write`, which is where the day's file is chosen and the offset
+  reset.  A batch arriving after midnight was stamped with the closing day's offsets and
+  filed under the opening one, so both rolled-over files begin with a stray record from the
+  day before, step backwards, and have no session header covering either.  The fix chooses
+  the file first, and repeats the session header into the new file so a reader still knows
+  which keyboard and which tables produced what follows.
+- **The reader would only split a timeline where it was told to.**  `sessions_from_text`
+  split at the three comment lines the collector writes, so the unannounced break above
+  reached the replay's monotonic assert and panicked — a correct complaint from the wrong
+  layer.  A step backwards is a restart whether or not anyone wrote it down, so it splits
+  there too.
+
+And one design fault in the analysis itself, which only a real corpus could have shown:
+**hesitation was measuring idleness.**  The worst "hesitation" in the corpus was 64 minutes
+long, against a transition whose typical interval was 24 seconds — a baseline made entirely
+of other pauses just like it, every one of them after Return.  `Options::idle_ms`, five
+seconds, is where a gap stops being typing: such a pair counts as an occurrence but records
+no interval, so it can neither raise a transition's typical time nor be reported against
+one.  It sits above the 98th percentile of gaps, so it costs almost nothing.
 
 ### Model store
 
@@ -782,21 +861,30 @@ letters — there is no redaction that keeps the data useful.
 
 ## Open questions
 
-- **Where does `ALTERNATION_WINDOW` actually belong?**  Settled in principle — a same-hand pair
-  only counts inside a burst, a metric when monitoring and an error when drilling — but 2 s is
-  a guess.  The inter-chord gap histogram from the first real corpus should show a valley
-  between "within a word" and "between words"; put the window there.  Worth checking whether it
-  wants to be a fixed number at all, rather than a multiple of the writer's own median gap,
-  which would make it track improvement instead of needing to be retuned.
+- **Where does `ALTERNATION_WINDOW` actually belong?**  Partly answered, and the expected
+  answer was wrong: there is no valley.  The first corpus's gap histogram is a single hump
+  (median 275ms, p90 869ms) decaying smoothly, so the window is a judgement about how long a
+  burst lasts rather than something to be read off the distribution.  It is also barely
+  sensitive — 3.0% of pairs are beyond 2 s at all.  What is left of the question is the
+  second half of it: make it a multiple of the writer's own median gap, around 7x, so it
+  tracks improvement instead of needing to be retuned.
 - **How much buffer?**  Falls out of how long the host is realistically detached.  16 bytes a
   character means a 64K ring is about 20 minutes of solid typing; if the app is running all
-  the time, far less would do.
-- **Is `CHORD_TIME = 100` right?**  It has been a "starting guess, not a measured value" since
-  it was set.  The split-chord rate from phase 3 is the measurement that was missing.
+  the time, far less would do.  The 32 KiB in use held three days without producing a single
+  `# gap`, so nothing is pressing.
+- **Is `CHORD_TIME = 100` right?**  No, and the measurement now exists: 80.9% of 45,000
+  chords commit on the timer while the chords themselves have a p99 spread of 31ms, so four
+  keystrokes in five carry ~100ms of latency waiting for keys that landed in the first 30.
+  Something near 40ms would cover the same typing.  What remains is a hardware session — it
+  is a functional change, it wants its own commit, and whether a shorter window merges
+  same-hand rolls is a thing to feel rather than to compute.
 - **Does the 20 ms debounce need to be 20 ms?**  Not this project's question, but this project
   is the instrument for asking it.
-- **What does a correction actually look like?**  The taxonomy in phase 3 is a guess at the
-  categories; the first real corpus will say whether they are the right ones.
+- **What does a correction actually look like?**  Answered: the categories hold.  6.3 per
+  100 chords, 1,114 one key off against 548 a different chord entirely, so misfingering and
+  failed recall are both real and separable.  The one surprise is `NoReplacement` at 1,095 —
+  deleting and moving on, which is editing rather than correcting and probably wants its own
+  name.
 - **Does the trainer need to drive the keyboard at all** — forcing a variant, or suppressing
   steno mode — or is reading enough?  Probably reading; revisit when the drill modes exist.
 - **Where does the segmentation cost model live?**  The app needs "what is the cheapest chord
