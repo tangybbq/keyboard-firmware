@@ -119,8 +119,36 @@ public final class MinderDevice {
         }
     }
 
+    /// The transfer buffers, made once each and handed to the pipes over and over.
+    ///
+    /// IOUSBHost keeps every `NSMutableData` it is given: it wires the pages down for DMA
+    /// and caches that mapping against the object, and nothing ever drops it.  A buffer
+    /// allocated per transfer is therefore a buffer *leaked* per transfer, and the poll
+    /// loop does two of them several times a second.  A day and a half of running had left
+    /// 736,083 of them alive holding 2.3 GB, which is most of what made the app unusable.
+    ///
+    /// Reuse rather than resize.  The length is fixed when a buffer is made and never
+    /// changes, because a buffer that grows under a cached DMA mapping is exactly the kind
+    /// of thing that would work right up until it silently did not.  Requests come in a
+    /// handful of sizes -- the fixed ones, plus the four widths CBOR gives an ack sequence
+    /// number -- so keying them by length bounds the set at about a dozen.
+    private let readBuffer = NSMutableData(length: MinderDevice.maxReply)!
+    private let drainBuffer = NSMutableData(length: MinderDevice.packetSize)!
+    private var writeBuffers: [Int: NSMutableData] = [:]
+
+    private func writeBuffer(ofLength length: Int) -> NSMutableData {
+        if let existing = writeBuffers[length] { return existing }
+        let made = NSMutableData(length: length)!
+        writeBuffers[length] = made
+        return made
+    }
+
     private func write(_ bytes: [UInt8]) throws -> Int {
-        let data = NSMutableData(bytes: bytes, length: bytes.count)
+        let data = writeBuffer(ofLength: bytes.count)
+        if !bytes.isEmpty {
+            data.replaceBytes(
+                in: NSRange(location: 0, length: bytes.count), withBytes: bytes)
+        }
         var transferred = 0
         try outPipe.__sendIORequest(
             with: data, bytesTransferred: &transferred, completionTimeout: 2.0)
@@ -138,11 +166,12 @@ public final class MinderDevice {
     /// it, and each separate request would otherwise cost a USB frame.  Measured against the
     /// mesa1, reading packet by packet took a Hello round trip from 0.4 ms to 3.6 ms.
     public func receive(timeout: TimeInterval = 20.0) throws -> Reply {
-        let buffer = NSMutableData(length: Self.maxReply)!
         var got = 0
         try inPipe.__sendIORequest(
-            with: buffer, bytesTransferred: &got, completionTimeout: timeout)
-        let message = Array(Data(bytes: buffer.bytes, count: got))
+            with: readBuffer, bytesTransferred: &got, completionTimeout: timeout)
+        // Copied out before the next transfer overwrites it, which is what makes reusing
+        // the one buffer safe.
+        let message = Array(Data(bytes: readBuffer.bytes, count: got))
         return try Reply.decode(message)
     }
 
@@ -158,11 +187,10 @@ public final class MinderDevice {
     /// reply read is that one and everything after is off by one.
     public func drain() {
         while true {
-            let buffer = NSMutableData(length: Self.packetSize)!
             var got = 0
             do {
                 try inPipe.__sendIORequest(
-                    with: buffer, bytesTransferred: &got, completionTimeout: 0.05)
+                    with: drainBuffer, bytesTransferred: &got, completionTimeout: 0.05)
             } catch {
                 return
             }
