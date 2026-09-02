@@ -480,6 +480,43 @@ impl Analysis {
         self.same_hand.len() as f64 / self.eligible_pairs as f64
     }
 
+    /// Percentile of the inter-chord gap distribution, in milliseconds.
+    pub fn gap_percentile(&self, p: f64) -> u32 {
+        if self.gaps.is_empty() {
+            return 0;
+        }
+        let mut v = self.gaps.clone();
+        v.sort_unstable();
+        v[((v.len() - 1) as f64 * p) as usize]
+    }
+
+    /// How many gaps were at least this long.
+    pub fn gaps_over(&self, ms: u32) -> usize {
+        self.gaps.iter().filter(|&&g| g >= ms).count()
+    }
+
+    /// The gap distribution in buckets, as `(low, high, count)`.
+    ///
+    /// The edges widen with the values because that is how the gaps are spread: the
+    /// difference between 100ms and 150ms is a fact about typing and the difference
+    /// between 10s and 20s is not.  The last bucket's high is `u32::MAX`.
+    pub fn gap_histogram(&self) -> Vec<(u32, u32, usize)> {
+        const EDGES: &[u32] = &[
+            0, 50, 75, 100, 125, 150, 175, 200, 250, 300, 400, 500, 650, 800, 1000, 1300,
+            1600, 2000, 2500, 3000, 4000, 5000, 7000, 10000, 20000, 60000, u32::MAX,
+        ];
+        EDGES
+            .windows(2)
+            .map(|w| {
+                (
+                    w[0],
+                    w[1],
+                    self.gaps.iter().filter(|&&g| g >= w[0] && g < w[1]).count(),
+                )
+            })
+            .collect()
+    }
+
     /// Percentile of the spread distribution, in milliseconds.
     pub fn spread_percentile(&self, p: f64) -> u32 {
         if self.spreads.is_empty() {

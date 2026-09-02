@@ -119,6 +119,55 @@ pub fn print(a: &Analysis, opts: &Options) {
         a.spread_percentile(1.0),
     );
 
+    println!("\n== Inter-chord gaps (last key of one chord to first key of the next) ==");
+    if a.gaps.is_empty() {
+        println!("  no consecutive pairs");
+    } else {
+        println!(
+            "  median {}ms, p75 {}ms, p90 {}ms, p95 {}ms, p99 {}ms",
+            a.gap_percentile(0.5),
+            a.gap_percentile(0.75),
+            a.gap_percentile(0.9),
+            a.gap_percentile(0.95),
+            a.gap_percentile(0.99),
+        );
+        let peak = a
+            .gap_histogram()
+            .into_iter()
+            .map(|(_, _, n)| n)
+            .max()
+            .unwrap_or(1)
+            .max(1);
+        for (lo, hi, n) in a.gap_histogram() {
+            let bar = "#".repeat((n * 40 / peak).min(40));
+            let hi = if hi == u32::MAX {
+                "     ".to_string()
+            } else {
+                format!("{hi:>5}")
+            };
+            println!(
+                "  {lo:>5}..{hi} {n:>7}  {:>5.2}%  {bar}",
+                pct(n, a.gaps.len())
+            );
+        }
+        // What the shape is for.  `taipo-teacher.md` expected two humps -- within a word
+        // and between them -- with the alternation window belonging in the valley.  If
+        // there is no valley the window cannot be read off the distribution, and these
+        // two numbers are what is left to choose it by: how much of the corpus it
+        // excludes, and what it is as a multiple of this writer's own pace.
+        let median = a.gap_percentile(0.5).max(1);
+        let beyond = a.gaps_over(opts.alternation_window_ms);
+        println!(
+            "  The {}ms alternation window is {:.1}x the median gap and leaves out {} pairs\n  \
+             ({:.1}%).  Look at the shape above before moving it: if the hump is single, the\n  \
+             window is a judgement about how long a burst lasts, not a valley to be found.",
+            opts.alternation_window_ms,
+            opts.alternation_window_ms as f64 / median as f64,
+            beyond,
+            pct(beyond, a.gaps.len()),
+        );
+    }
+
     println!("\n== Hand alternation ==");
     println!(
         "  eligible pairs    {} (consecutive chords under {}ms apart)",
