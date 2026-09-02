@@ -37,6 +37,10 @@ struct DrillView: View {
             technique
         }
         .padding(16)
+        // Scoring belongs to the screen, not to the app.  The collector runs whether or not
+        // this is showing; the drill only consumes chords while it is.
+        .onAppear { monitor.beginPractice() }
+        .onDisappear { monitor.endPractice() }
     }
 
     /// The target, coloured by what has been typed against it.

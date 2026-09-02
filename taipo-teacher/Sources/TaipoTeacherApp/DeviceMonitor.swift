@@ -184,6 +184,28 @@ public final class DeviceMonitor: ObservableObject {
         runningFlag.current = false
     }
 
+    /// Whether the practice screen is on show.
+    ///
+    /// The drill only consumes chords while it is.  It used to consume every chord the
+    /// keyboard produced, window open or not, so a day at work fed the whole day's typing
+    /// into whichever line happened to be up: the target went red within seconds and stayed
+    /// there, the score turned to nonsense, and `typed`, `events` and `sameHandOffsets`
+    /// grew without bound behind it.  Practice is something you sit down to, not something
+    /// that happens to you while you work.
+    private var practicing = false
+
+    /// The practice screen has appeared: start a fresh line and begin scoring.
+    public func beginPractice() {
+        practicing = true
+        nextDrill()
+    }
+
+    /// The practice screen has gone away.  Collecting carries on; scoring does not.
+    public func endPractice() {
+        practicing = false
+        drill = nil
+    }
+
     /// Start the next practice line.
     public func nextDrill() {
         guard let layouts else { return }
@@ -455,7 +477,7 @@ public final class DeviceMonitor: ObservableObject {
         if chords.count > historyLimit {
             chords.removeFirst(chords.count - historyLimit)
         }
-        guard let drill else { return }
+        guard practicing, let drill else { return }
         for live in new {
             // The control chords are checked first and never reach the score.  Both type
             // nothing anyway: Enter is not in any target, and the null chord exists to
