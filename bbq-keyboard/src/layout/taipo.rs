@@ -53,7 +53,7 @@ use usbd_human_interface_device::page::Keyboard;
 // use crate::log::info;
 
 use crate::usb_typer::key_for_char;
-use crate::{KeyEvent, Side, Mods, KeyAction};
+use crate::{KeyEvent, MinorMode, Side, Mods, KeyAction};
 
 use super::{taipo_map, LayoutActions};
 
@@ -234,6 +234,30 @@ impl TaipoManager {
                         self.taipo_latch = 0;
                     }
                 }
+                Some(Entry { action: Action::Variant(variant), .. }) => {
+                    // Gated exactly as `send` gates keys: in steno mode this
+                    // chord only means anything while the taipo latch is held.
+                    //
+                    // Nothing is typed, so `oneshot`, `sticky`, `down` and the
+                    // latch are all deliberately left alone.  Leaving `down`
+                    // false is what makes the matching release do nothing.
+                    if self.active(is_steno) && self.variant != *variant {
+                        self.variant = *variant;
+
+                        // Report it.  This is not bookkeeping: the replay's
+                        // `Recorder` tracks the variant solely through these
+                        // two calls, and uses it to pick the table it looks
+                        // later chords up in.
+                        match *variant {
+                            TaipoVariant::Taipo => {
+                                actions.clear_sub_mode(MinorMode::Posh).await
+                            }
+                            TaipoVariant::Posh => {
+                                actions.set_sub_mode(MinorMode::Posh).await
+                            }
+                        }
+                    }
+                }
                 None => (),
             }
         }
@@ -355,12 +379,20 @@ impl TaipoManager {
     /// mode.  If we're in steno mode, and the taipo shift wasn't pressed, just ignore the event.
     async fn send<ACT: LayoutActions>(&mut self, actions: &ACT, is_steno: bool, action: KeyAction) {
         // info!("steno:{:?}, keys:{:?}, latch:{:?}", is_steno, self.taipo_keys, self.taipo_latch);
-        if is_steno && self.taipo_latch == 0 {
+        if !self.active(is_steno) {
             // Steno mode, and no latch, do nothing.
             return;
         }
 
         actions.send_key(action).await;
+    }
+
+    /// Whether a chord means anything right now.
+    ///
+    /// In taipo mode, always.  In steno mode, only while a taipo latch key is
+    /// held, which is what lets taipo be typed without leaving steno.
+    fn active(&self, is_steno: bool) -> bool {
+        !is_steno || self.taipo_latch != 0
     }
 }
 
@@ -1010,6 +1042,14 @@ pub enum Action {
     Text(&'static str),
     OneShot(Mods),
     Release,
+    /// Select a chord table.  The change takes effect for the next chord;
+    /// this one was already looked up in the table that named it.
+    ///
+    /// This exists so that a board with no spare keys -- the mesa2 has exactly
+    /// the 20 taipo keys and nothing else -- can still choose a variant.  It
+    /// selects rather than toggles, so that a chord that was not felt cannot
+    /// leave the layout inverted.
+    Variant(TaipoVariant),
 }
 
 /// The mapping between each key and its Action.
@@ -1286,6 +1326,19 @@ pub static TAIPO_ACTIONS: &[Entry] = &[
     Entry { code: 0x330, action: Action::Simple(Keyboard::F9), },
     Entry { code: 0x328, action: Action::Simple(Keyboard::F11), },
     Entry { code: 0x381, action: Action::Simple(Keyboard::F12), },
+
+    // Selecting the chord table.  These are the two full rows of one hand:
+    // `rsni` (all four fingers on the top row) selects Taipo, `aote` (all four
+    // on the bottom row) selects Posh.  The same pair appears in POSH_ACTIONS,
+    // so either can be reached from either table, and each selects rather than
+    // toggles, so the chord you are already in does nothing.
+    //
+    // They are here because the mesa2 has exactly the 20 taipo keys and no
+    // spare one to put `POSH_TOGGLE_KEY` on.  The thumb variants are left
+    // unmapped on purpose: a chord with a thumb accidentally included should
+    // do nothing rather than change the layout.
+    Entry { code: 0x0f0, action: Action::Variant(TaipoVariant::Taipo), },
+    Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Posh), },
 ];
 
 #[cfg(test)]

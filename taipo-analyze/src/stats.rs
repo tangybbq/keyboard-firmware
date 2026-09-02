@@ -521,12 +521,19 @@ pub struct SpelledGram {
 }
 
 /// The character a chord types, for the chords that type exactly one.
+///
+/// Spelled out rather than closed with a wildcard, so that a new kind of
+/// action has to be given an answer here rather than quietly becoming "types
+/// nothing".
 fn typed_text(action: &ChordAction) -> Option<String> {
     match action {
         ChordAction::Key(k) => char_for_key(*k, false).map(|c| c.to_string()),
         ChordAction::Shifted(k) => char_for_key(*k, true).map(|c| c.to_string()),
         ChordAction::Text(s) => Some((*s).to_string()),
-        _ => None,
+        // None of these put anything on the screen.  A variant selection is
+        // not dead -- `is_dead` asks whether the table had an entry at all --
+        // but it types nothing, so it takes no part in the n-gram analysis.
+        ChordAction::OneShot(_) | ChordAction::Release | ChordAction::Variant(_) => None,
     }
 }
 

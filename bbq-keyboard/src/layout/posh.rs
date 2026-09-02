@@ -65,7 +65,7 @@ use usbd_human_interface_device::page::Keyboard;
 
 use crate::Mods;
 
-use super::taipo::{Action, Entry};
+use super::taipo::{Action, Entry, TaipoVariant};
 
 /// The mapping between each Posh chord and its action.
 pub static POSH_ACTIONS: &[Entry] = &[
@@ -251,6 +251,18 @@ pub static POSH_ACTIONS: &[Entry] = &[
     // consumer-control report.
     Entry { code: 0x046, action: Action::Simple(Keyboard::PrintScreen), },
     Entry { code: 0x0a8, action: Action::Simple(Keyboard::Insert), },
+
+    // Selecting the chord table, the same pair as in `TAIPO_ACTIONS`: `rsni`
+    // (the whole top row) selects Taipo, `aote` (the whole bottom row) selects
+    // Posh.  The names are Taipo's, because the chord is named by its shape;
+    // in Posh the two pinky keys of each spell nothing at all.
+    //
+    // These are the only entries here that use a pinky, and they use one on
+    // purpose: it is what guarantees they can never collide with a real Posh
+    // chord, since Posh has no pinky chords by definition.  `test_no_pinky`
+    // excludes them for that reason.
+    Entry { code: 0x0f0, action: Action::Variant(TaipoVariant::Taipo), },
+    Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Posh), },
 ];
 
 #[cfg(test)]
@@ -305,11 +317,34 @@ mod tests {
         assert_eq!(codes.len(), count, "duplicate code in POSH_ACTIONS");
     }
 
-    /// Posh excludes the pinkies, so neither pinky bit may appear anywhere.
+    /// Posh excludes the pinkies, so neither pinky bit may appear in anything
+    /// Posh types.
+    ///
+    /// The variant selection chords are the deliberate exception: they are a
+    /// shared shape rather than a Posh chord, and using a pinky is exactly
+    /// what keeps them from ever colliding with one.
     #[test]
     fn test_no_pinky() {
         for entry in POSH_ACTIONS {
+            if matches!(entry.action, Action::Variant(_)) {
+                continue;
+            }
             assert_eq!(entry.code & 0x011, 0, "code {:#05x} uses a pinky key", entry.code);
+        }
+    }
+
+    /// Both variant selection chords are present, and both use a pinky, which
+    /// is what makes them safe to put in this table at all.
+    #[test]
+    fn test_variant_chords() {
+        use crate::layout::taipo::TaipoVariant;
+
+        for (code, want) in [(0x0f0u16, TaipoVariant::Taipo), (0x00f, TaipoVariant::Posh)] {
+            assert!(code & 0x011 != 0, "code {code:#05x} has no pinky");
+            match action_for(code) {
+                Action::Variant(v) => assert_eq!(*v, want),
+                _ => panic!("code {code:#05x} is not a variant selection"),
+            }
         }
     }
 

@@ -256,7 +256,7 @@ pub fn text_for(action: &Action) -> Option<String> {
         Action::Simple(key) => char_for_key(*key, false).map(|c| c.to_string()),
         Action::Shifted(key) => char_for_key(*key, true).map(|c| c.to_string()),
         Action::Text(text) => Some(text.to_string()),
-        Action::OneShot(_) | Action::Release => None,
+        Action::OneShot(_) | Action::Release | Action::Variant(_) => None,
     }
 }
 

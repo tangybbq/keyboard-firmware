@@ -44,6 +44,12 @@ const I: u16 = 0x080;
 const SP: u16 = 0x100;
 const BK: u16 = 0x200;
 
+/// The two chords that select the chord table: the whole top row of one hand
+/// selects taipo, the whole bottom row selects posh.  Named by their taipo
+/// letters, though the shape is what they mean in either table.
+const VARIANT_TAIPO: u16 = R | S | N | I;
+const VARIANT_POSH: u16 = A | O | T | E;
+
 /// The same chord bits, named by the letter the *Posh* table types with them
 /// (see POSH.md).  Posh leaves the pinkies out, so the two pinky bits (taipo's
 /// `R` and `A`) have no name here.
@@ -339,6 +345,27 @@ impl Script {
             .release_scan(POSH_TOGGLE_KEY)
             .expect(action)
             .tick(1)
+    }
+
+    /// Type one of the two variant selection chords, and expect the sub-mode
+    /// report if it actually changes the variant.
+    ///
+    /// `rsni` (the whole top row) selects taipo, `aote` (the whole bottom row)
+    /// selects posh.  Unlike the key, these select rather than toggle, so the
+    /// one you are already in reports nothing.
+    fn select_variant(&mut self, side: Side, posh: bool) -> &mut Self {
+        let chord = if posh { VARIANT_POSH } else { VARIANT_TAIPO };
+        self.chord(side, chord);
+        if self.posh != posh {
+            self.posh = posh;
+            let action = if posh {
+                Actions::SetSubMode(MinorMode::Posh)
+            } else {
+                Actions::ClearSubMode(MinorMode::Posh)
+            };
+            self.expect(action);
+        }
+        self
     }
 
     /// Type a chord, holding it long enough for the chord timer to expire.  The
@@ -847,8 +874,9 @@ fn test_sticky_rollover() {
 fn test_unknown_chord() {
     let mut script = Script::taipo();
 
-    // All four keys of the bottom row is not a defined chord.
-    script.chord(LEFT, A | O | T | E).idle();
+    // All eight finger keys at once is not a defined chord.  (The bottom row
+    // by itself used to be the example here; it now selects the posh table.)
+    script.chord(LEFT, A | O | T | E | R | S | N | I).idle();
     script.chord(LEFT, A).types(Keyboard::A);
 
     script.run();
@@ -1941,6 +1969,197 @@ fn test_posh_toggle_lower_rows() {
 
     // The pinky is still dead down here.
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
+
+    script.run();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// The variant selection chords
+//
+// `rsni` selects taipo and `aote` selects posh, from either table.  They exist
+// for the mesa2, which has exactly the 20 taipo keys and no spare one to put
+// the toggle key on.  Unlike the key, they select rather than toggle.
+//////////////////////////////////////////////////////////////////////////////
+
+/// `rsni` while in posh switches to taipo, and the chord after it is looked up
+/// in the taipo table.
+#[test]
+fn test_variant_chord_selects_taipo() {
+    let mut script = Script::posh();
+
+    script.select_variant(LEFT, false);
+
+    // 0x0c0 is `y` in taipo and `s` in posh, so this says which table is live.
+    script.chord(LEFT, N | I).types(Keyboard::Y);
+    // And the pinky is alive again.
+    script.chord(LEFT, R).types(Keyboard::R);
+
+    script.run();
+}
+
+/// `aote` while in taipo switches to posh, and the chord after it is looked up
+/// in the posh table.
+#[test]
+fn test_variant_chord_selects_posh() {
+    let mut script = Script::taipo();
+
+    script.select_variant(LEFT, true);
+
+    script.chord(LEFT, N | I).types(Keyboard::S);
+    // The pinky is dead in posh.
+    script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
+
+    script.run();
+}
+
+/// Both chords work from either hand.
+#[test]
+fn test_variant_chord_either_hand() {
+    let mut script = Script::taipo();
+
+    script.select_variant(RIGHT, true);
+    script.chord(LEFT, N | I).types(Keyboard::S);
+
+    script.select_variant(RIGHT, false);
+    script.chord(LEFT, N | I).types(Keyboard::Y);
+
+    script.run();
+}
+
+/// Selecting the variant already in use does nothing at all: no sub-mode
+/// report, and no keys.
+///
+/// This is the property that makes selection better than a toggle -- a chord
+/// that was not felt cannot leave the layout inverted.
+#[test]
+fn test_variant_chord_is_idempotent() {
+    let mut script = Script::taipo();
+
+    // Already taipo.
+    script.chord(LEFT, VARIANT_TAIPO).idle();
+    script.chord(LEFT, N | I).types(Keyboard::Y);
+
+    script.select_variant(LEFT, true);
+
+    // Already posh.
+    script.chord(LEFT, VARIANT_POSH).idle();
+    script.chord(LEFT, N | I).types(Keyboard::S);
+
+    script.run();
+}
+
+/// The chord itself types nothing, in either direction.
+#[test]
+fn test_variant_chord_types_nothing() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, VARIANT_POSH).expect(Actions::SetSubMode(MinorMode::Posh)).idle();
+    script.chord(LEFT, VARIANT_TAIPO).expect(Actions::ClearSubMode(MinorMode::Posh)).idle();
+
+    script.run();
+}
+
+/// The switch lands after the chord that caused it and before the next one, so
+/// a chord typed immediately afterwards resolves in the new table.
+///
+/// This is the test that would catch a switch applied one chord too early or
+/// too late: `0x0c0` types `y` in taipo and `s` in posh.
+#[test]
+fn test_variant_chord_applies_to_next_chord() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.select_variant(LEFT, true);
+    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.select_variant(LEFT, false);
+    script.chord(LEFT, N | I).types(Keyboard::Y);
+
+    script.run();
+}
+
+/// The thumb variants are deliberately unmapped, so a chord with a thumb
+/// accidentally included does nothing rather than switching the layout.
+#[test]
+fn test_variant_chord_thumb_variants_dead() {
+    for extra in [SP, BK, SP | BK] {
+        for base in [VARIANT_TAIPO, VARIANT_POSH] {
+            let mut script = Script::taipo();
+            script.chord(LEFT, base | extra).idle();
+            // Still taipo.
+            script.chord(LEFT, N | I).types(Keyboard::Y);
+            script.run();
+        }
+    }
+}
+
+/// The toggle key and the chords agree: either can undo the other.
+#[test]
+fn test_variant_chord_and_key_agree() {
+    let mut script = Script::taipo();
+
+    // Key into posh, chord back out.
+    script.toggle_posh();
+    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.select_variant(LEFT, false);
+    script.chord(LEFT, N | I).types(Keyboard::Y);
+
+    // Chord into posh, key back out.
+    script.select_variant(LEFT, true);
+    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.toggle_posh();
+    script.chord(LEFT, N | I).types(Keyboard::Y);
+
+    script.run();
+}
+
+/// In steno mode the chord is gated exactly as typing is: dead without the
+/// taipo latch, live with it.
+#[test]
+fn test_variant_chord_steno_gated() {
+    let mut script = Script::steno();
+
+    // No latch: the chord is assembled, but means nothing to taipo.  The keys
+    // are still steno keys, so the release makes a stroke, as it would for any
+    // other unlatched chord.
+    script.press(LEFT, VARIANT_POSH).tick(CHORD_TIME);
+    script
+        .release(LEFT, VARIANT_POSH)
+        .steno_stroke(Stroke::from_text("SKWR").unwrap())
+        .tick(1)
+        .idle();
+
+    // With the latch held, it switches.
+    script.press_scan(TAIPO_KEY);
+    script
+        .press(LEFT, VARIANT_POSH)
+        .tick(CHORD_TIME)
+        .expect(Actions::SetSubMode(MinorMode::Posh));
+    script.release(LEFT, VARIANT_POSH).tick(1);
+    script.release_scan(TAIPO_KEY).tick(1).idle();
+
+    // And the following latched chord uses the posh table.
+    script.press_scan(TAIPO_KEY);
+    script
+        .press(LEFT, N | I)
+        .tick(CHORD_TIME)
+        .presses(Keyboard::S, Mods::empty());
+    script.release(LEFT, N | I).tick(1).releases();
+    script.release_scan(TAIPO_KEY).tick(1).idle();
+
+    script.run();
+}
+
+/// The chord works on a two-row board, which is the whole point: the mesa2 has
+/// nothing else to switch with.
+#[test]
+fn test_variant_chord_two_row() {
+    let mut script = Script::two_row();
+
+    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.select_variant(LEFT, true);
+    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.select_variant(RIGHT, false);
+    script.chord(RIGHT, N | I).types(Keyboard::Y);
 
     script.run();
 }

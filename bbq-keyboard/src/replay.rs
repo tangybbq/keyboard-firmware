@@ -329,6 +329,10 @@ pub enum ChordAction {
     OneShot(Mods),
     /// The null chord, which releases held modifiers.
     Release,
+    /// A chord that selects the chord table rather than typing anything.  The
+    /// [`Chord`] carrying it names the variant the chord was *looked up* in,
+    /// which is the one it is replacing.
+    Variant(TaipoVariant),
 }
 
 impl ChordAction {
@@ -339,6 +343,7 @@ impl ChordAction {
             Action::Text(t) => ChordAction::Text(t),
             Action::OneShot(m) => ChordAction::OneShot(*m),
             Action::Release => ChordAction::Release,
+            Action::Variant(v) => ChordAction::Variant(*v),
         }
     }
 }
@@ -815,6 +820,7 @@ impl Chord {
                 Some(ChordAction::Text(t)) => format!("text {t:?}"),
                 Some(ChordAction::OneShot(m)) => format!("oneshot {m:?}"),
                 Some(ChordAction::Release) => "release".to_string(),
+                Some(ChordAction::Variant(v)) => format!("variant {v:?}"),
             },
         )
     }

@@ -396,6 +396,63 @@ fn test_variant_toggle() {
     assert_eq!(chords[1].action, Some(ChordAction::Key(Keyboard::S)));
 }
 
+/// The variant selection chords replay the same way the key does: the switch
+/// is reported, later chords resolve in the new table, and the switching chord
+/// itself is reported against the *old* variant, because that is the table it
+/// was looked up in.
+#[test]
+fn test_variant_chord() {
+    let mut log = Log::new();
+    log.tap('L', "n+i", 20)
+        .wait(50)
+        // a+o+t+e, the whole bottom row, selects posh.
+        .tap('L', "a+o+t+e", 20)
+        .wait(50)
+        .tap('L', "n+i", 20)
+        .wait(50)
+        // r+s+n+i, the whole top row, selects taipo again.
+        .tap('R', "r+s+n+i", 20)
+        .wait(50)
+        .tap('L', "n+i", 20);
+
+    let derived = log.run();
+    let variants: Vec<TaipoVariant> = derived
+        .iter()
+        .filter_map(|event| match event {
+            Derived::Variant { variant, .. } => Some(*variant),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(variants, [TaipoVariant::Posh, TaipoVariant::Taipo]);
+
+    let chords = chord_list(&derived);
+    assert_eq!(chords.len(), 5);
+
+    // n+i is `y` in taipo and `s` in posh, on the same keys.
+    assert_eq!(chords[0].variant, TaipoVariant::Taipo);
+    assert_eq!(chords[0].action, Some(ChordAction::Key(Keyboard::Y)));
+
+    // The switching chord is reported in the table that named it, which is the
+    // one it is replacing.
+    assert_eq!(chords[1].variant, TaipoVariant::Taipo);
+    assert_eq!(
+        chords[1].action,
+        Some(ChordAction::Variant(TaipoVariant::Posh))
+    );
+
+    assert_eq!(chords[2].variant, TaipoVariant::Posh);
+    assert_eq!(chords[2].action, Some(ChordAction::Key(Keyboard::S)));
+
+    assert_eq!(chords[3].variant, TaipoVariant::Posh);
+    assert_eq!(
+        chords[3].action,
+        Some(ChordAction::Variant(TaipoVariant::Taipo))
+    );
+
+    assert_eq!(chords[4].variant, TaipoVariant::Taipo);
+    assert_eq!(chords[4].action, Some(ChordAction::Key(Keyboard::Y)));
+}
+
 /// The row position is part of the replay too: the log records key codes
 /// before the shift, and the layout applies it.
 #[test]

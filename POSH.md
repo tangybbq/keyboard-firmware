@@ -137,6 +137,24 @@ on the 3-row jolt3 it is the middle key of that column rather than the lower one
 counts — pressed with nothing else down and released with nothing else down — so the table can
 never change in the middle of a chord.
 
+Two chords do the same job, and are in both tables, so either can be reached from either:
+
+| chord     | keys                 | selects |
+|-----------|----------------------|---------|
+| `r+s+n+i` | the whole top row    | Taipo   |
+| `a+o+t+e` | the whole bottom row | Posh    |
+
+The names are Taipo's; the chord is named by its shape, and in Posh its two pinky keys spell
+nothing. They **select** rather than toggle — the one you are already in does nothing — and the
+thumb variants are unmapped, so a thumb accidentally included makes the chord do nothing.
+
+Using a pinky is what makes them safe to put in this table: Posh has no pinky chords by
+definition, so neither can ever collide with something Posh types. They are the only entries in
+the Posh table that touch a pinky key.
+
+These exist for the boards that have only the 20 Taipo keys — the mesa2 — and so no spare key to
+put the toggle on.
+
 The choice belongs to the Taipo engine rather than to the mode. It survives switching out to
 steno or qwerty and back, and it applies to the taipo layer shift in steno mode (see "Taipo from
 steno mode" in TAIPO.md) as well. It is lost at power off, coming back up in Taipo.

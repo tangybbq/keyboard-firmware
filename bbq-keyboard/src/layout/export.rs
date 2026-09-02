@@ -42,7 +42,7 @@ use alloc::string::{String, ToString};
 use crate::Mods;
 
 use super::posh::POSH_ACTIONS;
-use super::taipo::{Action, Entry, CHORD_TIME, SCAN_MAP, TAIPO_ACTIONS};
+use super::taipo::{Action, Entry, TaipoVariant, CHORD_TIME, SCAN_MAP, TAIPO_ACTIONS};
 use super::MODE_KEY;
 #[cfg(feature = "proto3")]
 use super::{POSH_TOGGLE_KEY, ROW_TOGGLE_KEY};
@@ -52,7 +52,14 @@ use super::{POSH_TOGGLE_KEY, ROW_TOGGLE_KEY};
 /// Bumped when the shape changes in a way a consumer has to know about.  A new
 /// field with an obvious meaning does not need a bump; a renamed or
 /// re-interpreted one does.
-const FORMAT_VERSION: u32 = 1;
+///
+/// 2 adds `{ "kind": "variant" }`, a chord that selects the chord table rather
+/// than typing.  A version 1 consumer switching on `kind` would fall through
+/// to "types nothing", which is true but badly incomplete: it would go on
+/// resolving every later chord against a table the keyboard is no longer
+/// using.  That is the same quiet wrongness the fingerprint exists to catch,
+/// so it gets a bump rather than being treated as a new field.
+const FORMAT_VERSION: u32 = 2;
 
 /// The name of each chord bit, in bit order, as `TAIPO.md` names them: the
 /// bottom row from pinky to index, then the top row, then the two thumbs.
@@ -297,6 +304,13 @@ fn action_json(action: &Action) -> String {
             mod_names(*mods)
         ),
         Action::Release => "{ \"kind\": \"release\" }".to_string(),
+        Action::Variant(variant) => format!(
+            "{{ \"kind\": \"variant\", \"variant\": {} }}",
+            quote(match variant {
+                TaipoVariant::Taipo => "taipo",
+                TaipoVariant::Posh => "posh",
+            }),
+        ),
     }
 }
 

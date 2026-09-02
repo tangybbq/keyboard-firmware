@@ -180,6 +180,21 @@ Both thumbs + a digit chord gives the matching function key; v and w extend past
 The same engine can interpret chords with the Posh table instead, which leaves the pinkies out.
 Tap the lower-left key by itself while in taipo mode to switch between them; see POSH.md.
 
+There are also two chords, which work in either table:
+
+| chord     | keys                    | selects |
+|-----------|-------------------------|---------|
+| `r+s+n+i` | the whole top row       | Taipo   |
+| `a+o+t+e` | the whole bottom row    | Posh    |
+
+They **select** rather than toggle: the one you are already in does nothing, so a chord that was
+not felt cannot leave you in the wrong table. Either hand works. The chord types nothing, and the
+thumb variants (`+Sp`, `+Bk`, both) are deliberately unmapped, so a chord with a thumb
+accidentally included does nothing at all.
+
+These exist for the boards that have only the 20 Taipo keys and no spare key to put the toggle
+on. On a board that has the key, both work.
+
 ## Taipo from steno mode
 
 In steno mode, holding a taipo-shift key (proto3 scancodes 20/44 — the L-S1/R-S3 positions)

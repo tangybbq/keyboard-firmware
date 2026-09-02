@@ -24,7 +24,7 @@
 use crate::translate::{get_translation, BOARDS};
 
 use super::posh::POSH_ACTIONS;
-use super::taipo::{Action, Entry, SCAN_MAP, TAIPO_ACTIONS};
+use super::taipo::{Action, Entry, TaipoVariant, SCAN_MAP, TAIPO_ACTIONS};
 
 /// Bumped if the encoding below changes, so that a fingerprint from an older
 /// scheme cannot accidentally equal one from this scheme.
@@ -127,6 +127,15 @@ fn entry_hash(h: &mut Fnv, entry: &Entry) {
             h.byte(m.bits());
         }
         Action::Release => h.byte(4),
+        Action::Variant(v) => {
+            h.byte(5);
+            // Which variant, not just that the chord selects one: a table
+            // where the two selections were swapped has to hash differently.
+            h.byte(match v {
+                TaipoVariant::Taipo => 0,
+                TaipoVariant::Posh => 1,
+            });
+        }
     }
 }
 
