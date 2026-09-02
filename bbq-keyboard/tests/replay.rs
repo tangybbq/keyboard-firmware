@@ -171,6 +171,43 @@ fn test_sessions_split_at_a_timeline_break() {
     }
 }
 
+/// The `layout=` fingerprint follows the session it describes.
+///
+/// Records replayed through tables other than the ones that produced them are plausible
+/// and wrong, so the fingerprint has to reach whoever is about to derive from them.
+#[test]
+fn test_sessions_carry_their_layout_fingerprint() {
+    let mut first = Log::new();
+    first.tap('L', "a", 20).wait(50).tap('R', "e+i", 30);
+    let mut second = Log::new();
+    second.tap('R', "t", 20).wait(40).tap('L', "o", 25);
+
+    let text = format!(
+        "# session device=mesa1 boot_id=0x1 layout=0xeef6b320a04a3492\n{}\
+         # session device=mesa1 boot_id=0x1 layout=unknown\n{}",
+        log_to_text(&first.events),
+        log_to_text(&second.events),
+    );
+    let sessions = sessions_from_text(&text).expect("parses");
+    assert_eq!(sessions.len(), 2);
+    assert_eq!(sessions[0].layout, Some(0xeef6b320a04a3492));
+    // Firmware too old to report one writes `unknown`, which is absent rather than a
+    // fingerprint that happens not to match.
+    assert_eq!(sessions[1].layout, None);
+
+    // A break with no header of its own is a rollover inside one session, so the tables
+    // carry across it even though the timeline does not.
+    let rolled = format!(
+        "# session device=mesa1 boot_id=0x1 layout=0xabc\n{}{}",
+        log_to_text(&first.events),
+        log_to_text(&second.events),
+    );
+    let rolled = sessions_from_text(&rolled).expect("parses");
+    assert_eq!(rolled.len(), 2);
+    assert_eq!(rolled[0].layout, Some(0xabc));
+    assert_eq!(rolled[1].layout, Some(0xabc));
+}
+
 /// A timeline break with nothing announcing it still splits.
 ///
 /// The collector's day rollover produced exactly this: a batch formatted with yesterday's

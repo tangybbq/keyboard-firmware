@@ -69,6 +69,30 @@ pub fn analyze_files(
     for text in texts {
         sessions.extend(bbq_keyboard::replay::sessions_from_text(text)?);
     }
+
+    // The tables these records were produced by have to be the ones they are replayed
+    // through.  A chord that has since been given an entry stops being a dead chord, and
+    // if what it gained selects the chord table then every chord after it in that session
+    // resolves against the wrong one.  Counted rather than refused: a corpus older than
+    // the current tables is the normal case for anyone who edits them, and the numbers
+    // are still worth having as long as nobody is told they are exact.
+    let ours = bbq_keyboard::layout::fingerprint::layout_fingerprint();
+    let foreign: Vec<u64> = {
+        let mut seen: Vec<u64> = sessions
+            .iter()
+            .filter_map(|s| s.layout)
+            .filter(|f| *f != ours)
+            .collect();
+        seen.sort_unstable();
+        seen.dedup();
+        seen
+    };
+    let unstamped = sessions.iter().filter(|s| s.layout.is_none()).count();
+    let foreign_sessions = sessions
+        .iter()
+        .filter(|s| s.layout.is_some_and(|f| f != ours))
+        .count();
+
     let derived = bbq_keyboard::replay::replay_sessions(two_row, &sessions);
     let chords: Vec<Vec<&bbq_keyboard::replay::Chord>> = derived
         .iter()
@@ -76,5 +100,10 @@ pub fn analyze_files(
         .collect();
     let per_session: Vec<&[&bbq_keyboard::replay::Chord]> =
         chords.iter().map(|c| c.as_slice()).collect();
-    Ok(stats::Analysis::build(&per_session, opts))
+    let mut analysis = stats::Analysis::build(&per_session, opts);
+    analysis.layout = ours;
+    analysis.foreign_layouts = foreign;
+    analysis.foreign_sessions = foreign_sessions;
+    analysis.unstamped_sessions = unstamped;
+    Ok(analysis)
 }

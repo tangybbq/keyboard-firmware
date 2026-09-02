@@ -219,6 +219,14 @@ pub struct LogSession {
     /// not when the events happened: the offsets inside the session start at its first
     /// record, which comes some unknown time later.
     pub started_unix: Option<u64>,
+    /// The `layout=` fingerprint from the `# session` header, when it carried one.
+    ///
+    /// The tables the records were produced by.  Replaying through any other table is
+    /// plausible and wrong -- a chord that has since been given an entry stops being a
+    /// dead chord, and if the entry it gained changes the variant then every chord after
+    /// it resolves against the wrong table -- so a reader that finds an unfamiliar
+    /// fingerprint has to say so rather than derive from it.
+    pub layout: Option<u64>,
     /// The events, in non-decreasing time order.
     pub events: Vec<KeyLogEvent>,
 }
@@ -234,6 +242,21 @@ fn breaks_timeline(line: &str) -> bool {
     line.starts_with("# session")
         || line.starts_with("# scrubbed")
         || line.starts_with("# device reset")
+}
+
+/// The `layout=0x...` fingerprint from a `# session` header.
+///
+/// `unknown` is written when the firmware is too old to report one, and reads as absent.
+fn layout_from_line(line: &str) -> Option<u64> {
+    let line = line.trim();
+    if !line.starts_with("# session") {
+        return None;
+    }
+    let field = line
+        .split_whitespace()
+        .find_map(|f| f.strip_prefix("layout="))?;
+    let hex = field.strip_prefix("0x").unwrap_or(field);
+    u64::from_str_radix(hex, 16).ok()
 }
 
 /// The unix seconds from a `# started 1788121960 (unix seconds)` line.
@@ -258,6 +281,7 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
     let mut out: Vec<LogSession> = Vec::new();
     let mut current = LogSession {
         started_unix: None,
+        layout: None,
         events: Vec::new(),
     };
     for (num, line) in text.lines().enumerate() {
@@ -265,6 +289,9 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
             out.push(current);
             current = LogSession {
                 started_unix: None,
+                // The header that breaks the timeline is also the one that describes what
+                // follows it, so the fingerprint is read from the same line.
+                layout: layout_from_line(line),
                 events: Vec::new(),
             };
             continue;
@@ -282,10 +309,14 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
                 // is what keeps the replay's monotonic assert meaning "corrupt within
                 // a session" rather than "this log spans two of them".
                 if current.events.last().is_some_and(|last| event.time_ms < last.time_ms) {
+                    // An unannounced break is a rollover within one session, so the
+                    // tables carry across it even though the timeline does not.
+                    let layout = current.layout;
                     out.push(core::mem::replace(
                         &mut current,
                         LogSession {
                             started_unix: None,
+                            layout,
                             events: Vec::new(),
                         },
                     ));

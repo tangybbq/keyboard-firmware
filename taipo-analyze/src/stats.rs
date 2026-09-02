@@ -181,6 +181,14 @@ pub struct Analysis {
     /// How many sessions the log held.  More than one means the file was appended to
     /// across collector runs, and nothing is measured across the joins.
     pub sessions: usize,
+    /// The fingerprint of the tables everything here was replayed through.
+    pub layout: u64,
+    /// Fingerprints found in the log that are not that one, in the order they sort.
+    pub foreign_layouts: Vec<u64>,
+    /// How many sessions carried one of those.
+    pub foreign_sessions: usize,
+    /// How many sessions had no `layout=` at all, which is firmware too old to report one.
+    pub unstamped_sessions: usize,
     pub total_chords: usize,
     /// Chords assembled while not in taipo mode.  Counted, then excluded from everything
     /// else: they were never taipo typing and would only add noise.

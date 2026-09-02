@@ -130,6 +130,31 @@ pub fn print(a: &Analysis, opts: &Options) {
         println!("  variant switches  {}", a.variant_switches);
     }
 
+    if !a.foreign_layouts.is_empty() || a.unstamped_sessions > 0 {
+        println!("\n== Warning: not every session was recorded under these tables ==");
+        println!("  replaying through 0x{:016x}", a.layout);
+        for f in &a.foreign_layouts {
+            println!("  but 0x{f:016x} produced some of the log");
+        }
+        if a.foreign_sessions > 0 {
+            println!(
+                "  {} of {} sessions.  What that costs depends on what changed: a chord\n  \
+                 given an entry since stops reading as a dead chord, and if the entry\n  \
+                 selects the chord table then every chord after it in that session is\n  \
+                 attributed to the wrong one.  Everything below is derived anyway, since\n  \
+                 a corpus older than the tables is the normal case, but it is not exact.",
+                a.foreign_sessions, a.sessions
+            );
+        }
+        if a.unstamped_sessions > 0 {
+            println!(
+                "  {} sessions carry no fingerprint at all, which is firmware from before\n  \
+                 `Reply::Hello` reported one.  Those cannot be checked either way.",
+                a.unstamped_sessions
+            );
+        }
+    }
+
     println!("\n== How chords ended ==");
     let ends = a.ended_released + a.ended_timer + a.ended_other_hand;
     println!(

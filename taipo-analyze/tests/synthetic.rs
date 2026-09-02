@@ -338,3 +338,28 @@ fn test_the_ranking_is_only_of_chords_that_type() {
     // A code with no entry at all is a dead chord, which types nothing by definition.
     assert!(!types_a_character(VariantKey::Taipo, 0x1ff));
 }
+
+/// A log recorded under other tables is reported, not silently replayed.
+#[test]
+fn test_a_foreign_layout_is_reported() {
+    let target = "the quick brown fox";
+    let one = log_to_text(&synth(target, &clean()).expect("synth").events);
+    let ours = bbq_keyboard::layout::fingerprint::layout_fingerprint();
+
+    // One session under the current tables, one under something else, one with no
+    // fingerprint at all -- firmware from before `Reply::Hello` reported one.
+    let text = format!(
+        "# session device=mesa1 boot_id=0x1 layout={ours:#018x}\n{one}\
+         # session device=mesa1 boot_id=0x1 layout=0xdeadbeef\n{one}\
+         # session device=mesa1 boot_id=0x1 layout=unknown\n{one}"
+    );
+    let a = taipo_analyze::analyze(&text, true, &Options::default()).expect("analyze");
+    assert_eq!(a.layout, ours);
+    assert_eq!(a.foreign_layouts, vec![0xdeadbeefu64]);
+    assert_eq!(a.foreign_sessions, 1);
+    assert_eq!(a.unstamped_sessions, 1);
+
+    // The derivation still happens: an older corpus is the normal case for anyone who
+    // edits the tables, and the numbers are worth having so long as the warning is there.
+    assert!(a.total_chords > 0);
+}
