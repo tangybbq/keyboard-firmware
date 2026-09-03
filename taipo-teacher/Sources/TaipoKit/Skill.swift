@@ -21,15 +21,27 @@ import Foundation
 /// linear in the whole history: a year of daily use measured at nine seconds, and the
 /// ladder asks for a rebuild every block.
 ///
-/// Deletions are *not* windowed, and that asymmetry is deliberate.  A ratio over a growing
-/// denominator recovers on its own -- type it right often enough and the early mistakes
-/// dilute -- where a median simply stops moving.
+/// Deletions are windowed too, for the same reason and after the same argument was got
+/// wrong once.  A ratio over a growing denominator does recover on its own, but only if
+/// the *recent* rate is already under the bar, and it recovers at a pace set by everything
+/// banked before it: a chord with 16 deletions in 57 uses needs 103 further clean ones to
+/// average a tenth, and the chords with the most banked are exactly the ones being drilled
+/// hardest.  It felt stuck because it was stuck.
+///
+/// Windowing a gate makes it something a bad spell can take away, which is what pushed
+/// speed out of the gate in the first place.  So the gate is not the current rate but
+/// whether the rate has *ever* been good with enough uses behind it -- `everReached`,
+/// worked out as the logs are folded and sticky once set.  A demonstration is historical
+/// by nature: having shown you can type a thing is not undone by a bad afternoon.
 
 /// What the logs say about one chord.
 public struct ChordSkill: Equatable, Sendable {
     public let code: UInt16
     /// How many times it has been typed, over the whole history.
     public let count: Int
+    /// Whether the chord has ever been typed enough times with few enough of them taken
+    /// back.  Sticky: see the note on windowing at the top of the file.
+    public let everReached: Bool
     /// The median gap from the chord before it, over the most recent uses.
     ///
     /// Median rather than mean: a log of real work is full of pauses to think, and one
@@ -37,14 +49,23 @@ public struct ChordSkill: Equatable, Sendable {
     /// before this is taken, for the same reason the alternation rule has a window -- a
     /// trainer must never mistake stopping to think for being slow.
     public let medianMs: UInt32
-    /// How many times a backspace deleted it, over the whole history.
+    /// How many of the most recent uses were taken back.
     public let deleted: Int
+    /// How many of those recent uses there were, which is the window or fewer.
+    public let recent: Int
 
-    public init(code: UInt16, count: Int, medianMs: UInt32, deleted: Int) {
+    public init(
+        code: UInt16, count: Int, medianMs: UInt32, deleted: Int, recent: Int? = nil,
+        everReached: Bool? = nil
+    ) {
         self.code = code
         self.count = count
         self.medianMs = medianMs
         self.deleted = deleted
+        self.recent = recent ?? count
+        // A model built by hand -- which is every test that does not fold a log -- gets
+        // the answer its numbers imply, so it does not have to know this exists.
+        self.everReached = everReached ?? (count > 0 && deleted * 10 <= count)
     }
 
     /// How often typing it is followed by taking it back.
@@ -55,22 +76,40 @@ public struct ChordSkill: Equatable, Sendable {
     /// correction scanner on both sides.  The cap stays as a belt: it is a ratio the
     /// screen prints, and there is no reading of "114% taken back" worth showing a writer.
     public var errorRate: Double {
-        count > 0 ? min(1, Double(deleted) / Double(count)) : 0
+        recent > 0 ? min(1, Double(deleted) / Double(recent)) : 0
     }
 }
 
 /// The measurements for one chord, as they are accumulated and stored.
 struct ChordSamples: Codable, Equatable {
     var total: Int = 0
-    var deleted: Int = 0
     /// The most recent timed gaps, oldest first, capped at `Options.window`.
     var gaps: [UInt32] = []
+    /// Whether each of the most recent uses was taken back, oldest first, same cap.
+    var outcomes: [Bool] = []
+    /// Whether the chord has ever met the gate.  Once true, always true.
+    var everReached = false
 
-    mutating func note(gap: UInt32?, window: Int) {
+    /// Note one use, and see whether it is the one that gets the chord past the gate.
+    ///
+    /// Checked per use rather than per session, because a session can be a whole day and
+    /// the answer is "was it ever good", not "was it good at closing time".
+    mutating func note(gap: UInt32?, deleted: Bool, options: SkillModel.Options) {
         total += 1
-        guard let gap else { return }
-        gaps.append(gap)
-        if gaps.count > window { gaps.removeFirst(gaps.count - window) }
+        if let gap {
+            gaps.append(gap)
+            if gaps.count > options.window { gaps.removeFirst(gaps.count - options.window) }
+        }
+        outcomes.append(deleted)
+        if outcomes.count > options.window {
+            outcomes.removeFirst(outcomes.count - options.window)
+        }
+        if !everReached, total >= options.minSamples {
+            let bad = outcomes.filter { $0 }.count
+            if Double(bad) <= options.maxErrorRate * Double(outcomes.count) {
+                everReached = true
+            }
+        }
     }
 }
 
@@ -115,23 +154,23 @@ struct SkillCollector {
                 let mine = chords.filter { $0.variant == variant }
                 var byCode = samples[variant] ?? [:]
 
+                // Which uses were taken back, worked out before the walk rather than
+                // after it: each use is noted with its own outcome, so the window holds
+                // "was this one undone" and not a count bolted on at the end.
+                let scanner = CorrectionScanner(layouts: layouts, variant: variant)
+                let undone = Set(
+                    scanner.scanIndexed(mine.map(\.code)).compactMap(\.deletedIndex))
+
                 var previousMs: UInt32?
-                for chord in mine {
+                for (i, chord) in mine.enumerated() {
                     var gap: UInt32?
                     if let previous = previousMs, chord.timeMs >= previous {
                         let d = chord.timeMs - previous
                         if d <= options.pauseMs { gap = d }
                     }
                     byCode[chord.code, default: ChordSamples()]
-                        .note(gap: gap, window: options.window)
+                        .note(gap: gap, deleted: undone.contains(i), options: options)
                     previousMs = chord.timeMs
-                }
-
-                let scanner = CorrectionScanner(layouts: layouts, variant: variant)
-                for correction in scanner.scan(mine.map(\.code)) {
-                    if let d = correction.deleted {
-                        byCode[d, default: ChordSamples()].deleted += 1
-                    }
                 }
                 samples[variant] = byCode
             }
@@ -145,7 +184,8 @@ struct SkillCollector {
         for (code, s) in byCode {
             skills[code] = ChordSkill(
                 code: code, count: s.total, medianMs: SkillModel.median(s.gaps),
-                deleted: s.deleted)
+                deleted: s.outcomes.filter { $0 }.count, recent: s.outcomes.count,
+                everReached: s.everReached)
         }
         return SkillModel(
             skills: skills, sessions: sessions, skipped: skipped,
@@ -220,7 +260,11 @@ public struct SkillModel: Sendable {
     /// thing for a progress bar to do.  Uses only ever grow.
     public func reached(_ code: UInt16) -> Bool {
         guard let s = skills[code] else { return false }
-        return s.count >= options.minSamples && s.errorRate <= options.maxErrorRate
+        // The exposure test as well, though folding only ever sets `everReached` with it
+        // already met.  It costs nothing, it is monotone like the flag itself, and it
+        // keeps a model assembled by hand in a test from claiming a chord seen twice has
+        // been demonstrated.
+        return s.everReached && s.count >= options.minSamples
     }
 
     /// Whether a chord has been typed often enough, quickly enough, and cleanly enough.

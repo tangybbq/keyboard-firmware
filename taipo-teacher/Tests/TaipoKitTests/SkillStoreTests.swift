@@ -204,17 +204,62 @@ final class SkillStoreTests: XCTestCase {
         XCTAssertFalse(wide.learned(0x008))
     }
 
-    /// Deletions are not windowed, and that recovers on its own: a ratio over a growing
-    /// denominator falls as the chord goes on being typed correctly.
-    func testAccuracyRecoversWithUse() throws {
+    /// Mistakes age out, so a chord you have stopped getting wrong reads as clean.
+    ///
+    /// The rate used to be over all of history, and that is why it felt stuck: a chord
+    /// with sixteen deletions in fifty-seven uses needed a hundred further clean ones just
+    /// to average a tenth, and the chords carrying the most were the ones being drilled
+    /// hardest.  Windowed, it takes a window of clean use.
+    func testMistakesAgeOut() throws {
         let keys = ["L.e", "R.t"]
-        try day("2026-09-01.txt", keys: keys, count: 200, gapMs: 300)
-        let early = try XCTUnwrap(try cached().skill(0x008))
+        // A day of getting `e` wrong: type it, take it back, type it again.
+        var messy = ""
+        var t: UInt32 = 0
+        for _ in 0..<60 {
+            for k in ["L.e", "R.Bk", "L.e", "R.t"] {
+                messy += "\(t) + \(k)\n\(t + 30) - \(k)\n"
+                t += 300
+            }
+        }
+        try (sessionHeader(try layouts()) + messy).write(
+            to: dir.appendingPathComponent("2026-09-01.txt"), atomically: true, encoding: .utf8)
+        let bad = try XCTUnwrap(try cached().skill(0x008))
+        XCTAssertGreaterThan(bad.errorRate, 0.3, "a bad day should read bad")
 
-        try day("2026-09-02.txt", keys: keys, count: 2000, gapMs: 300)
-        let late = try XCTUnwrap(try cached().skill(0x008))
+        // Then a clean one, longer than the window.
+        try day("2026-09-02.txt", keys: keys, count: 400, gapMs: 300)
+        let good = try XCTUnwrap(try cached().skill(0x008))
 
-        XCTAssertEqual(early.deleted, late.deleted, "no new mistakes")
-        XCTAssertLessThanOrEqual(late.errorRate, early.errorRate)
+        XCTAssertEqual(good.errorRate, 0, "the old mistakes are out of the window")
+        XCTAssertGreaterThan(good.count, bad.count, "and every use still counts as exposure")
+    }
+
+    /// Having got there is not undone by a bad spell afterwards.
+    ///
+    /// Windowing a measurement makes it something that can be lost, and a gate that can be
+    /// lost takes items off the writer -- which is why speed is not a gate.  So the gate is
+    /// not the current rate but whether the rate has ever been good, worked out as the
+    /// logs are folded and sticky once set.
+    func testReachingStaysReached() throws {
+        let keys = ["L.e", "R.t"]
+        try day("2026-09-01.txt", keys: keys, count: 400, gapMs: 300)
+        XCTAssertTrue(try cached().reached(0x008), "clean and often typed")
+
+        // A thoroughly bad day afterwards.
+        var messy = ""
+        var t: UInt32 = 0
+        for _ in 0..<80 {
+            for k in ["L.e", "R.Bk"] {
+                messy += "\(t) + \(k)\n\(t + 30) - \(k)\n"
+                t += 300
+            }
+        }
+        try (sessionHeader(try layouts()) + messy).write(
+            to: dir.appendingPathComponent("2026-09-02.txt"), atomically: true, encoding: .utf8)
+
+        let after = try cached()
+        XCTAssertGreaterThan(try XCTUnwrap(after.skill(0x008)).errorRate, 0.4, "and it shows")
+        XCTAssertTrue(after.reached(0x008), "but the ladder does not take the item back")
+        XCTAssertFalse(after.learned(0x008), "while the screen still says it is not right")
     }
 }

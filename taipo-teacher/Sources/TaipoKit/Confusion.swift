@@ -143,7 +143,17 @@ public struct CorrectionScanner {
     /// One session at a time, never across a join: two chords either side of a break may
     /// be hours apart, and a backspace does not correct something typed yesterday.
     public func scan(_ codes: [UInt16]) -> [Correction] {
-        var out = [Correction]()
+        scanIndexed(codes).map(\.correction)
+    }
+
+    /// The same, with the position of the chord each correction took back.
+    ///
+    /// The skill model needs to know *which use* of a chord was undone, not just how many
+    /// were, so that it can ask whether the mistakes are recent.  One implementation, two
+    /// views: `scan` is this with the positions dropped, so the two cannot disagree about
+    /// what a correction is.
+    public func scanIndexed(_ codes: [UInt16]) -> [(correction: Correction, deletedIndex: Int?)] {
+        var out = [(correction: Correction, deletedIndex: Int?)]()
         for (i, code) in codes.enumerated() {
             guard isBackspace(code) else { continue }
             // Only the first backspace of a run opens a correction: a run of them is one
@@ -161,7 +171,8 @@ public struct CorrectionScanner {
             }
 
             // What it deleted: the nearest preceding chord that typed something.
-            let deleted = codes[..<i].last { isText($0) }
+            let deletedIndex = codes[..<i].lastIndex { isText($0) }
+            let deleted = deletedIndex.map { codes[$0] }
             // What replaced it: the next chord that types, as long as it is not another
             // backspace.
             let after = codes[(i + 1)...].first { isText($0) || isBackspace($0) }
@@ -174,10 +185,13 @@ public struct CorrectionScanner {
                     nil
                 }
             out.append(
-                Correction(
-                    deleted: deleted, replacement: replacement,
-                    kind: Self.classify(deleted: deleted, replacement: replacement),
-                    confusion: confusion))
+                (
+                    Correction(
+                        deleted: deleted, replacement: replacement,
+                        kind: Self.classify(deleted: deleted, replacement: replacement),
+                        confusion: confusion),
+                    deletedIndex
+                ))
         }
         return out
     }

@@ -907,9 +907,20 @@ in two ways at once, and both were measured rather than guessed:
   most recent 64 uses.  In *uses* rather than days, which is the right unit here: 64 uses
   of `e` is a few minutes of typing and 64 of `q` is a fortnight, and both are "lately".
 
-Deletions are deliberately not windowed.  A ratio over a growing denominator recovers on
-its own — go on typing it right and the early mistakes dilute — where a median simply stops
-moving.  Only the measurement that cannot self-correct is given a window.
+Deletions are windowed too, and the argument for not windowing them was wrong.  A ratio
+over a growing denominator does recover on its own, but only if the *recent* rate is
+already under the bar, and it recovers at a pace set by everything banked before it: a
+chord with 16 deletions in 57 uses needed 103 further clean ones to average a tenth, and
+the chords carrying the most were exactly the ones being drilled hardest.  It felt stuck
+because it was stuck.
+
+Windowing a measurement makes it something a bad spell can take away, and a gate that can
+be taken away costs the writer items they had — the reason speed is not a gate.  So the
+gate is not the current rate but whether the rate has *ever* been good with enough uses
+behind it: `everReached`, worked out per use as the logs are folded, and sticky once set.
+A demonstration is historical by nature, and having shown you can type a thing is not
+undone by a bad afternoon.  The screen goes on showing the current rate, which is what
+moves and what the writer can do something about.
 
 **The checkpoint is a cache, not state.**  This matters more than it sounds: "the logs are
 the model" is the decision the whole design rests on, and a progress file that could
