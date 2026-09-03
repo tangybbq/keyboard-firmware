@@ -16,13 +16,12 @@ struct DrillView: View {
                 // What this line is for.  A drill built from the writer's own mistakes is
                 // worth naming: `"o" / "s" — ring, wrong-row` says why these words, and
                 // without it the material looks arbitrary.
-                if let title = monitor.drillTitle {
-                    HStack(spacing: 10) {
-                        Text(title)
-                            .font(.callout.weight(.medium))
-                            .foregroundStyle(.secondary)
-                        if let ladder = monitor.ladder { progress(ladder) }
-                    }
+                if let ladder = monitor.ladder {
+                    ladderHeading(ladder)
+                } else if let title = monitor.drillTitle {
+                    Text(title)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.secondary)
                 }
                 HStack(alignment: .top, spacing: 20) {
                     target(drill)
@@ -108,6 +107,79 @@ struct DrillView: View {
         .help(
             "Ladder unlocks letters, then numbers and marks, as each is learned.  "
             + "Confusions drills the pairs your own corrections say you mix up.")
+    }
+
+    /// Where the ladder is, and where each item it is working on has got to.
+    ///
+    /// The three measurements are shown apart rather than as one number, because one
+    /// number does not say what to do about it: a chord halfway there might be one you
+    /// have hardly typed, one you type slowly, or one you keep taking back, and those are
+    /// three different afternoons.  Each is drawn against the threshold it has to clear,
+    /// and the one still short of it is the one coloured.
+    private func ladderHeading(_ ladder: Ladder) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 10) {
+                Text(ladder.headline())
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.secondary)
+                progress(ladder)
+            }
+            ForEach(ladder.focus, id: \.label) { item in
+                focusRow(item)
+            }
+        }
+    }
+
+    /// One item being worked on: what it is, how far along, and what is holding it back.
+    @ViewBuilder
+    private func focusRow(_ item: LadderItem) -> some View {
+        if let skill = monitor.skill {
+            // A pair is only as learned as its weaker half, which is the one worth
+            // reporting -- the same rule the ladder ranks by.
+            let code = item.codes.min { skill.confidence($0) < skill.confidence($1) }
+                ?? item.codes[0]
+            let parts = skill.parts(code)
+            let s = skill.skill(code)
+            let options = skill.options
+
+            HStack(spacing: 8) {
+                Text(item.label == " " ? "space" : item.label)
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(width: 34, alignment: .leading)
+
+                bar(parts.confidence)
+
+                measure(
+                    "\(s?.count ?? 0)/\(options.minSamples)", unit: "typed",
+                    met: parts.exposure >= 1)
+                measure(
+                    (s.map { $0.medianMs == .max ? "—" : "\($0.medianMs)" } ?? "—")
+                        + "/\(options.targetMs)",
+                    unit: "ms", met: parts.speed >= 1)
+                measure(
+                    s.map { String(format: "%.0f", $0.errorRate * 100) } ?? "0",
+                    unit: "% back", met: parts.accuracy >= 1)
+            }
+        }
+    }
+
+    /// A measurement and the threshold it is being held to, coloured only when it is what
+    /// is still missing.
+    private func measure(_ value: String, unit: String, met: Bool) -> some View {
+        HStack(spacing: 2) {
+            Text(value).font(.caption.monospacedDigit())
+            Text(unit).font(.caption2)
+        }
+        .foregroundStyle(met ? Color.secondary : Color.orange)
+    }
+
+    private func bar(_ fraction: Double) -> some View {
+        ZStack(alignment: .leading) {
+            Capsule().fill(.quaternary).frame(width: 54, height: 4)
+            Capsule()
+                .fill(Color.accentColor)
+                .frame(width: 54 * max(0, min(1, fraction)), height: 4)
+        }
     }
 
     /// How far up the ladder this is, as a bar and a count.

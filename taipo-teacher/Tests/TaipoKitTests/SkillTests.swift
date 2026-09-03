@@ -114,6 +114,43 @@ final class SkillTests: XCTestCase {
         XCTAssertEqual(model.confidence(0x001), 1, accuracy: 0.0001)
     }
 
+    /// The three parts multiply to the confidence, and each says what it is about.
+    ///
+    /// Worth pinning together: the parts exist so a screen can say what is holding a chord
+    /// back, and they would be a lie if they did not agree with the number the ladder
+    /// ranks by.
+    func testPartsExplainTheConfidence() throws {
+        let options = SkillModel.Options(minSamples: 10, targetMs: 500, maxErrorRate: 0.2)
+        func model(count: Int, ms: UInt32, deleted: Int) -> SkillModel {
+            SkillModel(
+                skills: [
+                    0x008: ChordSkill(code: 0x008, count: count, medianMs: ms, deleted: deleted)
+                ], sessions: 1, chords: count, options: options)
+        }
+
+        // Hardly typed, but quick and clean when it was.
+        let new = model(count: 2, ms: 300, deleted: 0)
+        XCTAssertEqual(new.parts(0x008).exposure, 0.2, accuracy: 0.0001)
+        XCTAssertEqual(new.parts(0x008).speed, 1)
+        XCTAssertEqual(new.parts(0x008).accuracy, 1)
+        XCTAssertFalse(new.parts(0x008).complete)
+
+        // Typed plenty and never taken back, but slow.
+        let slow = model(count: 40, ms: 1000, deleted: 0)
+        XCTAssertEqual(slow.parts(0x008).exposure, 1)
+        XCTAssertEqual(slow.parts(0x008).speed, 0.5, accuracy: 0.0001)
+        XCTAssertFalse(slow.parts(0x008).complete)
+
+        // Every part agrees with the number the ladder ranks by, and with `learned`.
+        for m in [new, slow, model(count: 40, ms: 300, deleted: 0)] {
+            XCTAssertEqual(m.parts(0x008).confidence, m.confidence(0x008), accuracy: 0.0001)
+            XCTAssertEqual(m.parts(0x008).complete, m.learned(0x008))
+        }
+
+        // Never typed at all: nothing to show on any of the three.
+        XCTAssertEqual(new.parts(0x001), SkillModel.Parts(exposure: 0, speed: 0, accuracy: 0))
+    }
+
     /// Corrections are charged to the chord the backspace took back.
     func testDeletionsAreCounted() throws {
         let dir = try logDirectory(try golden("slips", "log"))

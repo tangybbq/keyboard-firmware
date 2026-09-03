@@ -119,10 +119,16 @@ public struct Ladder: Sendable {
             pool.sorted { confidence($0) < confidence($1) }.prefix(options.focus))
     }
 
-    /// How the ladder reads as a heading.
+    /// Where the ladder has got to, without saying what it is working on.
+    ///
+    /// Split from `title()` because a screen that lists the focus items in their own right
+    /// does not want them named twice.
+    public func headline() -> String { "Ladder — \(unlockedCount) of \(items.count)" }
+
+    /// How the ladder reads as a heading, for somewhere with room for only one line.
     public func title() -> String {
         let names = focus.map { "\"\($0.label)\"" }.joined(separator: " ")
-        return "Ladder — \(unlockedCount) of \(items.count); on \(names)"
+        return "\(headline()); on \(names)"
     }
 
     // MARK: - The order

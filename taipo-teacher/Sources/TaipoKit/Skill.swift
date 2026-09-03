@@ -207,19 +207,45 @@ public struct SkillModel: Sendable {
             && s.errorRate <= options.maxErrorRate
     }
 
-    /// A single number for ordering the weakest first, in `0...1`.
+    /// How far a chord is toward being learned, split into the three things being asked
+    /// of it.
     ///
-    /// The product of the three, so that a chord which is fast but wrong and one which is
-    /// accurate but slow both rank below one that is neither.  A chord the logs have never
-    /// seen scores 0, which puts anything newly unlocked straight into the focus set --
-    /// which is where a thing you have never typed belongs.
-    public func confidence(_ code: UInt16) -> Double {
-        guard let s = skills[code], s.count > 0 else { return 0 }
-        let exposure = min(1, Double(s.count) / Double(max(1, options.minSamples)))
-        let speed = min(1, Double(options.targetMs) / Double(max(1, s.medianMs)))
-        let accuracy = max(0, 1 - s.errorRate / max(0.0001, options.maxErrorRate))
-        return exposure * speed * accuracy
+    /// Split rather than summed because the sum does not say what to do about it.  A
+    /// chord at 0.4 might be one you have hardly typed, one you type slowly, or one you
+    /// keep taking back, and those are three different afternoons.
+    public struct Parts: Equatable, Sendable {
+        /// Typed often enough, against `minSamples`.
+        public let exposure: Double
+        /// Quick enough, against `targetMs`.
+        public let speed: Double
+        /// Left alone often enough, against `maxErrorRate`.
+        public let accuracy: Double
+
+        /// The product, so that a chord which is fast but wrong and one which is accurate
+        /// but slow both rank below one that is neither.
+        public var confidence: Double { exposure * speed * accuracy }
+
+        /// Whether all three are satisfied, which is what `learned` asks.
+        public var complete: Bool { exposure >= 1 && speed >= 1 && accuracy >= 1 }
     }
+
+    /// The three, for one chord.
+    ///
+    /// A chord the logs have never seen scores zero on all of them, which puts anything
+    /// newly unlocked straight into the focus set -- which is where a thing you have never
+    /// typed belongs.
+    public func parts(_ code: UInt16) -> Parts {
+        guard let s = skills[code], s.count > 0 else {
+            return Parts(exposure: 0, speed: 0, accuracy: 0)
+        }
+        return Parts(
+            exposure: min(1, Double(s.count) / Double(max(1, options.minSamples))),
+            speed: min(1, Double(options.targetMs) / Double(max(1, s.medianMs))),
+            accuracy: max(0, min(1, 1 - s.errorRate / max(0.0001, options.maxErrorRate))))
+    }
+
+    /// A single number for ordering the weakest first, in `0...1`.
+    public func confidence(_ code: UInt16) -> Double { parts(code).confidence }
 
     /// Replay every log in a directory and measure each chord.
     ///
