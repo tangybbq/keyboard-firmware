@@ -304,8 +304,10 @@ public final class DeviceMonitor: ObservableObject {
             let programme: [Drill]
             switch mode {
             case .ladder:
-                let skill = SkillModel.build(
-                    logDirectory: directory, layouts: layouts, variant: variant)
+                let skill = SkillStore.model(
+                    logDirectory: directory,
+                    cache: SkillStore.defaultURL(forLogsIn: directory),
+                    layouts: layouts, variant: variant)
                 let built = Ladder(layouts: layouts, variant: variant, skill: skill)
                 ladder = built
                 let drill = LadderMaker(layouts: layouts, variant: variant)
