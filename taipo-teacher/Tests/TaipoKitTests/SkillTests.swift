@@ -1,0 +1,138 @@
+import XCTest
+
+@testable import TaipoKit
+
+/// The skill model, against a log whose contents are known.
+final class SkillTests: XCTestCase {
+    private func layouts() throws -> Layouts { try Layouts.bundled() }
+
+    private func golden(_ name: String, _ ext: String) throws -> String {
+        let url = try XCTUnwrap(
+            Bundle.module.url(forResource: "golden/\(name)", withExtension: ext))
+        return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private func logDirectory(_ contents: String) throws -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("skill-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try contents.write(
+            to: dir.appendingPathComponent("2026-09-01.txt"), atomically: true, encoding: .utf8)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        return dir
+    }
+
+    /// A log of `count` presses of one key, `gapMs` apart.
+    ///
+    /// Written out rather than generated through the engine so the expected timing is
+    /// arithmetic rather than a second implementation of the thing under test.
+    private func repeatedChord(key: String, count: Int, gapMs: UInt32, holdMs: UInt32 = 30)
+        -> String
+    {
+        var lines = [String]()
+        for i in 0..<count {
+            let at = UInt32(i) * gapMs
+            lines.append("\(at) + \(key)")
+            lines.append("\(at + holdMs) - \(key)")
+        }
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    /// Counts, timing and the gap rule, on a log built to have one answer.
+    ///
+    /// The chord commits when its last key comes up, so the gap between two of them is the
+    /// gap between the releases, which is the gap between the presses.
+    func testCountsAndTiming() throws {
+        let dir = try logDirectory(repeatedChord(key: "L.e", count: 10, gapMs: 400))
+        let model = SkillModel.build(logDirectory: dir, layouts: try layouts())
+
+        let e = try XCTUnwrap(model.skill(0x008))
+        XCTAssertEqual(e.count, 10)
+        // Nine gaps of 400ms; the first chord has nothing before it.
+        XCTAssertEqual(e.medianMs, 400)
+        XCTAssertEqual(e.deleted, 0)
+        XCTAssertEqual(model.chords, 10)
+    }
+
+    /// A pause is not slowness.  Gaps past the window are dropped rather than averaged in,
+    /// so stopping to think costs nothing.
+    func testLongGapsAreNotSlowness() throws {
+        var log = repeatedChord(key: "L.e", count: 6, gapMs: 300)
+        // One more, ten seconds after the last: the writer went for coffee.
+        log += "11500 + L.e\n11530 - L.e\n"
+        let dir = try logDirectory(log)
+        let model = SkillModel.build(logDirectory: dir, layouts: try layouts())
+
+        let e = try XCTUnwrap(model.skill(0x008))
+        XCTAssertEqual(e.count, 7)
+        XCTAssertEqual(e.medianMs, 300, "the pause should not count as a slow chord")
+    }
+
+    /// A chord seen but never timed is not the fastest thing on the keyboard.
+    func testAnUntimedChordIsNotFast() throws {
+        let dir = try logDirectory(repeatedChord(key: "L.e", count: 1, gapMs: 400))
+        let model = SkillModel.build(logDirectory: dir, layouts: try layouts())
+
+        let e = try XCTUnwrap(model.skill(0x008))
+        XCTAssertEqual(e.count, 1)
+        XCTAssertEqual(e.medianMs, .max)
+        XCTAssertFalse(model.learned(0x008))
+    }
+
+    /// The thresholds: enough times, fast enough, and not often taken back.
+    func testLearnedNeedsAllThree() throws {
+        let options = SkillModel.Options(minSamples: 5, targetMs: 500, maxErrorRate: 0.1)
+        func model(count: Int, ms: UInt32, deleted: Int) -> SkillModel {
+            SkillModel(
+                skills: [
+                    0x008: ChordSkill(code: 0x008, count: count, medianMs: ms, deleted: deleted)
+                ], sessions: 1, chords: count, options: options)
+        }
+
+        XCTAssertTrue(model(count: 20, ms: 300, deleted: 0).learned(0x008))
+        XCTAssertFalse(model(count: 3, ms: 300, deleted: 0).learned(0x008), "too few")
+        XCTAssertFalse(model(count: 20, ms: 900, deleted: 0).learned(0x008), "too slow")
+        XCTAssertFalse(model(count: 20, ms: 300, deleted: 5).learned(0x008), "too wrong")
+    }
+
+    /// Confidence orders the weakest first, and a chord never typed is weakest of all.
+    func testConfidenceOrdersTheWeakest() throws {
+        let options = SkillModel.Options(minSamples: 10, targetMs: 500, maxErrorRate: 0.2)
+        let model = SkillModel(
+            skills: [
+                0x001: ChordSkill(code: 0x001, count: 40, medianMs: 300, deleted: 0),
+                0x002: ChordSkill(code: 0x002, count: 40, medianMs: 1200, deleted: 0),
+                0x004: ChordSkill(code: 0x004, count: 3, medianMs: 300, deleted: 0),
+            ], sessions: 1, chords: 83, options: options)
+
+        let ranked = [0x001, 0x002, 0x004, 0x008].sorted {
+            model.confidence(UInt16($0)) < model.confidence(UInt16($1))
+        }
+        XCTAssertEqual(ranked.first, 0x008, "a chord never typed is the least known")
+        XCTAssertEqual(ranked.last, 0x001, "fast, accurate and often typed is the best known")
+        XCTAssertEqual(model.confidence(0x008), 0)
+        XCTAssertEqual(model.confidence(0x001), 1, accuracy: 0.0001)
+    }
+
+    /// Corrections are charged to the chord the backspace took back.
+    func testDeletionsAreCounted() throws {
+        let dir = try logDirectory(try golden("slips", "log"))
+        let model = SkillModel.build(logDirectory: dir, layouts: try layouts())
+
+        // The golden log's confusions are the same corrections seen from the other end,
+        // so every pair's chords must show deletions here.
+        let confusions = ConfusionModel.build(logDirectory: dir, layouts: try layouts())
+        let blamed = model.skills.values.filter { $0.deleted > 0 }
+        XCTAssertFalse(blamed.isEmpty)
+        XCTAssertEqual(blamed.map(\.deleted).reduce(0, +), confusions.corrections)
+    }
+
+    /// The model is per-variant, like everything else the trainer derives.
+    func testModelIsPerVariant() throws {
+        let dir = try logDirectory(repeatedChord(key: "L.e", count: 10, gapMs: 400))
+        let dosh = SkillModel.build(logDirectory: dir, layouts: try layouts(), variant: "dosh")
+
+        XCTAssertEqual(dosh.chords, 0)
+        XCTAssertNil(dosh.skill(0x008))
+    }
+}
