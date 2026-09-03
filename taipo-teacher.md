@@ -867,16 +867,43 @@ The second drill mode, and the one that answers "I have just changed the layout 
 learn it".  Confusions needs a history of mistakes to work from; a table typed for the
 first time has none.
 
-**The skill model.**  `SkillModel`, derived from the logs exactly as `ConfusionModel` is,
-with nothing stored.  Per chord: how often it has been typed, the median gap from the chord
-before it, and how often a backspace took it back.  Speed is the *gap* rather than the
-chord's own spread — spread says how sloppily the keys of one chord were struck, the gap
-says how long the hand took to find it, which is the thing practice moves.  The gap has a
-pause window over it, the same rule and the same reason as alternation: a trainer must
-never mistake stopping to think for being slow.
+**The skill model.**  `SkillModel`, derived from the logs exactly as `ConfusionModel` is.
+Per chord: how often it has been typed, the median gap from the chord before it, and how
+often a backspace took it back.  Speed is the *gap* rather than the chord's own spread —
+spread says how sloppily the keys of one chord were struck, the gap says how long the hand
+took to find it, which is the thing practice moves.  The gap has a pause window over it,
+the same rule and the same reason as alternation: a trainer must never mistake stopping to
+think for being slow.
 
 Because practice goes through the keyboard like any other typing, a drill improves the
 model that chose it.  There is no results file, and so no second copy of the truth.
+
+**But it needed a checkpoint, and a window.**  Deriving from everything, every time, broke
+in two ways at once, and both were measured rather than guessed:
+
+- *It got slow.*  A full rebuild is linear in the whole history — 0.07s at three days,
+  0.79s at a month, 9.5s at a year of daily use — and the ladder asks for one after every
+  block.  `SkillStore` folds each finished log file once and keeps the measurements, so a
+  rebuild costs the day in progress and nothing else: 0.036s at a year, and flat.
+- *It stopped moving.*  A median over a year of a common letter cannot shift, so a chord
+  that was slow when it was new and is quick now reads as slow forever — and an item that
+  cannot improve is one the ladder can never let go of.  The gaps are now a window of the
+  most recent 64 uses.  In *uses* rather than days, which is the right unit here: 64 uses
+  of `e` is a few minutes of typing and 64 of `q` is a fortnight, and both are "lately".
+
+Deletions are deliberately not windowed.  A ratio over a growing denominator recovers on
+its own — go on typing it right and the early mistakes dilute — where a median simply stops
+moving.  Only the measurement that cannot self-correct is given a window.
+
+**The checkpoint is a cache, not state.**  This matters more than it sounds: "the logs are
+the model" is the decision the whole design rests on, and a progress file that could
+disagree with them would undo it.  So the property is tested rather than asserted — folding
+a file at a time gives the same measurements as folding everything, at every point along
+the way, and deleting `skill-cache.json` loses nothing.  Two things keep it true: the
+newest log file is never folded (it is still being appended to, and it is the one a scrub
+reaches into, so it is replayed live every rebuild), and any disagreement between the
+checkpoint and the files it claims to describe throws the whole thing away rather than
+folding a change on top of what came after it.
 
 **Several items in flight, not one.**  This is the developer's ask, and it is a real
 change rather than a tuning knob.  keybr introduces a letter and hammers it until its
@@ -915,12 +942,22 @@ generator was needed, where keybr does need one.
 progress: the logs by then include the block just typed, so the ladder moves on by exactly
 what the typing earned.
 
+**When it moves on.**  An item is learned when the logs for that table show its chord typed
+at least 12 times, with a median gap under 700ms over the last 64 uses, and no more than
+10% of its uses taken back.  The ladder then holds itself at exactly three unlearned items,
+so each item that becomes learned pulls exactly one new one in — a continuous trickle
+rather than a batch.  The check runs at every rebuild: when the practice screen opens, when
+the variant changes, and after each block.  The opening seven are the exception, seeded
+together so there is an alphabet to draw words from; nothing new joins until five of them
+are learned.
+
 **Still open.**  Capitals are not on the ladder — they are a thumb away from a letter that
 is, and sentence material teaches them without a slot of their own; whether that holds is
-a question for use.  The unlocked set being a pure function of the logs means it could in
-principle go *backwards* if typing got much worse; in practice counts only accumulate, but
-it has not been watched over a long enough stretch to say.  And the n-gram chords are still
-not drilled, for the reason recorded above.
+a question for use.  The unlocked set being a pure function of the logs means it can go
+*backwards* — and with the timing windowed it now genuinely can, since a spell of slow
+typing can un-learn an item that was learned.  That is arguably right, and it is certainly
+not what a writer expects from a progress bar; it wants watching before it wants a ratchet.
+And the n-gram chords are still not drilled, for the reason recorded above.
 
 ### 4c. Rough order
 
