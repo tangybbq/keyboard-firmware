@@ -197,20 +197,66 @@ final class LadderTests: XCTestCase {
     ///
     /// This is the "less insistent than keybr" property, and it is worth pinning: the
     /// failure it guards against is a line of `,,, ,,, ,,,` that technically drills the
-    /// comma.
+    /// comma.  Two things say it is still typing: most of the characters are letters, and
+    /// some whole words are left untouched, which is the rule the material actually
+    /// enforces when it decides how many words it may decorate.
     func testFocusDoesNotTakeOverTheLine() throws {
         let maker = LadderMaker(layouts: try layouts(), variant: "dosh")
         for learned in [14, 18, 25, 45] {
             let ladder = try ladder(learning: learned)
-            let marks = Set(
-                ladder.focus.filter { $0.stage != .letter }.flatMap { $0.label })
             for line in maker.drill(ladder, lines: 6, seed: 909).lines {
                 let letters = line.filter { $0.isLetter }.count
                 XCTAssertGreaterThan(
                     letters, line.count / 2, "\(line) is more punctuation than typing")
-                XCTAssertLessThanOrEqual(
-                    line.filter { marks.contains($0) }.count, 6, "too many marks in \(line)")
+                let plain = line.split(separator: " ").filter { $0.allSatisfy(\.isLetter) }
+                XCTAssertGreaterThanOrEqual(
+                    plain.count, 2, "nothing left plain in \(line)")
             }
+        }
+    }
+
+    /// A mark or a digit gets as much practice in a line as a letter does.
+    ///
+    /// It did not, and that is what this pins.  A focus letter is worked by every word
+    /// that happens to contain it, which runs to two or three uses a line; a mark is
+    /// worked only where one is deliberately put, and there was exactly one of those, so
+    /// marks took two to three times as long to learn as the letters around them.
+    func testMarksGetAsMuchPracticeAsLetters() throws {
+        let maker = LadderMaker(layouts: try layouts(), variant: "dosh")
+        // Ladder states whose focus sets hold a mark or a digit: the comma, the zero, the
+        // apostrophe, and one deep enough that all three are marks at once.
+        for learned in [14, 18, 22, 34] {
+            let ladder = try ladder(learning: learned)
+            let extras = ladder.focus.filter { $0.stage != .letter }
+            XCTAssertFalse(extras.isEmpty, "no mark in focus at \(learned)")
+
+            let lines = maker.drill(ladder, lines: 40, seed: 31).lines
+            for item in extras {
+                let ch = try XCTUnwrap(item.label.first)
+                let total = lines.reduce(0) { $0 + $1.filter { c in c == ch }.count }
+                let perLine = Double(total) / Double(lines.count)
+                XCTAssertGreaterThanOrEqual(
+                    perLine, 2, "\(item.label) only \(perLine) a line at \(learned)")
+            }
+        }
+    }
+
+    /// Nothing already learned drops out of circulation entirely.
+    ///
+    /// Reinforcement is biased toward what was learned most recently, and an earlier cut
+    /// at that used a hard window, which dropped the period and the comma -- the two marks
+    /// most worth keeping a hand in -- to exactly never once four more had been learned.
+    func testLearnedMarksStayInCirculation() throws {
+        let maker = LadderMaker(layouts: try layouts(), variant: "dosh")
+        let ladder = try ladder(learning: 45)
+        let older = ladder.unlocked.filter { $0.stage != .letter && !ladder.focus.contains($0) }
+        XCTAssertGreaterThan(older.count, 6, "not enough learned marks to be a test")
+
+        let lines = maker.drill(ladder, lines: 400, seed: 5).lines
+        for item in older {
+            let ch = try XCTUnwrap(item.label.first)
+            XCTAssertTrue(
+                lines.contains { $0.contains(ch) }, "\(item.label) never appears at all")
         }
     }
 

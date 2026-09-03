@@ -61,7 +61,7 @@ public struct LadderMaker {
     /// layout.  Woven through it: one word for each focus letter, and one decoration for
     /// each focus mark or digit.  That is the "less insistent" part -- the focus items get
     /// worked every line, but they never take the line over.
-    public func line(_ ladder: Ladder, words count: Int, using rng: inout DrillRandom)
+    public func line(_ ladder: Ladder, words wordCount: Int, using rng: inout DrillRandom)
         -> String
     {
         let alphabet = Set(
@@ -72,6 +72,14 @@ public struct LadderMaker {
         guard !pool.isEmpty else { return "" }
 
         let focusLetters = ladder.focus.filter { $0.stage == .letter }.map(\.label)
+        let focusExtras = ladder.focus.filter { $0.stage != .letter }
+        // A longer line when it has more marks to carry.  Every mark wants `perLine`
+        // placings and every line wants two plain words left in it, and with three marks
+        // in focus at once a seven-word line cannot have both -- they came out at one
+        // apiece, which is the problem this is meant to fix.  Bounded, because a line
+        // nobody wants to read teaches nothing either.
+        let count = min(
+            wordCount + 4, max(wordCount, focusExtras.count * Self.perLine + 2))
         var tokens = [String]()
         /// Slots holding a word chosen for a focus letter, which a decoration must not take.
         var reserved = Set<Int>()
@@ -86,27 +94,79 @@ public struct LadderMaker {
             }
         }
 
-        // Decorations: the focus marks and digits first, then one already-unlocked extra
-        // to keep what has been learned in circulation.  Capped at half the line, because
-        // a line that is more punctuation than words stops being typing practice.
-        var extras = ladder.focus.filter { $0.stage != .letter }
-        let older = ladder.unlocked.filter { $0.stage != .letter && !extras.contains($0) }
-        if let one = older.randomElement(using: &rng) { extras.append(one) }
-        extras = Array(extras.prefix(max(1, count / 2)))
-
-        let digits = ladder.unlocked.filter { $0.stage == .digit }.map(\.label)
         // A decoration replaces the word in its slot, so it may not have one that was
         // chosen for a focus letter: the line would then work the mark and quietly drop
         // the letter it was also meant to be practising.
         var slots = tokens.indices.filter { !reserved.contains($0) }.shuffled(using: &rng)
-        for extra in extras {
-            guard let slot = slots.popLast() else { break }
+        let digits = ladder.unlocked.filter { $0.stage == .digit }.map(\.label)
+
+        /// Decorate one free word with an item, if there is a word left to spare.
+        @discardableResult
+        func place(_ item: LadderItem) -> Bool {
+            guard let slot = slots.popLast() else { return false }
             tokens[slot] = decorate(
-                extra.label, word: tokens[slot], other: pick(pool, using: &rng),
+                item.label, word: tokens[slot], other: pick(pool, using: &rng),
                 digits: digits, using: &rng)
+            return true
         }
+        /// How many times the line already asks for an item, incidental uses included.
+        func appearances(_ item: LadderItem) -> Int {
+            guard let ch = item.label.first else { return 0 }
+            return tokens.reduce(0) { $0 + $1.filter { $0 == ch }.count }
+        }
+
+        // Leave at least two plain words, or the line stops being typing practice.
+        var budget = max(1, count - 2)
+        let older = ladder.unlocked.filter {
+            $0.stage != .letter && !ladder.focus.contains($0)
+        }
+        // One slot held back to keep what has just been learned in circulation.
+        if !older.isEmpty && budget > 1 { budget -= 1 }
+
+        // The focus marks and digits, round robin, until each is asked for as often as an
+        // ordinary focus letter would be.  A letter is worked by every word that happens
+        // to contain it, which measured at two to three uses a line; a mark is worked only
+        // where one is deliberately put, so without this it got exactly one and took two
+        // or three times as long to learn.
+        //
+        // Round robin, one apiece per pass, so that three of them share a line rather than
+        // the first taking all of it.  A pass that places nothing ends the loop, which is
+        // what stops it when the words run out before the targets are met.
+        var placing = true
+        while budget > 0 && placing {
+            placing = false
+            for item in focusExtras where budget > 0 {
+                guard appearances(item) < Self.perLine, place(item) else { continue }
+                budget -= 1
+                placing = true
+            }
+        }
+
+        // And one mark or digit that has already been learned, drawn with a bias toward
+        // the ones learned most recently.
+        //
+        // A bias rather than a window.  Sharing the slot evenly between every mark ever
+        // learned has each appearing a third of a line at fifteen items and a twentieth at
+        // forty, which is not circulation; but taking only the newest few dropped the
+        // period and the comma to exactly never, and those are the two marks most worth
+        // keeping a hand in.  Squaring the draw favours what was learned lately without
+        // letting anything fall off the end.
+        if !older.isEmpty {
+            let u = Double(rng.next() >> 11) / Double(1 << 53)
+            let fromEnd = min(older.count - 1, Int(u * u * Double(older.count)))
+            place(older[older.count - 1 - fromEnd])
+        }
+
         return tokens.joined(separator: " ")
     }
+
+    /// How often a focus mark or digit is asked for in a line.
+    ///
+    /// Three, which is what a focus *letter* measured at, once the words that happen to
+    /// contain it are counted.  A mark is worked only where one is deliberately put, so
+    /// without this it got exactly one placing a line and took two or three times as long
+    /// to learn as a letter did.  The point is equal practice, not equal decoration.
+    static let perLine = 3
 
     // MARK: - Choosing words
 
@@ -192,10 +252,15 @@ public struct LadderMaker {
         case "#": return numeric().map { "#\($0)" } ?? "#\(word)"
         case "^": return numeric().map { "\(word)^\($0)" } ?? "\(word)^"
         default:
-            // A digit, or a mark with no shape of its own yet.
+            // A digit, kept beside its word rather than in place of it.  Replacing the
+            // word cost the line a word -- which measurably thinned the letters at the
+            // stages where three digits are placed -- and turned a line into `0 0 0` when
+            // only one digit was unlocked and there was nothing else a number could be.
+            // `page 12` is how a number is typed anyway.
             if digits.contains(label) {
-                return number(label, digits: digits, using: &rng)
+                return "\(word) \(number(label, digits: digits, using: &rng))"
             }
+            // A mark with no shape of its own yet.
             return "\(word)\(label)"
         }
     }
