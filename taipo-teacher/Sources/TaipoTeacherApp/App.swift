@@ -29,7 +29,10 @@ struct TaipoTeacherApp: App {
         // fit, it bought nothing and cost the main thread dearly.
         Window("Taipo Teacher", id: "main") {
             MainView(monitor: monitor)
-                .frame(minWidth: 680, minHeight: 460)
+                // Tall enough for a long drill line without the target being squeezed:
+                // the material runs to about 170 characters at its longest, which is five
+                // wrapped lines at the size the target is drawn.
+                .frame(minWidth: 680, minHeight: 560)
         }
     }
 }

@@ -331,11 +331,29 @@ struct FlowText: View {
 
     let chars: [Char]
 
+    static let fontSize: CGFloat = 26
+    static let lineSpacing: CGFloat = 6
+    /// One wrapped line of the target, near enough for reserving room.
+    static let lineHeight: CGFloat = fontSize * 1.2 + lineSpacing
+    /// How many wrapped lines the target always has room for.
+    ///
+    /// Reserved rather than left to the content, so that a short line and a long one do
+    /// not move the scoreboard and the technique strip up and down the window between
+    /// them.  Three, which is what an ordinary line comes to; longer ones grow past it.
+    static let reservedLines = 3
+
     var body: some View {
         Text(attributed)
-            .font(.system(size: 26, design: .monospaced))
-            .lineSpacing(6)
+            .font(.system(size: Self.fontSize, design: .monospaced))
+            .lineSpacing(Self.lineSpacing)
             .textSelection(.disabled)
+            // Take the height the text actually needs.  Without this the VStack compresses
+            // it when the window is tight and the line ends in an ellipsis -- which is not
+            // a thing a drill can do, since the writer has to type what it is hiding.
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(
+                minHeight: Self.lineHeight * CGFloat(Self.reservedLines),
+                alignment: .topLeading)
     }
 
     private var attributed: AttributedString {
