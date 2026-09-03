@@ -579,7 +579,16 @@ impl Analysis {
             let replacement = replaced_at.map(|j| taipo[j].code);
 
             // Only the first backspace of a run opens a correction.
-            if i > 0 && is_backspace(taipo[i - 1]) {
+            //
+            // The run is measured over the chords that mean anything, not over adjacent
+            // ones: a modifier or a dead chord between two backspaces types nothing, so
+            // the second is still deleting what the first was.  Looking only at `i - 1`
+            // read that as a fresh correction, and both halves then blamed the same chord
+            // -- which is how a chord came to be charged more deletions than it had uses.
+            let previous = taipo[..i]
+                .iter()
+                .rposition(|c| is_text(c) || is_backspace(c));
+            if previous.map_or(false, |j| is_backspace(taipo[j])) {
                 continue;
             }
 
@@ -857,6 +866,92 @@ mod tests {
         assert_eq!(classify(Some(0x030), Some(0x00c)), CorrectionKind::Different);
         assert_eq!(classify(Some(0x010), Some(0x00c)), CorrectionKind::Different);
         assert_eq!(classify(Some(0x030), None), CorrectionKind::NoReplacement);
+    }
+
+    /// One chord, for the correction tests.
+    fn chord(code: u16, action: ChordAction, time_ms: u32) -> Chord {
+        Chord {
+            time_ms,
+            side: Side::Left,
+            code,
+            variant: TaipoVariant::Taipo,
+            mode: LayoutMode::Taipo,
+            first_key_ms: time_ms,
+            last_key_ms: time_ms,
+            end: ChordEnd::AllReleased,
+            action: Some(action),
+        }
+    }
+
+    /// A run of backspaces is one correction even when something that types nothing has
+    /// got in between them.
+    ///
+    /// A modifier or a dead chord between two backspaces does not end the run: it types
+    /// nothing, so the second backspace is still deleting what the first was.  Counting
+    /// it as a fresh correction made both halves blame the same chord, which is how a
+    /// chord came to be charged more deletions than it had uses.
+    #[test]
+    fn test_a_modifier_does_not_break_a_backspace_run() {
+        let bk = || ChordAction::Key(Keyboard::DeleteBackspace);
+        let chords = vec![
+            chord(0x001, ChordAction::Key(Keyboard::A), 0),
+            chord(0x200, bk(), 100),
+            // A shift, pressed and abandoned in the middle of backspacing.
+            chord(0x088, ChordAction::OneShot(bbq_keyboard::Mods::SHIFT), 200),
+            chord(0x200, bk(), 300),
+            chord(0x002, ChordAction::Key(Keyboard::O), 400),
+        ];
+        let refs: Vec<&Chord> = chords.iter().collect();
+
+        let mut analysis = Analysis::default();
+        analysis.find_corrections(&refs, &Options::default());
+
+        assert_eq!(analysis.corrections.len(), 1, "one correction, not two");
+        assert_eq!(analysis.corrections[0].deleted, Some(0x001));
+        // No single replacement, exactly as for a run with nothing in the middle of it:
+        // two backspaces took more than one chord back, so no one chord replaced it.
+        assert_eq!(analysis.corrections[0].replacement, None);
+        assert_eq!(analysis.corrections[0].kind, CorrectionKind::NoReplacement);
+    }
+
+    /// A modifier *after* a lone backspace does not hide what replaced it.
+    #[test]
+    fn test_a_modifier_does_not_hide_the_replacement() {
+        let chords = vec![
+            chord(0x001, ChordAction::Key(Keyboard::A), 0),
+            chord(0x200, ChordAction::Key(Keyboard::DeleteBackspace), 100),
+            chord(0x088, ChordAction::OneShot(bbq_keyboard::Mods::SHIFT), 200),
+            chord(0x002, ChordAction::Key(Keyboard::O), 300),
+        ];
+        let refs: Vec<&Chord> = chords.iter().collect();
+
+        let mut analysis = Analysis::default();
+        analysis.find_corrections(&refs, &Options::default());
+
+        assert_eq!(analysis.corrections.len(), 1);
+        assert_eq!(analysis.corrections[0].deleted, Some(0x001));
+        assert_eq!(analysis.corrections[0].replacement, Some(0x002));
+    }
+
+    /// And a plain run is still one correction, which is what it always was.
+    #[test]
+    fn test_a_plain_backspace_run_is_one_correction() {
+        let bk = || ChordAction::Key(Keyboard::DeleteBackspace);
+        let chords = vec![
+            chord(0x001, ChordAction::Key(Keyboard::A), 0),
+            chord(0x200, bk(), 100),
+            chord(0x200, bk(), 200),
+            chord(0x200, bk(), 300),
+            chord(0x002, ChordAction::Key(Keyboard::O), 400),
+        ];
+        let refs: Vec<&Chord> = chords.iter().collect();
+
+        let mut analysis = Analysis::default();
+        analysis.find_corrections(&refs, &Options::default());
+
+        assert_eq!(analysis.corrections.len(), 1);
+        assert_eq!(analysis.corrections[0].deleted, Some(0x001));
+        assert_eq!(analysis.corrections[0].replacement, None);
     }
 
     #[test]

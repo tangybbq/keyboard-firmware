@@ -96,6 +96,48 @@ final class ConfusionTests: XCTestCase {
         XCTAssertEqual(Confusion.of(typed: 0x002, meant: 0x044), .unrelated)
     }
 
+    /// A run of backspaces is one correction even when something that types nothing has
+    /// got in between them.
+    ///
+    /// A modifier or a dead chord between two backspaces does not end the run: it types
+    /// nothing, so the second backspace is still deleting what the first was.  Counting
+    /// that as a fresh correction made both halves blame the same chord, which is how a
+    /// chord came to be charged more deletions than it had uses -- 114% taken back, on the
+    /// developer's own logs.  The same fix is in `taipo_analyze::stats`, with the same
+    /// tests, because these two must agree about what a mistake is.
+    func testAModifierDoesNotBreakABackspaceRun() throws {
+        let layouts = try layouts()
+        let scanner = CorrectionScanner(layouts: layouts)
+        let a: UInt16 = 0x001
+        let o: UInt16 = 0x002
+        let bk: UInt16 = 0x200
+        let shift: UInt16 = 0x088
+
+        let broken = scanner.scan([a, bk, shift, bk, o])
+        XCTAssertEqual(broken.count, 1, "one correction, not two")
+        XCTAssertEqual(broken[0].deleted, a)
+        // No single replacement, exactly as for a run with nothing in the middle of it:
+        // two backspaces took more than one chord back, so no one chord replaced it.
+        XCTAssertNil(broken[0].replacement)
+        XCTAssertEqual(broken[0].kind, .noReplacement)
+
+        // A plain run is one correction too, which it always was.
+        let plain = scanner.scan([a, bk, bk, bk, o])
+        XCTAssertEqual(plain.count, 1)
+        XCTAssertEqual(plain[0].deleted, a)
+        XCTAssertNil(plain[0].replacement)
+    }
+
+    /// A modifier *after* a lone backspace does not hide what replaced it.
+    func testAModifierDoesNotHideTheReplacement() throws {
+        let scanner = CorrectionScanner(layouts: try layouts())
+        let corrections = scanner.scan([0x001, 0x200, 0x088, 0x002])
+
+        XCTAssertEqual(corrections.count, 1)
+        XCTAssertEqual(corrections[0].deleted, 0x001)
+        XCTAssertEqual(corrections[0].replacement, 0x002)
+    }
+
     /// A log file holds several timelines, and the reader has to find all of them.
     func testSessionsSplitTheSameWayRustDoes() throws {
         let layouts = try layouts()

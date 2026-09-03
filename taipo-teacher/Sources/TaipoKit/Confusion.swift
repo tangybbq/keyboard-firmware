@@ -148,7 +148,17 @@ public struct CorrectionScanner {
             guard isBackspace(code) else { continue }
             // Only the first backspace of a run opens a correction: a run of them is one
             // correction, not several.
-            if i > 0, isBackspace(codes[i - 1]) { continue }
+            //
+            // The run is measured over the chords that mean anything, not over adjacent
+            // ones: a modifier or a dead chord between two backspaces types nothing, so
+            // the second is still deleting what the first was.  Looking only at `i - 1`
+            // read that as a fresh correction, and both halves then blamed the same chord
+            // -- which is how a chord came to be charged more deletions than it had uses.
+            if let previous = codes[..<i].last(where: { isText($0) || isBackspace($0) }),
+                isBackspace(previous)
+            {
+                continue
+            }
 
             // What it deleted: the nearest preceding chord that typed something.
             let deleted = codes[..<i].last { isText($0) }

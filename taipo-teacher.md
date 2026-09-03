@@ -1029,11 +1029,16 @@ change, and existing logs could not benefit from it retroactively, so it waits.
 
 **Still open.**  Capitals are not on the ladder — they are a thumb away from a letter that
 is, and sentence material teaches them without a slot of their own; whether that holds is
-a question for use.  A backspace run broken by a modifier counts as two corrections and
-both blame the chord before the run, so a chord can be charged more deletions than it has
-uses; the rate is capped for display, but the fault is in the correction scanner and it is
-pinned to the Rust side, so fixing it means fixing both.  And the n-gram chords are still
-not drilled, for the reason recorded above.
+a question for use.  And the n-gram chords are still not drilled, for the reason recorded
+above.
+
+**A correction is a run, not a backspace.**  Finding one looked at the chord immediately
+before, so a modifier or a dead chord between two backspaces read as a fresh correction,
+and both halves blamed the chord before the run — a chord could be charged more deletions
+than it had uses, and one on the developer's logs read 114% taken back.  The run is now
+measured over the chords that mean anything, in `taipo_analyze::stats` and in `TaipoKit`
+together, with the same tests on both sides: the synthetic logs never produced the shape,
+so the golden files did not cover it and did not change.
 
 ### 4c. Rough order
 

@@ -49,11 +49,11 @@ public struct ChordSkill: Equatable, Sendable {
 
     /// How often typing it is followed by taking it back.
     ///
-    /// Capped at all of them.  It can come out above that: a backspace run broken by a
-    /// modifier reads as two corrections, and both blame the chord before the run, so a
-    /// chord can be charged more deletions than it has uses.  That is a fault in the
-    /// correction scanner, which is pinned to the Rust side and cannot be changed on its
-    /// own; capping here keeps it from being reported as 114% taken back.
+    /// Capped at all of them, which nothing should now reach: a backspace run broken by a
+    /// modifier used to read as two corrections, both blaming the chord before the run, so
+    /// a chord could be charged more deletions than it had uses.  That is fixed in the
+    /// correction scanner on both sides.  The cap stays as a belt: it is a ratio the
+    /// screen prints, and there is no reading of "114% taken back" worth showing a writer.
     public var errorRate: Double {
         count > 0 ? min(1, Double(deleted) / Double(count)) : 0
     }
