@@ -370,6 +370,45 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// Re-read the logs and update the measurements, leaving the lines alone.
+    ///
+    /// Split from `rebuildProgramme` because the two want different rhythms.  The
+    /// *material* has to hold still while it is being typed -- regenerating it every line
+    /// would move the target out from under the writer -- but the *measurements* are what
+    /// the screen is reporting, and they were only refreshed when a block of sixteen lines
+    /// ran out.  A few drills therefore changed nothing on screen while the model behind
+    /// it moved by thousands of chords.
+    ///
+    /// New material is asked for only when the ladder actually unlocks something, which is
+    /// rare and is exactly when the lines are out of date.
+    private func refreshSkill() {
+        guard practicing, practiceMode == .ladder, !refreshing, let layouts else { return }
+        refreshing = true
+        let directory = logDirectory
+        let variant = self.variant
+        Task.detached(priority: .utility) {
+            let skill = SkillStore.model(
+                logDirectory: directory,
+                cache: SkillStore.defaultURL(forLogsIn: directory),
+                layouts: layouts, variant: variant)
+            let built = Ladder(layouts: layouts, variant: variant, skill: skill)
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.refreshing = false
+                guard self.practicing, self.practiceMode == .ladder, self.variant == variant
+                else { return }
+                let unlocked = self.ladder?.unlockedCount
+                self.skill = skill
+                self.ladder = built
+                self.skippedSessions = skill.skipped
+                if let unlocked, built.unlockedCount != unlocked { self.rebuildProgramme() }
+            }
+        }
+    }
+
+    /// Whether a refresh is already in flight, so they cannot pile up on a fast writer.
+    private var refreshing = false
+
     /// How many lines a ladder block holds before the model is asked again.
     ///
     /// The block is the unit of progress: finishing one sends the logs -- which now
@@ -411,6 +450,9 @@ public final class DeviceMonitor: ObservableObject {
             text = programme[drillIndex].lines[lineIndex]
             drillTitle = programme[drillIndex].title
             lineIndex += 1
+            // A line has just been finished with, so what the logs say about it has
+            // changed.  Cheap: only the day in progress is replayed.
+            refreshSkill()
         }
         drill = DrillSession(
             target: DrillTarget(text: text, layouts: layouts, variant: variant),
