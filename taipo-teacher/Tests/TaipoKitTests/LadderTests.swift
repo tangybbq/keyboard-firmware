@@ -87,19 +87,60 @@ final class LadderTests: XCTestCase {
     }
 
     /// Learning what is out unlocks more, and the focus follows the frontier.
+    ///
+    /// Two at a time, not three: the focus set holds three, and one place is kept for an
+    /// item that is past the gate but still slow.  See `testEveryUnreachedItemIsDrilled`
+    /// for why every item short of the gate has to be in the set.
     func testLearningUnlocksMore() throws {
-        // Every unlocked item learned: the ladder runs on until `focus` are unlearned.
         let seven = try ladder(learning: 7)
-        XCTAssertEqual(seven.unlockedCount, 10)
-        XCTAssertEqual(seven.focus.map(\.label), ["r", "h", "l"])
+        XCTAssertEqual(seven.unlockedCount, 9)
+        XCTAssertEqual(seven.focus.map(\.label), ["r", "h"])
 
-        // With the first twenty learned, three more come out and those three -- the only
-        // unlearned ones -- are exactly what the focus set points at.
+        // With the first twenty learned, two more come out and those two -- the only ones
+        // short of the gate -- are exactly what the focus set points at.  Nothing else is
+        // offered a place, because everything else is already fluent.
         let twenty = try ladder(learning: 20)
-        XCTAssertEqual(twenty.unlockedCount, 23)
+        XCTAssertEqual(twenty.unlockedCount, 22)
         XCTAssertEqual(
             Set(twenty.focus.map(\.label)),
-            Set(twenty.items[20..<23].map(\.label)))
+            Set(twenty.items[20..<22].map(\.label)))
+    }
+
+    /// Every item short of the gate is drilled.
+    ///
+    /// The one that is not is the one that stalls the ladder: an item unlocked and then
+    /// left out of the focus set gets no deliberate practice, so it never reaches the
+    /// gate, so nothing behind it ever unlocks.  That happened -- `b` came out and sat
+    /// there while the set showed the same three names, one of which was a slow comma
+    /// holding the polish place.
+    func testEveryUnreachedItemIsDrilled() throws {
+        let layouts = try layouts()
+        let items = Ladder.order(
+            layouts: layouts, variant: "dosh", options: Ladder.Options())
+
+        // Reached but slow, so it wants the polish place -- and must not take one that an
+        // item short of the gate needs.
+        var skills = [UInt16: ChordSkill]()
+        for item in items.prefix(14) {
+            for code in item.codes {
+                skills[code] = ChordSkill(code: code, count: 200, medianMs: 300, deleted: 0)
+            }
+        }
+        for code in items[14].codes {
+            skills[code] = ChordSkill(code: code, count: 125, medianMs: 1021, deleted: 12)
+        }
+        let skill = SkillModel(skills: skills, sessions: 1, chords: 3000)
+        let ladder = Ladder(layouts: layouts, variant: "dosh", skill: skill)
+
+        let unreached = ladder.unlocked.filter { !$0.codes.allSatisfy(skill.reached) }
+        XCTAssertFalse(unreached.isEmpty)
+        for item in unreached {
+            XCTAssertTrue(
+                ladder.focus.contains(item),
+                "\(item.label) is unlocked and short of the gate but never drilled")
+        }
+        // And the slow one still gets the place that is left.
+        XCTAssertTrue(ladder.focus.contains { $0.label == items[14].label })
     }
 
     /// The whole point of the change from keybr: one stubborn item does not stop the
@@ -123,9 +164,9 @@ final class LadderTests: XCTestCase {
             layouts: layouts, variant: "dosh",
             skill: SkillModel(skills: skills, sessions: 1, chords: 1000))
 
-        // Two more unlocked on top of the twenty that are learned, and the stubborn one is
+        // One more unlocked on top of the twenty that are learned, and the stubborn one is
         // still being worked rather than left behind.
-        XCTAssertEqual(ladder.unlockedCount, 22)
+        XCTAssertEqual(ladder.unlockedCount, 21)
         XCTAssertTrue(ladder.focus.contains { $0.label == items[0].label })
     }
 
@@ -157,8 +198,8 @@ final class LadderTests: XCTestCase {
         XCTAssertTrue(items[12].codes.allSatisfy(skill.reached))
         XCTAssertFalse(items[12].codes.allSatisfy(skill.learned), "reached but not fluent")
 
-        // Thirteen reached, so three more come out on top of them.
-        XCTAssertEqual(ladder.unlockedCount, 16)
+        // Thirteen reached, so two more come out on top of them.
+        XCTAssertEqual(ladder.unlockedCount, 15)
         // And the slow one holds a place, rather than being crowded out by the new ones.
         XCTAssertTrue(
             ladder.focus.contains { $0.label == items[12].label },
@@ -192,7 +233,7 @@ final class LadderTests: XCTestCase {
 
         let brisk = ladder(medianMs: 300)
         let bogged = ladder(medianMs: 1400)
-        XCTAssertEqual(brisk.unlockedCount, 18)
+        XCTAssertEqual(brisk.unlockedCount, 17)
         XCTAssertEqual(bogged.unlockedCount, brisk.unlockedCount, "the ladder went backwards")
     }
 

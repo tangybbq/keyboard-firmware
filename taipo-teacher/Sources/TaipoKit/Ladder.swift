@@ -112,24 +112,31 @@ public struct Ladder: Sendable {
         }
 
         // Unlock while there is room.  A new item cannot be reached until it has been
-        // typed, so this settles at exactly `focus` short of it and cannot run away.
+        // typed, so this settles at the allowance and cannot run away.
+        //
+        // The allowance is one *less* than the focus set holds, and that one place is the
+        // whole point: every item short of the gate has to be in the focus set, or it gets
+        // no deliberate practice and can never reach it -- an item unlocked and then left
+        // out stalls the ladder behind it.  Filling the set with those alone leaves
+        // nothing for the item that is past the gate but still slow, so the ladder carries
+        // one fewer at a time and keeps the last place for polish.
+        let allowance = max(1, options.focus - 1)
         var count = min(options.initial, items.count)
         while count < items.count {
             let short = items.prefix(count).filter { !reached($0) }.count
-            guard short < options.focus else { break }
+            guard short < allowance else { break }
             count += 1
         }
         self.unlockedCount = count
 
-        // The focus set is the weakest unlocked items, and weakest is by confidence --
-        // which does count speed, even though the unlock gate does not.  So an item that
-        // has been reached but is still slow goes on being practised after the ladder has
-        // moved past it.
+        // The focus set: everything short of the gate first, then the weakest item that is
+        // past it but not yet fluent.
         //
-        // At most `focus - 1` of the set may be items not yet reached, so that a slow one
-        // keeps a place rather than being crowded out by whatever was unlocked last.  The
-        // top-up lifts that when there is nothing else to point at, which is how a cold
-        // start still gets a full set.
+        // That order matters.  The items short of the gate are what the ladder is waiting
+        // on, so leaving one out costs the writer every item behind it; polish only fills
+        // what they leave.  Weakest is by confidence, which does count speed even though
+        // the gate does not, so a chord that is reached but slow is what the spare place
+        // goes to -- and it goes on being practised after the ladder has moved past it.
         let out = Array(items.prefix(count))
         let ranked = out.indices.sorted {
             let (a, b) = (confidence(out[$0]), confidence(out[$1]))
@@ -137,19 +144,17 @@ public struct Ladder: Sendable {
             // nothing is known about.
             return a != b ? a < b : $0 < $1
         }
-        let notReached = ranked.filter { !reached(out[$0]) }
-        // The weakest item that is past the gate but not yet fluent -- which is what the
-        // reserved slot is for.  An item that is fully learned does not want the slot: it
-        // would be spending the line on something already done.
-        let reserve = ranked.first { reached(out[$0]) && confidence(out[$0]) < 1 }
-
-        var chosen = Array(notReached.prefix(reserve == nil ? options.focus : options.focus - 1))
-        if let reserve, chosen.count < options.focus { chosen.append(reserve) }
-        // Top up when there was nothing to reserve for and nothing new to work on, which
-        // is a ladder with everything reached: practice still has to go somewhere.
-        for i in ranked where chosen.count < options.focus && !chosen.contains(i) {
+        var chosen = Array(ranked.filter { !reached(out[$0]) }.prefix(options.focus))
+        // Then whatever is past the gate and still short of fluent.  An item that is fully
+        // learned is not offered the place: spending a line on something already done
+        // teaches nothing.
+        for i in ranked
+        where chosen.count < options.focus && reached(out[i]) && confidence(out[i]) < 1 {
             chosen.append(i)
         }
+        // A ladder with everything reached and fluent has nothing to point at by either
+        // rule, and practice still has to go somewhere.
+        if chosen.isEmpty { chosen = Array(ranked.prefix(options.focus)) }
         self.focus = chosen.map { out[$0] }
     }
 

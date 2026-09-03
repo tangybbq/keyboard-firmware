@@ -1014,6 +1014,15 @@ Speed still decides the focus set, the hint's fade and every number on the scree
 focus set holds a place for the weakest item that is reached but not yet fluent — so a slow
 comma goes on being drilled after the ladder has moved past it.
 
+**Every item short of the gate is in the focus set, and the ladder carries one fewer than
+the set holds.**  The first is not a preference, it is what stops the ladder stalling: an
+item unlocked and then left out of the set gets no deliberate practice, so it never reaches
+the gate, so nothing behind it unlocks either.  That happened — `b` came out and sat there
+while the set went on showing the same three names, one of which was a slow comma holding
+the polish place.  Since the polish place and the items short of the gate cannot both have
+all three, the allowance is `focus - 1`: two items in flight, and the last place kept for
+whatever is past the gate and still slow.
+
 There is a third reason, which only showed up in use.  The median is windowed to recent
 uses, so drilling a chord you are slow at pushes it *down*: practice could un-learn an item
 and take the ladder backwards, and it did, from 19 items to 15 in the middle of a session.
