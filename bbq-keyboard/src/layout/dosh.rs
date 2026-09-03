@@ -1,17 +1,18 @@
-//! The Posh chord table.
+//! The Dosh chord table.
 //!
-//! Posh (<https://inkeys.wiki/en/keymaps/posh>) is a Taipo-style chording
-//! layout from the same community, described as "a taipo style layout that
-//! excludes the pinkies in order to make combos more accurate and long periods
-//! of work more comfortable".  Like Taipo, each half of the keyboard is a
-//! complete layout, and the two halves are freely alternated.  Unlike Taipo, it
-//! uses only 6 finger keys per hand (3 columns of 2 rows) plus the 2 thumbs.
+//! Dosh is a local layout, derived from Posh
+//! (<https://inkeys.wiki/en/keymaps/posh>), a Taipo-style chording layout from
+//! the same community, described there as "a taipo style layout that excludes
+//! the pinkies in order to make combos more accurate and long periods of work
+//! more comfortable".  Like Taipo, each half of the keyboard is a complete
+//! layout, and the two halves are freely alternated.  Unlike Taipo, it leans
+//! on the 6 finger keys per hand (3 columns of 2 rows) plus the 2 thumbs.
 //!
 //! Only the table differs from Taipo: the chord accumulation, the chord timing,
 //! the modifier handling, and the scan code mapping are all shared, so the same
 //! chord code bits are used:
 //!
-//! | bit     | finger | row    | Posh letter typed alone |
+//! | bit     | finger | row    | Dosh letter typed alone |
 //! |---------|--------|--------|-------------------------|
 //! | `0x020` | ring   | top    | `a`                     |
 //! | `0x040` | middle | top    | `n`                     |
@@ -23,10 +24,10 @@
 //! | `0x200` | thumb  |        | Backspace               |
 //!
 //! The pinky bits (`0x010` and `0x001`, Taipo's `r` and `a`) appear in no entry
-//! here, so the pinky keys are dead in Posh, which is the entire point of the
-//! layout.
+//! here, so the pinky keys are dead, which is the point of the layout Dosh
+//! comes from.
 //!
-//! Local differences from the wiki:
+//! Differences from the Posh wiki:
 //!
 //! - **The thumbs are Taipo's.**  The wiki has space and backspace swapped
 //!   relative to Taipo; the developer wants them where Taipo has them, so
@@ -67,8 +68,8 @@ use crate::Mods;
 
 use super::taipo::{Action, Entry, TaipoVariant};
 
-/// The mapping between each Posh chord and its action.
-pub static POSH_ACTIONS: &[Entry] = &[
+/// The mapping between each Dosh chord and its action.
+pub static DOSH_ACTIONS: &[Entry] = &[
     // The thumb keys by themselves, and together as the null key, as in Taipo.
     Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
@@ -254,20 +255,20 @@ pub static POSH_ACTIONS: &[Entry] = &[
 
     // Selecting the chord table, the same pair as in `TAIPO_ACTIONS`: `rsni`
     // (the whole top row) selects Taipo, `aote` (the whole bottom row) selects
-    // Posh.  The names are Taipo's, because the chord is named by its shape;
-    // in Posh the two pinky keys of each spell nothing at all.
+    // Dosh.  The names are Taipo's, because the chord is named by its shape;
+    // in Dosh the two pinky keys of each spell nothing at all.
     //
     // These are the only entries here that use a pinky, and they use one on
-    // purpose: it is what guarantees they can never collide with a real Posh
-    // chord, since Posh has no pinky chords by definition.  `test_no_pinky`
+    // purpose: it is what guarantees they can never collide with a real Dosh
+    // chord, since Dosh has no pinky chords by definition.  `test_no_pinky`
     // excludes them for that reason.
     Entry { code: 0x0f0, action: Action::Variant(TaipoVariant::Taipo), },
-    Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Posh), },
+    Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Dosh), },
 ];
 
 #[cfg(test)]
 mod tests {
-    use super::POSH_ACTIONS;
+    use super::DOSH_ACTIONS;
     use crate::layout::taipo::Action;
 
     /// Compare two actions, which do not implement `PartialEq`.
@@ -283,7 +284,7 @@ mod tests {
     }
 
     fn action_for(code: u16) -> &'static Action {
-        &POSH_ACTIONS
+        &DOSH_ACTIONS
             .iter()
             .find(|e| e.code == code)
             .unwrap_or_else(|| panic!("no entry for {:#05x}", code))
@@ -310,22 +311,22 @@ mod tests {
     /// shadow the later entry.
     #[test]
     fn test_codes_unique() {
-        let mut codes: Vec<u16> = POSH_ACTIONS.iter().map(|e| e.code).collect();
+        let mut codes: Vec<u16> = DOSH_ACTIONS.iter().map(|e| e.code).collect();
         codes.sort();
         let count = codes.len();
         codes.dedup();
-        assert_eq!(codes.len(), count, "duplicate code in POSH_ACTIONS");
+        assert_eq!(codes.len(), count, "duplicate code in DOSH_ACTIONS");
     }
 
-    /// Posh excludes the pinkies, so neither pinky bit may appear in anything
-    /// Posh types.
+    /// Dosh excludes the pinkies, so neither pinky bit may appear in anything
+    /// Dosh types.
     ///
     /// The variant selection chords are the deliberate exception: they are a
-    /// shared shape rather than a Posh chord, and using a pinky is exactly
+    /// shared shape rather than a Dosh chord, and using a pinky is exactly
     /// what keeps them from ever colliding with one.
     #[test]
     fn test_no_pinky() {
-        for entry in POSH_ACTIONS {
+        for entry in DOSH_ACTIONS {
             if matches!(entry.action, Action::Variant(_)) {
                 continue;
             }
@@ -339,7 +340,7 @@ mod tests {
     fn test_variant_chords() {
         use crate::layout::taipo::TaipoVariant;
 
-        for (code, want) in [(0x0f0u16, TaipoVariant::Taipo), (0x00f, TaipoVariant::Posh)] {
+        for (code, want) in [(0x0f0u16, TaipoVariant::Taipo), (0x00f, TaipoVariant::Dosh)] {
             assert!(code & 0x011 != 0, "code {code:#05x} has no pinky");
             match action_for(code) {
                 Action::Variant(v) => assert_eq!(*v, want),
@@ -351,7 +352,7 @@ mod tests {
     /// Every entry is reachable: an empty chord is never looked up.
     #[test]
     fn test_codes_nonempty() {
-        for entry in POSH_ACTIONS {
+        for entry in DOSH_ACTIONS {
             assert_ne!(entry.code, 0);
         }
     }

@@ -426,10 +426,10 @@ fn test_modifier() {
 //////////////////////////////////////////////////////////////////////////////
 
 /// The variant toggle is part of the replay: after it, chords are looked up in
-/// the posh table, and the switch itself is reported.
+/// the dosh table, and the switch itself is reported.
 #[test]
 fn test_variant_toggle() {
-    // The posh toggle is the steno `#` key of the outer left column, which the
+    // The dosh toggle is the steno `#` key of the outer left column, which the
     // scan map gives no taipo meaning.
     let toggle = "k1";
     let mut log = Log::new();
@@ -449,14 +449,14 @@ fn test_variant_toggle() {
             _ => None,
         })
         .collect();
-    assert_eq!(variants, [TaipoVariant::Posh]);
+    assert_eq!(variants, [TaipoVariant::Dosh]);
 
     let chords = chord_list(&derived);
     assert_eq!(chords.len(), 2);
-    // n+i is `y` in taipo and `s` in posh, on the same keys.
+    // n+i is `y` in taipo and `s` in dosh, on the same keys.
     assert_eq!(chords[0].variant, TaipoVariant::Taipo);
     assert_eq!(chords[0].action, Some(ChordAction::Key(Keyboard::Y)));
-    assert_eq!(chords[1].variant, TaipoVariant::Posh);
+    assert_eq!(chords[1].variant, TaipoVariant::Dosh);
     assert_eq!(chords[1].action, Some(ChordAction::Key(Keyboard::S)));
 }
 
@@ -469,7 +469,7 @@ fn test_variant_chord() {
     let mut log = Log::new();
     log.tap('L', "n+i", 20)
         .wait(50)
-        // a+o+t+e, the whole bottom row, selects posh.
+        // a+o+t+e, the whole bottom row, selects dosh.
         .tap('L', "a+o+t+e", 20)
         .wait(50)
         .tap('L', "n+i", 20)
@@ -487,12 +487,12 @@ fn test_variant_chord() {
             _ => None,
         })
         .collect();
-    assert_eq!(variants, [TaipoVariant::Posh, TaipoVariant::Taipo]);
+    assert_eq!(variants, [TaipoVariant::Dosh, TaipoVariant::Taipo]);
 
     let chords = chord_list(&derived);
     assert_eq!(chords.len(), 5);
 
-    // n+i is `y` in taipo and `s` in posh, on the same keys.
+    // n+i is `y` in taipo and `s` in dosh, on the same keys.
     assert_eq!(chords[0].variant, TaipoVariant::Taipo);
     assert_eq!(chords[0].action, Some(ChordAction::Key(Keyboard::Y)));
 
@@ -501,13 +501,13 @@ fn test_variant_chord() {
     assert_eq!(chords[1].variant, TaipoVariant::Taipo);
     assert_eq!(
         chords[1].action,
-        Some(ChordAction::Variant(TaipoVariant::Posh))
+        Some(ChordAction::Variant(TaipoVariant::Dosh))
     );
 
-    assert_eq!(chords[2].variant, TaipoVariant::Posh);
+    assert_eq!(chords[2].variant, TaipoVariant::Dosh);
     assert_eq!(chords[2].action, Some(ChordAction::Key(Keyboard::S)));
 
-    assert_eq!(chords[3].variant, TaipoVariant::Posh);
+    assert_eq!(chords[3].variant, TaipoVariant::Dosh);
     assert_eq!(
         chords[3].action,
         Some(ChordAction::Variant(TaipoVariant::Taipo))

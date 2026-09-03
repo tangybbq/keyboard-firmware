@@ -2,7 +2,7 @@
 
 This repository is a body of code implementing the firmware for a family of
 combination steno/qwerty/taipo keyboards. The current daily driver is the "Mesa
-1", a 30-key split keyboard designed primarily for Taipo/Posh use. Currently, it
+1", a 30-key split keyboard designed primarily for Taipo/Dosh use. Currently, it
 has the steno-only keys physically removed, and a mesa 2 is in production than
 will improve ergonomics, and only have the 20 Taipo keys present.
 

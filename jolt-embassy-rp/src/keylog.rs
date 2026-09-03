@@ -301,7 +301,7 @@ pub fn ack(through_seq: u32) {
 /// through is still self-describing.
 ///
 /// Without this a replay starting mid-stream would not know which chord table to look
-/// chords up in, and would attribute Posh chords to the Taipo table with nothing to show
+/// chords up in, and would attribute Dosh chords to the Taipo table with nothing to show
 /// that it had.
 pub fn log_state() {
     let now = Instant::now();

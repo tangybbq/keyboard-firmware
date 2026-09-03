@@ -48,7 +48,7 @@ public enum LogRecord: Equatable {
 public enum Marker: UInt8, Equatable {
     /// The layout mode, so keystrokes made outside taipo can be excluded.
     case mode = 0
-    /// The chord table: 0 Taipo, 1 Posh.  Without it the two layouts' statistics pool.
+    /// The chord table: 0 Taipo, 1 Dosh.  Without it the two layouts' statistics pool.
     case variant = 1
     /// The row position on a three-row board.
     case rowShift = 2

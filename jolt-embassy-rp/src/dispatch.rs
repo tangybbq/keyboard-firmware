@@ -78,10 +78,10 @@ pub struct Dispatch {
     #[cfg(feature = "steno")]
     raw_mode: Mutex<CriticalSectionRawMutex, bool>,
 
-    /// Whether the Taipo engine has the Posh chord table selected.  Only
+    /// Whether the Taipo engine has the Dosh chord table selected.  Only
     /// meaningful in Taipo mode, but the engine keeps the setting across mode
     /// changes, so this does too.
-    posh: Mutex<CriticalSectionRawMutex, bool>,
+    dosh: Mutex<CriticalSectionRawMutex, bool>,
 }
 
 impl Dispatch {
@@ -120,7 +120,7 @@ impl Dispatch {
             current_mode: Mutex::new(INITIAL_MODE),
             #[cfg(feature = "steno")]
             raw_mode: Mutex::new(false),
-            posh: Mutex::new(false),
+            dosh: Mutex::new(false),
             inter: board.inter,
             usb: board.usb,
             #[cfg(feature = "steno")]
@@ -159,12 +159,12 @@ impl Dispatch {
     /// The mutexes are taken one after another, never nested.
     async fn update_variant_led(&self) {
         let mode = *self.current_mode.lock().await;
-        let posh = *self.posh.lock().await;
+        let dosh = *self.dosh.lock().await;
 
         let next = if mode != LayoutMode::Taipo {
             &manager::OFF_INDICATOR
-        } else if posh {
-            &manager::VARIANT_POSH_INDICATOR
+        } else if dosh {
+            &manager::VARIANT_DOSH_INDICATOR
         } else {
             &manager::VARIANT_TAIPO_INDICATOR
         };
@@ -402,8 +402,8 @@ impl LayoutActions for Dispatch {
 
     async fn set_sub_mode(&self, submode: MinorMode) {
         match submode {
-            MinorMode::Posh => {
-                *self.posh.lock().await = true;
+            MinorMode::Dosh => {
+                *self.dosh.lock().await = true;
                 keylog::log_marker(Marker::Variant, 1);
                 self.update_variant_led().await;
             }
@@ -412,8 +412,8 @@ impl LayoutActions for Dispatch {
 
     async fn clear_sub_mode(&self, submode: MinorMode) {
         match submode {
-            MinorMode::Posh => {
-                *self.posh.lock().await = false;
+            MinorMode::Dosh => {
+                *self.dosh.lock().await = false;
                 keylog::log_marker(Marker::Variant, 0);
                 self.update_variant_led().await;
             }

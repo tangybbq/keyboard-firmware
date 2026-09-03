@@ -15,7 +15,7 @@ use self::taipo::{TaipoManager, TaipoVariant};
 #[cfg(feature = "std")]
 pub mod export;
 pub mod fingerprint;
-pub mod posh;
+pub mod dosh;
 #[cfg(feature = "qwerty")]
 mod qwerty;
 #[cfg(feature = "steno")]
@@ -64,10 +64,10 @@ pub const ROW_TOGGLE_KEY: u8 = 0;
 // The Taipo variant toggle.  This is the steno `#` key of the outer left
 // column, which has no meaning at all in Taipo mode (`SCAN_MAP` maps it to
 // nothing).  Tapping it by itself while in Taipo switches between the Taipo and
-// Posh chord tables; see `posh_event` below.  On the 2-row boards this is the
+// Dosh chord tables; see `dosh_event` below.  On the 2-row boards this is the
 // lower of the two outer left keys, the mode key being the upper one.
 #[cfg(feature = "proto3")]
-pub const POSH_TOGGLE_KEY: u8 = 1;
+pub const DOSH_TOGGLE_KEY: u8 = 1;
 
 /// Which pair of rows the 2-row layouts (Taipo and steno) occupy.
 ///
@@ -192,17 +192,17 @@ pub fn taipo_map(key: u8) -> Option<u8> {
 // Taipo variant:
 //
 // The taipo engine can interpret chords with either of two tables: Taipo
-// itself, or Posh, a derivative that leaves the pinkies out (see the `posh`
+// itself, or Dosh, a derivative that leaves the pinkies out (see the `dosh`
 // module). Which one is in use is selected at runtime by tapping the steno `#`
-// key of the outer left column (see `POSH_TOGGLE_KEY`), which is dead in taipo
-// mode; `posh_event` handles it, and only in taipo mode, so the key keeps its
+// key of the outer left column (see `DOSH_TOGGLE_KEY`), which is dead in taipo
+// mode; `dosh_event` handles it, and only in taipo mode, so the key keeps its
 // normal meaning everywhere else.
 //
 // Like the row position, the toggle requires a solo tap, so the table can never
 // change in the middle of a chord, and the setting is lost at power off. Unlike
 // the row position, it belongs to the taipo engine rather than to this module:
 // it survives mode changes, and it applies to the taipo latch in steno mode as
-// well. The change is reported as `MinorMode::Posh` for an indicator.
+// well. The change is reported as `MinorMode::Dosh` for an indicator.
 //
 // Optional layouts:
 //
@@ -332,7 +332,7 @@ pub struct LayoutManager {
 
     // The same, for the Taipo variant toggle key.
     #[cfg(feature = "proto3")]
-    posh_arm: bool,
+    dosh_arm: bool,
 }
 
 impl LayoutManager {
@@ -351,7 +351,7 @@ impl LayoutManager {
             #[cfg(feature = "proto3")]
             row_arm: false,
             #[cfg(feature = "proto3")]
-            posh_arm: false,
+            dosh_arm: false,
         }
     }
 
@@ -391,7 +391,7 @@ impl LayoutManager {
         // This runs after the mode selector so that `self.mode.pressed` is up
         // to date, and so that the mode key keeps priority over the toggle.
         #[cfg(feature = "proto3")]
-        if self.posh_event(event, next, actions).await {
+        if self.dosh_event(event, next, actions).await {
             return;
         }
 
@@ -462,7 +462,7 @@ impl LayoutManager {
             }
             // The mode selector never sees this key, so its `pressed` mask
             // can't disarm the variant toggle; do it here instead.
-            self.posh_arm = false;
+            self.dosh_arm = false;
             return None;
         }
 
@@ -490,36 +490,36 @@ impl LayoutManager {
     /// else down, and released with nothing else down.  That keeps the table
     /// from ever changing in the middle of a chord.
     #[cfg(feature = "proto3")]
-    async fn posh_event<ACT: LayoutActions>(
+    async fn dosh_event<ACT: LayoutActions>(
         &mut self,
         event: KeyEvent,
         next: ModeNext,
         actions: &ACT,
     ) -> bool {
         if !matches!(next, ModeNext::Normal) || self.mode.get() != LayoutMode::Taipo {
-            self.posh_arm = false;
+            self.dosh_arm = false;
             return false;
         }
 
-        if event.key() != POSH_TOGGLE_KEY {
+        if event.key() != DOSH_TOGGLE_KEY {
             // Any other key means the toggle key wasn't pressed by itself.
-            self.posh_arm = false;
+            self.dosh_arm = false;
             return false;
         }
 
         match event {
             KeyEvent::Press(_) => {
-                self.posh_arm = self.mode.pressed == 1 << POSH_TOGGLE_KEY;
+                self.dosh_arm = self.mode.pressed == 1 << DOSH_TOGGLE_KEY;
             }
             KeyEvent::Release(_) => {
-                if self.posh_arm && self.mode.pressed == 0 {
+                if self.dosh_arm && self.mode.pressed == 0 {
                     let variant = self.taipo.toggle_variant();
                     match variant {
-                        TaipoVariant::Taipo => actions.clear_sub_mode(MinorMode::Posh).await,
-                        TaipoVariant::Posh => actions.set_sub_mode(MinorMode::Posh).await,
+                        TaipoVariant::Taipo => actions.clear_sub_mode(MinorMode::Dosh).await,
+                        TaipoVariant::Dosh => actions.set_sub_mode(MinorMode::Dosh).await,
                     }
                 }
-                self.posh_arm = false;
+                self.dosh_arm = false;
             }
         }
         true

@@ -16,7 +16,7 @@ use crate::Options;
 /// Single chords *and* ordered pairs, because the trouble is often in the sequence rather
 /// than the chord: a chord that is easy after one neighbour can be awkward after another,
 /// and averaging those together hides exactly the thing worth drilling.  Keyed by variant,
-/// since Taipo and Posh are different skills that happen to share an engine.
+/// since Taipo and Dosh are different skills that happen to share an engine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Item {
     Chord {
@@ -34,21 +34,21 @@ pub enum Item {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum VariantKey {
     Taipo,
-    Posh,
+    Dosh,
 }
 
 impl VariantKey {
     pub fn of(v: TaipoVariant) -> VariantKey {
         match v {
             TaipoVariant::Taipo => VariantKey::Taipo,
-            TaipoVariant::Posh => VariantKey::Posh,
+            TaipoVariant::Dosh => VariantKey::Dosh,
         }
     }
 
     pub fn name(self) -> &'static str {
         match self {
             VariantKey::Taipo => "taipo",
-            VariantKey::Posh => "posh",
+            VariantKey::Dosh => "dosh",
         }
     }
 }
@@ -344,7 +344,7 @@ pub struct Analysis {
 pub fn types_a_character(variant: VariantKey, code: u16) -> bool {
     let table = match variant {
         VariantKey::Taipo => bbq_keyboard::layout::taipo::TAIPO_ACTIONS,
-        VariantKey::Posh => bbq_keyboard::layout::posh::POSH_ACTIONS,
+        VariantKey::Dosh => bbq_keyboard::layout::dosh::DOSH_ACTIONS,
     };
     let Some(entry) = table.iter().find(|e| e.code == code) else {
         return false;
@@ -931,7 +931,7 @@ fn text_chords(variant: VariantKey) -> Vec<(&'static str, u16)> {
     use bbq_keyboard::layout::taipo::Action;
     let table: &[bbq_keyboard::layout::taipo::Entry] = match variant {
         VariantKey::Taipo => bbq_keyboard::layout::taipo::TAIPO_ACTIONS,
-        VariantKey::Posh => bbq_keyboard::layout::posh::POSH_ACTIONS,
+        VariantKey::Dosh => bbq_keyboard::layout::dosh::DOSH_ACTIONS,
     };
     let mut out: Vec<(&'static str, u16)> = table
         .iter()

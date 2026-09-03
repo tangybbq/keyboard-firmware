@@ -50,7 +50,7 @@ use core::task::{Context, Poll, Waker};
 use usbd_human_interface_device::page::Keyboard;
 
 use crate::layout::export::{bit_for_name, name_for_code, BIT_NAMES};
-use crate::layout::posh::POSH_ACTIONS;
+use crate::layout::dosh::DOSH_ACTIONS;
 use crate::layout::taipo::{Action, ChordEnd, TaipoVariant, SCAN_MAP, TAIPO_ACTIONS};
 use crate::layout::{LayoutActions, LayoutManager, TAIPO_CHORD_TIME};
 use crate::{KeyAction, KeyEvent, LayoutMode, MinorMode, Mods, Side};
@@ -734,13 +734,13 @@ impl LayoutActions for Recorder {
 
     async fn set_sub_mode(&self, submode: MinorMode) {
         match submode {
-            MinorMode::Posh => self.set_variant(TaipoVariant::Posh),
+            MinorMode::Dosh => self.set_variant(TaipoVariant::Dosh),
         }
     }
 
     async fn clear_sub_mode(&self, submode: MinorMode) {
         match submode {
-            MinorMode::Posh => self.set_variant(TaipoVariant::Taipo),
+            MinorMode::Dosh => self.set_variant(TaipoVariant::Taipo),
         }
     }
 
@@ -771,7 +771,7 @@ impl LayoutActions for Recorder {
         }
         let table = match variant {
             TaipoVariant::Taipo => TAIPO_ACTIONS,
-            TaipoVariant::Posh => POSH_ACTIONS,
+            TaipoVariant::Dosh => DOSH_ACTIONS,
         };
         let action = table
             .iter()
@@ -856,7 +856,7 @@ impl Chord {
             },
             match self.variant {
                 TaipoVariant::Taipo => "taipo",
-                TaipoVariant::Posh => "posh",
+                TaipoVariant::Dosh => "dosh",
             },
             self.code,
             self.key_names(),

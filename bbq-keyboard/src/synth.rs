@@ -26,7 +26,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 use crate::layout::export::char_for_key;
-use crate::layout::posh::POSH_ACTIONS;
+use crate::layout::dosh::DOSH_ACTIONS;
 use crate::layout::taipo::{Action, Entry, TaipoVariant, CHORD_TIME, SCAN_MAP, TAIPO_ACTIONS};
 use crate::replay::KeyLogEvent;
 use crate::Side;
@@ -253,7 +253,7 @@ fn check_spread(planned: &[Planned], style: &Style) -> Result<(), String> {
 fn table_for(variant: TaipoVariant) -> &'static [Entry] {
     match variant {
         TaipoVariant::Taipo => TAIPO_ACTIONS,
-        TaipoVariant::Posh => POSH_ACTIONS,
+        TaipoVariant::Dosh => DOSH_ACTIONS,
     }
 }
 

@@ -259,9 +259,9 @@ impl defmt::Format for InterState {
 
 #[derive(EnumSetType, Debug)]
 pub enum MinorMode {
-    /// The Taipo engine is interpreting chords with the Posh table rather than
+    /// The Taipo engine is interpreting chords with the Dosh table rather than
     /// the Taipo one.
-    Posh,
+    Dosh,
 }
 
 /// Something we can use to get time.

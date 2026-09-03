@@ -177,7 +177,7 @@ public final class ChordEngine {
     /// Apply a marker line from the log.
     public func marker(_ name: String, value: UInt8) {
         switch name {
-        case "variant": variant = value == 1 ? "posh" : "taipo"
+        case "variant": variant = value == 1 ? "dosh" : "taipo"
         case "row": lowerRow = value == 1
         default: break
         }

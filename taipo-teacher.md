@@ -3,11 +3,11 @@
 Two goals, sharing one mechanism.
 
 1. **Know what real typing actually looks like.**  A host app collects, from the keyboard
-   itself, the low-level detail of every Taipo/Posh chord written during normal work —
+   itself, the low-level detail of every Taipo/Dosh chord written during normal work —
    per-key timing, which hand, which chord code — and works out what produces hesitations
    and what produces corrections.
 2. **Drill the answer.**  A local Mac app, roughly keybr crossed with MonkeyType but
-   Taipo/Posh-aware, that generates practice material weighted toward the trouble spots the
+   Taipo/Dosh-aware, that generates practice material weighted toward the trouble spots the
    first goal found — where a "trouble spot" may be a *sequence*, not a single letter — and
    that can score things no software-only trainer can see, including hand alternation and
    whether a gram with a chord was chorded or spelled out.
@@ -34,7 +34,7 @@ whole point:
 | A chord with no table entry | Types nothing at all — a pure error signal that produces no HID traffic whatsoever |
 | Chorded vs spelled | `the` from the `ein` chord and `t`,`h`,`e` typed out are byte-identical to the host |
 | How a chord ended | Timer expiry, all keys released, or the other hand starting — three quite different pieces of technique |
-| Which table is live | Taipo or Posh; the device switches at runtime and the host is never told — and *when* you switch is itself a data point |
+| Which table is live | Taipo or Dosh; the device switches at runtime and the host is never told — and *when* you switch is itself a data point |
 
 `docs/taipo-drills.md` already states the problem plainly: *"Nothing outside the keyboard can
 see whether a word was chorded or spelled out, so the lists do the enforcing."*  The drills
@@ -80,7 +80,7 @@ Settled up front so the phases can assume them.
 | Piece | Where | Notes |
 |---|---|---|
 | Chord engine | `bbq-keyboard/src/layout/taipo.rs` | `TaipoManager`, `SideManager` per hand, `CHORD_TIME = 100` |
-| Posh table | `bbq-keyboard/src/layout/posh.rs` | `POSH_ACTIONS`; same engine, different table |
+| Dosh table | `bbq-keyboard/src/layout/dosh.rs` | `DOSH_ACTIONS`; same engine, different table |
 | Scan → (side, chord bit) | `taipo.rs`'s `SCAN_MAP` | plus `taipo_map` for the latch keys |
 | Row-position shift | `LayoutManager::row_event` in `layout.rs` | rotates the three main-row scan codes on 3-row boards |
 | Matrix scan | `jolt-embassy-rp/src/matrix.rs` | 1 ms full-matrix scan, `DEBOUNCE_COUNT = 20` |
@@ -134,7 +134,7 @@ No device change.  This exists so that phases 3 and 4 have something to develop 
 any firmware lands, using synthetic logs.
 
 - [X] **Machine-readable chord table.**  A generator that emits `layouts.json` from
-      `TAIPO_ACTIONS` and `POSH_ACTIONS`: per variant, per chord code, the finger keys involved
+      `TAIPO_ACTIONS` and `DOSH_ACTIONS`: per variant, per chord code, the finger keys involved
       (named as in `TAIPO.md`: `a o t e` bottom, `r s n i` top, plus `Sp`/`Bk`), the action
       (single key, shifted key, text, one-shot modifier, release), and for `Action::Text` the
       string.  Also the `SCAN_MAP` in both row positions and for each supported board, so a
@@ -312,7 +312,7 @@ from the tables it actually has rather than reported from a constant, and mirror
 - [X] Add `boot_id` to `Reply::Hello` — changes every boot.  A log stream is only continuous
       within one `boot_id`.
 - [X] Add a **layout table hash** to `Reply::Hello`: a hash over `TAIPO_ACTIONS` +
-      `POSH_ACTIONS` + `SCAN_MAP`, computed at build time.  Replay against a table the firmware
+      `DOSH_ACTIONS` + `SCAN_MAP`, computed at build time.  Replay against a table the firmware
       no longer has must be *detectable* rather than quietly wrong.  Same argument as the
       archived plan's dictionary hash.
 
@@ -388,7 +388,7 @@ byte 3   aux
   six bits fits with room to spare; reserve 63 for "some physical key with no code", which is
   what `translate.rs` returns 255 for, so a dead physical key still appears as an event.
 - `tag` bit 7 set → **marker**, kind in bits 6..0, with the new value in `aux`:
-  - `Variant` — **Taipo ⇄ Posh**.  Every derived event has to be attributed to the table that
+  - `Variant` — **Taipo ⇄ Dosh**.  Every derived event has to be attributed to the table that
     was live when it happened, or the two layouts' statistics silently pool.  It is also
     interesting on its own: when the switch happens, and how the numbers differ either side of
     it, is one of the things worth knowing.
@@ -427,7 +427,7 @@ Log at those two call sites (or via one small helper on `Dispatch` that both use
 - Logging must never block or drop a *key*.  A full buffer drops the oldest **record** and
   bumps a counter; the key being typed is never affected.
 - The markers are emitted from the places that already know: `LayoutActions::set_mode` for
-  `Mode`, `TaipoManager::toggle_variant` (whose caller already reports `MinorMode::Posh` to the
+  `Mode`, `TaipoManager::toggle_variant` (whose caller already reports `MinorMode::Dosh` to the
   LED) for `Variant`, and `LayoutManager::row_event` for `RowShift`.  Emit a full set at the
   head of every drain as well, so a host that attaches mid-session is never guessing.
 
@@ -494,7 +494,7 @@ not acked -- so `log` now clears the buffer before enabling rather than filing a
 session's records under a new header.
 
 Still unchecked: buffer overflow with the host detached (the `# gap` path), and a
-Taipo/Posh switch mid-passage.
+Taipo/Dosh switch mid-passage.
 
 ### `CHORD_TIME` is longer than the typing it was measured against
 
@@ -689,7 +689,7 @@ one.  It sits above the 98th percentile of gaps, so it costs almost nothing.
 - [X] Items are chords *and chord transitions* — the sequence case the whole thing is for.
       Trigrams only for transitions that already look bad, to keep the state space sparse.
 - [X] Per item: median interval, error count and variance of the interval, error count,
-      exposure count, last seen.  Keyed by `(variant, item)`, since Taipo and Posh are
+      exposure count, last seen.  Keyed by `(variant, item)`, since Taipo and Dosh are
       different skills.
 - [ ] SQLite in `~/Library/Application Support/`, written by the Rust CLI and read (and
       appended to, for drill results) by the app.  One store, two front ends, and SQLite is
@@ -772,7 +772,7 @@ The app is useful before any drill exists.
       Live technique strip under the text: an L/R bead per chord, and a spread bar per chord.
 - [ ] **Variant awareness.**  Read the active variant from the log's `Variant` marker and
       follow it, so a drill always matches what the keyboard is actually doing.  The model is
-      per-variant, which incidentally makes Taipo-vs-Posh comparable.
+      per-variant, which incidentally makes Taipo-vs-Dosh comparable.
 - [X] **Chord assembly in Swift, checked against Rust.**  The app needs derived chords live,
       so it assembles them itself rather than round-tripping through a Rust replay.  That is a
       second implementation of `SideManager` — the chord window, the cross-hand commit, the
@@ -971,7 +971,7 @@ Hardware-only checks, collected:
   typed — including a deliberate misfingering, a dead chord, and a `Bk` correction (2)
 - gap handling: type with the host detached long enough to overflow the buffer, confirm the
   gap appears in the file and the keyboard itself never stutters (2)
-- markers: switch Taipo ⇄ Posh, change mode, and toggle row position mid-session; confirm a
+- markers: switch Taipo ⇄ Dosh, change mode, and toggle row position mid-session; confirm a
   drain that begins after a drop still replays correctly, and that a variant switch mid-word
   attributes the chords either side of it to the right table (2)
 - hot path: confirm the 1 ms layout tick and the matrix scan are unaffected with logging on (2)

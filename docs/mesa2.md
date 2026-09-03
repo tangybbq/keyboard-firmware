@@ -1,15 +1,15 @@
-# Mesa 2 support, and chorded Taipo/Posh switching
+# Mesa 2 support, and chorded Taipo/Dosh switching
 
 This is a work plan for two related changes.  They are related only because
 the mesa2 forces the second one: the board has just the 20 Taipo keys, so
 every key the layout manager currently handles itself — the mode key, the
-row-position toggle, the Taipo/Posh toggle — is physically gone.
+row-position toggle, the Taipo/Dosh toggle — is physically gone.
 
 1. **Board support for the mesa2.**  Electrically it is a mesa1: one Tiny 2040
    scanning a unibody board, four ws2812 LEDs, no inter-board link.  The matrix
    is wired differently, and it has 20 keys rather than 30.
 2. **A chord that selects the Taipo variant**, so the choice survives on a
-   board with no spare keys.  `rsni` selects Taipo, `aote` selects Posh.
+   board with no spare keys.  `rsni` selects Taipo, `aote` selects Dosh.
 
 The two parts are independent and should be separate commits.  Part 2 can be
 done first and tested on the mesa1, which is what the developer intends to do.
@@ -26,8 +26,8 @@ given so they can be re-checked rather than trusted.
 - We need to add support to it in the firmware.  It is very similar to mesa1
   electrically, but the matrix is hooked up differently.
 - The mesa2 only has the 20 keys defined for Taipo.  That means we will need to
-  reserve a chord itself to switch between Taipo and Posh.
-- I'm thinking of trying 'rsni' for Taipo and 'aote' for posh.  We can change
+  reserve a chord itself to switch between Taipo and Dosh.
+- I'm thinking of trying 'rsni' for Taipo and 'aote' for dosh.  We can change
   these later if I am too likely to type them.
 - But I can test the new switch chords on the mesa1.
 
@@ -255,7 +255,7 @@ a soldering iron.
 ## Why
 
 Today the variant is toggled by tapping the steno `#` key of the outer left
-column (`POSH_TOGGLE_KEY`, proto3 code 1), handled in `LayoutManager::posh_event`.
+column (`DOSH_TOGGLE_KEY`, proto3 code 1), handled in `LayoutManager::dosh_event`.
 The mesa2 has no such key.  Nor does it have the mode key (code 2) or the
 row-position toggle (code 0), but those do not matter: a taipo-only build has
 nothing to switch modes to, and a 2-row board never moves rows.  The variant is
@@ -273,7 +273,7 @@ Taipo's chord bits, from `TAIPO.md` and the module docs:
 So the developer's two chords are the two full rows of one hand:
 
 - **`rsni` = `0x0f0`** — all four fingers on the top row — selects **Taipo**.
-- **`aote` = `0x00f`** — all four fingers on the bottom row — selects **Posh**.
+- **`aote` = `0x00f`** — all four fingers on the bottom row — selects **Dosh**.
 
 Both are free today, in both tables, and so are all four thumb variants of each
 (`0x1f0`, `0x2f0`, `0x3f0`, `0x10f`, `0x20f`, `0x30f`).  Verified by grep; the
@@ -283,17 +283,17 @@ this document is still current.
 Two things fall out of the choice that are worth stating, because they are the
 reason it is a good one:
 
-- Each chord uses a **pinky**, and Posh uses no pinky at all.  So in Posh both
+- Each chord uses a **pinky**, and Dosh uses no pinky at all.  So in Dosh both
   chords are guaranteed dead whatever else changes in that table — the only
-  way to collide is to add a pinky chord to Posh, which would defeat the point
-  of Posh.
+  way to collide is to add a pinky chord to Dosh, which would defeat the point
+  of Dosh.
 - The shape is memorable without knowing which table is live: top row means
-  Taipo, bottom row means Posh, in both layouts.  The letter names are Taipo's;
-  in Posh the same physical keys spell something else, and that is fine because
+  Taipo, bottom row means Dosh, in both layouts.  The letter names are Taipo's;
+  in Dosh the same physical keys spell something else, and that is fine because
   the chord is named by its shape.
 
 **Selection, not toggling.**  `rsni` always selects Taipo and `aote` always
-selects Posh, regardless of what is current.  Pressing the chord you are
+selects Dosh, regardless of what is current.  Pressing the chord you are
 already in does nothing.  This is better than a single toggle chord: there is
 no state to remember, and no way to end up inverted after a chord that was not
 felt.  It costs one extra entry per table.
@@ -323,12 +323,12 @@ pub enum Action {
 }
 ```
 
-Four new entries — in `TAIPO_ACTIONS` and in `POSH_ACTIONS`, the same pair in
+Four new entries — in `TAIPO_ACTIONS` and in `DOSH_ACTIONS`, the same pair in
 each:
 
 ```rust
 Entry { code: 0x0f0, action: Action::Variant(TaipoVariant::Taipo), },
-Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Posh), },
+Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Dosh), },
 ```
 
 This is the right shape because everything downstream already walks the tables:
@@ -342,7 +342,7 @@ in `LayoutManager` would hide it from all three.
 Add an arm to the match over `entry` in `tick`:
 
 - Set `self.variant`.
-- Report the change through `actions.set_sub_mode(MinorMode::Posh)` /
+- Report the change through `actions.set_sub_mode(MinorMode::Dosh)` /
   `clear_sub_mode`, **only when it actually changes**.  This is not optional
   bookkeeping: `Recorder` in `replay.rs` tracks the variant solely through
   those two calls and uses it to choose which table to look chords up in, and
@@ -372,13 +372,13 @@ list is here so none is answered with a lazy wildcard arm:
 | file | what to add |
 |---|---|
 | `bbq-keyboard/src/layout/taipo.rs` | the `Action` variant, the two entries, the `tick` arm, the `active` helper |
-| `bbq-keyboard/src/layout/posh.rs` | the two entries |
+| `bbq-keyboard/src/layout/dosh.rs` | the two entries |
 | `bbq-keyboard/src/layout/fingerprint.rs` | `Action::Variant` → tag byte `5`, plus a byte for which variant.  Leave `SCHEME` at 1: the encoding scheme is unchanged, only the table content, and the fingerprint moving is the point |
-| `bbq-keyboard/src/layout/export.rs` | `{ "kind": "variant", "variant": "taipo" \| "posh" }` |
+| `bbq-keyboard/src/layout/export.rs` | `{ "kind": "variant", "variant": "taipo" \| "dosh" }` |
 | `bbq-keyboard/src/replay.rs` | `ChordAction::Variant(TaipoVariant)`, the `of()` arm, and the `format!` arm near the bottom of the file |
 | `taipo-analyze/src/stats.rs` | `typed_text` returns `None` for it, and it must not count as a typing chord in the `matches!` around line 186 |
 | `bbq-keyboard/layouts.json` | regenerate |
-| `TAIPO.md`, `POSH.md` | document the two chords in both cheat sheets |
+| `TAIPO.md`, `DOSH.md` | document the two chords in both cheat sheets |
 
 ### `layouts.json` format version
 
@@ -392,7 +392,7 @@ bump in the commit message so the developer can overrule it cheaply.
 
 ### Keep the key toggle
 
-`POSH_TOGGLE_KEY` and `posh_event` stay exactly as they are.  On the 3-row
+`DOSH_TOGGLE_KEY` and `dosh_event` stay exactly as they are.  On the 3-row
 boards and on the mesa1 the lower-left key keeps working; the chord is an
 addition, not a replacement.  Both paths converge on
 `set_sub_mode`/`clear_sub_mode`, so the LED, the key log and the replay do not
@@ -406,12 +406,12 @@ good.
 ## Tests
 
 In `bbq-keyboard/tests/taipo.rs`, alongside the existing
-`test_row_toggle_*` and the Posh toggle tests:
+`test_row_toggle_*` and the Dosh toggle tests:
 
-- `rsni` while in Posh switches to Taipo, and emits
-  `Actions::ClearSubMode(MinorMode::Posh)`.
-- `aote` while in Taipo switches to Posh, and emits
-  `Actions::SetSubMode(MinorMode::Posh)`.
+- `rsni` while in Dosh switches to Taipo, and emits
+  `Actions::ClearSubMode(MinorMode::Dosh)`.
+- `aote` while in Taipo switches to Dosh, and emits
+  `Actions::SetSubMode(MinorMode::Dosh)`.
 - The chord you are already in emits **nothing** — no redundant sub-mode call.
 - The chord itself types no keys.
 - The chord following the switch is looked up in the **new** table.  This is

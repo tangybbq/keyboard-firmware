@@ -822,7 +822,7 @@ mod mesa2 {
     //! `bbq_keyboard::translate`.
     //!
     //! Because the board has only the 20 Taipo keys, the variant is chosen with a chord rather than
-    //! a key: `r+s+n+i` selects Taipo and `a+o+t+e` selects Posh (see POSH.md).
+    //! a key: `r+s+n+i` selects Taipo and `a+o+t+e` selects Dosh (see DOSH.md).
     //!
     //! As on the proto4 and the mesa1, the Tiny 2040's PWM RGB LED is not yet supported, only the 4
     //! ws2812 LEDs on the keyboard itself.

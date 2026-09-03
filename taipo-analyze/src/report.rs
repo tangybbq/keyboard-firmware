@@ -4,7 +4,7 @@
 //! taking the prose.
 
 use bbq_keyboard::layout::export::char_for_key;
-use bbq_keyboard::layout::posh::POSH_ACTIONS;
+use bbq_keyboard::layout::dosh::DOSH_ACTIONS;
 use bbq_keyboard::layout::taipo::{Action, CHORD_TIME, TAIPO_ACTIONS};
 
 use crate::stats::{Analysis, At, Confusion, CorrectionKind, Item, VariantKey};
@@ -19,7 +19,7 @@ use crate::Options;
 fn chord_types(variant: VariantKey, code: u16) -> Option<String> {
     let table = match variant {
         VariantKey::Taipo => TAIPO_ACTIONS,
-        VariantKey::Posh => POSH_ACTIONS,
+        VariantKey::Dosh => DOSH_ACTIONS,
     };
     let action = &table.iter().find(|e| e.code == code)?.action;
     Some(match action {

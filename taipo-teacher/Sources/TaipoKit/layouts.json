@@ -19,7 +19,7 @@
   "special_keys": {
     "mode": 2,
     "row_toggle": 0,
-    "posh_toggle": 1,
+    "dosh_toggle": 1,
     "taipo_latch": [{ "key": 20, "bit": 1 }, { "key": 22, "bit": 4 }, { "key": 44, "bit": 2 }, { "key": 46, "bit": 8 }]
   },
   "scan_map": {
@@ -300,10 +300,10 @@
         { "code": 808, "code_hex": "0x328", "keys": ["e", "s", "Sp", "Bk"], "action": { "kind": "key", "key": "F11", "usage": 68 } },
         { "code": 897, "code_hex": "0x381", "keys": ["a", "i", "Sp", "Bk"], "action": { "kind": "key", "key": "F12", "usage": 69 } },
         { "code": 240, "code_hex": "0x0f0", "keys": ["r", "s", "n", "i"], "action": { "kind": "variant", "variant": "taipo" } },
-        { "code": 15, "code_hex": "0x00f", "keys": ["a", "o", "t", "e"], "action": { "kind": "variant", "variant": "posh" } }
+        { "code": 15, "code_hex": "0x00f", "keys": ["a", "o", "t", "e"], "action": { "kind": "variant", "variant": "dosh" } }
       ]
     },
-    "posh": {
+    "dosh": {
       "count": 136,
       "chords": [
         { "code": 256, "code_hex": "0x100", "keys": ["Sp"], "action": { "kind": "key", "key": "Space", "usage": 44, "types": " " } },
@@ -441,7 +441,7 @@
         { "code": 70, "code_hex": "0x046", "keys": ["o", "t", "n"], "action": { "kind": "key", "key": "PrintScreen", "usage": 70 } },
         { "code": 168, "code_hex": "0x0a8", "keys": ["e", "s", "i"], "action": { "kind": "key", "key": "Insert", "usage": 73 } },
         { "code": 240, "code_hex": "0x0f0", "keys": ["r", "s", "n", "i"], "action": { "kind": "variant", "variant": "taipo" } },
-        { "code": 15, "code_hex": "0x00f", "keys": ["a", "o", "t", "e"], "action": { "kind": "variant", "variant": "posh" } }
+        { "code": 15, "code_hex": "0x00f", "keys": ["a", "o", "t", "e"], "action": { "kind": "variant", "variant": "dosh" } }
       ]
     }
   }

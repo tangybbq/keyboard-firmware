@@ -175,17 +175,17 @@ Both thumbs + a digit chord gives the matching function key; v and w extend past
   chord again, or its counterpart on the other hand — makes the whole held set sticky. Sticky
   modifiers survive any number of keypresses; both thumbs together is what releases them.
 
-## The Posh variant
+## The Dosh variant
 
-The same engine can interpret chords with the Posh table instead, which leaves the pinkies out.
-Tap the lower-left key by itself while in taipo mode to switch between them; see POSH.md.
+The same engine can interpret chords with the Dosh table instead, which leaves the pinkies out.
+Tap the lower-left key by itself while in taipo mode to switch between them; see DOSH.md.
 
 There are also two chords, which work in either table:
 
 | chord     | keys                    | selects |
 |-----------|-------------------------|---------|
 | `r+s+n+i` | the whole top row       | Taipo   |
-| `a+o+t+e` | the whole bottom row    | Posh    |
+| `a+o+t+e` | the whole bottom row    | Dosh    |
 
 They **select** rather than toggle: the one you are already in does nothing, so a chord that was
 not felt cannot leave you in the wrong table. Either hand works. The chord types nothing, and the

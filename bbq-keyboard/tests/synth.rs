@@ -61,15 +61,15 @@ fn test_mixed_text() {
     assert_eq!(typed(&derived), target);
 }
 
-/// The posh table is a different layout, and the generator follows it.
+/// The dosh table is a different layout, and the generator follows it.
 #[test]
-fn test_posh() {
+fn test_dosh() {
     let style = Style {
-        variant: TaipoVariant::Posh,
+        variant: TaipoVariant::Dosh,
         ..Style::default()
     };
-    let log = synth("the rain in spain", &style).expect("posh can type this");
-    // The replay has to be told to use the posh table as well, which the
+    let log = synth("the rain in spain", &style).expect("dosh can type this");
+    // The replay has to be told to use the dosh table as well, which the
     // device's Variant marker will say; here it is tapped in.
     let mut events = log.events.clone();
     for event in &mut events {

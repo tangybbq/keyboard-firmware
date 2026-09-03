@@ -105,7 +105,7 @@ final class GoldenTests: XCTestCase {
         XCTAssertNotNil(l.fingerprintValue)
         XCTAssertEqual(l.scancodeSet, "proto3")
         XCTAssertGreaterThan(l.variants["taipo"]?.chords.count ?? 0, 100)
-        XCTAssertGreaterThan(l.variants["posh"]?.chords.count ?? 0, 100)
+        XCTAssertGreaterThan(l.variants["dosh"]?.chords.count ?? 0, 100)
     }
 }
 

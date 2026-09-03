@@ -11,8 +11,8 @@
 //!
 //! Variants:
 //!
-//! Everything here other than the chord table is shared with the Posh layout
-//! (see the `posh` module), which is a Taipo derivative leaving the pinkies
+//! Everything here other than the chord table is shared with the Dosh layout
+//! (see the `dosh` module), which is a Taipo derivative leaving the pinkies
 //! out.  `TaipoVariant` selects which table `actions()` looks chords up in;
 //! the parent module switches between them, and `LayoutManager` is what
 //! decides when.
@@ -67,16 +67,16 @@ pub enum TaipoVariant {
     /// The Taipo layout itself.
     #[default]
     Taipo,
-    /// Posh, a Taipo-derived layout that leaves the pinkies out.  See the
-    /// [`posh`](super::posh) module.
-    Posh,
+    /// Dosh, a Taipo-derived layout that leaves the pinkies out.  See the
+    /// [`dosh`](super::dosh) module.
+    Dosh,
 }
 
 impl TaipoVariant {
     fn toggle(self) -> Self {
         match self {
-            TaipoVariant::Taipo => TaipoVariant::Posh,
-            TaipoVariant::Posh => TaipoVariant::Taipo,
+            TaipoVariant::Taipo => TaipoVariant::Dosh,
+            TaipoVariant::Dosh => TaipoVariant::Taipo,
         }
     }
 }
@@ -135,7 +135,7 @@ impl TaipoManager {
     fn actions(&self) -> &'static [Entry] {
         match self.variant {
             TaipoVariant::Taipo => TAIPO_ACTIONS,
-            TaipoVariant::Posh => super::posh::POSH_ACTIONS,
+            TaipoVariant::Dosh => super::dosh::DOSH_ACTIONS,
         }
     }
 
@@ -250,10 +250,10 @@ impl TaipoManager {
                         // later chords up in.
                         match *variant {
                             TaipoVariant::Taipo => {
-                                actions.clear_sub_mode(MinorMode::Posh).await
+                                actions.clear_sub_mode(MinorMode::Dosh).await
                             }
-                            TaipoVariant::Posh => {
-                                actions.set_sub_mode(MinorMode::Posh).await
+                            TaipoVariant::Dosh => {
+                                actions.set_sub_mode(MinorMode::Dosh).await
                             }
                         }
                     }
@@ -1329,16 +1329,16 @@ pub static TAIPO_ACTIONS: &[Entry] = &[
 
     // Selecting the chord table.  These are the two full rows of one hand:
     // `rsni` (all four fingers on the top row) selects Taipo, `aote` (all four
-    // on the bottom row) selects Posh.  The same pair appears in POSH_ACTIONS,
+    // on the bottom row) selects Dosh.  The same pair appears in DOSH_ACTIONS,
     // so either can be reached from either table, and each selects rather than
     // toggles, so the chord you are already in does nothing.
     //
     // They are here because the mesa2 has exactly the 20 taipo keys and no
-    // spare one to put `POSH_TOGGLE_KEY` on.  The thumb variants are left
+    // spare one to put `DOSH_TOGGLE_KEY` on.  The thumb variants are left
     // unmapped on purpose: a chord with a thumb accidentally included should
     // do nothing rather than change the layout.
     Entry { code: 0x0f0, action: Action::Variant(TaipoVariant::Taipo), },
-    Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Posh), },
+    Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Dosh), },
 ];
 
 #[cfg(test)]

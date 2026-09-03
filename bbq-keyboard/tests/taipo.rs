@@ -45,15 +45,15 @@ const SP: u16 = 0x100;
 const BK: u16 = 0x200;
 
 /// The two chords that select the chord table: the whole top row of one hand
-/// selects taipo, the whole bottom row selects posh.  Named by their taipo
+/// selects taipo, the whole bottom row selects dosh.  Named by their taipo
 /// letters, though the shape is what they mean in either table.
 const VARIANT_TAIPO: u16 = R | S | N | I;
-const VARIANT_POSH: u16 = A | O | T | E;
+const VARIANT_DOSH: u16 = A | O | T | E;
 
-/// The same chord bits, named by the letter the *Posh* table types with them
-/// (see POSH.md).  Posh leaves the pinkies out, so the two pinky bits (taipo's
+/// The same chord bits, named by the letter the *Dosh* table types with them
+/// (see DOSH.md).  Dosh leaves the pinkies out, so the two pinky bits (taipo's
 /// `R` and `A`) have no name here.
-mod posh {
+mod dosh {
     /// Top row: ring, middle, index.
     pub const A: u16 = 0x020;
     pub const N: u16 = 0x040;
@@ -107,8 +107,8 @@ const TAIPO_KEY_LOWER: u8 = 21;
 const ROW_TOGGLE_KEY: u8 = 0;
 
 /// The steno `#` key of the outer left column, which toggles between the taipo
-/// and posh chord tables while in taipo mode.
-const POSH_TOGGLE_KEY: u8 = 1;
+/// and dosh chord tables while in taipo mode.
+const DOSH_TOGGLE_KEY: u8 = 1;
 
 /// The scan codes of the keys making up a chord, in bit order.
 fn scans(side: Side, chord: u16, lower: bool) -> impl Iterator<Item = u8> {
@@ -231,9 +231,9 @@ struct Script {
     /// position the layout is expected to be in.
     lower: bool,
 
-    /// Whether the taipo engine is expected to be using the posh table.  This
-    /// tracks which sub-mode action `toggle_posh` should expect.
-    posh: bool,
+    /// Whether the taipo engine is expected to be using the dosh table.  This
+    /// tracks which sub-mode action `toggle_dosh` should expect.
+    dosh: bool,
 }
 
 impl Script {
@@ -244,7 +244,7 @@ impl Script {
             steps: Vec::new(),
             two_row: false,
             lower: false,
-            posh: false,
+            dosh: false,
         };
         script.tick(1).mode(LayoutMode::Qwerty);
         script
@@ -256,7 +256,7 @@ impl Script {
             steps: Vec::new(),
             two_row: true,
             lower: false,
-            posh: false,
+            dosh: false,
         };
         script.tick(1).mode(LayoutMode::Taipo);
         script
@@ -269,10 +269,10 @@ impl Script {
         script
     }
 
-    /// A new script, already in taipo mode with the posh table selected.
-    fn posh() -> Script {
+    /// A new script, already in taipo mode with the dosh table selected.
+    fn dosh() -> Script {
         let mut script = Script::taipo();
-        script.toggle_posh();
+        script.toggle_dosh();
         script
     }
 
@@ -332,17 +332,17 @@ impl Script {
     }
 
     /// Tap the variant toggle key by itself, which switches the taipo engine
-    /// between the taipo and posh chord tables, and expect the sub-mode report
+    /// between the taipo and dosh chord tables, and expect the sub-mode report
     /// that goes with the new variant.
-    fn toggle_posh(&mut self) -> &mut Self {
-        self.posh = !self.posh;
-        let action = if self.posh {
-            Actions::SetSubMode(MinorMode::Posh)
+    fn toggle_dosh(&mut self) -> &mut Self {
+        self.dosh = !self.dosh;
+        let action = if self.dosh {
+            Actions::SetSubMode(MinorMode::Dosh)
         } else {
-            Actions::ClearSubMode(MinorMode::Posh)
+            Actions::ClearSubMode(MinorMode::Dosh)
         };
-        self.press_scan(POSH_TOGGLE_KEY)
-            .release_scan(POSH_TOGGLE_KEY)
+        self.press_scan(DOSH_TOGGLE_KEY)
+            .release_scan(DOSH_TOGGLE_KEY)
             .expect(action)
             .tick(1)
     }
@@ -351,17 +351,17 @@ impl Script {
     /// report if it actually changes the variant.
     ///
     /// `rsni` (the whole top row) selects taipo, `aote` (the whole bottom row)
-    /// selects posh.  Unlike the key, these select rather than toggle, so the
+    /// selects dosh.  Unlike the key, these select rather than toggle, so the
     /// one you are already in reports nothing.
-    fn select_variant(&mut self, side: Side, posh: bool) -> &mut Self {
-        let chord = if posh { VARIANT_POSH } else { VARIANT_TAIPO };
+    fn select_variant(&mut self, side: Side, dosh: bool) -> &mut Self {
+        let chord = if dosh { VARIANT_DOSH } else { VARIANT_TAIPO };
         self.chord(side, chord);
-        if self.posh != posh {
-            self.posh = posh;
-            let action = if posh {
-                Actions::SetSubMode(MinorMode::Posh)
+        if self.dosh != dosh {
+            self.dosh = dosh;
+            let action = if dosh {
+                Actions::SetSubMode(MinorMode::Dosh)
             } else {
-                Actions::ClearSubMode(MinorMode::Posh)
+                Actions::ClearSubMode(MinorMode::Dosh)
             };
             self.expect(action);
         }
@@ -875,7 +875,7 @@ fn test_unknown_chord() {
     let mut script = Script::taipo();
 
     // All eight finger keys at once is not a defined chord.  (The bottom row
-    // by itself used to be the example here; it now selects the posh table.)
+    // by itself used to be the example here; it now selects the dosh table.)
     script.chord(LEFT, A | O | T | E | R | S | N | I).idle();
     script.chord(LEFT, A).types(Keyboard::A);
 
@@ -1553,9 +1553,9 @@ fn test_mod_state_sticky() {
 }
 
 //////////////////////////////////////////////////////////////////////////////
-// Posh
+// Dosh
 //
-// Posh is a second chord table for the same taipo engine, selected by tapping
+// Dosh is a second chord table for the same taipo engine, selected by tapping
 // the otherwise dead steno `#` key of the outer left column while in taipo
 // mode.  It uses the ring, middle and index fingers only, leaving the pinky
 // keys dead.
@@ -1564,10 +1564,10 @@ fn test_mod_state_sticky() {
 /// The six finger keys and the two thumbs, on both hands, alone and with the
 /// space thumb for the capital.
 #[test]
-fn test_posh_single_keys() {
-    use posh::{A, E, I, N, O, T};
+fn test_dosh_single_keys() {
+    use dosh::{A, E, I, N, O, T};
 
-    let mut script = Script::posh();
+    let mut script = Script::dosh();
 
     for side in [LEFT, RIGHT] {
         script.chord(side, A).types(Keyboard::A);
@@ -1594,10 +1594,10 @@ fn test_posh_single_keys() {
 /// The backspace thumb turns the single keys into the navigation cluster, and
 /// both thumbs into the far-motion keys.
 #[test]
-fn test_posh_navigation() {
-    use posh::{A, E, I, N, O, T};
+fn test_dosh_navigation() {
+    use dosh::{A, E, I, N, O, T};
 
-    let mut script = Script::posh();
+    let mut script = Script::dosh();
 
     script.chord(LEFT, E | BK).types(Keyboard::LeftArrow);
     script.chord(LEFT, T | BK).types(Keyboard::DownArrow);
@@ -1619,10 +1619,10 @@ fn test_posh_navigation() {
 /// A sample of the multi-key chords: the two same-row pairs, a few three-key
 /// chords, and some cross-row ones.
 #[test]
-fn test_posh_chords() {
-    use posh::{A, E, I, N, O, T};
+fn test_dosh_chords() {
+    use dosh::{A, E, I, N, O, T};
 
-    let mut script = Script::posh();
+    let mut script = Script::dosh();
 
     // The same-row pairs.
     script.chord(LEFT, N | I).types(Keyboard::S);
@@ -1648,10 +1648,10 @@ fn test_posh_chords() {
 /// The backspace thumb gives the digits and the symbols, and both thumbs the
 /// function keys and the rest of the symbols.
 #[test]
-fn test_posh_digits_and_symbols() {
-    use posh::{A, E, I, N, O, T};
+fn test_dosh_digits_and_symbols() {
+    use dosh::{A, E, I, N, O, T};
 
-    let mut script = Script::posh();
+    let mut script = Script::dosh();
 
     // Digits.
     script.chord(LEFT, N | E | BK).types(Keyboard::Keyboard0);
@@ -1695,10 +1695,10 @@ fn test_posh_digits_and_symbols() {
 /// The modifier chords, which behave exactly as they do in taipo.  The wiki's
 /// `ralt` chord is a plain shift here.
 #[test]
-fn test_posh_modifiers() {
-    use posh::{A, E, I, N, O, T};
+fn test_dosh_modifiers() {
+    use dosh::{A, E, I, N, O, T};
 
-    let mut script = Script::posh();
+    let mut script = Script::dosh();
 
     // One-shot gui, consumed by the next key.
     script.chord(LEFT, N | T).mod_only(Mods::GUI);
@@ -1749,10 +1749,10 @@ fn test_posh_modifiers() {
 
 /// The two extras that are plain keys.
 #[test]
-fn test_posh_extras() {
-    use posh::{A, E, I, N, O, T};
+fn test_dosh_extras() {
+    use dosh::{A, E, I, N, O, T};
 
-    let mut script = Script::posh();
+    let mut script = Script::dosh();
 
     script.chord(LEFT, N | T | O).types(Keyboard::PrintScreen);
     script.chord(RIGHT, A | I | E).types(Keyboard::Insert);
@@ -1760,30 +1760,30 @@ fn test_posh_extras() {
     script.run();
 }
 
-/// Posh excludes the pinkies, so the two pinky keys do nothing at all, either
+/// Dosh excludes the pinkies, so the two pinky keys do nothing at all, either
 /// on their own or as part of a chord.  Chords that aren't in the table are
 /// equally dead.
 #[test]
-fn test_posh_pinky_is_dead() {
-    let mut script = Script::posh();
+fn test_dosh_pinky_is_dead() {
+    let mut script = Script::dosh();
 
     // Taipo's `r` and `a`, which are the pinky keys.
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
     script.press(RIGHT, A).tick(CHORD_TIME).release(RIGHT, A).tick(1).idle();
 
-    // A chord that would be posh's `n` if the pinky weren't in it.
+    // A chord that would be dosh's `n` if the pinky weren't in it.
     script
-        .press(LEFT, R | posh::N)
+        .press(LEFT, R | dosh::N)
         .tick(CHORD_TIME)
-        .release(LEFT, R | posh::N)
+        .release(LEFT, R | dosh::N)
         .tick(1)
         .idle();
 
     // One of the wiki's empty rows.
     script
-        .press(LEFT, posh::A | posh::N | posh::T)
+        .press(LEFT, dosh::A | dosh::N | dosh::T)
         .tick(CHORD_TIME)
-        .release(LEFT, posh::A | posh::N | posh::T)
+        .release(LEFT, dosh::A | dosh::N | dosh::T)
         .tick(1)
         .idle();
 
@@ -1794,22 +1794,22 @@ fn test_posh_pinky_is_dead() {
 /// middle-bottom splay is awkward to hit.  Both spellings work, on both hands,
 /// and on every thumb layer.
 #[test]
-fn test_posh_l_alias() {
-    let mut script = Script::posh();
+fn test_dosh_l_alias() {
+    let mut script = Script::dosh();
 
-    let wiki = posh::I | posh::T;
-    let alias = posh::N | posh::I | posh::E;
+    let wiki = dosh::I | dosh::T;
+    let alias = dosh::N | dosh::I | dosh::E;
 
     script.chord(LEFT, wiki).types(Keyboard::L);
     script.chord(LEFT, alias).types(Keyboard::L);
     script.chord(RIGHT, alias).types(Keyboard::L);
 
     script
-        .chord(LEFT, alias | posh::SP)
+        .chord(LEFT, alias | dosh::SP)
         .types_mods(Keyboard::L, Mods::SHIFT);
-    script.chord(LEFT, alias | posh::BK).types(Keyboard::Keyboard2);
+    script.chord(LEFT, alias | dosh::BK).types(Keyboard::Keyboard2);
     script
-        .chord(LEFT, alias | posh::SP | posh::BK)
+        .chord(LEFT, alias | dosh::SP | dosh::BK)
         .types(Keyboard::F2);
 
     script.run();
@@ -1818,19 +1818,19 @@ fn test_posh_l_alias() {
 /// Toggling a second time comes back to taipo, where the pinky keys work
 /// again.
 #[test]
-fn test_posh_toggle_back() {
+fn test_dosh_toggle_back() {
     let mut script = Script::taipo();
 
     // Taipo's `r` is on the pinky.
     script.chord(LEFT, R).types(Keyboard::R);
 
-    script.toggle_posh();
+    script.toggle_dosh();
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
-    script.chord(LEFT, posh::A).types(Keyboard::A);
+    script.chord(LEFT, dosh::A).types(Keyboard::A);
 
-    script.toggle_posh();
+    script.toggle_dosh();
     script.chord(LEFT, R).types(Keyboard::R);
-    // Taipo's `s` is where posh's `a` is.
+    // Taipo's `s` is where dosh's `a` is.
     script.chord(LEFT, S).types(Keyboard::S);
 
     script.run();
@@ -1839,21 +1839,21 @@ fn test_posh_toggle_back() {
 /// The variant belongs to the taipo engine, not to the mode, so it survives a
 /// trip out to another mode and back.
 #[test]
-fn test_posh_survives_mode_change() {
-    let mut script = Script::posh();
+fn test_dosh_survives_mode_change() {
+    let mut script = Script::dosh();
 
     script.to_mode(LayoutMode::Qwerty).to_mode(LayoutMode::Steno);
     script.to_mode(LayoutMode::Taipo);
 
-    script.chord(LEFT, posh::N | posh::I).types(Keyboard::S);
+    script.chord(LEFT, dosh::N | dosh::I).types(Keyboard::S);
 
     script.run();
 }
 
 /// The taipo latch in steno mode uses whichever table is selected.
 #[test]
-fn test_posh_steno_taipo_latch() {
-    let mut script = Script::posh();
+fn test_dosh_steno_taipo_latch() {
+    let mut script = Script::dosh();
 
     // Taipo mode to steno, via the escape key tap.
     script
@@ -1864,10 +1864,10 @@ fn test_posh_steno_taipo_latch() {
 
     script.press_scan(TAIPO_KEY);
     script
-        .press(LEFT, posh::A)
+        .press(LEFT, dosh::A)
         .tick(CHORD_TIME)
         .presses(Keyboard::A, Mods::empty());
-    script.release(LEFT, posh::A).tick(1).releases();
+    script.release(LEFT, dosh::A).tick(1).releases();
     script.release_scan(TAIPO_KEY).tick(1).idle();
 
     script.run();
@@ -1876,14 +1876,14 @@ fn test_posh_steno_taipo_latch() {
 /// The toggle only fires on a solo tap, so it can never change the table in
 /// the middle of a chord.
 #[test]
-fn test_posh_toggle_needs_solo_tap() {
+fn test_dosh_toggle_needs_solo_tap() {
     let mut script = Script::taipo();
 
     // Tapped in the middle of a chord.
     script
         .press(LEFT, R)
-        .press_scan(POSH_TOGGLE_KEY)
-        .release_scan(POSH_TOGGLE_KEY)
+        .press_scan(DOSH_TOGGLE_KEY)
+        .release_scan(DOSH_TOGGLE_KEY)
         .tick(CHORD_TIME)
         .presses(Keyboard::R, Mods::empty())
         .release(LEFT, R)
@@ -1892,9 +1892,9 @@ fn test_posh_toggle_needs_solo_tap() {
 
     // Pressed first, but released after another key has gone down.
     script
-        .press_scan(POSH_TOGGLE_KEY)
+        .press_scan(DOSH_TOGGLE_KEY)
         .press(LEFT, S)
-        .release_scan(POSH_TOGGLE_KEY)
+        .release_scan(DOSH_TOGGLE_KEY)
         .tick(CHORD_TIME)
         .presses(Keyboard::S, Mods::empty())
         .release(LEFT, S)
@@ -1909,32 +1909,32 @@ fn test_posh_toggle_needs_solo_tap() {
 
 /// Outside of taipo mode the key keeps its own meaning, and never toggles.
 #[test]
-fn test_posh_toggle_only_in_taipo() {
+fn test_dosh_toggle_only_in_taipo() {
     // In qwerty it is the escape key.
     let mut script = Script::new();
     script
-        .press_scan(POSH_TOGGLE_KEY)
+        .press_scan(DOSH_TOGGLE_KEY)
         .tick(50)
         .expect(Actions::SendKey(KeyAction::KeySet(vec![Keyboard::Escape])))
-        .release_scan(POSH_TOGGLE_KEY)
+        .release_scan(DOSH_TOGGLE_KEY)
         .expect(Actions::SendKey(KeyAction::KeySet(vec![])));
     script.run();
 
     // In steno it is the `#` key.
     let mut script = Script::steno();
     script
-        .press_scan(POSH_TOGGLE_KEY)
+        .press_scan(DOSH_TOGGLE_KEY)
         .tick(CHORD_TIME)
         .idle()
-        .release_scan(POSH_TOGGLE_KEY)
+        .release_scan(DOSH_TOGGLE_KEY)
         .steno_stroke(Stroke::from_text("#").unwrap())
         .tick(1)
         .idle();
 
     // Back in taipo it toggles, and the choice takes effect immediately.
     script.to_mode(LayoutMode::Taipo);
-    script.toggle_posh();
-    script.chord(LEFT, posh::N | posh::I).types(Keyboard::S);
+    script.toggle_dosh();
+    script.chord(LEFT, dosh::N | dosh::I).types(Keyboard::S);
 
     script.run();
 }
@@ -1942,30 +1942,30 @@ fn test_posh_toggle_only_in_taipo() {
 /// The toggle works on a two-row board, which is where the key is the
 /// lower-left one.
 #[test]
-fn test_posh_toggle_two_row() {
+fn test_dosh_toggle_two_row() {
     let mut script = Script::two_row();
 
     script.chord(LEFT, R).types(Keyboard::R);
 
-    script.toggle_posh();
-    script.chord(LEFT, posh::N | posh::I).types(Keyboard::S);
+    script.toggle_dosh();
+    script.chord(LEFT, dosh::N | dosh::I).types(Keyboard::S);
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
 
     script.run();
 }
 
 /// The outer left column doesn't move with the row position, so the toggle
-/// still works there, and posh chords land on the lower scan codes.
+/// still works there, and dosh chords land on the lower scan codes.
 #[test]
-fn test_posh_toggle_lower_rows() {
+fn test_dosh_toggle_lower_rows() {
     let mut script = Script::taipo();
 
     script.toggle_rows();
-    script.toggle_posh();
+    script.toggle_dosh();
 
-    script.chord(LEFT, posh::A).types(Keyboard::A);
-    script.chord(RIGHT, posh::N | posh::I).types(Keyboard::S);
-    script.chord(LEFT, posh::N | posh::E | BK).types(Keyboard::Keyboard0);
+    script.chord(LEFT, dosh::A).types(Keyboard::A);
+    script.chord(RIGHT, dosh::N | dosh::I).types(Keyboard::S);
+    script.chord(LEFT, dosh::N | dosh::E | BK).types(Keyboard::Keyboard0);
 
     // The pinky is still dead down here.
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
@@ -1976,20 +1976,20 @@ fn test_posh_toggle_lower_rows() {
 //////////////////////////////////////////////////////////////////////////////
 // The variant selection chords
 //
-// `rsni` selects taipo and `aote` selects posh, from either table.  They exist
+// `rsni` selects taipo and `aote` selects dosh, from either table.  They exist
 // for the mesa2, which has exactly the 20 taipo keys and no spare one to put
 // the toggle key on.  Unlike the key, they select rather than toggle.
 //////////////////////////////////////////////////////////////////////////////
 
-/// `rsni` while in posh switches to taipo, and the chord after it is looked up
+/// `rsni` while in dosh switches to taipo, and the chord after it is looked up
 /// in the taipo table.
 #[test]
 fn test_variant_chord_selects_taipo() {
-    let mut script = Script::posh();
+    let mut script = Script::dosh();
 
     script.select_variant(LEFT, false);
 
-    // 0x0c0 is `y` in taipo and `s` in posh, so this says which table is live.
+    // 0x0c0 is `y` in taipo and `s` in dosh, so this says which table is live.
     script.chord(LEFT, N | I).types(Keyboard::Y);
     // And the pinky is alive again.
     script.chord(LEFT, R).types(Keyboard::R);
@@ -1997,16 +1997,16 @@ fn test_variant_chord_selects_taipo() {
     script.run();
 }
 
-/// `aote` while in taipo switches to posh, and the chord after it is looked up
-/// in the posh table.
+/// `aote` while in taipo switches to dosh, and the chord after it is looked up
+/// in the dosh table.
 #[test]
-fn test_variant_chord_selects_posh() {
+fn test_variant_chord_selects_dosh() {
     let mut script = Script::taipo();
 
     script.select_variant(LEFT, true);
 
     script.chord(LEFT, N | I).types(Keyboard::S);
-    // The pinky is dead in posh.
+    // The pinky is dead in dosh.
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
 
     script.run();
@@ -2041,8 +2041,8 @@ fn test_variant_chord_is_idempotent() {
 
     script.select_variant(LEFT, true);
 
-    // Already posh.
-    script.chord(LEFT, VARIANT_POSH).idle();
+    // Already dosh.
+    script.chord(LEFT, VARIANT_DOSH).idle();
     script.chord(LEFT, N | I).types(Keyboard::S);
 
     script.run();
@@ -2053,8 +2053,8 @@ fn test_variant_chord_is_idempotent() {
 fn test_variant_chord_types_nothing() {
     let mut script = Script::taipo();
 
-    script.chord(LEFT, VARIANT_POSH).expect(Actions::SetSubMode(MinorMode::Posh)).idle();
-    script.chord(LEFT, VARIANT_TAIPO).expect(Actions::ClearSubMode(MinorMode::Posh)).idle();
+    script.chord(LEFT, VARIANT_DOSH).expect(Actions::SetSubMode(MinorMode::Dosh)).idle();
+    script.chord(LEFT, VARIANT_TAIPO).expect(Actions::ClearSubMode(MinorMode::Dosh)).idle();
 
     script.run();
 }
@@ -2063,7 +2063,7 @@ fn test_variant_chord_types_nothing() {
 /// a chord typed immediately afterwards resolves in the new table.
 ///
 /// This is the test that would catch a switch applied one chord too early or
-/// too late: `0x0c0` types `y` in taipo and `s` in posh.
+/// too late: `0x0c0` types `y` in taipo and `s` in dosh.
 #[test]
 fn test_variant_chord_applies_to_next_chord() {
     let mut script = Script::taipo();
@@ -2082,7 +2082,7 @@ fn test_variant_chord_applies_to_next_chord() {
 #[test]
 fn test_variant_chord_thumb_variants_dead() {
     for extra in [SP, BK, SP | BK] {
-        for base in [VARIANT_TAIPO, VARIANT_POSH] {
+        for base in [VARIANT_TAIPO, VARIANT_DOSH] {
             let mut script = Script::taipo();
             script.chord(LEFT, base | extra).idle();
             // Still taipo.
@@ -2097,16 +2097,16 @@ fn test_variant_chord_thumb_variants_dead() {
 fn test_variant_chord_and_key_agree() {
     let mut script = Script::taipo();
 
-    // Key into posh, chord back out.
-    script.toggle_posh();
+    // Key into dosh, chord back out.
+    script.toggle_dosh();
     script.chord(LEFT, N | I).types(Keyboard::S);
     script.select_variant(LEFT, false);
     script.chord(LEFT, N | I).types(Keyboard::Y);
 
-    // Chord into posh, key back out.
+    // Chord into dosh, key back out.
     script.select_variant(LEFT, true);
     script.chord(LEFT, N | I).types(Keyboard::S);
-    script.toggle_posh();
+    script.toggle_dosh();
     script.chord(LEFT, N | I).types(Keyboard::Y);
 
     script.run();
@@ -2121,9 +2121,9 @@ fn test_variant_chord_steno_gated() {
     // No latch: the chord is assembled, but means nothing to taipo.  The keys
     // are still steno keys, so the release makes a stroke, as it would for any
     // other unlatched chord.
-    script.press(LEFT, VARIANT_POSH).tick(CHORD_TIME);
+    script.press(LEFT, VARIANT_DOSH).tick(CHORD_TIME);
     script
-        .release(LEFT, VARIANT_POSH)
+        .release(LEFT, VARIANT_DOSH)
         .steno_stroke(Stroke::from_text("SKWR").unwrap())
         .tick(1)
         .idle();
@@ -2131,13 +2131,13 @@ fn test_variant_chord_steno_gated() {
     // With the latch held, it switches.
     script.press_scan(TAIPO_KEY);
     script
-        .press(LEFT, VARIANT_POSH)
+        .press(LEFT, VARIANT_DOSH)
         .tick(CHORD_TIME)
-        .expect(Actions::SetSubMode(MinorMode::Posh));
-    script.release(LEFT, VARIANT_POSH).tick(1);
+        .expect(Actions::SetSubMode(MinorMode::Dosh));
+    script.release(LEFT, VARIANT_DOSH).tick(1);
     script.release_scan(TAIPO_KEY).tick(1).idle();
 
-    // And the following latched chord uses the posh table.
+    // And the following latched chord uses the dosh table.
     script.press_scan(TAIPO_KEY);
     script
         .press(LEFT, N | I)

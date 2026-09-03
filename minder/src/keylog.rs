@@ -56,7 +56,7 @@ pub enum Marker {
     /// The layout mode, as a [`ModeCode`].  Keystrokes made in a non-taipo mode are still
     /// logged, and this is what lets a reader exclude them.
     Mode = 0,
-    /// The chord table: 0 for Taipo, 1 for Posh.  Without this, a reader cannot attribute a
+    /// The chord table: 0 for Taipo, 1 for Dosh.  Without this, a reader cannot attribute a
     /// chord to the table that was live when it happened, and the two layouts' statistics
     /// silently pool.
     Variant = 1,

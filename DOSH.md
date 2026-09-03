@@ -1,17 +1,18 @@
-# Posh cheat sheet
+# Dosh cheat sheet
 
-This describes the Posh implementation in `bbq-keyboard/src/layout/posh.rs`, which follows the
-layout at <https://inkeys.wiki/en/keymaps/posh> with local differences: the thumbs are Taipo's
-rather than the wiki's (see "Physical layout" below), both thumbs together is Taipo's "release
-modifiers" null key rather than a sticky shift, the wiki's `ralt` chord is Shift, and the media,
-volume and brightness keys are not mapped. Two more local swaps: `s` and `h` trade their
-punctuation layers, and `o` and `e` trade their navigation layers. In both cases the letters
-themselves stay where the wiki has them; only the thumb layers move.
+This describes the Dosh implementation in `bbq-keyboard/src/layout/dosh.rs`. Dosh is a local
+layout, derived from Posh (<https://inkeys.wiki/en/keymaps/posh>), a Taipo-style layout by the
+same community, described there as "a taipo style layout that excludes the pinkies in order to
+make combos more accurate and long periods of work more comfortable". It runs on the same engine
+as Taipo, with the same chord timing and the same modifier behavior; only the chord table
+differs. See TAIPO.md for the layout it ultimately derives from.
 
-Posh is a Taipo-style layout by the same community, described there as "a taipo style layout that
-excludes the pinkies in order to make combos more accurate and long periods of work more
-comfortable". It runs on the same engine as Taipo, with the same chord timing and the same
-modifier behavior; only the chord table differs. See TAIPO.md for the layout it derives from.
+The differences from the Posh wiki: the thumbs are Taipo's rather than the wiki's (see "Physical
+layout" below), both thumbs together is Taipo's "release modifiers" null key rather than a sticky
+shift, the wiki's `ralt` chord is Shift, and the media, volume and brightness keys are not
+mapped. Two more local swaps: `s` and `h` trade their punctuation layers, and `o` and `e` trade
+their navigation layers. In both cases the letters themselves stay where the wiki has them; only
+the thumb layers move.
 
 ## Physical layout
 
@@ -129,9 +130,9 @@ modifier chord is sent immediately and stays held until the next key consumes it
 accumulate, pressing a modifier chord whose modifiers are all already held makes the whole held
 set sticky, and both thumbs together releases everything.
 
-## Switching between Taipo and Posh
+## Switching between Taipo and Dosh
 
-While in Taipo mode, tapping the **lower-left key by itself** switches between the Taipo and Posh
+While in Taipo mode, tapping the **lower-left key by itself** switches between the Taipo and Dosh
 chord tables. This is the steno `#` key of the outer left column, which has no meaning in Taipo;
 on the 3-row jolt3 it is the middle key of that column rather than the lower one. Only a solo tap
 counts — pressed with nothing else down and released with nothing else down — so the table can
@@ -142,15 +143,15 @@ Two chords do the same job, and are in both tables, so either can be reached fro
 | chord     | keys                 | selects |
 |-----------|----------------------|---------|
 | `r+s+n+i` | the whole top row    | Taipo   |
-| `a+o+t+e` | the whole bottom row | Posh    |
+| `a+o+t+e` | the whole bottom row | Dosh    |
 
-The names are Taipo's; the chord is named by its shape, and in Posh its two pinky keys spell
+The names are Taipo's; the chord is named by its shape, and in Dosh its two pinky keys spell
 nothing. They **select** rather than toggle — the one you are already in does nothing — and the
 thumb variants are unmapped, so a thumb accidentally included makes the chord do nothing.
 
-Using a pinky is what makes them safe to put in this table: Posh has no pinky chords by
-definition, so neither can ever collide with something Posh types. They are the only entries in
-the Posh table that touch a pinky key.
+Using a pinky is what makes them safe to put in this table: Dosh has no pinky chords by
+definition, so neither can ever collide with something Dosh types. They are the only entries in
+the Dosh table that touch a pinky key.
 
 These exist for the boards that have only the 20 Taipo keys — the mesa2 — and so no spare key to
 put the toggle on.
@@ -160,7 +161,7 @@ steno or qwerty and back, and it applies to the taipo layer shift in steno mode 
 steno mode" in TAIPO.md) as well. It is lost at power off, coming back up in Taipo.
 
 On the boards with 4 LEDs, the third one shows which table is selected while in Taipo mode: the
-Taipo mode color for Taipo, cyan for Posh. It is dark in every other mode. The jolt3 has only two
+Taipo mode color for Taipo, cyan for Dosh. It is dark in every other mode. The jolt3 has only two
 LEDs, so it gives no indication.
 
 ## What is not mapped

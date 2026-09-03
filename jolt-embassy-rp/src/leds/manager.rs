@@ -204,8 +204,8 @@ pub static VARIANT_TAIPO_INDICATOR: Indication = Indication(&[Step {
     count: 100,
 }]);
 
-/// The Taipo engine using the Posh chord table.  Cyan, which nothing else uses.
-pub static VARIANT_POSH_INDICATOR: Indication = Indication(&[Step {
+/// The Taipo engine using the Dosh chord table.  Cyan, which nothing else uses.
+pub static VARIANT_DOSH_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(0, 16, 16),
     count: 100,
 }]);

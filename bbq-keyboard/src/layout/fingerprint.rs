@@ -23,7 +23,7 @@
 
 use crate::translate::{get_translation, BOARDS};
 
-use super::posh::POSH_ACTIONS;
+use super::dosh::DOSH_ACTIONS;
 use super::taipo::{Action, Entry, TaipoVariant, SCAN_MAP, TAIPO_ACTIONS};
 
 /// Bumped if the encoding below changes, so that a fingerprint from an older
@@ -75,7 +75,7 @@ pub fn layout_fingerprint() -> u64 {
     let mut h = Fnv::new();
     h.byte(SCHEME);
 
-    for table in [TAIPO_ACTIONS, POSH_ACTIONS] {
+    for table in [TAIPO_ACTIONS, DOSH_ACTIONS] {
         h.u16(table.len() as u16);
         for entry in table {
             entry_hash(&mut h, entry);
@@ -133,7 +133,7 @@ fn entry_hash(h: &mut Fnv, entry: &Entry) {
             // where the two selections were swapped has to hash differently.
             h.byte(match v {
                 TaipoVariant::Taipo => 0,
-                TaipoVariant::Posh => 1,
+                TaipoVariant::Dosh => 1,
             });
         }
     }

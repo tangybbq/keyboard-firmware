@@ -1,6 +1,6 @@
 //! A machine-readable description of the chord tables.
 //!
-//! Everything a host tool needs to talk about a Taipo or Posh chord without
+//! Everything a host tool needs to talk about a Taipo or Dosh chord without
 //! reimplementing the layout: the chord tables themselves, the scan map in
 //! both row positions, the per-board scan code translation, and the codes of
 //! the keys the layout manager handles itself.
@@ -41,11 +41,11 @@ use alloc::string::{String, ToString};
 
 use crate::Mods;
 
-use super::posh::POSH_ACTIONS;
+use super::dosh::DOSH_ACTIONS;
 use super::taipo::{Action, Entry, TaipoVariant, CHORD_TIME, SCAN_MAP, TAIPO_ACTIONS};
 use super::MODE_KEY;
 #[cfg(feature = "proto3")]
-use super::{POSH_TOGGLE_KEY, ROW_TOGGLE_KEY};
+use super::{DOSH_TOGGLE_KEY, ROW_TOGGLE_KEY};
 
 /// The format version of the emitted document.
 ///
@@ -122,7 +122,7 @@ pub fn layouts_json() -> String {
         "    \"taipo\": {},\n",
         variant_json(TAIPO_ACTIONS)
     ));
-    out.push_str(&format!("    \"posh\": {}\n", variant_json(POSH_ACTIONS)));
+    out.push_str(&format!("    \"dosh\": {}\n", variant_json(DOSH_ACTIONS)));
     out.push_str("  }\n");
     out.push_str("}\n");
     out
@@ -157,7 +157,7 @@ fn special_keys_json() -> String {
     #[cfg(feature = "proto3")]
     {
         out.push_str(&format!("    \"row_toggle\": {},\n", ROW_TOGGLE_KEY));
-        out.push_str(&format!("    \"posh_toggle\": {},\n", POSH_TOGGLE_KEY));
+        out.push_str(&format!("    \"dosh_toggle\": {},\n", DOSH_TOGGLE_KEY));
     }
     // The taipo latch keys, which let taipo be typed while in steno mode.
     // Found by asking, rather than by naming the constants, so that a board
@@ -308,7 +308,7 @@ fn action_json(action: &Action) -> String {
             "{{ \"kind\": \"variant\", \"variant\": {} }}",
             quote(match variant {
                 TaipoVariant::Taipo => "taipo",
-                TaipoVariant::Posh => "posh",
+                TaipoVariant::Dosh => "dosh",
             }),
         ),
     }
