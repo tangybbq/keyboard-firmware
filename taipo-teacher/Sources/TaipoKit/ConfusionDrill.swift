@@ -60,16 +60,19 @@ public struct ConfusionModel {
             for session in KeyLogFile.sessions(from: text, layouts: layouts) {
                 sessions += 1
                 let engine = ChordEngine(layouts: layouts)
-                var codes = [UInt16]()
+                var chords = [Chord]()
                 for entry in session.entries {
                     switch entry {
                     case .marker(let m): engine.marker(m.name, value: m.value)
                     case .key(let e):
-                        codes += engine.feed(key: e.key, press: e.press, timeMs: e.timeMs)
-                            .map(\.code)
+                        chords += engine.feed(key: e.key, press: e.press, timeMs: e.timeMs)
                     }
                 }
-                codes += engine.finish().map(\.code)
+                chords += engine.finish()
+                // Only the variant being modelled.  Taipo and Dosh are different skills
+                // that happen to share an engine, and a correction made in one says
+                // nothing about the other.
+                let codes = chords.filter { $0.variant == variant }.map(\.code)
 
                 for c in scanner.scan(codes) {
                     corrections += 1

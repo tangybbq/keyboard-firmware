@@ -48,6 +48,49 @@ final class ConfusionDrillTests: XCTestCase {
         XCTAssertEqual(model.pairs.map(\.count).reduce(0, +), 11)
     }
 
+    /// Corrections made in one chord table say nothing about the other, so a model asked
+    /// for the variant the log is not in finds nothing at all.
+    func testModelIgnoresTheOtherVariant() throws {
+        let dir = try logDirectory(try golden("slips", "log"))
+        let taipo = ConfusionModel.build(
+            logDirectory: dir, layouts: try layouts(), variant: "taipo")
+        let dosh = ConfusionModel.build(
+            logDirectory: dir, layouts: try layouts(), variant: "dosh")
+
+        XCTAssertEqual(taipo.corrections, 13)
+        XCTAssertEqual(dosh.corrections, 0)
+        XCTAssertTrue(dosh.pairs.isEmpty)
+    }
+
+    /// A log that switches tables partway counts each stretch against its own table.
+    func testModelSplitsAtAVariantMarker() throws {
+        // The `slips` log, replayed twice: once as taipo and once as dosh, with a marker
+        // between.  Times run on so the two do not read as separate sessions.
+        let source = try golden("slips", "log")
+        var lines = [String]()
+        var lastTime: UInt32 = 0
+        for pass in 0..<2 {
+            if pass == 1 { lines.append("\(lastTime + 1000) = variant 1") }
+            for line in source.split(separator: "\n") {
+                let fields = line.split(separator: " ")
+                guard let time = UInt32(fields[0]) else { continue }
+                let shifted = time + UInt32(pass) * 100_000
+                lastTime = shifted
+                lines.append(
+                    ([String(shifted)] + fields.dropFirst().map(String.init))
+                        .joined(separator: " "))
+            }
+        }
+        let dir = try logDirectory(lines.joined(separator: "\n") + "\n")
+
+        // Each table sees exactly the corrections made while it was the live one.
+        for variant in ["taipo", "dosh"] {
+            let model = ConfusionModel.build(
+                logDirectory: dir, layouts: try layouts(), variant: variant)
+            XCTAssertEqual(model.corrections, 13, "\(variant)")
+        }
+    }
+
     /// The warmup is the two chords against each other, and every group uses both.
     func testWarmupUsesBothChords() throws {
         let maker = DrillMaker(layouts: try layouts(), words: [])

@@ -31,6 +31,14 @@ public final class DeviceMonitor: ObservableObject {
     /// The drill in progress, if the practice screen is showing.
     @Published public private(set) var drill: DrillSession?
 
+    /// The chord table the keyboard is actually in, as its own log reports it.
+    ///
+    /// Everything the practice screen builds is per-variant -- the segmentation of a
+    /// target, the confusions, the ladder -- because Taipo and Dosh are different skills
+    /// that happen to share an engine.  Drilling Dosh against Taipo's table would score
+    /// the right typing as wrong and, worse, teach the wrong chords.
+    @Published public private(set) var variant: String = "taipo"
+
     /// Practice lines.
     ///
     /// A fixed list for now.  taipo-teacher.md's adaptive sampler wants the model store and
@@ -253,13 +261,25 @@ public final class DeviceMonitor: ObservableObject {
     public func beginPractice() {
         practicing = true
         nextDrill()
-        guard let layouts else { return }
+        rebuildProgramme()
+    }
+
+    /// Replay the logs and build the practice material for the variant now live.
+    ///
+    /// The variant is captured rather than read again on the way back: the keyboard can
+    /// switch tables while the logs are being replayed, and material built for the table
+    /// it has left is worse than none.
+    private func rebuildProgramme() {
+        guard practicing, let layouts else { return }
         let directory = logDirectory
+        let variant = self.variant
         Task.detached(priority: .userInitiated) {
-            let model = ConfusionModel.build(logDirectory: directory, layouts: layouts)
-            let programme = DrillMaker(layouts: layouts).programme(model)
+            let model = ConfusionModel.build(
+                logDirectory: directory, layouts: layouts, variant: variant)
+            let programme = DrillMaker(layouts: layouts, variant: variant).programme(model)
             await MainActor.run { [weak self] in
-                guard let self, self.practicing, !programme.isEmpty else { return }
+                guard let self, self.practicing, self.variant == variant, !programme.isEmpty
+                else { return }
                 self.programme = programme
                 self.drillIndex = 0
                 self.lineIndex = 0
@@ -295,13 +315,17 @@ public final class DeviceMonitor: ObservableObject {
             drillTitle = programme[drillIndex].title
             lineIndex += 1
         }
-        drill = DrillSession(target: DrillTarget(text: text, layouts: layouts), layouts: layouts)
+        drill = DrillSession(
+            target: DrillTarget(text: text, layouts: layouts, variant: variant),
+            layouts: layouts)
     }
 
     /// Start the current line over.
     public func restartDrill() {
         guard let layouts, let text = drill?.target.text else { return }
-        drill = DrillSession(target: DrillTarget(text: text, layouts: layouts), layouts: layouts)
+        drill = DrillSession(
+            target: DrillTarget(text: text, layouts: layouts, variant: variant),
+            layouts: layouts)
     }
 
     /// Reconnect until told to stop.
@@ -560,6 +584,18 @@ public final class DeviceMonitor: ObservableObject {
 
     private func append(_ new: [LiveChord]) {
         chordsToday += new.count
+        if let last = new.last?.chord.variant, last != variant {
+            variant = last
+            // Everything built for the old table is now about a layout the keyboard is not
+            // in, so it goes rather than being scored against the wrong chords.
+            programme = []
+            drillIndex = 0
+            lineIndex = 0
+            if practicing {
+                nextDrill()
+                rebuildProgramme()
+            }
+        }
         chords.append(contentsOf: new)
         if chords.count > historyLimit {
             chords.removeFirst(chords.count - historyLimit)
