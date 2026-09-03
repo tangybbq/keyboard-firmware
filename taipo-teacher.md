@@ -769,9 +769,25 @@ The app is useful before any drill exists.
       to trains nothing.  It keeps the `ALTERNATION_WINDOW` exemption from phase 3, so pausing
       to read the next word costs nothing — which is what stops the rule from punishing the one
       thing a trainer must never punish, stopping to think.
-- [ ] **Chord hints.**  Two hands drawn, the next chord's keys lit, fading out as the item is
-      learned — keybr's idea, and much more necessary here, since there is nothing on the keys.
-      Live technique strip under the text: an L/R bead per chord, and a spread bar per chord.
+- [ ] **Chord hints.**  Live technique strip under the text: an L/R bead per chord, and a
+      spread bar per chord.  The strip has landed; the spread bar has not.
+      - [X] *The next chord, drawn, fading as the item is learned.*  One hand rather than
+        two: the chord code says nothing about which hand typed it — that is `Chord.side`,
+        kept apart — so one hand shows every chord, and it is the right one because that is
+        the side the developer thinks in.  Column order follows from that, index innermost
+        out to the pinky, and the thumbs come from the mesa2's matrix, where `COL_5` is the
+        thumb column and the right hand has backspace on the far row and space on the near.
+        Positions are read from `layouts.json`'s `bits`, so this cannot draw a keyboard the
+        firmware does not have.
+        What it fades by is the **skill model**, not the drill: a chord the logs say is
+        known goes quiet, rather than one that happened to go right twice in this line.  A
+        mistake brings it back whatever the model thinks — including a dead chord, which
+        types nothing and so would otherwise pass unmarked, and which is the clearest case
+        of a hand reaching for something that is not there.
+        The request that started it was "show it on an error"; the fade subsumes that and
+        avoids teaching guess-then-read.  Showing the chord that was *wrongly* typed
+        alongside was offered and declined for now — it is what the Confusions mode is
+        built on, so it may be worth revisiting once there is a feel for the hint itself.
 - [X] **Variant awareness.**  The monitor follows the variant its own chord stream reports
       and passes it to everything it builds: the segmentation of a target, the confusion
       model, the skill model and the ladder.  Switching tables mid-session discards the
