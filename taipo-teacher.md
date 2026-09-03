@@ -951,6 +951,14 @@ the variant changes, and after each block.  The opening seven are the exception,
 together so there is an alphabet to draw words from; nothing new joins until five of them
 are learned.
 
+**The fingerprint is whole-table, and that costs more than it should.**  It covers both
+chord tables, the scan map and the board translations together, so changing Dosh
+invalidated every logged Taipo session too — 56,000 chords of confusion history discarded
+for a change that did not touch the Taipo table at all.  The fix is a per-variant
+fingerprint, reported alongside the whole-table one and recorded in the session header, so
+a reader can tell which of the tables it is behind on.  That is a firmware and protocol
+change, and existing logs could not benefit from it retroactively, so it waits.
+
 **Still open.**  Capitals are not on the ladder — they are a thumb away from a letter that
 is, and sentence material teaches them without a slot of their own; whether that holds is
 a question for use.  The unlocked set being a pure function of the logs means it can go
