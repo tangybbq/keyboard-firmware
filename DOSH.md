@@ -93,7 +93,7 @@ Both thumbs gives the matching function key.
 |-------|-------|-----|-----|--------|
 | s+n | p | P | `+` | `=` |
 | o+t+e | b | B | `-` | `_` |
-| o+e+n | v | V | `/` | `\` |
+| e+s+n | v | V | `/` | `\` |
 | o+i | k | K | `;` | `\|` |
 | a+n | j | J | `:` | `*` |
 | t+e+s | x | X | `$` | `#` |
@@ -158,11 +158,12 @@ Seven still differ. Six of them are on Taipo's upper pinky, so Dosh cannot reach
 | z | t+e+n | r+n |
 
 The seventh is `v`, which is the only one that isn't forced. Taipo types `v` with `e+s`, and Dosh
-has `m` there; Taipo's `m` needs the upper pinky, so the two cannot simply trade.
+has `m` there; Taipo's `m` needs the upper pinky, so the two cannot simply trade. Dosh's `v` sits
+on `e+s+n` instead, one of the chords freed by the letters that moved.
 
 | letter | Dosh chord | Taipo chord |
 |--------|------------|-------------|
-| v | o+e+n | e+s (Dosh's `m`) |
+| v | e+s+n | e+s (Dosh's `m`) |
 
 Taipo's multi-character chords (`the`, `in`, `ing`, …) have no Dosh equivalent, and Taipo's
 punctuation layers are different throughout; only the letters are shared.
@@ -174,12 +175,14 @@ The move to Taipo's chords vacated seven chords, which are deliberately unmapped
 | chord | held in Posh |
 |-------|--------------|
 | s+n+i | `p` |
-| e+s+n | `k` |
 | t+i | `l` |
 | e+n+i | `l` (the local alias) |
 | o+t+i | `j` |
 | o+n+i | `y` |
 | o+e+s | `q` |
+| o+e+n | `v`, until it moved to `e+s+n` |
+
+`e+s+n` held Posh's `k`, and now holds `v`.
 
 ## Modifiers: how they behave
 

@@ -50,14 +50,15 @@
 //! keys, left and right the index and ring of the bottom row — with Escape the
 //! one key that moved, from the ring top to the lower pinky, following `a`.
 //!
-//! Seven chords are left with nothing on them by the move: `s+n+i`, `e+s+n`,
-//! `t+i`, `o+t+i`, `o+n+i`, `e+n+i` and `o+e+s`.  They are deliberately
+//! Seven chords are left with nothing on them by the move: `s+n+i`, `t+i`,
+//! `o+t+i`, `o+n+i`, `e+n+i`, `o+e+s` and `o+e+n`.  They are deliberately
 //! unmapped rather than filled.
 //!
 //! Seven letters still differ from Taipo.  Six of them — `b`, `g`, `m`, `r`,
 //! `x`, `z` — are on Taipo's upper pinky and so out of reach.  The seventh,
 //! `v`, is only blocked because Dosh has `m` on the chord Taipo types `v`
-//! with.  See DOSH.md.
+//! with; it sits on `e+s+n` instead, one of the chords the move freed, which
+//! is a shorter reach than the `o+e+n` Posh had it on.  See DOSH.md.
 //!
 //! Differences from the Posh wiki, beyond the letters that moved:
 //!
@@ -208,10 +209,10 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x20e, action: Action::Simple(Keyboard::Minus), },       // -
     Entry { code: 0x30e, action: Action::Shifted(Keyboard::Minus), },      // _
 
-    Entry { code: 0x04a, action: Action::Simple(Keyboard::V), },
-    Entry { code: 0x14a, action: Action::Shifted(Keyboard::V), },
-    Entry { code: 0x24a, action: Action::Simple(Keyboard::ForwardSlash), },// /
-    Entry { code: 0x34a, action: Action::Simple(Keyboard::Backslash), },   // \
+    Entry { code: 0x068, action: Action::Simple(Keyboard::V), },
+    Entry { code: 0x168, action: Action::Shifted(Keyboard::V), },
+    Entry { code: 0x268, action: Action::Simple(Keyboard::ForwardSlash), },// /
+    Entry { code: 0x368, action: Action::Simple(Keyboard::Backslash), },   // \
 
     Entry { code: 0x082, action: Action::Simple(Keyboard::K), },
     Entry { code: 0x182, action: Action::Shifted(Keyboard::K), },

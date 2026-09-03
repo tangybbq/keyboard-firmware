@@ -1627,6 +1627,7 @@ fn test_dosh_chords() {
     script.chord(LEFT, N | E).types(Keyboard::R);
     script.chord(RIGHT, O | I).types(Keyboard::K);
     script.chord(LEFT, T | E | S).types(Keyboard::X);
+    script.chord(RIGHT, E | S | N).types(Keyboard::V);
 
     // And their capitals.
     script.chord(LEFT, N | I | SP).types_mods(Keyboard::Y, Mods::SHIFT);
