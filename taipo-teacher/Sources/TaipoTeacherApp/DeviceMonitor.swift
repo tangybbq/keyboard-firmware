@@ -287,6 +287,25 @@ public final class DeviceMonitor: ObservableObject {
     /// that happens to you while you work.
     private var practicing = false
 
+    /// Whether the practice window has the keyboard.
+    ///
+    /// The screen being up is not the same as being typed into, and the same argument
+    /// applies a second time: a visible but unfocused window went on scoring everything
+    /// typed in the editor next to it.  Kept apart from `practicing` because that one also
+    /// gates building the material, and a full rebuild on every click away would be
+    /// absurd.
+    ///
+    /// Regaining the keyboard starts the line again.  A line half typed twenty minutes ago
+    /// cannot be resumed honestly -- the clock the speed is measured against has been
+    /// running the whole time -- and half a line with a broken clock is worth less than
+    /// retyping it.
+    @Published public var focused = true {
+        didSet {
+            guard focused != oldValue, practicing else { return }
+            if focused { restartDrill() }
+        }
+    }
+
     /// The practice screen has appeared: start a fresh line and begin scoring.
     ///
     /// The programme is rebuilt off the main thread first, since replaying the logs and
@@ -678,7 +697,7 @@ public final class DeviceMonitor: ObservableObject {
         if chords.count > historyLimit {
             chords.removeFirst(chords.count - historyLimit)
         }
-        guard practicing, let drill else { return }
+        guard practicing, focused, let drill else { return }
         for live in new {
             // The control chords are checked first and never reach the score.  Both type
             // nothing anyway: Enter is not in any target, and the null chord exists to

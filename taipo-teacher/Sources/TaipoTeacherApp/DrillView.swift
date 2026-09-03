@@ -5,6 +5,10 @@ import TaipoKit
 struct DrillView: View {
     @ObservedObject var monitor: DeviceMonitor
 
+    /// Whether this window has the keyboard: `.key` when it does, `.active` when the app
+    /// is frontmost but another window has it, `.inactive` when the app is not frontmost.
+    @Environment(\.controlActiveState) private var activeState
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             modes
@@ -34,6 +38,12 @@ struct DrillView: View {
                             .foregroundStyle(Color.accentColor)
                     } else {
                         Text("Both thumbs to start over")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    if !monitor.focused {
+                        Label("Paused — this window doesn't have the keyboard.",
+                              systemImage: "pause.circle")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
@@ -68,8 +78,12 @@ struct DrillView: View {
         .padding(16)
         // Scoring belongs to the screen, not to the app.  The collector runs whether or not
         // this is showing; the drill only consumes chords while it is.
-        .onAppear { monitor.beginPractice() }
+        .onAppear {
+            monitor.focused = activeState == .key
+            monitor.beginPractice()
+        }
         .onDisappear { monitor.endPractice() }
+        .onChange(of: activeState) { _, state in monitor.focused = state == .key }
     }
 
     /// The two kinds of practice.
