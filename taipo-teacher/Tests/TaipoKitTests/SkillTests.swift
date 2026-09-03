@@ -16,7 +16,7 @@ final class SkillTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("skill-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try contents.write(
+        try (sessionHeader(try Layouts.bundled()) + contents).write(
             to: dir.appendingPathComponent("2026-09-01.txt"), atomically: true, encoding: .utf8)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
         return dir
@@ -125,6 +125,35 @@ final class SkillTests: XCTestCase {
         let blamed = model.skills.values.filter { $0.deleted > 0 }
         XCTAssertFalse(blamed.isEmpty)
         XCTAssertEqual(blamed.map(\.deleted).reduce(0, +), confusions.corrections)
+    }
+
+    /// A session recorded against other tables is not replayed against these ones.
+    ///
+    /// This is the case that made the rule necessary rather than tidy: when Dosh's letters
+    /// moved, the chord that had been typing `a` began typing `s`.  Replaying the old log
+    /// against the new table credits every one of those uses to `s`, and nothing about the
+    /// result looks wrong.
+    func testSessionsFromOtherTablesAreSkipped() throws {
+        let layouts = try layouts()
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("stale-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+
+        let body = repeatedChord(key: "L.e", count: 10, gapMs: 400)
+        func write(_ name: String, _ header: String) throws {
+            try (header + body).write(
+                to: dir.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        }
+        try write("2026-09-01.txt", "# session device=t boot_id=0x1 layout=0xdeadbeefdeadbeef\n")
+        try write("2026-09-02.txt", "# session device=t boot_id=0x2 layout=unknown\n")
+        try write("2026-09-03.txt", sessionHeader(layouts))
+
+        let model = SkillModel.build(logDirectory: dir, layouts: layouts)
+
+        XCTAssertEqual(model.sessions, 1, "only the one on these tables")
+        XCTAssertEqual(model.skipped, 2, "and the others are counted, not lost silently")
+        XCTAssertEqual(try XCTUnwrap(model.skill(0x008)).count, 10)
     }
 
     /// The model is per-variant, like everything else the trainer derives.

@@ -27,6 +27,8 @@ public struct ConfusionModel {
     public let corrections: Int
     /// How many sessions were read.
     public let sessions: Int
+    /// How many were passed over as recorded against other chord tables.
+    public let skipped: Int
 
     /// Only the shapes a drill can do anything about.
     ///
@@ -53,11 +55,18 @@ public struct ConfusionModel {
         var counts: [ConfusionKey: Int] = [:]
         var corrections = 0
         var sessions = 0
+        var skipped = 0
         let scanner = CorrectionScanner(layouts: layouts, variant: variant)
 
         for file in files {
             guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
             for session in KeyLogFile.sessions(from: text, layouts: layouts) {
+                // Recorded against other tables, so what its chords typed is not what
+                // this table says they type.  See `KeyLogSession.recorded(with:)`.
+                guard session.recorded(with: layouts) else {
+                    skipped += 1
+                    continue
+                }
                 sessions += 1
                 let engine = ChordEngine(layouts: layouts)
                 var chords = [Chord]()
@@ -91,7 +100,8 @@ public struct ConfusionModel {
                 // drill list that reshuffles itself is hard to trust.
                 ($0.count, $1.a, $1.b) > ($1.count, $0.a, $0.b)
             }
-        return ConfusionModel(pairs: pairs, corrections: corrections, sessions: sessions)
+        return ConfusionModel(
+            pairs: pairs, corrections: corrections, sessions: sessions, skipped: skipped)
     }
 
     struct ConfusionKey: Hashable {

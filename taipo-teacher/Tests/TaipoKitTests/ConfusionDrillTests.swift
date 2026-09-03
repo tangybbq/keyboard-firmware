@@ -16,7 +16,7 @@ final class ConfusionDrillTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("drills-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try contents.write(
+        try (sessionHeader(try Layouts.bundled()) + contents).write(
             to: dir.appendingPathComponent("2026-09-01.txt"), atomically: true, encoding: .utf8)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
         return dir

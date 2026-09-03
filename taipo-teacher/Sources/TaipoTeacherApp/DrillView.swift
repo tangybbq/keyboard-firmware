@@ -33,6 +33,19 @@ struct DrillView: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
+                    if monitor.skippedSessions > 0 {
+                        Label(
+                            "Ignoring \(monitor.skippedSessions) session"
+                                + (monitor.skippedSessions == 1 ? "" : "s")
+                                + " typed on older chord tables.",
+                            systemImage: "clock.arrow.circlepath"
+                        )
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .help(
+                            "Those logs replay into different letters on these tables, so "
+                            + "nothing is derived from them.  New typing rebuilds it.")
+                    }
                     if !drill.onTrack {
                         Label(
                             "Off the target — backspace to fix it.",

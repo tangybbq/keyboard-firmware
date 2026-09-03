@@ -77,6 +77,8 @@ struct SkillCollector {
     /// variant -> chord code -> what has been seen of it.
     var samples: [String: [UInt16: ChordSamples]] = [:]
     var sessions = 0
+    /// Sessions passed over because they were recorded against other tables.
+    var skipped = 0
 
     /// Fold one log file's sessions in, for every variant it contains.
     ///
@@ -84,6 +86,13 @@ struct SkillCollector {
     /// tables does not mean folding the history again.
     mutating func fold(text: String, layouts: Layouts, options: SkillModel.Options) {
         for session in KeyLogFile.sessions(from: text, layouts: layouts) {
+            // Recorded against other tables, so its chords mean something else.  Counted
+            // rather than dropped in silence: a ladder that has quietly reset is a thing
+            // the writer is owed an explanation for.
+            guard session.recorded(with: layouts) else {
+                skipped += 1
+                continue
+            }
             sessions += 1
             let engine = ChordEngine(layouts: layouts)
             var chords = [Chord]()
@@ -133,7 +142,7 @@ struct SkillCollector {
                 deleted: s.deleted)
         }
         return SkillModel(
-            skills: skills, sessions: sessions,
+            skills: skills, sessions: sessions, skipped: skipped,
             chords: byCode.values.reduce(0) { $0 + $1.total }, options: options)
     }
 }
@@ -172,15 +181,19 @@ public struct SkillModel: Sendable {
     public let skills: [UInt16: ChordSkill]
     /// How many sessions were read, so a thin model can say it is thin.
     public let sessions: Int
+    /// How many were passed over as recorded against other chord tables.
+    public let skipped: Int
     /// How many chords of the requested variant were seen in all.
     public let chords: Int
     public let options: Options
 
     public init(
-        skills: [UInt16: ChordSkill], sessions: Int, chords: Int, options: Options = Options()
+        skills: [UInt16: ChordSkill], sessions: Int, skipped: Int = 0, chords: Int,
+        options: Options = Options()
     ) {
         self.skills = skills
         self.sessions = sessions
+        self.skipped = skipped
         self.chords = chords
         self.options = options
     }

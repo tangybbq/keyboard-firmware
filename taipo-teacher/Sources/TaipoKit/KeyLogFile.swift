@@ -37,6 +37,20 @@ public struct KeyLogSession {
         case marker(KeyLogMarker)
     }
 
+    /// Whether this session was recorded against the tables in hand.
+    ///
+    /// The whole reason the fingerprint is in the header.  A session recorded against
+    /// other tables replays into chords that mean something else -- when Dosh's letters
+    /// moved, the chord that used to type `a` began typing `s` -- and nothing about the
+    /// replay looks wrong while it does it.  That is the "quietly wrong" the fingerprint
+    /// exists to catch, so anything deriving from a log has to ask.
+    ///
+    /// A session with no fingerprint at all is not recorded against these tables either:
+    /// it came from a firmware too old to say, and that is not the same as agreeing.
+    public func recorded(with layouts: Layouts) -> Bool {
+        layout != nil && layout == layouts.fingerprintValue
+    }
+
     public var keys: [KeyLogEvent] {
         entries.compactMap { if case .key(let e) = $0 { return e } else { return nil } }
     }

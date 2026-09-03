@@ -83,6 +83,13 @@ public final class DeviceMonitor: ObservableObject {
     /// until the first rebuild finishes.
     @Published public private(set) var ladder: Ladder?
 
+    /// How many logged sessions were passed over as recorded against other chord tables.
+    ///
+    /// Worth saying out loud.  Reflashing with a changed table resets everything derived
+    /// from before it, and a writer who finds the ladder back at the beginning deserves
+    /// to be told why rather than left to wonder whether it is broken.
+    @Published public private(set) var skippedSessions = 0
+
     /// The practice programme, built from what the writer keeps correcting.
     ///
     /// Rebuilt when the practice screen opens rather than kept up to date continuously:
@@ -302,6 +309,7 @@ public final class DeviceMonitor: ObservableObject {
         Task.detached(priority: .userInitiated) {
             var ladder: Ladder?
             let programme: [Drill]
+            var skipped = 0
             switch mode {
             case .ladder:
                 let skill = SkillStore.model(
@@ -313,16 +321,20 @@ public final class DeviceMonitor: ObservableObject {
                 let drill = LadderMaker(layouts: layouts, variant: variant)
                     .drill(built, lines: Self.ladderBlock, seed: seed)
                 programme = drill.lines.isEmpty ? [] : [drill]
+                skipped = skill.skipped
             case .confusions:
                 let model = ConfusionModel.build(
                     logDirectory: directory, layouts: layouts, variant: variant)
                 programme = DrillMaker(layouts: layouts, variant: variant).programme(model)
+                skipped = model.skipped
             }
-            let result = (ladder, programme)
+            let result = (ladder, programme, skipped)
             await MainActor.run { [weak self] in
                 guard let self, self.practicing, self.variant == variant,
-                    self.practiceMode == mode, !result.1.isEmpty
+                    self.practiceMode == mode
                 else { return }
+                self.skippedSessions = result.2
+                guard !result.1.isEmpty else { return }
                 self.ladder = result.0
                 self.programme = result.1
                 self.drillIndex = 0

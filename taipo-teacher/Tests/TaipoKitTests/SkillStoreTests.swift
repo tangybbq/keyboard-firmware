@@ -20,7 +20,7 @@ final class SkillStoreTests: XCTestCase {
 
     /// A day of typing: `count` presses of the given keys in turn, `gapMs` apart.
     private func day(_ name: String, keys: [String], count: Int, gapMs: UInt32) throws {
-        var out = ""
+        var out = try sessionHeader(layouts())
         var t: UInt32 = 0
         for i in 0..<count {
             let k = keys[i % keys.count]
@@ -151,6 +151,29 @@ final class SkillStoreTests: XCTestCase {
 
         XCTAssertEqual(contents.window, 8)
         XCTAssertNotNil(model.skill(0x008))
+    }
+
+    /// New tables mean the checkpoint is about a keyboard that no longer exists: which
+    /// sessions count depends on the fingerprint, and so does what every chord in them
+    /// typed.  So it is discarded rather than added to.
+    func testNewTablesDiscardTheCheckpoint() throws {
+        let keys = ["L.e", "R.t"]
+        for day in 1...3 {
+            try self.day(
+                String(format: "2026-09-%02d.txt", day), keys: keys, count: 200, gapMs: 300)
+        }
+        _ = try cached()
+        XCTAssertFalse(try XCTUnwrap(SkillStore.load(cache)).samples.isEmpty)
+
+        // The same files, read as if the tables had changed under them.
+        var contents = try XCTUnwrap(SkillStore.load(cache))
+        contents.fingerprint = "0xdeadbeefdeadbeef"
+        SkillStore.save(contents, to: cache)
+
+        _ = try cached()
+        let after = try XCTUnwrap(SkillStore.load(cache))
+        XCTAssertEqual(after.fingerprint, try layouts().fingerprint)
+        XCTAssertEqual(snapshot(try cached()), snapshot(try fromScratch()))
     }
 
     // MARK: - What the window is for

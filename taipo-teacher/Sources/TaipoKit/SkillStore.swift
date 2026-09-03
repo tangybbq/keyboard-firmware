@@ -27,10 +27,16 @@ public struct SkillStore {
     struct Contents: Codable {
         /// Bumped when the shape changes, so an old file is discarded rather than
         /// misread.  A wrong cache is worse than no cache.
-        var version: Int = 2
+        var version: Int = 3
         /// The window the samples were gathered with.  A different one means the stored
         /// gaps are the wrong length and have to be gathered again.
         var window: Int
+        /// The layout fingerprint the samples were folded under.
+        ///
+        /// Which sessions count depends on it, and so does what every chord in them
+        /// typed.  New tables therefore mean the whole checkpoint is about a keyboard
+        /// that no longer exists.
+        var fingerprint: String
         var folded: [Folded] = []
         /// variant -> chord code, in decimal -> what has been seen of it.
         var samples: [String: [String: ChordSamples]] = [:]
@@ -56,11 +62,12 @@ public struct SkillStore {
         options: SkillModel.Options = SkillModel.Options()
     ) -> SkillModel {
         let files = SkillModel.logFiles(in: logDirectory)
-        var contents = load(cache) ?? Contents(window: options.window)
-        if contents.version != Contents(window: options.window).version
-            || contents.window != options.window
+        let fresh = Contents(window: options.window, fingerprint: layouts.fingerprint)
+        var contents = load(cache) ?? fresh
+        if contents.version != fresh.version || contents.window != fresh.window
+            || contents.fingerprint != fresh.fingerprint
         {
-            contents = Contents(window: options.window)
+            contents = fresh
         }
 
         // Everything but the newest file can be folded once and kept.
@@ -68,7 +75,7 @@ public struct SkillStore {
         let live = files.last
 
         if !stillDescribes(contents.folded, settled) {
-            contents = Contents(window: options.window)
+            contents = fresh
         }
 
         var collector = SkillCollector(
