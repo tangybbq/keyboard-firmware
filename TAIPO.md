@@ -177,8 +177,10 @@ Both thumbs + a digit chord gives the matching function key; v and w extend past
 
 ## The Dosh variant
 
-The same engine can interpret chords with the Dosh table instead, which leaves the pinkies out.
-Tap the lower-left key by itself while in taipo mode to switch between them; see DOSH.md.
+The same engine can interpret chords with the Dosh table instead, which leaves the *upper* pinky
+out. Nineteen of the twenty-six letters are on the same chord as they are here; the seven that
+differ are listed in DOSH.md. Tap the lower-left key by itself while in taipo mode to switch
+between them.
 
 There are also two chords, which work in either table:
 

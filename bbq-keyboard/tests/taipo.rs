@@ -50,23 +50,6 @@ const BK: u16 = 0x200;
 const VARIANT_TAIPO: u16 = R | S | N | I;
 const VARIANT_DOSH: u16 = A | O | T | E;
 
-/// The same chord bits, named by the letter the *Dosh* table types with them
-/// (see DOSH.md).  Dosh leaves the pinkies out, so the two pinky bits (taipo's
-/// `R` and `A`) have no name here.
-mod dosh {
-    /// Top row: ring, middle, index.
-    pub const A: u16 = 0x020;
-    pub const N: u16 = 0x040;
-    pub const I: u16 = 0x080;
-    /// Bottom row: ring, middle, index.
-    pub const O: u16 = 0x002;
-    pub const T: u16 = 0x004;
-    pub const E: u16 = 0x008;
-    /// The thumbs, which are taipo's.
-    pub const SP: u16 = super::SP;
-    pub const BK: u16 = super::BK;
-}
-
 /// Shorthands for the two sides.
 const LEFT: Side = Side::Left;
 const RIGHT: Side = Side::Right;
@@ -1557,46 +1540,49 @@ fn test_mod_state_sticky() {
 //
 // Dosh is a second chord table for the same taipo engine, selected by tapping
 // the otherwise dead steno `#` key of the outer left column while in taipo
-// mode.  It uses the ring, middle and index fingers only, leaving the pinky
-// keys dead.
+// mode.  It uses the ring, middle and index fingers plus the lower pinky,
+// leaving only the upper pinky key dead.
+//
+// The chord bits are named here by their taipo letters, which is what dosh
+// types with them too: `a o t e` on the bottom row and `s n i` on the top.
+// Only taipo's `r`, the upper pinky, spells nothing.
 //////////////////////////////////////////////////////////////////////////////
 
-/// The six finger keys and the two thumbs, on both hands, alone and with the
+/// The seven finger keys and the two thumbs, on both hands, alone and with the
 /// space thumb for the capital.
 #[test]
 fn test_dosh_single_keys() {
-    use dosh::{A, E, I, N, O, T};
-
     let mut script = Script::dosh();
 
     for side in [LEFT, RIGHT] {
         script.chord(side, A).types(Keyboard::A);
-        script.chord(side, N).types(Keyboard::N);
-        script.chord(side, I).types(Keyboard::I);
         script.chord(side, O).types(Keyboard::O);
         script.chord(side, T).types(Keyboard::T);
         script.chord(side, E).types(Keyboard::E);
+        script.chord(side, S).types(Keyboard::S);
+        script.chord(side, N).types(Keyboard::N);
+        script.chord(side, I).types(Keyboard::I);
 
         script.chord(side, SP).types(Keyboard::Space);
         script.chord(side, BK).types(Keyboard::DeleteBackspace);
 
         script.chord(side, A | SP).types_mods(Keyboard::A, Mods::SHIFT);
-        script.chord(side, N | SP).types_mods(Keyboard::N, Mods::SHIFT);
-        script.chord(side, I | SP).types_mods(Keyboard::I, Mods::SHIFT);
         script.chord(side, O | SP).types_mods(Keyboard::O, Mods::SHIFT);
         script.chord(side, T | SP).types_mods(Keyboard::T, Mods::SHIFT);
         script.chord(side, E | SP).types_mods(Keyboard::E, Mods::SHIFT);
+        script.chord(side, S | SP).types_mods(Keyboard::S, Mods::SHIFT);
+        script.chord(side, N | SP).types_mods(Keyboard::N, Mods::SHIFT);
+        script.chord(side, I | SP).types_mods(Keyboard::I, Mods::SHIFT);
     }
 
     script.run();
 }
 
 /// The backspace thumb turns the single keys into the navigation cluster, and
-/// both thumbs into the far-motion keys.
+/// both thumbs into the far-motion keys.  `s` is the exception: it carries the
+/// period and the double quote instead.
 #[test]
 fn test_dosh_navigation() {
-    use dosh::{A, E, I, N, O, T};
-
     let mut script = Script::dosh();
 
     script.chord(LEFT, E | BK).types(Keyboard::LeftArrow);
@@ -1616,30 +1602,34 @@ fn test_dosh_navigation() {
     script.run();
 }
 
-/// A sample of the multi-key chords: the two same-row pairs, a few three-key
-/// chords, and some cross-row ones.
+/// A sample of the multi-key chords: the same-row pairs, the lower-pinky
+/// pairs, and some cross-row ones.
 #[test]
 fn test_dosh_chords() {
-    use dosh::{A, E, I, N, O, T};
-
     let mut script = Script::dosh();
 
     // The same-row pairs.
-    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.chord(LEFT, N | I).types(Keyboard::Y);
     script.chord(RIGHT, T | E).types(Keyboard::H);
 
     // Whole-row chords.
-    script.chord(LEFT, A | N | I).types(Keyboard::P);
+    script.chord(LEFT, S | N).types(Keyboard::P);
     script.chord(RIGHT, O | T | E).types(Keyboard::B);
+
+    // The lower pinky, which is where dosh and taipo agree.
+    script.chord(LEFT, A | O).types(Keyboard::L);
+    script.chord(RIGHT, A | T).types(Keyboard::Q);
+    script.chord(LEFT, A | E).types(Keyboard::D);
+    script.chord(RIGHT, A | N).types(Keyboard::J);
+    script.chord(LEFT, A | I).types(Keyboard::W);
 
     // Cross-row chords.
     script.chord(LEFT, N | E).types(Keyboard::R);
-    script.chord(RIGHT, A | N | E).types(Keyboard::K);
-    script.chord(LEFT, A | T | E).types(Keyboard::X);
-    script.chord(RIGHT, A | N).types(Keyboard::D);
+    script.chord(RIGHT, O | I).types(Keyboard::K);
+    script.chord(LEFT, T | E | S).types(Keyboard::X);
 
     // And their capitals.
-    script.chord(LEFT, N | I | SP).types_mods(Keyboard::S, Mods::SHIFT);
+    script.chord(LEFT, N | I | SP).types_mods(Keyboard::Y, Mods::SHIFT);
     script.chord(RIGHT, N | E | SP).types_mods(Keyboard::R, Mods::SHIFT);
 
     script.run();
@@ -1649,38 +1639,36 @@ fn test_dosh_chords() {
 /// function keys and the rest of the symbols.
 #[test]
 fn test_dosh_digits_and_symbols() {
-    use dosh::{A, E, I, N, O, T};
-
     let mut script = Script::dosh();
 
     // Digits.
     script.chord(LEFT, N | E | BK).types(Keyboard::Keyboard0);
-    script.chord(LEFT, A | N | BK).types(Keyboard::Keyboard1);
-    script.chord(LEFT, I | T | BK).types(Keyboard::Keyboard2);
-    script.chord(RIGHT, N | I | O | BK).types(Keyboard::Keyboard9);
+    script.chord(LEFT, A | E | BK).types(Keyboard::Keyboard1);
+    script.chord(LEFT, A | O | BK).types(Keyboard::Keyboard2);
+    script.chord(RIGHT, N | I | BK).types(Keyboard::Keyboard9);
 
     // Symbols on the backspace thumb.
-    script.chord(LEFT, A | N | I | BK).types_mods(Keyboard::Equal, Mods::SHIFT);
+    script.chord(LEFT, S | N | BK).types_mods(Keyboard::Equal, Mods::SHIFT);
     script.chord(LEFT, O | T | E | BK).types(Keyboard::Minus);
-    script.chord(RIGHT, A | N | E | BK).types(Keyboard::Semicolon);
-    script.chord(LEFT, A | T | E | BK).types_mods(Keyboard::Keyboard4, Mods::SHIFT);
-    script.chord(LEFT, N | I | BK).types(Keyboard::Dot);
+    script.chord(RIGHT, O | I | BK).types(Keyboard::Semicolon);
+    script.chord(LEFT, T | E | S | BK).types_mods(Keyboard::Keyboard4, Mods::SHIFT);
+    script.chord(LEFT, S | BK).types(Keyboard::Dot);
 
     // Function keys on both thumbs.
-    script.chord(LEFT, A | N | SP | BK).types(Keyboard::F1);
+    script.chord(LEFT, A | E | SP | BK).types(Keyboard::F1);
     script.chord(RIGHT, N | T | E | SP | BK).types(Keyboard::F12);
-    script.chord(LEFT, A | O | E | SP | BK).types(Keyboard::F11);
+    script.chord(LEFT, A | T | SP | BK).types(Keyboard::F11);
 
     // And the rest of the symbols.
-    script.chord(LEFT, A | N | I | SP | BK).types(Keyboard::Equal);
-    script.chord(RIGHT, A | N | E | SP | BK).types_mods(Keyboard::Backslash, Mods::SHIFT);
+    script.chord(LEFT, S | N | SP | BK).types(Keyboard::Equal);
+    script.chord(RIGHT, O | I | SP | BK).types_mods(Keyboard::Backslash, Mods::SHIFT);
     script.chord(LEFT, T | E | SP | BK).types(Keyboard::Apostrophe);
-    script.chord(RIGHT, N | I | SP | BK).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
+    script.chord(RIGHT, S | SP | BK).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
 
     // The punctuation-only chords, which have no both-thumbs variant.
-    script.chord(LEFT, A | T).types_mods(Keyboard::ForwardSlash, Mods::SHIFT);
-    script.chord(LEFT, A | T | SP).types_mods(Keyboard::Keyboard1, Mods::SHIFT);
-    script.chord(LEFT, A | T | BK).types_mods(Keyboard::Keyboard6, Mods::SHIFT);
+    script.chord(LEFT, S | T).types_mods(Keyboard::ForwardSlash, Mods::SHIFT);
+    script.chord(LEFT, S | T | SP).types_mods(Keyboard::Keyboard1, Mods::SHIFT);
+    script.chord(LEFT, S | T | BK).types_mods(Keyboard::Keyboard6, Mods::SHIFT);
     script.chord(RIGHT, I | O | E).types(Keyboard::Grave);
     script
         .press(RIGHT, I | O | E | SP | BK)
@@ -1696,20 +1684,18 @@ fn test_dosh_digits_and_symbols() {
 /// `ralt` chord is a plain shift here.
 #[test]
 fn test_dosh_modifiers() {
-    use dosh::{A, E, I, N, O, T};
-
     let mut script = Script::dosh();
 
     // One-shot gui, consumed by the next key.
     script.chord(LEFT, N | T).mod_only(Mods::GUI);
-    script.chord(RIGHT, A).types_mods(Keyboard::A, Mods::GUI);
+    script.chord(RIGHT, S).types_mods(Keyboard::S, Mods::GUI);
 
     // Control and alt.
     script.chord(LEFT, I | E).mod_only(Mods::CONTROL);
-    script.chord(LEFT, A | O).mod_only(Mods::CONTROL | Mods::ALT);
+    script.chord(LEFT, S | O).mod_only(Mods::CONTROL | Mods::ALT);
 
     // The `ralt` chord is shift, and accumulates like the others.
-    script.chord(RIGHT, A | O | T).mod_only(Mods::CONTROL | Mods::ALT | Mods::SHIFT);
+    script.chord(RIGHT, S | O | T).mod_only(Mods::CONTROL | Mods::ALT | Mods::SHIFT);
 
     // Both thumbs alone releases everything.
     script.chord(LEFT, SP | BK).releases().no_mod_state();
@@ -1721,15 +1707,15 @@ fn test_dosh_modifiers() {
     script.chord(RIGHT, I | E | SP | BK).mod_only(Mods::CONTROL | Mods::SHIFT);
     script.chord(LEFT, SP | BK).releases().no_mod_state();
 
-    script.chord(LEFT, A | O | SP | BK).mod_only(Mods::ALT | Mods::SHIFT);
+    script.chord(LEFT, S | O | SP | BK).mod_only(Mods::ALT | Mods::SHIFT);
     script.chord(LEFT, SP | BK).releases().no_mod_state();
 
     // A double press makes the held modifiers sticky, as in taipo.
     script
-        .chord(LEFT, A | O)
+        .chord(LEFT, S | O)
         .mod_only(Mods::ALT)
         .mod_state(Mods::ALT, Mods::empty());
-    script.chord(RIGHT, A | O).idle().mod_state(Mods::ALT, Mods::ALT);
+    script.chord(RIGHT, S | O).idle().mod_state(Mods::ALT, Mods::ALT);
     script
         .chord(LEFT, I | SP | BK)
         .presses(Keyboard::Tab, Mods::ALT)
@@ -1739,8 +1725,8 @@ fn test_dosh_modifiers() {
     // The bracket layers of the modifier chords.
     script.chord(LEFT, I | E | SP).types(Keyboard::RightBrace);
     script.chord(LEFT, I | E | BK).types(Keyboard::LeftBrace);
-    script.chord(LEFT, A | O | SP).types_mods(Keyboard::RightBrace, Mods::SHIFT);
-    script.chord(LEFT, A | O | BK).types_mods(Keyboard::LeftBrace, Mods::SHIFT);
+    script.chord(LEFT, S | O | SP).types_mods(Keyboard::RightBrace, Mods::SHIFT);
+    script.chord(LEFT, S | O | BK).types_mods(Keyboard::LeftBrace, Mods::SHIFT);
     script.chord(LEFT, N | T | SP).types_mods(Keyboard::Keyboard0, Mods::SHIFT);
     script.chord(LEFT, N | T | BK).types_mods(Keyboard::Keyboard9, Mods::SHIFT);
 
@@ -1750,87 +1736,105 @@ fn test_dosh_modifiers() {
 /// The two extras that are plain keys.
 #[test]
 fn test_dosh_extras() {
-    use dosh::{A, E, I, N, O, T};
-
     let mut script = Script::dosh();
 
     script.chord(LEFT, N | T | O).types(Keyboard::PrintScreen);
-    script.chord(RIGHT, A | I | E).types(Keyboard::Insert);
+    script.chord(RIGHT, S | I | E).types(Keyboard::Insert);
 
     script.run();
 }
 
-/// Dosh excludes the pinkies, so the two pinky keys do nothing at all, either
-/// on their own or as part of a chord.  Chords that aren't in the table are
-/// equally dead.
+/// Dosh leaves the upper pinky out, so taipo's `r` key does nothing at all,
+/// either on its own or as part of a chord.  Chords that aren't in the table
+/// are equally dead.
 #[test]
-fn test_dosh_pinky_is_dead() {
+fn test_dosh_upper_pinky_is_dead() {
     let mut script = Script::dosh();
 
-    // Taipo's `r` and `a`, which are the pinky keys.
+    // Taipo's `r`, which is the upper pinky key.
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
-    script.press(RIGHT, A).tick(CHORD_TIME).release(RIGHT, A).tick(1).idle();
 
     // A chord that would be dosh's `n` if the pinky weren't in it.
     script
-        .press(LEFT, R | dosh::N)
+        .press(LEFT, R | N)
         .tick(CHORD_TIME)
-        .release(LEFT, R | dosh::N)
+        .release(LEFT, R | N)
         .tick(1)
         .idle();
 
     // One of the wiki's empty rows.
     script
-        .press(LEFT, dosh::A | dosh::N | dosh::T)
+        .press(LEFT, S | N | T)
         .tick(CHORD_TIME)
-        .release(LEFT, dosh::A | dosh::N | dosh::T)
+        .release(LEFT, S | N | T)
+        .tick(1)
+        .idle();
+
+    // And a chord freed up by the letters that moved to the lower pinky: `s`
+    // used to be here, and nothing replaced it.
+    script
+        .press(LEFT, S | N | I)
+        .tick(CHORD_TIME)
+        .release(LEFT, S | N | I)
         .tick(1)
         .idle();
 
     script.run();
 }
 
-/// `l` has a second, locally added chord, because the wiki's index-top plus
-/// middle-bottom splay is awkward to hit.  Both spellings work, on both hands,
-/// and on every thumb layer.
+/// The nineteen letters dosh and taipo agree on type the same thing in both
+/// tables, on the same keys.  This is the point of the layout.
 #[test]
-fn test_dosh_l_alias() {
-    let mut script = Script::dosh();
+fn test_dosh_shares_taipo_letters() {
+    let shared: &[(u16, Keyboard)] = &[
+        (A, Keyboard::A),
+        (O, Keyboard::O),
+        (T, Keyboard::T),
+        (E, Keyboard::E),
+        (S, Keyboard::S),
+        (N, Keyboard::N),
+        (I, Keyboard::I),
+        (A | O, Keyboard::L),
+        (A | T, Keyboard::Q),
+        (A | E, Keyboard::D),
+        (A | N, Keyboard::J),
+        (A | I, Keyboard::W),
+        (O | T, Keyboard::U),
+        (O | E, Keyboard::C),
+        (O | I, Keyboard::K),
+        (T | E, Keyboard::H),
+        (S | I, Keyboard::F),
+        (S | N, Keyboard::P),
+        (N | I, Keyboard::Y),
+    ];
 
-    let wiki = dosh::I | dosh::T;
-    let alias = dosh::N | dosh::I | dosh::E;
-
-    script.chord(LEFT, wiki).types(Keyboard::L);
-    script.chord(LEFT, alias).types(Keyboard::L);
-    script.chord(RIGHT, alias).types(Keyboard::L);
-
-    script
-        .chord(LEFT, alias | dosh::SP)
-        .types_mods(Keyboard::L, Mods::SHIFT);
-    script.chord(LEFT, alias | dosh::BK).types(Keyboard::Keyboard2);
-    script
-        .chord(LEFT, alias | dosh::SP | dosh::BK)
-        .types(Keyboard::F2);
+    let mut script = Script::taipo();
+    for (chord, key) in shared {
+        script.chord(LEFT, *chord).types(*key);
+    }
+    script.toggle_dosh();
+    for (chord, key) in shared {
+        script.chord(LEFT, *chord).types(*key);
+    }
 
     script.run();
 }
 
-/// Toggling a second time comes back to taipo, where the pinky keys work
+/// Toggling a second time comes back to taipo, where the upper pinky works
 /// again.
 #[test]
 fn test_dosh_toggle_back() {
     let mut script = Script::taipo();
 
-    // Taipo's `r` is on the pinky.
+    // Taipo's `r` is on the upper pinky.
     script.chord(LEFT, R).types(Keyboard::R);
 
     script.toggle_dosh();
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
-    script.chord(LEFT, dosh::A).types(Keyboard::A);
+    script.chord(LEFT, A).types(Keyboard::A);
 
     script.toggle_dosh();
     script.chord(LEFT, R).types(Keyboard::R);
-    // Taipo's `s` is where dosh's `a` is.
     script.chord(LEFT, S).types(Keyboard::S);
 
     script.run();
@@ -1845,7 +1849,7 @@ fn test_dosh_survives_mode_change() {
     script.to_mode(LayoutMode::Qwerty).to_mode(LayoutMode::Steno);
     script.to_mode(LayoutMode::Taipo);
 
-    script.chord(LEFT, dosh::N | dosh::I).types(Keyboard::S);
+    script.chord(LEFT, N | E).types(Keyboard::R);
 
     script.run();
 }
@@ -1864,10 +1868,10 @@ fn test_dosh_steno_taipo_latch() {
 
     script.press_scan(TAIPO_KEY);
     script
-        .press(LEFT, dosh::A)
+        .press(LEFT, N | E)
         .tick(CHORD_TIME)
-        .presses(Keyboard::A, Mods::empty());
-    script.release(LEFT, dosh::A).tick(1).releases();
+        .presses(Keyboard::R, Mods::empty());
+    script.release(LEFT, N | E).tick(1).releases();
     script.release_scan(TAIPO_KEY).tick(1).idle();
 
     script.run();
@@ -1901,7 +1905,7 @@ fn test_dosh_toggle_needs_solo_tap() {
         .tick(1)
         .releases();
 
-    // Still taipo, so the pinky still types.
+    // Still taipo, so the upper pinky still types.
     script.chord(LEFT, R).types(Keyboard::R);
 
     script.run();
@@ -1934,7 +1938,7 @@ fn test_dosh_toggle_only_in_taipo() {
     // Back in taipo it toggles, and the choice takes effect immediately.
     script.to_mode(LayoutMode::Taipo);
     script.toggle_dosh();
-    script.chord(LEFT, dosh::N | dosh::I).types(Keyboard::S);
+    script.chord(LEFT, N | E).types(Keyboard::R);
 
     script.run();
 }
@@ -1948,7 +1952,7 @@ fn test_dosh_toggle_two_row() {
     script.chord(LEFT, R).types(Keyboard::R);
 
     script.toggle_dosh();
-    script.chord(LEFT, dosh::N | dosh::I).types(Keyboard::S);
+    script.chord(LEFT, N | E).types(Keyboard::R);
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
 
     script.run();
@@ -1963,11 +1967,11 @@ fn test_dosh_toggle_lower_rows() {
     script.toggle_rows();
     script.toggle_dosh();
 
-    script.chord(LEFT, dosh::A).types(Keyboard::A);
-    script.chord(RIGHT, dosh::N | dosh::I).types(Keyboard::S);
-    script.chord(LEFT, dosh::N | dosh::E | BK).types(Keyboard::Keyboard0);
+    script.chord(LEFT, A).types(Keyboard::A);
+    script.chord(RIGHT, N | I).types(Keyboard::Y);
+    script.chord(LEFT, N | E | BK).types(Keyboard::Keyboard0);
 
-    // The pinky is still dead down here.
+    // The upper pinky is still dead down here.
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
 
     script.run();
@@ -1989,9 +1993,9 @@ fn test_variant_chord_selects_taipo() {
 
     script.select_variant(LEFT, false);
 
-    // 0x0c0 is `y` in taipo and `s` in dosh, so this says which table is live.
-    script.chord(LEFT, N | I).types(Keyboard::Y);
-    // And the pinky is alive again.
+    // 0x028 is `v` in taipo and `m` in dosh, so this says which table is live.
+    script.chord(LEFT, E | S).types(Keyboard::V);
+    // And the upper pinky is alive again.
     script.chord(LEFT, R).types(Keyboard::R);
 
     script.run();
@@ -2005,8 +2009,8 @@ fn test_variant_chord_selects_dosh() {
 
     script.select_variant(LEFT, true);
 
-    script.chord(LEFT, N | I).types(Keyboard::S);
-    // The pinky is dead in dosh.
+    script.chord(LEFT, E | S).types(Keyboard::M);
+    // The upper pinky is dead in dosh.
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();
 
     script.run();
@@ -2018,10 +2022,10 @@ fn test_variant_chord_either_hand() {
     let mut script = Script::taipo();
 
     script.select_variant(RIGHT, true);
-    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.chord(LEFT, E | S).types(Keyboard::M);
 
     script.select_variant(RIGHT, false);
-    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.chord(LEFT, E | S).types(Keyboard::V);
 
     script.run();
 }
@@ -2037,13 +2041,13 @@ fn test_variant_chord_is_idempotent() {
 
     // Already taipo.
     script.chord(LEFT, VARIANT_TAIPO).idle();
-    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.chord(LEFT, E | S).types(Keyboard::V);
 
     script.select_variant(LEFT, true);
 
     // Already dosh.
     script.chord(LEFT, VARIANT_DOSH).idle();
-    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.chord(LEFT, E | S).types(Keyboard::M);
 
     script.run();
 }
@@ -2063,16 +2067,16 @@ fn test_variant_chord_types_nothing() {
 /// a chord typed immediately afterwards resolves in the new table.
 ///
 /// This is the test that would catch a switch applied one chord too early or
-/// too late: `0x0c0` types `y` in taipo and `s` in dosh.
+/// too late: `0x028` types `v` in taipo and `m` in dosh.
 #[test]
 fn test_variant_chord_applies_to_next_chord() {
     let mut script = Script::taipo();
 
-    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.chord(LEFT, E | S).types(Keyboard::V);
     script.select_variant(LEFT, true);
-    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.chord(LEFT, E | S).types(Keyboard::M);
     script.select_variant(LEFT, false);
-    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.chord(LEFT, E | S).types(Keyboard::V);
 
     script.run();
 }
@@ -2086,7 +2090,7 @@ fn test_variant_chord_thumb_variants_dead() {
             let mut script = Script::taipo();
             script.chord(LEFT, base | extra).idle();
             // Still taipo.
-            script.chord(LEFT, N | I).types(Keyboard::Y);
+            script.chord(LEFT, E | S).types(Keyboard::V);
             script.run();
         }
     }
@@ -2099,15 +2103,15 @@ fn test_variant_chord_and_key_agree() {
 
     // Key into dosh, chord back out.
     script.toggle_dosh();
-    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.chord(LEFT, E | S).types(Keyboard::M);
     script.select_variant(LEFT, false);
-    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.chord(LEFT, E | S).types(Keyboard::V);
 
     // Chord into dosh, key back out.
     script.select_variant(LEFT, true);
-    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.chord(LEFT, E | S).types(Keyboard::M);
     script.toggle_dosh();
-    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.chord(LEFT, E | S).types(Keyboard::V);
 
     script.run();
 }
@@ -2140,10 +2144,10 @@ fn test_variant_chord_steno_gated() {
     // And the following latched chord uses the dosh table.
     script.press_scan(TAIPO_KEY);
     script
-        .press(LEFT, N | I)
+        .press(LEFT, E | S)
         .tick(CHORD_TIME)
-        .presses(Keyboard::S, Mods::empty());
-    script.release(LEFT, N | I).tick(1).releases();
+        .presses(Keyboard::M, Mods::empty());
+    script.release(LEFT, E | S).tick(1).releases();
     script.release_scan(TAIPO_KEY).tick(1).idle();
 
     script.run();
@@ -2155,11 +2159,11 @@ fn test_variant_chord_steno_gated() {
 fn test_variant_chord_two_row() {
     let mut script = Script::two_row();
 
-    script.chord(LEFT, N | I).types(Keyboard::Y);
+    script.chord(LEFT, E | S).types(Keyboard::V);
     script.select_variant(LEFT, true);
-    script.chord(LEFT, N | I).types(Keyboard::S);
+    script.chord(LEFT, E | S).types(Keyboard::M);
     script.select_variant(RIGHT, false);
-    script.chord(RIGHT, N | I).types(Keyboard::Y);
+    script.chord(RIGHT, E | S).types(Keyboard::V);
 
     script.run();
 }

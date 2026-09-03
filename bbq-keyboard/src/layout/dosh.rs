@@ -5,29 +5,61 @@
 //! the same community, described there as "a taipo style layout that excludes
 //! the pinkies in order to make combos more accurate and long periods of work
 //! more comfortable".  Like Taipo, each half of the keyboard is a complete
-//! layout, and the two halves are freely alternated.  Unlike Taipo, it leans
-//! on the 6 finger keys per hand (3 columns of 2 rows) plus the 2 thumbs.
+//! layout, and the two halves are freely alternated.
+//!
+//! Where Posh leaves both pinky keys out, Dosh keeps the *lower* one, so it
+//! has 7 finger keys per hand plus the 2 thumbs.  What the pinky buys is not
+//! the extra chords but the agreement with Taipo: every letter Taipo types
+//! without its upper pinky can sit on exactly the chord Taipo has it on, so
+//! nineteen of the twenty-six letters are the same in both layouts and only
+//! seven have to be learned twice.
 //!
 //! Only the table differs from Taipo: the chord accumulation, the chord timing,
 //! the modifier handling, and the scan code mapping are all shared, so the same
-//! chord code bits are used:
+//! chord code bits are used.  Each key now types the letter its bit is named
+//! after in [`crate::layout::export::BIT_NAMES`], so a Dosh chord can be
+//! spelled in the same alphabet as a Taipo one:
 //!
 //! | bit     | finger | row    | Dosh letter typed alone |
 //! |---------|--------|--------|-------------------------|
-//! | `0x020` | ring   | top    | `a`                     |
-//! | `0x040` | middle | top    | `n`                     |
-//! | `0x080` | index  | top    | `i`                     |
+//! | `0x001` | pinky  | bottom | `a`                     |
 //! | `0x002` | ring   | bottom | `o`                     |
 //! | `0x004` | middle | bottom | `t`                     |
 //! | `0x008` | index  | bottom | `e`                     |
+//! | `0x010` | pinky  | top    | (unused)                |
+//! | `0x020` | ring   | top    | `s`                     |
+//! | `0x040` | middle | top    | `n`                     |
+//! | `0x080` | index  | top    | `i`                     |
 //! | `0x100` | thumb  |        | Space                   |
 //! | `0x200` | thumb  |        | Backspace               |
 //!
-//! The pinky bits (`0x010` and `0x001`, Taipo's `r` and `a`) appear in no entry
-//! here, so the pinky keys are dead, which is the point of the layout Dosh
-//! comes from.
+//! The upper pinky bit (`0x010`, Taipo's `r`) appears in no entry here but the
+//! `rsni` variant selection chord.
 //!
-//! Differences from the Posh wiki:
+//! # Where the letters came from
+//!
+//! Six letters — `a`, `l`, `q`, `d`, `j`, `w` — are the lower pinky paired
+//! with each of the other keys, and are Taipo's chords exactly.  Moving them
+//! there freed the chords Posh had them on, which is what let `s`, `y`, `p`
+//! and `k` move onto Taipo's chords in turn.
+//!
+//! Each letter took its whole column of thumb layers with it, so a digit or a
+//! symbol is still found on the letter it was learned on: `1` is still on `d`
+//! and `2` on `l`, even though both letters moved.  The navigation cluster
+//! keeps its shape as well — up and down are still the middle finger's two
+//! keys, left and right the index and ring of the bottom row — with Escape the
+//! one key that moved, from the ring top to the lower pinky, following `a`.
+//!
+//! Seven chords are left with nothing on them by the move: `s+n+i`, `e+s+n`,
+//! `t+i`, `o+t+i`, `o+n+i`, `e+n+i` and `o+e+s`.  They are deliberately
+//! unmapped rather than filled.
+//!
+//! Seven letters still differ from Taipo.  Six of them — `b`, `g`, `m`, `r`,
+//! `x`, `z` — are on Taipo's upper pinky and so out of reach.  The seventh,
+//! `v`, is only blocked because Dosh has `m` on the chord Taipo types `v`
+//! with.  See DOSH.md.
+//!
+//! Differences from the Posh wiki, beyond the letters that moved:
 //!
 //! - **The thumbs are Taipo's.**  The wiki has space and backspace swapped
 //!   relative to Taipo; the developer wants them where Taipo has them, so
@@ -42,19 +74,12 @@
 //!   chord (`0x026`) is a plain Shift one-shot.  Its "both" variant would then
 //!   be shift plus shift, so `0x326` is left unmapped.
 //! - **`s` and `h` have their punctuation swapped.**  The wiki puts the comma
-//!   and apostrophe on `s` (`n+i`) and the period and quote on `h` (`t+e`);
-//!   the developer wants them the other way around.  The letters themselves
-//!   stay where the wiki has them.
+//!   and apostrophe on the chord that types `s` and the period and quote on
+//!   the one that types `h`; the developer wants them the other way around.
 //! - **`o` and `e` have their navigation swapped.**  The wiki puts left and
 //!   home on `o` and right and end on `e`, matching the order the keys sit on
 //!   the left hand; the developer finds the mirrored sense more intuitive, so
-//!   `o` is right and end, and `e` is left and home.  Again the letters
-//!   themselves do not move.
-//! - **`l` has a second chord.**  The wiki's `l` is index-top plus
-//!   middle-bottom (`0x084`), a splay the developer finds hard to hit.  The
-//!   otherwise unused `n+i+e` chord (`0x0c8`, middle-top plus index-top plus
-//!   index-bottom) is mapped to the same four actions.  Both spellings work;
-//!   this adds a chord rather than moving one.
+//!   `o` is right and end, and `e` is left and home.
 //!
 //! Left unmapped, as a future task: everything needing a consumer-control HID
 //! report, which the firmware does not have — play/pause, next/previous track,
@@ -75,43 +100,46 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
     Entry { code: 0x300, action: Action::Release, },
 
-    // The six single keys: alone, +Sp (capital), +Bk (navigation), +both.
-    Entry { code: 0x008, action: Action::Simple(Keyboard::E), },
-    Entry { code: 0x108, action: Action::Shifted(Keyboard::E), },
-    Entry { code: 0x208, action: Action::Simple(Keyboard::LeftArrow), },
-    Entry { code: 0x308, action: Action::Simple(Keyboard::Home), },
-
-    Entry { code: 0x004, action: Action::Simple(Keyboard::T), },
-    Entry { code: 0x104, action: Action::Shifted(Keyboard::T), },
-    Entry { code: 0x204, action: Action::Simple(Keyboard::DownArrow), },
-    Entry { code: 0x304, action: Action::Simple(Keyboard::PageDown), },
-
-    Entry { code: 0x020, action: Action::Simple(Keyboard::A), },
-    Entry { code: 0x120, action: Action::Shifted(Keyboard::A), },
-    Entry { code: 0x220, action: Action::Simple(Keyboard::Escape), },
-    Entry { code: 0x320, action: Action::Simple(Keyboard::DeleteForward), },
+    // The seven single keys: alone, +Sp (capital), +Bk (navigation), +both.
+    // These are Taipo's seven, less `r` on the upper pinky, which Dosh does
+    // not use; each key types the letter its bit is named after.
+    Entry { code: 0x001, action: Action::Simple(Keyboard::A), },
+    Entry { code: 0x101, action: Action::Shifted(Keyboard::A), },
+    Entry { code: 0x201, action: Action::Simple(Keyboard::Escape), },
+    Entry { code: 0x301, action: Action::Simple(Keyboard::DeleteForward), },
 
     Entry { code: 0x002, action: Action::Simple(Keyboard::O), },
     Entry { code: 0x102, action: Action::Shifted(Keyboard::O), },
     Entry { code: 0x202, action: Action::Simple(Keyboard::RightArrow), },
     Entry { code: 0x302, action: Action::Simple(Keyboard::End), },
 
-    Entry { code: 0x080, action: Action::Simple(Keyboard::I), },
-    Entry { code: 0x180, action: Action::Shifted(Keyboard::I), },
-    Entry { code: 0x280, action: Action::Simple(Keyboard::ReturnEnter), },
-    Entry { code: 0x380, action: Action::Simple(Keyboard::Tab), },
+    Entry { code: 0x004, action: Action::Simple(Keyboard::T), },
+    Entry { code: 0x104, action: Action::Shifted(Keyboard::T), },
+    Entry { code: 0x204, action: Action::Simple(Keyboard::DownArrow), },
+    Entry { code: 0x304, action: Action::Simple(Keyboard::PageDown), },
+
+    Entry { code: 0x008, action: Action::Simple(Keyboard::E), },
+    Entry { code: 0x108, action: Action::Shifted(Keyboard::E), },
+    Entry { code: 0x208, action: Action::Simple(Keyboard::LeftArrow), },
+    Entry { code: 0x308, action: Action::Simple(Keyboard::Home), },
+
+    Entry { code: 0x020, action: Action::Simple(Keyboard::S), },
+    Entry { code: 0x120, action: Action::Shifted(Keyboard::S), },
+    Entry { code: 0x220, action: Action::Simple(Keyboard::Dot), },
+    Entry { code: 0x320, action: Action::Shifted(Keyboard::Apostrophe), },
 
     Entry { code: 0x040, action: Action::Simple(Keyboard::N), },
     Entry { code: 0x140, action: Action::Shifted(Keyboard::N), },
     Entry { code: 0x240, action: Action::Simple(Keyboard::UpArrow), },
     Entry { code: 0x340, action: Action::Simple(Keyboard::PageUp), },
 
-    // The two same-row pairs, whose symbols are the comma and the quotes.
-    Entry { code: 0x0c0, action: Action::Simple(Keyboard::S), },
-    Entry { code: 0x1c0, action: Action::Shifted(Keyboard::S), },
-    Entry { code: 0x2c0, action: Action::Simple(Keyboard::Dot), },
-    Entry { code: 0x3c0, action: Action::Shifted(Keyboard::Apostrophe), },
+    Entry { code: 0x080, action: Action::Simple(Keyboard::I), },
+    Entry { code: 0x180, action: Action::Shifted(Keyboard::I), },
+    Entry { code: 0x280, action: Action::Simple(Keyboard::ReturnEnter), },
+    Entry { code: 0x380, action: Action::Simple(Keyboard::Tab), },
 
+    // `h`, the one same-row pair left carrying punctuation now that `s` is a
+    // single key.
     Entry { code: 0x00c, action: Action::Simple(Keyboard::H), },
     Entry { code: 0x10c, action: Action::Shifted(Keyboard::H), },
     Entry { code: 0x20c, action: Action::Simple(Keyboard::Comma), },
@@ -124,22 +152,15 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x248, action: Action::Simple(Keyboard::Keyboard0), },
     Entry { code: 0x348, action: Action::Simple(Keyboard::F10), },
 
-    Entry { code: 0x060, action: Action::Simple(Keyboard::D), },
-    Entry { code: 0x160, action: Action::Shifted(Keyboard::D), },
-    Entry { code: 0x260, action: Action::Simple(Keyboard::Keyboard1), },
-    Entry { code: 0x360, action: Action::Simple(Keyboard::F1), },
+    Entry { code: 0x009, action: Action::Simple(Keyboard::D), },
+    Entry { code: 0x109, action: Action::Shifted(Keyboard::D), },
+    Entry { code: 0x209, action: Action::Simple(Keyboard::Keyboard1), },
+    Entry { code: 0x309, action: Action::Simple(Keyboard::F1), },
 
-    Entry { code: 0x084, action: Action::Simple(Keyboard::L), },
-    Entry { code: 0x184, action: Action::Shifted(Keyboard::L), },
-    Entry { code: 0x284, action: Action::Simple(Keyboard::Keyboard2), },
-    Entry { code: 0x384, action: Action::Simple(Keyboard::F2), },
-
-    // A local alias for the above, because the index-top plus middle-bottom
-    // splay is awkward to hit.  Same actions, on the free `n+i+e` chord.
-    Entry { code: 0x0c8, action: Action::Simple(Keyboard::L), },
-    Entry { code: 0x1c8, action: Action::Shifted(Keyboard::L), },
-    Entry { code: 0x2c8, action: Action::Simple(Keyboard::Keyboard2), },
-    Entry { code: 0x3c8, action: Action::Simple(Keyboard::F2), },
+    Entry { code: 0x003, action: Action::Simple(Keyboard::L), },
+    Entry { code: 0x103, action: Action::Shifted(Keyboard::L), },
+    Entry { code: 0x203, action: Action::Simple(Keyboard::Keyboard2), },
+    Entry { code: 0x303, action: Action::Simple(Keyboard::F2), },
 
     Entry { code: 0x00a, action: Action::Simple(Keyboard::C), },
     Entry { code: 0x10a, action: Action::Shifted(Keyboard::C), },
@@ -156,10 +177,10 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x228, action: Action::Simple(Keyboard::Keyboard5), },
     Entry { code: 0x328, action: Action::Simple(Keyboard::F5), },
 
-    Entry { code: 0x082, action: Action::Simple(Keyboard::W), },
-    Entry { code: 0x182, action: Action::Shifted(Keyboard::W), },
-    Entry { code: 0x282, action: Action::Simple(Keyboard::Keyboard6), },
-    Entry { code: 0x382, action: Action::Simple(Keyboard::F6), },
+    Entry { code: 0x081, action: Action::Simple(Keyboard::W), },
+    Entry { code: 0x181, action: Action::Shifted(Keyboard::W), },
+    Entry { code: 0x281, action: Action::Simple(Keyboard::Keyboard6), },
+    Entry { code: 0x381, action: Action::Simple(Keyboard::F6), },
 
     Entry { code: 0x0a0, action: Action::Simple(Keyboard::F), },
     Entry { code: 0x1a0, action: Action::Shifted(Keyboard::F), },
@@ -171,16 +192,16 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x242, action: Action::Simple(Keyboard::Keyboard8), },
     Entry { code: 0x342, action: Action::Simple(Keyboard::F8), },
 
-    Entry { code: 0x0c2, action: Action::Simple(Keyboard::Y), },
-    Entry { code: 0x1c2, action: Action::Shifted(Keyboard::Y), },
-    Entry { code: 0x2c2, action: Action::Simple(Keyboard::Keyboard9), },
-    Entry { code: 0x3c2, action: Action::Simple(Keyboard::F9), },
+    Entry { code: 0x0c0, action: Action::Simple(Keyboard::Y), },
+    Entry { code: 0x1c0, action: Action::Shifted(Keyboard::Y), },
+    Entry { code: 0x2c0, action: Action::Simple(Keyboard::Keyboard9), },
+    Entry { code: 0x3c0, action: Action::Simple(Keyboard::F9), },
 
     // The letters whose +Bk and +both are symbols.
-    Entry { code: 0x0e0, action: Action::Simple(Keyboard::P), },
-    Entry { code: 0x1e0, action: Action::Shifted(Keyboard::P), },
-    Entry { code: 0x2e0, action: Action::Shifted(Keyboard::Equal), },      // +
-    Entry { code: 0x3e0, action: Action::Simple(Keyboard::Equal), },       // =
+    Entry { code: 0x060, action: Action::Simple(Keyboard::P), },
+    Entry { code: 0x160, action: Action::Shifted(Keyboard::P), },
+    Entry { code: 0x260, action: Action::Shifted(Keyboard::Equal), },      // +
+    Entry { code: 0x360, action: Action::Simple(Keyboard::Equal), },       // =
 
     Entry { code: 0x00e, action: Action::Simple(Keyboard::B), },
     Entry { code: 0x10e, action: Action::Shifted(Keyboard::B), },
@@ -192,25 +213,25 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x24a, action: Action::Simple(Keyboard::ForwardSlash), },// /
     Entry { code: 0x34a, action: Action::Simple(Keyboard::Backslash), },   // \
 
-    Entry { code: 0x068, action: Action::Simple(Keyboard::K), },
-    Entry { code: 0x168, action: Action::Shifted(Keyboard::K), },
-    Entry { code: 0x268, action: Action::Simple(Keyboard::Semicolon), },   // ;
-    Entry { code: 0x368, action: Action::Shifted(Keyboard::Backslash), },  // |
+    Entry { code: 0x082, action: Action::Simple(Keyboard::K), },
+    Entry { code: 0x182, action: Action::Shifted(Keyboard::K), },
+    Entry { code: 0x282, action: Action::Simple(Keyboard::Semicolon), },   // ;
+    Entry { code: 0x382, action: Action::Shifted(Keyboard::Backslash), },  // |
 
-    Entry { code: 0x086, action: Action::Simple(Keyboard::J), },
-    Entry { code: 0x186, action: Action::Shifted(Keyboard::J), },
-    Entry { code: 0x286, action: Action::Shifted(Keyboard::Semicolon), },  // :
-    Entry { code: 0x386, action: Action::Shifted(Keyboard::Keyboard8), },  // *
+    Entry { code: 0x041, action: Action::Simple(Keyboard::J), },
+    Entry { code: 0x141, action: Action::Shifted(Keyboard::J), },
+    Entry { code: 0x241, action: Action::Shifted(Keyboard::Semicolon), },  // :
+    Entry { code: 0x341, action: Action::Shifted(Keyboard::Keyboard8), },  // *
 
     Entry { code: 0x02c, action: Action::Simple(Keyboard::X), },
     Entry { code: 0x12c, action: Action::Shifted(Keyboard::X), },
     Entry { code: 0x22c, action: Action::Shifted(Keyboard::Keyboard4), },  // $
     Entry { code: 0x32c, action: Action::Shifted(Keyboard::Keyboard3), },  // #
 
-    Entry { code: 0x02a, action: Action::Simple(Keyboard::Q), },
-    Entry { code: 0x12a, action: Action::Shifted(Keyboard::Q), },
-    Entry { code: 0x22a, action: Action::Shifted(Keyboard::Keyboard2), },  // @
-    Entry { code: 0x32a, action: Action::Simple(Keyboard::F11), },
+    Entry { code: 0x005, action: Action::Simple(Keyboard::Q), },
+    Entry { code: 0x105, action: Action::Shifted(Keyboard::Q), },
+    Entry { code: 0x205, action: Action::Shifted(Keyboard::Keyboard2), },  // @
+    Entry { code: 0x305, action: Action::Simple(Keyboard::F11), },
 
     Entry { code: 0x04c, action: Action::Simple(Keyboard::Z), },
     Entry { code: 0x14c, action: Action::Shifted(Keyboard::Z), },
@@ -255,13 +276,12 @@ pub static DOSH_ACTIONS: &[Entry] = &[
 
     // Selecting the chord table, the same pair as in `TAIPO_ACTIONS`: `rsni`
     // (the whole top row) selects Taipo, `aote` (the whole bottom row) selects
-    // Dosh.  The names are Taipo's, because the chord is named by its shape;
-    // in Dosh the two pinky keys of each spell nothing at all.
+    // Dosh.
     //
-    // These are the only entries here that use a pinky, and they use one on
-    // purpose: it is what guarantees they can never collide with a real Dosh
-    // chord, since Dosh has no pinky chords by definition.  `test_no_pinky`
-    // excludes them for that reason.
+    // `rsni` uses the upper pinky, which Dosh never touches, so it cannot
+    // collide with anything here.  `aote` now uses a key Dosh does type with,
+    // so its safety is only that nothing else claims that chord; `a+o`, `a+t`
+    // and `a+e` are `l`, `q` and `d`, but all four together spell nothing.
     Entry { code: 0x0f0, action: Action::Variant(TaipoVariant::Taipo), },
     Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Dosh), },
 ];
@@ -269,19 +289,7 @@ pub static DOSH_ACTIONS: &[Entry] = &[
 #[cfg(test)]
 mod tests {
     use super::DOSH_ACTIONS;
-    use crate::layout::taipo::Action;
-
-    /// Compare two actions, which do not implement `PartialEq`.
-    fn same_action(a: &Action, b: &Action) -> bool {
-        match (a, b) {
-            (Action::Simple(x), Action::Simple(y)) => x == y,
-            (Action::Shifted(x), Action::Shifted(y)) => x == y,
-            (Action::Text(x), Action::Text(y)) => x == y,
-            (Action::OneShot(x), Action::OneShot(y)) => x == y,
-            (Action::Release, Action::Release) => true,
-            _ => false,
-        }
-    }
+    use crate::layout::taipo::{Action, TAIPO_ACTIONS};
 
     fn action_for(code: u16) -> &'static Action {
         &DOSH_ACTIONS
@@ -289,22 +297,6 @@ mod tests {
             .find(|e| e.code == code)
             .unwrap_or_else(|| panic!("no entry for {:#05x}", code))
             .action
-    }
-
-    /// The local `n+i+e` alias types exactly what the wiki's `l` chord does,
-    /// on all four thumb layers.
-    #[test]
-    fn test_l_alias() {
-        for layer in [0x000, 0x100, 0x200, 0x300] {
-            let wiki = action_for(layer | 0x084);
-            let alias = action_for(layer | 0x0c8);
-            assert!(
-                same_action(wiki, alias),
-                "alias {:#05x} differs from {:#05x}",
-                layer | 0x0c8,
-                layer | 0x084,
-            );
-        }
     }
 
     /// Every chord code appears at most once; a duplicate would silently
@@ -318,30 +310,33 @@ mod tests {
         assert_eq!(codes.len(), count, "duplicate code in DOSH_ACTIONS");
     }
 
-    /// Dosh excludes the pinkies, so neither pinky bit may appear in anything
-    /// Dosh types.
+    /// Dosh uses the lower pinky key but not the upper one, so the upper pinky
+    /// bit may not appear in anything Dosh types.
     ///
-    /// The variant selection chords are the deliberate exception: they are a
-    /// shared shape rather than a Dosh chord, and using a pinky is exactly
-    /// what keeps them from ever colliding with one.
+    /// The variant selection chords are the deliberate exception: `rsni` is a
+    /// shared shape rather than a Dosh chord, and the upper pinky is exactly
+    /// what keeps it from ever colliding with one.
     #[test]
-    fn test_no_pinky() {
+    fn test_no_upper_pinky() {
         for entry in DOSH_ACTIONS {
             if matches!(entry.action, Action::Variant(_)) {
                 continue;
             }
-            assert_eq!(entry.code & 0x011, 0, "code {:#05x} uses a pinky key", entry.code);
+            assert_eq!(
+                entry.code & 0x010,
+                0,
+                "code {:#05x} uses the upper pinky key",
+                entry.code
+            );
         }
     }
 
-    /// Both variant selection chords are present, and both use a pinky, which
-    /// is what makes them safe to put in this table at all.
+    /// Both variant selection chords are present.
     #[test]
     fn test_variant_chords() {
         use crate::layout::taipo::TaipoVariant;
 
         for (code, want) in [(0x0f0u16, TaipoVariant::Taipo), (0x00f, TaipoVariant::Dosh)] {
-            assert!(code & 0x011 != 0, "code {code:#05x} has no pinky");
             match action_for(code) {
                 Action::Variant(v) => assert_eq!(*v, want),
                 _ => panic!("code {code:#05x} is not a variant selection"),
@@ -354,6 +349,44 @@ mod tests {
     fn test_codes_nonempty() {
         for entry in DOSH_ACTIONS {
             assert_ne!(entry.code, 0);
+        }
+    }
+
+    /// The chord a table types a given letter with, if it types it at all.
+    fn letter_chord(table: &'static [super::Entry], letter: char) -> Option<u16> {
+        let want = crate::usb_typer::key_for_char(letter).expect("letter has a key").0;
+        table
+            .iter()
+            .find(|e| matches!(e.action, Action::Simple(k) if k == want))
+            .map(|e| e.code)
+    }
+
+    /// The letters Dosh and Taipo agree on: nineteen of the twenty-six.
+    ///
+    /// This is the point of the layout, so it is pinned: a letter dropping out
+    /// of this list is a change in what has to be learned twice.
+    #[test]
+    fn test_shared_letters_match_taipo() {
+        for letter in "acdefhijklnopqstuwy".chars() {
+            assert_eq!(
+                letter_chord(DOSH_ACTIONS, letter),
+                letter_chord(TAIPO_ACTIONS, letter),
+                "{letter} is not on Taipo's chord",
+            );
+        }
+    }
+
+    /// And the seven they do not agree on, for the same reason.  Six of them
+    /// are on Taipo's upper pinky and so are out of reach; `v` is only blocked
+    /// because Dosh has `m` on Taipo's `v` chord.  See DOSH.md.
+    #[test]
+    fn test_differing_letters() {
+        for letter in "bgmrvxz".chars() {
+            assert_ne!(
+                letter_chord(DOSH_ACTIONS, letter),
+                letter_chord(TAIPO_ACTIONS, letter),
+                "{letter} now matches Taipo; move it to the shared list",
+            );
         }
     }
 }

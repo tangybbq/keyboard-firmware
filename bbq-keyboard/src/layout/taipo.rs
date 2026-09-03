@@ -12,8 +12,8 @@
 //! Variants:
 //!
 //! Everything here other than the chord table is shared with the Dosh layout
-//! (see the `dosh` module), which is a Taipo derivative leaving the pinkies
-//! out.  `TaipoVariant` selects which table `actions()` looks chords up in;
+//! (see the `dosh` module), which is a Taipo derivative leaving the upper
+//! pinky out.  `TaipoVariant` selects which table `actions()` looks chords up in;
 //! the parent module switches between them, and `LayoutManager` is what
 //! decides when.
 //!
@@ -67,7 +67,7 @@ pub enum TaipoVariant {
     /// The Taipo layout itself.
     #[default]
     Taipo,
-    /// Dosh, a Taipo-derived layout that leaves the pinkies out.  See the
+    /// Dosh, a Taipo-derived layout that leaves the upper pinky out.  See the
     /// [`dosh`](super::dosh) module.
     Dosh,
 }

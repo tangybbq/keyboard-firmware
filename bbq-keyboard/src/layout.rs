@@ -192,7 +192,7 @@ pub fn taipo_map(key: u8) -> Option<u8> {
 // Taipo variant:
 //
 // The taipo engine can interpret chords with either of two tables: Taipo
-// itself, or Dosh, a derivative that leaves the pinkies out (see the `dosh`
+// itself, or Dosh, a derivative that leaves the upper pinky out (see the `dosh`
 // module). Which one is in use is selected at runtime by tapping the steno `#`
 // key of the outer left column (see `DOSH_TOGGLE_KEY`), which is dead in taipo
 // mode; `dosh_event` handles it, and only in taipo mode, so the key keeps its

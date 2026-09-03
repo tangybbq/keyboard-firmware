@@ -7,26 +7,31 @@ make combos more accurate and long periods of work more comfortable". It runs on
 as Taipo, with the same chord timing and the same modifier behavior; only the chord table
 differs. See TAIPO.md for the layout it ultimately derives from.
 
-The differences from the Posh wiki: the thumbs are Taipo's rather than the wiki's (see "Physical
-layout" below), both thumbs together is Taipo's "release modifiers" null key rather than a sticky
-shift, the wiki's `ralt` chord is Shift, and the media, volume and brightness keys are not
-mapped. Two more local swaps: `s` and `h` trade their punctuation layers, and `o` and `e` trade
-their navigation layers. In both cases the letters themselves stay where the wiki has them; only
-the thumb layers move.
+**Dosh keeps the lower pinky key**, which is the difference from Posh that matters. What that key
+buys is not more chords but agreement with Taipo: every letter Taipo types without its *upper*
+pinky sits on exactly the chord Taipo has it on. Nineteen of the twenty-six letters are shared,
+and only seven have to be learned twice. See "Differences from Taipo" below.
+
+The other differences from the Posh wiki: the thumbs are Taipo's rather than the wiki's (see
+"Physical layout" below), both thumbs together is Taipo's "release modifiers" null key rather than
+a sticky shift, the wiki's `ralt` chord is Shift, and the media, volume and brightness keys are
+not mapped. Two more local swaps: `s` and `h` trade their punctuation layers, and `o` and `e`
+trade their navigation layers.
 
 ## Physical layout
 
-Each hand has 6 finger keys (3 fingers × 2 rows) and 2 thumb keys. The hands are identical
-(mirrored); chords are formed within one hand, and you can alternate hands freely — even for
-double letters. Keys are named here by the letter they type alone:
+Each hand has 7 finger keys and 2 thumb keys. The hands are identical (mirrored); chords are
+formed within one hand, and you can alternate hands freely — even for double letters. Each key is
+named by the letter it types alone, which is also the name Taipo gives it:
 
-| finger:    | ring | middle | index |
-|------------|------|--------|-------|
-| top row    | a    | n      | i     |
-| bottom row | o    | t      | e     |
+| finger:    | pinky    | ring | middle | index |
+|------------|----------|------|--------|-------|
+| top row    | (unused) | s    | n      | i     |
+| bottom row | a        | o    | t      | e     |
 
-**The pinky keys are dead.** Leaving them out is the point of the layout, so a chord that includes
-either one matches nothing and types nothing.
+**The upper pinky key is dead.** A chord that includes it matches nothing and types nothing (the
+one exception is `r+s+n+i`, which selects the Taipo table; see below). Taipo calls that key `r`,
+and this document does too when it has to name it.
 
 Thumbs: **Sp** = the thumb that types Space alone, **Bk** = the thumb that types Backspace alone.
 These are where Taipo has them; the wiki has the two swapped. The layers follow the thumb's
@@ -38,27 +43,31 @@ Both thumbs pressed alone releases any held modifiers without typing anything.
 
 ## Single keys
 
-+Bk turns the six keys into the navigation cluster, and both thumbs into the far-motion keys.
-Arrow mnemonic: up and down are the middle finger's two keys, and left and right are the bottom
-row's outer two, with the index finger giving left and the ring finger right. (The wiki has those
-two the other way around.) That leaves the ring and index top keys for Escape and Enter.
++Bk turns six of the seven keys into the navigation cluster, and both thumbs into the far-motion
+keys. Arrow mnemonic: up and down are the middle finger's two keys, and left and right are the
+bottom row's inner two, with the index finger giving left and the ring finger right. (The wiki
+has those two the other way around.) That leaves the index top key for Enter and the lower pinky
+for Escape.
+
+`s` is the exception: it carries the period and the double quote, which it kept when it moved
+here from `n+i`.
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | a | a | A | Escape | Delete (fwd) |
-| n | n | N | ↑ | Page Up |
-| i | i | I | Enter | Tab |
 | o | o | O | → | End |
 | t | t | T | ↓ | Page Down |
 | e | e | E | ← | Home |
+| s | s | S | `.` | `"` |
+| n | n | N | ↑ | Page Up |
+| i | i | I | Enter | Tab |
 
-## Middle+index pairs
+## The comma pair
 
-The two chords whose thumb layers carry the comma, the period and the quotes.
+The one same-row pair still carrying punctuation.
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| n+i | s | S | `.` | `"` |
 | t+e | h | H | `,` | `'` |
 
 ## Letters whose +Bk is a digit
@@ -67,29 +76,29 @@ Both thumbs gives the matching function key.
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| a+n | d | D | 1 | F1 |
-| i(top)+t(bot) | l | L | 2 | F2 |
+| e+n | r | R | 0 | F10 |
+| a+e | d | D | 1 | F1 |
+| a+o | l | L | 2 | F2 |
 | o+e | c | C | 3 | F3 |
 | o+t | u | U | 4 | F4 |
-| a(top)+e(bot) | m | M | 5 | F5 |
-| i(top)+o(bot) | w | W | 6 | F6 |
-| a+i | f | F | 7 | F7 |
-| n(top)+o(bot) | g | G | 8 | F8 |
-| n(top)+i(top)+o(bot) | y | Y | 9 | F9 |
-| n(top)+e(bot) | r | R | 0 | F10 |
+| e+s | m | M | 5 | F5 |
+| a+i | w | W | 6 | F6 |
+| s+i | f | F | 7 | F7 |
+| o+n | g | G | 8 | F8 |
+| n+i | y | Y | 9 | F9 |
 
 ## Letters whose +Bk is a symbol
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| a+n+i | p | P | `+` | `=` |
+| s+n | p | P | `+` | `=` |
 | o+t+e | b | B | `-` | `_` |
-| n(top)+o(bot)+e(bot) | v | V | `/` | `\` |
-| a(top)+n(top)+e(bot) | k | K | `;` | `\|` |
-| i(top)+o(bot)+t(bot) | j | J | `:` | `*` |
-| a(top)+t(bot)+e(bot) | x | X | `$` | `#` |
-| a(top)+o(bot)+e(bot) | q | Q | `@` | F11 |
-| n(top)+t(bot)+e(bot) | z | Z | `&` | F12 |
+| o+e+n | v | V | `/` | `\` |
+| o+i | k | K | `;` | `\|` |
+| a+n | j | J | `:` | `*` |
+| t+e+s | x | X | `$` | `#` |
+| a+t | q | Q | `@` | F11 |
+| t+e+n | z | Z | `&` | F12 |
 
 ## Punctuation-only chords
 
@@ -97,8 +106,8 @@ These have no both-thumbs variant.
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| a(top)+t(bot) | `?` | `!` | `^` |  |
-| i(top)+o(bot)+e(bot) | `` ` `` | `~` | `%` |  |
+| t+s | `?` | `!` | `^` |  |
+| o+e+i | `` ` `` | `~` | `%` |  |
 
 ## Modifiers and brackets
 
@@ -108,20 +117,69 @@ to send; that leaves its both-thumbs variant unmapped, as it would be shift plus
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| n(top)+t(bot) | GUI | `)` | `(` | GUI+Shift |
-| i(top)+e(bot) | Ctrl | `]` | `[` | Ctrl+Shift |
-| a(top)+o(bot) | Alt | `}` | `{` | Alt+Shift |
-| a(top)+o(bot)+t(bot) | Shift | `>` | `<` |  |
+| t+n | GUI | `)` | `(` | GUI+Shift |
+| e+i | Ctrl | `]` | `[` | Ctrl+Shift |
+| o+s | Alt | `}` | `{` | Alt+Shift |
+| o+t+s | Shift | `>` | `<` |  |
 
 ## Extras
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| n(top)+o(bot)+t(bot) | Print Screen |  |  |  |
-| a(top)+i(top)+e(bot) | Insert |  |  |  |
+| o+t+n | Print Screen |  |  |  |
+| e+s+i | Insert |  |  |  |
 
 The thumb layers of these two are the volume, mute and brightness keys, which need a
 consumer-control HID report the firmware doesn't have yet.
+
+## Differences from Taipo
+
+Nineteen letters are on the same chord in both layouts, and need learning only once:
+
+| chord | letter |     | chord | letter |     | chord | letter |
+|-------|--------|-----|-------|--------|-----|-------|--------|
+| a | a |  | a+o | l |  | o+t | u |
+| o | o |  | a+t | q |  | o+e | c |
+| t | t |  | a+e | d |  | o+i | k |
+| e | e |  | a+n | j |  | t+e | h |
+| s | s |  | a+i | w |  | s+i | f |
+| n | n |  |       |   |  | s+n | p |
+| i | i |  |       |   |  | n+i | y |
+
+Seven still differ. Six of them are on Taipo's upper pinky, so Dosh cannot reach them at all:
+
+| letter | Dosh chord | Taipo chord |
+|--------|------------|-------------|
+| r | e+n | `r` alone |
+| b | o+t+e | r+s |
+| g | o+n | r+i |
+| m | e+s | e+r |
+| x | t+e+s | t+r |
+| z | t+e+n | r+n |
+
+The seventh is `v`, which is the only one that isn't forced. Taipo types `v` with `e+s`, and Dosh
+has `m` there; Taipo's `m` needs the upper pinky, so the two cannot simply trade.
+
+| letter | Dosh chord | Taipo chord |
+|--------|------------|-------------|
+| v | o+e+n | e+s (Dosh's `m`) |
+
+Taipo's multi-character chords (`the`, `in`, `ing`, …) have no Dosh equivalent, and Taipo's
+punctuation layers are different throughout; only the letters are shared.
+
+## Chords left free
+
+The move to Taipo's chords vacated seven chords, which are deliberately unmapped:
+
+| chord | held in Posh |
+|-------|--------------|
+| s+n+i | `p` |
+| e+s+n | `k` |
+| t+i | `l` |
+| e+n+i | `l` (the local alias) |
+| o+t+i | `j` |
+| o+n+i | `y` |
+| o+e+s | `q` |
 
 ## Modifiers: how they behave
 
@@ -145,13 +203,12 @@ Two chords do the same job, and are in both tables, so either can be reached fro
 | `r+s+n+i` | the whole top row    | Taipo   |
 | `a+o+t+e` | the whole bottom row | Dosh    |
 
-The names are Taipo's; the chord is named by its shape, and in Dosh its two pinky keys spell
-nothing. They **select** rather than toggle — the one you are already in does nothing — and the
-thumb variants are unmapped, so a thumb accidentally included makes the chord do nothing.
+They **select** rather than toggle — the one you are already in does nothing — and the thumb
+variants are unmapped, so a thumb accidentally included makes the chord do nothing.
 
-Using a pinky is what makes them safe to put in this table: Dosh has no pinky chords by
-definition, so neither can ever collide with something Dosh types. They are the only entries in
-the Dosh table that touch a pinky key.
+`r+s+n+i` is the only Dosh chord that touches the upper pinky, which is what keeps it from ever
+colliding with something Dosh types. `a+o+t+e` is on keys Dosh does use — `a+o`, `a+t` and `a+e`
+are `l`, `q` and `d` — but all four together spell nothing in either table.
 
 These exist for the boards that have only the 20 Taipo keys — the mesa2 — and so no spare key to
 put the toggle on.
