@@ -206,7 +206,27 @@ public struct SkillModel: Sendable {
 
     public func skill(_ code: UInt16) -> ChordSkill? { skills[code] }
 
+    /// Whether a chord can be produced reliably: typed often enough, and not often taken
+    /// back.  Speed is deliberately not asked about.
+    ///
+    /// This is the gate the ladder moves on, and it is a different question from being
+    /// good at a chord.  What decides whether the writer has to break off and switch
+    /// tables is whether they know how to type a thing at all; how quickly they manage it
+    /// is what practice is for, and practice needs the chord to be in the material first.
+    ///
+    /// Leaving speed out has a second effect worth having.  The median is windowed to
+    /// recent uses, so drilling a chord you are slow at pushes it *down* -- practice could
+    /// un-learn an item and take the ladder backwards with it, which is a demoralising
+    /// thing for a progress bar to do.  Uses only ever grow.
+    public func reached(_ code: UInt16) -> Bool {
+        guard let s = skills[code] else { return false }
+        return s.count >= options.minSamples && s.errorRate <= options.maxErrorRate
+    }
+
     /// Whether a chord has been typed often enough, quickly enough, and cleanly enough.
+    ///
+    /// The whole of it, which is what the screen reports and what the hint fades by.  The
+    /// ladder asks the easier question; see `reached`.
     public func learned(_ code: UInt16) -> Bool {
         guard let s = skills[code] else { return false }
         return s.count >= options.minSamples && s.medianMs <= options.targetMs

@@ -987,14 +987,37 @@ generator was needed, where keybr does need one.
 progress: the logs by then include the block just typed, so the ladder moves on by exactly
 what the typing earned.
 
-**When it moves on.**  An item is learned when the logs for that table show its chord typed
-at least 12 times, with a median gap under 700ms over the last 64 uses, and no more than
-10% of its uses taken back.  The ladder then holds itself at exactly three unlearned items,
-so each item that becomes learned pulls exactly one new one in — a continuous trickle
-rather than a batch.  The check runs at every rebuild: when the practice screen opens, when
-the variant changes, and after each block.  The opening seven are the exception, seeded
-together so there is an alphabet to draw words from; nothing new joins until five of them
-are learned.
+**When it moves on: reach, not fluency.**  An item is *reached* when its chord has been
+typed at least 12 times with no more than 10% of those taken back.  Speed says nothing
+about it.  The ladder holds itself at exactly three items short of that, so each one
+reached pulls exactly one new one in — a continuous trickle rather than a batch.  The
+check runs after every line.  The opening seven are the exception, seeded together so there
+is an alphabet to draw words from.
+
+Speed gated it at first, and that was wrong twice over.
+
+*A mark is measured unfairly.*  The gap is taken from the previous chord, and a comma or a
+period lands at a clause boundary, where the writer is deciding what comes next — so the
+pause to think is charged to the punctuation.  Measured on the developer's own logs: the
+period 786ms after 154 uses and the comma 1012ms after 120, against letters at a median of
+385ms with far less practice behind them.  `w` had 66 uses and 338ms.  It is not exposure.
+
+*And it stalled exactly where stalling costs most.*  With speed in the gate the ladder sat
+at 15 of 64 with `'`, `-`, `"`, `?`, `:`, `!`, `;`, `()` and `/` still to come — which is
+precisely the set whose absence sends a writer back to the table they already know, and
+switching back is what stops the new one being learned.  On reach it stands at 24 and keeps
+moving.  What decides whether the writer has to break off is whether they can type a thing
+at all; being slow at it is what practice is for, and practice needs it in the material
+first.
+
+Speed still decides the focus set, the hint's fade and every number on the screen, and the
+focus set holds a place for the weakest item that is reached but not yet fluent — so a slow
+comma goes on being drilled after the ladder has moved past it.
+
+There is a third reason, which only showed up in use.  The median is windowed to recent
+uses, so drilling a chord you are slow at pushes it *down*: practice could un-learn an item
+and take the ladder backwards, and it did, from 19 items to 15 in the middle of a session.
+Uses only ever grow, so the gate cannot move that way now.
 
 **The fingerprint is whole-table, and that costs more than it should.**  It covers both
 chord tables, the scan map and the board translations together, so changing Dosh
@@ -1006,11 +1029,11 @@ change, and existing logs could not benefit from it retroactively, so it waits.
 
 **Still open.**  Capitals are not on the ladder — they are a thumb away from a letter that
 is, and sentence material teaches them without a slot of their own; whether that holds is
-a question for use.  The unlocked set being a pure function of the logs means it can go
-*backwards* — and with the timing windowed it now genuinely can, since a spell of slow
-typing can un-learn an item that was learned.  That is arguably right, and it is certainly
-not what a writer expects from a progress bar; it wants watching before it wants a ratchet.
-And the n-gram chords are still not drilled, for the reason recorded above.
+a question for use.  A backspace run broken by a modifier counts as two corrections and
+both blame the chord before the run, so a chord can be charged more deletions than it has
+uses; the rate is capped for display, but the fault is in the correction scanner and it is
+pinned to the Rust side, so fixing it means fixing both.  And the n-gram chords are still
+not drilled, for the reason recorded above.
 
 ### 4c. Rough order
 

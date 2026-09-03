@@ -129,6 +129,73 @@ final class LadderTests: XCTestCase {
         XCTAssertTrue(ladder.focus.contains { $0.label == items[0].label })
     }
 
+    /// Speed does not gate the ladder, so a chord you can type but are slow at lets the
+    /// next one in -- and keeps a place in the focus set while it is still slow.
+    ///
+    /// This is the developer's case: the comma measured 120 uses, 4% taken back and just
+    /// over a second, which is reached but far from fluent.  Under the old rule it stopped
+    /// the ladder dead, and the marks behind it -- the ones whose absence sends a writer
+    /// back to Taipo -- never arrived.
+    func testSlowButReachedStillAdvancesTheLadder() throws {
+        let layouts = try layouts()
+        let items = Ladder.order(
+            layouts: layouts, variant: "dosh", options: Ladder.Options())
+
+        var skills = [UInt16: ChordSkill]()
+        for item in items.prefix(12) {
+            for code in item.codes {
+                skills[code] = ChordSkill(code: code, count: 50, medianMs: 300, deleted: 0)
+            }
+        }
+        // Item 12: typed plenty, hardly ever taken back, and slow.
+        for code in items[12].codes {
+            skills[code] = ChordSkill(code: code, count: 120, medianMs: 1050, deleted: 5)
+        }
+        let skill = SkillModel(skills: skills, sessions: 1, chords: 700)
+        let ladder = Ladder(layouts: layouts, variant: "dosh", skill: skill)
+
+        XCTAssertTrue(items[12].codes.allSatisfy(skill.reached))
+        XCTAssertFalse(items[12].codes.allSatisfy(skill.learned), "reached but not fluent")
+
+        // Thirteen reached, so three more come out on top of them.
+        XCTAssertEqual(ladder.unlockedCount, 16)
+        // And the slow one holds a place, rather than being crowded out by the new ones.
+        XCTAssertTrue(
+            ladder.focus.contains { $0.label == items[12].label },
+            "the slow item stopped being practised")
+        XCTAssertEqual(ladder.focus.count, 3)
+    }
+
+    /// Practice cannot take the ladder backwards.
+    ///
+    /// The median is over recent uses, so drilling a chord you are slow at pushes it down.
+    /// While speed gated the ladder that could un-learn an item and cost the writer items
+    /// they already had -- which is what happened, 19 back to 15, in the middle of a
+    /// session.  Uses only grow, so the gate cannot move that way now.
+    func testGettingSlowerDoesNotTakeItemsAway() throws {
+        let layouts = try layouts()
+        let items = Ladder.order(
+            layouts: layouts, variant: "dosh", options: Ladder.Options())
+
+        func ladder(medianMs: UInt32) -> Ladder {
+            var skills = [UInt16: ChordSkill]()
+            for item in items.prefix(15) {
+                for code in item.codes {
+                    skills[code] = ChordSkill(
+                        code: code, count: 200, medianMs: medianMs, deleted: 2)
+                }
+            }
+            return Ladder(
+                layouts: layouts, variant: "dosh",
+                skill: SkillModel(skills: skills, sessions: 1, chords: 3000))
+        }
+
+        let brisk = ladder(medianMs: 300)
+        let bogged = ladder(medianMs: 1400)
+        XCTAssertEqual(brisk.unlockedCount, 18)
+        XCTAssertEqual(bogged.unlockedCount, brisk.unlockedCount, "the ladder went backwards")
+    }
+
     /// A finished ladder still has something to practise.
     func testACompleteLadderStillFocuses() throws {
         let layouts = try layouts()

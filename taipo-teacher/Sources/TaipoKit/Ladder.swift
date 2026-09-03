@@ -7,10 +7,22 @@ import Foundation
 ///
 /// **Several items in flight, not one.**  keybr introduces a letter and then hammers it
 /// until its confidence clears the bar, which is effective and wearing.  Here up to
-/// `Options.focus` items are unlearned at a time and the material rotates between them, so
-/// a stubborn one holds up nothing: the next unlocks as soon as there is room, and the
-/// stubborn one stays in the focus set until it is genuinely learned.  The unlock rule is
-/// exactly "fewer than `focus` unlearned", which is what makes that true by construction.
+/// `Options.focus` items are short of the gate at a time and the material rotates between
+/// them, so a stubborn one holds up nothing: the next unlocks as soon as there is room,
+/// and the stubborn one keeps its place in the focus set.  The unlock rule is exactly
+/// "fewer than `focus` not yet reached", which makes that true by construction.
+///
+/// **Reach unlocks, speed does not.**  The gate is `SkillModel.reached` -- typed enough,
+/// and not often taken back -- and says nothing about how fast.  Two reasons, both
+/// measured rather than supposed.  A mark lands at a clause boundary, where the writer is
+/// deciding what comes next, so the pause to think is charged to the punctuation: the
+/// period and the comma measured at 786ms and 1012ms after 154 and 120 uses, against
+/// letters at 385ms with far less practice.  And what decides whether the writer has to
+/// break off and switch back to a table they already know is whether they can type a thing
+/// *at all*; being slow at it is what practice is for, and practice needs it in the
+/// material first.  Speed still decides the focus set, the hint's fade and every number on
+/// the screen, so a reached-but-slow item goes on being drilled after the ladder has moved
+/// past it.
 ///
 /// **Numbers and punctuation are on the same ladder.**  They are not a mode you switch on
 /// once the letters are done; they are spliced into the order, one every
@@ -94,29 +106,51 @@ public struct Ladder: Sendable {
         let items = Ladder.order(layouts: layouts, variant: variant, options: options)
         self.items = items
 
-        func learned(_ item: LadderItem) -> Bool { item.codes.allSatisfy(skill.learned) }
+        func reached(_ item: LadderItem) -> Bool { item.codes.allSatisfy(skill.reached) }
         func confidence(_ item: LadderItem) -> Double {
             item.codes.map(skill.confidence).min() ?? 0
         }
 
-        // Unlock while there is room in the focus set.  A new item is unlearned by
-        // definition, so this settles at exactly `focus` unlearned and cannot run away.
+        // Unlock while there is room.  A new item cannot be reached until it has been
+        // typed, so this settles at exactly `focus` short of it and cannot run away.
         var count = min(options.initial, items.count)
         while count < items.count {
-            let unlearned = items.prefix(count).filter { !learned($0) }.count
-            guard unlearned < options.focus else { break }
+            let short = items.prefix(count).filter { !reached($0) }.count
+            guard short < options.focus else { break }
             count += 1
         }
         self.unlockedCount = count
 
-        // The focus set is what is not learned yet, weakest first.  Once the whole ladder
-        // is learned there is nothing unlearned to point at, so it falls back to the
-        // weakest anyway -- practice has to go somewhere.
+        // The focus set is the weakest unlocked items, and weakest is by confidence --
+        // which does count speed, even though the unlock gate does not.  So an item that
+        // has been reached but is still slow goes on being practised after the ladder has
+        // moved past it.
+        //
+        // At most `focus - 1` of the set may be items not yet reached, so that a slow one
+        // keeps a place rather than being crowded out by whatever was unlocked last.  The
+        // top-up lifts that when there is nothing else to point at, which is how a cold
+        // start still gets a full set.
         let out = Array(items.prefix(count))
-        let unlearned = out.filter { !learned($0) }
-        let pool = unlearned.isEmpty ? out : unlearned
-        self.focus = Array(
-            pool.sorted { confidence($0) < confidence($1) }.prefix(options.focus))
+        let ranked = out.indices.sorted {
+            let (a, b) = (confidence(out[$0]), confidence(out[$1]))
+            // Ties broken by position, so the set does not reshuffle between two chords
+            // nothing is known about.
+            return a != b ? a < b : $0 < $1
+        }
+        let notReached = ranked.filter { !reached(out[$0]) }
+        // The weakest item that is past the gate but not yet fluent -- which is what the
+        // reserved slot is for.  An item that is fully learned does not want the slot: it
+        // would be spending the line on something already done.
+        let reserve = ranked.first { reached(out[$0]) && confidence(out[$0]) < 1 }
+
+        var chosen = Array(notReached.prefix(reserve == nil ? options.focus : options.focus - 1))
+        if let reserve, chosen.count < options.focus { chosen.append(reserve) }
+        // Top up when there was nothing to reserve for and nothing new to work on, which
+        // is a ladder with everything reached: practice still has to go somewhere.
+        for i in ranked where chosen.count < options.focus && !chosen.contains(i) {
+            chosen.append(i)
+        }
+        self.focus = chosen.map { out[$0] }
     }
 
     /// Where the ladder has got to, without saying what it is working on.
