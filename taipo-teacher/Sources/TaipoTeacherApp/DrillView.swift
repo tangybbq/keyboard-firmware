@@ -22,7 +22,7 @@ struct DrillView: View {
                 }
                 HStack(alignment: .top, spacing: 20) {
                     target(drill)
-                    Spacer(minLength: 0)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     hint(drill)
                 }
                 Divider()
@@ -117,6 +117,11 @@ struct DrillView: View {
     ///
     /// Driven by the skill model rather than by the drill, so what fades is a chord the
     /// logs say is known -- not one that happens to have gone right twice in this line.
+    /// The slot is always there, whether or not there is a chord to put in it.
+    ///
+    /// An empty hint is drawn invisible rather than left out: the target text is laid out
+    /// beside it, so a hint that came and went would rewrap the line under the writer's
+    /// hands at the moment they were reading it.
     @ViewBuilder
     private func hint(_ drill: DrillSession) -> some View {
         if let layouts = monitor.layouts, let unit = drill.wantedChord {
@@ -126,6 +131,8 @@ struct DrillView: View {
                 types: unit.text,
                 confidence: monitor.skill?.confidence(unit.code) ?? 0,
                 stumbled: drill.stumbled)
+        } else {
+            Color.clear.frame(width: ChordHint.width, height: 1)
         }
     }
 

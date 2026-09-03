@@ -31,20 +31,39 @@ struct ChordHint: View {
         return max(0, min(1, 1 - confidence))
     }
 
-    private let keySize: CGFloat = 13
-    private let gap: CGFloat = 3
+    private static let keySize: CGFloat = 13
+    private static let gap: CGFloat = 3
+    private var keySize: CGFloat { Self.keySize }
+    private var gap: CGFloat { Self.gap }
+
+    /// How wide the hint always is, whatever it is showing or whether it is showing at all.
+    ///
+    /// Derived from the hand rather than picked, so it cannot drift from what is drawn:
+    /// five keys, the four finger gaps and the thumb's own, plus the extra set-off before
+    /// the thumb.  Everything else in the hint is made to fit this.
+    ///
+    /// It has to be a constant for a duller reason than looks.  The target text is laid
+    /// out beside the hint, so anything that changes the hint's width rewraps the line the
+    /// writer is in the middle of typing -- when the hint appears, when it goes, and even
+    /// between an `a` and an `ation`.
+    static let width: CGFloat = 5 * keySize + 5 * gap + gap * 2
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .leading, spacing: 4) {
             hand
-            VStack(alignment: .leading, spacing: 1) {
+            // Under the hand rather than beside it, so the hand's width is the hint's
+            // width and a long chord name cannot widen it.
+            HStack(spacing: 5) {
                 Text(types == " " ? "space" : types)
-                    .font(.system(size: 15, design: .monospaced))
+                    .font(.system(size: 14, design: .monospaced))
                 Text(diagram.spell(code))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
         }
+        .frame(width: Self.width, alignment: .leading)
         .opacity(0.15 + 0.85 * strength)
         .animation(.easeInOut(duration: 0.25), value: strength)
         .help("The next chord, on the right hand.  It fades as the chord is learned.")
