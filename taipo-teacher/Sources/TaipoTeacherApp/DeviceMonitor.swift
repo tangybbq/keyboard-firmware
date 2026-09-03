@@ -60,6 +60,29 @@ public final class DeviceMonitor: ObservableObject {
     ]
     private var corpusIndex = 0
 
+    /// Which kind of practice the screen is giving.
+    public enum PracticeMode: String, CaseIterable, Identifiable, Sendable {
+        /// The ladder: unlock as you learn, weighted toward the weakest.
+        case ladder = "Ladder"
+        /// The pairs the writer's own corrections say get mixed up.
+        case confusions = "Confusions"
+        public var id: String { rawValue }
+    }
+
+    @Published public var practiceMode: PracticeMode = .ladder {
+        didSet {
+            guard practiceMode != oldValue else { return }
+            programme = []
+            drillIndex = 0
+            lineIndex = 0
+            rebuildProgramme()
+        }
+    }
+
+    /// Where the ladder has got to, for the screen to draw.  Nil in confusion mode, and
+    /// until the first rebuild finishes.
+    @Published public private(set) var ladder: Ladder?
+
     /// The practice programme, built from what the writer keeps correcting.
     ///
     /// Rebuilt when the practice screen opens rather than kept up to date continuously:
@@ -273,14 +296,33 @@ public final class DeviceMonitor: ObservableObject {
         guard practicing, let layouts else { return }
         let directory = logDirectory
         let variant = self.variant
+        let mode = self.practiceMode
+        // A fresh seed each time, so a block of ladder lines is never the block before.
+        let seed = UInt64(Date().timeIntervalSince1970)
         Task.detached(priority: .userInitiated) {
-            let model = ConfusionModel.build(
-                logDirectory: directory, layouts: layouts, variant: variant)
-            let programme = DrillMaker(layouts: layouts, variant: variant).programme(model)
+            var ladder: Ladder?
+            let programme: [Drill]
+            switch mode {
+            case .ladder:
+                let skill = SkillModel.build(
+                    logDirectory: directory, layouts: layouts, variant: variant)
+                let built = Ladder(layouts: layouts, variant: variant, skill: skill)
+                ladder = built
+                let drill = LadderMaker(layouts: layouts, variant: variant)
+                    .drill(built, lines: Self.ladderBlock, seed: seed)
+                programme = drill.lines.isEmpty ? [] : [drill]
+            case .confusions:
+                let model = ConfusionModel.build(
+                    logDirectory: directory, layouts: layouts, variant: variant)
+                programme = DrillMaker(layouts: layouts, variant: variant).programme(model)
+            }
+            let result = (ladder, programme)
             await MainActor.run { [weak self] in
-                guard let self, self.practicing, self.variant == variant, !programme.isEmpty
+                guard let self, self.practicing, self.variant == variant,
+                    self.practiceMode == mode, !result.1.isEmpty
                 else { return }
-                self.programme = programme
+                self.ladder = result.0
+                self.programme = result.1
                 self.drillIndex = 0
                 self.lineIndex = 0
                 self.nextDrill()
@@ -288,9 +330,18 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// How many lines a ladder block holds before the model is asked again.
+    ///
+    /// The block is the unit of progress: finishing one sends the logs -- which now
+    /// include the block just typed -- back through the skill model, so the ladder moves
+    /// on exactly as much as the typing earned.  Long enough to be worth measuring, short
+    /// enough that a newly learned item does not have to wait out a whole sitting.
+    nonisolated static let ladderBlock = 16
+
     /// The practice screen has gone away.  Collecting carries on; scoring does not.
     public func endPractice() {
         practicing = false
+        ladder = nil
         drill = nil
         drillTitle = nil
     }
@@ -310,6 +361,11 @@ public final class DeviceMonitor: ObservableObject {
             if lineIndex >= programme[drillIndex].lines.count {
                 drillIndex = (drillIndex + 1) % programme.count
                 lineIndex = 0
+                // A ladder block is finished: re-read the logs, which now hold the block
+                // itself, and take whatever progress it earned.  The rebuild is not
+                // instant, so the current block is typed again meanwhile rather than
+                // leaving the screen empty.
+                if practiceMode == .ladder { rebuildProgramme() }
             }
             text = programme[drillIndex].lines[lineIndex]
             drillTitle = programme[drillIndex].title

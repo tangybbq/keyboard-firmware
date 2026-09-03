@@ -7,14 +7,18 @@ struct DrillView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            modes
             if let drill = monitor.drill {
                 // What this line is for.  A drill built from the writer's own mistakes is
                 // worth naming: `"o" / "s" — ring, wrong-row` says why these words, and
                 // without it the material looks arbitrary.
                 if let title = monitor.drillTitle {
-                    Text(title)
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 10) {
+                        Text(title)
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        if let ladder = monitor.ladder { progress(ladder) }
+                    }
                 }
                 target(drill)
                 Divider()
@@ -49,6 +53,47 @@ struct DrillView: View {
         // this is showing; the drill only consumes chords while it is.
         .onAppear { monitor.beginPractice() }
         .onDisappear { monitor.endPractice() }
+    }
+
+    /// The two kinds of practice.
+    ///
+    /// Plain buttons rather than a segmented `Picker`, for the reason `MainView.tabs`
+    /// spells out: the AppKit control behind `.pickerStyle(.segmented)` leaks its tag
+    /// machinery on every measurement pass.
+    private var modes: some View {
+        HStack(spacing: 8) {
+            ForEach(DeviceMonitor.PracticeMode.allCases) { mode in
+                Button { monitor.practiceMode = mode } label: {
+                    Text(mode.rawValue)
+                        .font(.callout.weight(monitor.practiceMode == mode ? .semibold : .regular))
+                        .foregroundStyle(
+                            monitor.practiceMode == mode ? Color.accentColor : Color.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .help(
+            "Ladder unlocks letters, then numbers and marks, as each is learned.  "
+            + "Confusions drills the pairs your own corrections say you mix up.")
+    }
+
+    /// How far up the ladder this is, as a bar and a count.
+    ///
+    /// Worth drawing because the ladder's whole promise is that it moves: a writer who
+    /// cannot see the next item coming has no reason to believe the drill is going
+    /// anywhere.
+    private func progress(_ ladder: Ladder) -> some View {
+        HStack(spacing: 6) {
+            ProgressView(
+                value: Double(ladder.unlockedCount), total: Double(max(1, ladder.items.count))
+            )
+            .frame(width: 90)
+            Text("\(ladder.unlockedCount)/\(ladder.items.count)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
     }
 
     /// The target, coloured by what has been typed against it.
