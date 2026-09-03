@@ -743,10 +743,12 @@ The app is useful before any drill exists.
       is the join.  If alignment drifts, drop the annotations for that test rather than
       mis-attributing them.
 - [ ] **Modes**:
-      - *Adaptive practice* (keybr-shaped): no fixed lesson.  Sample words from
-        `words/english_10k.json` such that the word's cheapest segmentation exercises the
-        current weak items, and unlock new items as old ones pass a speed and accuracy
-        threshold.
+      - [X] *Adaptive practice* (keybr-shaped): shipped as **the ladder**.  No fixed
+        lesson: an ordered list of letters, digits and marks, unlocked as the ones already
+        out are learned, with the material weighted toward whichever are weakest.  Two
+        deliberate departures from keybr — several items in flight rather than one, and
+        numbers and punctuation on the same ladder as the letters rather than in a mode of
+        their own.  See "The ladder" below.
       - *Test* (MonkeyType-shaped): timed or word-count, results screen.
       - *Focus*: pick one item and drill its neighbourhoods — the "increase the amount of
         various troublespots" dial, made explicit.
@@ -770,9 +772,13 @@ The app is useful before any drill exists.
 - [ ] **Chord hints.**  Two hands drawn, the next chord's keys lit, fading out as the item is
       learned — keybr's idea, and much more necessary here, since there is nothing on the keys.
       Live technique strip under the text: an L/R bead per chord, and a spread bar per chord.
-- [ ] **Variant awareness.**  Read the active variant from the log's `Variant` marker and
-      follow it, so a drill always matches what the keyboard is actually doing.  The model is
-      per-variant, which incidentally makes Taipo-vs-Dosh comparable.
+- [X] **Variant awareness.**  The monitor follows the variant its own chord stream reports
+      and passes it to everything it builds: the segmentation of a target, the confusion
+      model, the skill model and the ladder.  Switching tables mid-session discards the
+      material built for the old one and rebuilds.  `ConfusionModel` also filters the
+      chords it replays by variant, which it did not — it looked codes up in the requested
+      table but counted corrections made in either.  The model being per-variant
+      incidentally makes Taipo-vs-Dosh comparable.
 - [X] **Chord assembly in Swift, checked against Rust.**  The app needs derived chords live,
       so it assembles them itself rather than round-tripping through a Rust replay.  That is a
       second implementation of `SideManager` — the chord window, the cross-hand commit, the
@@ -854,6 +860,67 @@ they are dropped rather than teach two things at once.
 
 Only row and finger slips are drilled.  A chord recalled wrongly is a vocabulary problem
 rather than a technique one, and practising the pair would not touch it.
+
+### The ladder
+
+The second drill mode, and the one that answers "I have just changed the layout and have to
+learn it".  Confusions needs a history of mistakes to work from; a table typed for the
+first time has none.
+
+**The skill model.**  `SkillModel`, derived from the logs exactly as `ConfusionModel` is,
+with nothing stored.  Per chord: how often it has been typed, the median gap from the chord
+before it, and how often a backspace took it back.  Speed is the *gap* rather than the
+chord's own spread — spread says how sloppily the keys of one chord were struck, the gap
+says how long the hand took to find it, which is the thing practice moves.  The gap has a
+pause window over it, the same rule and the same reason as alternation: a trainer must
+never mistake stopping to think for being slow.
+
+Because practice goes through the keyboard like any other typing, a drill improves the
+model that chose it.  There is no results file, and so no second copy of the truth.
+
+**Several items in flight, not one.**  This is the developer's ask, and it is a real
+change rather than a tuning knob.  keybr introduces a letter and hammers it until its
+confidence clears the bar; here up to three items are unlearned at once and the material
+rotates between them.  The unlock rule is exactly *fewer than `focus` unlearned*, which
+makes the property true by construction: a stubborn item cannot block the ladder, because
+the next one comes out as soon as there is room, and it cannot be abandoned either,
+because it keeps its place in the focus set until it is genuinely learned.
+
+**Numbers and punctuation on the same ladder.**  Not a mode to switch on once the letters
+are done.  They are spliced into the order — two marks to every digit, one non-letter every
+three items after the first ten — so the period lands at item 11 and the comma at 15 while
+there are still letters to come, and all 26 letters are out by item 32 of 64.  An even
+mark/digit split was tried first and put a `0` on the ladder ahead of the comma, which is
+the wrong way round for anything anyone writes.
+
+**The material.**  Letters are practised in words, which is what words are for: drawn from
+`english_10k` with the draw biased toward the frequent end so the lines read like English,
+and one word per focus letter woven into each line.  Digits and marks cannot be — no
+search finds words containing a `%`, and a line of `%%% %%%` is not something anyone types
+— so they are *decorations*: an ordinary word with the mark done to it, in the shape the
+mark actually appears in.  `word,` `"word"` `word-word` `50%` `$12`.  That teaches the
+chord and its context together.
+
+Two invariants the tests hold, because both are the kind that fail quietly: every character
+of every line comes from an unlocked item, so a drill can never ask for a chord the ladder
+has not introduced; and every line segments completely in the table it was built for, so
+what it asks for is a chord that table actually has.
+
+**Where it starts.**  Seven items, which in both tables are the single-key chords and, since
+the layout put the commonest letters on the easiest keys, also `e t a o i n s`.  Enough of
+an alphabet for a real vocabulary from the first line — which is why no pseudo-word
+generator was needed, where keybr does need one.
+
+**Blocks.**  Sixteen lines, then the model is asked again.  The block is the unit of
+progress: the logs by then include the block just typed, so the ladder moves on by exactly
+what the typing earned.
+
+**Still open.**  Capitals are not on the ladder — they are a thumb away from a letter that
+is, and sentence material teaches them without a slot of their own; whether that holds is
+a question for use.  The unlocked set being a pure function of the logs means it could in
+principle go *backwards* if typing got much worse; in practice counts only accumulate, but
+it has not been watched over a long enough stretch to say.  And the n-gram chords are still
+not drilled, for the reason recorded above.
 
 ### 4c. Rough order
 
