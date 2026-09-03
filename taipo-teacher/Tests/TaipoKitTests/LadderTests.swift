@@ -241,6 +241,30 @@ final class LadderTests: XCTestCase {
         }
     }
 
+    /// A line stays short enough to see the end of what you have started.
+    ///
+    /// Not a hard limit: the cap gives way rather than dropping practice, so a crowded
+    /// line can run a little past it.  What it may not do is run to the 174 characters it
+    /// reached when marks first started being placed as often as letters -- five wrapped
+    /// lines of the target, and enough to be truncated on screen.
+    func testLinesStayShortEnoughToRead() throws {
+        let maker = LadderMaker(layouts: try layouts(), variant: "dosh")
+        var longest = 0
+        var over = 0
+        var lines = 0
+        for learned in stride(from: 0, through: 56, by: 4) {
+            let ladder = try ladder(learning: learned)
+            for line in maker.drill(ladder, lines: 25, seed: 606).lines {
+                longest = max(longest, line.count)
+                if line.count > LadderMaker.maxCharacters { over += 1 }
+                lines += 1
+            }
+        }
+        // A little over is allowed; a lot, or often, is not.
+        XCTAssertLessThanOrEqual(longest, LadderMaker.maxCharacters * 5 / 4, "longest line")
+        XCTAssertLessThan(over * 10, lines, "more than a tenth of lines are over the cap")
+    }
+
     /// Nothing already learned drops out of circulation entirely.
     ///
     /// Reinforcement is biased toward what was learned most recently, and an earlier cut

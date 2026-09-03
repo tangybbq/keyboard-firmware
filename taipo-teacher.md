@@ -941,8 +941,37 @@ the wrong way round for anything anyone writes.
 and one word per focus letter woven into each line.  Digits and marks cannot be — no
 search finds words containing a `%`, and a line of `%%% %%%` is not something anyone types
 — so they are *decorations*: an ordinary word with the mark done to it, in the shape the
-mark actually appears in.  `word,` `"word"` `word-word` `50%` `$12`.  That teaches the
+mark actually appears in.  `word,` `"word"` `word-word` `50%` `page 12`.  That teaches the
 chord and its context together.
+
+**Equal practice, not equal decoration.**  The first cut placed each focus mark exactly
+once a line, which looked even-handed and was not: a focus *letter* is worked by every word
+that happens to contain it, and that measured at 2.1–3.3 uses a line, against a mark's
+1.00.  Marks took two to three times as long to learn as the letters beside them, which is
+what the developer noticed.  A mark is now placed until it has been asked for as often as a
+letter would be, and the line grows a little when it is carrying several — three marks in
+focus at once cannot each be placed three times in seven words and still leave two words
+plain.  Measured after: 2.5–3.4 a line, against letters at 1.3–2.5.
+
+**And a cap on the length.**  Placing marks as often as letters made lines long: 174
+characters at the worst, which is five wrapped lines of the target and enough to be
+truncated on screen.  A drill line is typed in one go before Enter, so its length is how
+long the writer is committed for.  Three things bring it back to a cap of 110, in order of
+how much they cost: the second word of a joining mark (`word*word`) is drawn short, since
+each of those is a whole extra word in the line; filler is trimmed, but never a word chosen
+for a focus letter, never one a mark was put on, and never below two plain words; and past
+a floor of two placings each, a mark is only placed again while the line has room.  The
+floor is what keeps the point of it — even a crowded line works every focus mark more than
+the one time it used to.  Measured after: 121 at the worst, 74 on average, and a
+twentieth of lines a little over the cap, which is the cap giving way rather than the
+practice.
+
+Reinforcement of what is already learned is *biased* toward the most recently learned
+rather than windowed to them.  An even share between every mark ever learned has each
+appearing a third of a line at fifteen items and a twentieth at forty, which is not
+circulation; but a hard window of the newest few dropped the period and the comma to
+exactly never, and those are the two most worth keeping a hand in.  Squaring the draw
+favours the recent without letting anything fall off the end.
 
 Two invariants the tests hold, because both are the kind that fail quietly: every character
 of every line comes from an unlocked item, so a drill can never ask for a chord the ladder

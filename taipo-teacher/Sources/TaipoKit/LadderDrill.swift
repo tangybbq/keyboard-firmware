@@ -100,13 +100,21 @@ public struct LadderMaker {
         var slots = tokens.indices.filter { !reserved.contains($0) }.shuffled(using: &rng)
         let digits = ladder.unlocked.filter { $0.stage == .digit }.map(\.label)
 
+        // The second word for the marks that join two things.  Kept short: `word*word`
+        // puts a whole extra word in the line, and eight of those with the draw's usual
+        // taste for `informational` is how a line reached 174 characters.
+        let shortPool = pool.filter { $0.count <= 5 }
+        var decorated = Set<Int>()
+
         /// Decorate one free word with an item, if there is a word left to spare.
         @discardableResult
         func place(_ item: LadderItem) -> Bool {
             guard let slot = slots.popLast() else { return false }
             tokens[slot] = decorate(
-                item.label, word: tokens[slot], other: pick(pool, using: &rng),
+                item.label, word: tokens[slot],
+                other: pick(shortPool.isEmpty ? pool : shortPool, using: &rng),
                 digits: digits, using: &rng)
+            decorated.insert(slot)
             return true
         }
         /// How many times the line already asks for an item, incidental uses included.
@@ -132,11 +140,21 @@ public struct LadderMaker {
         // Round robin, one apiece per pass, so that three of them share a line rather than
         // the first taking all of it.  A pass that places nothing ends the loop, which is
         // what stops it when the words run out before the targets are met.
+        func length() -> Int { tokens.joined(separator: " ").count }
         var placing = true
         while budget > 0 && placing {
             placing = false
             for item in focusExtras where budget > 0 {
-                guard appearances(item) < Self.perLine, place(item) else { continue }
+                guard appearances(item) < Self.perLine else { continue }
+                // Past the floor, only while the line has room.  Several of the marks
+                // join two words, so each placing is a whole extra word, and three of
+                // them apiece for three marks is what ran a line to 174 characters.  The
+                // floor is what keeps the point of all this: even a crowded line works
+                // every focus mark more than the one time it used to.
+                if appearances(item) >= Self.minPerLine, length() >= Self.maxCharacters {
+                    continue
+                }
+                guard place(item) else { continue }
                 budget -= 1
                 placing = true
             }
@@ -157,8 +175,33 @@ public struct LadderMaker {
             place(older[older.count - 1 - fromEnd])
         }
 
+        // Trim to length by dropping filler.
+        //
+        // Only words that are doing nothing: never one chosen for a focus letter, never
+        // one a mark was put on, and never the last two plain words -- the trim must not
+        // be able to undo the practice the line was built for.  A line that cannot get
+        // under the cap without giving one of those up stays long.
+        while tokens.joined(separator: " ").count > Self.maxCharacters {
+            let plain = tokens.indices.filter { !reserved.contains($0) && !decorated.contains($0) }
+            guard plain.count > 2, let drop = plain.last else { break }
+            tokens.remove(at: drop)
+            reserved = Set(reserved.map { $0 > drop ? $0 - 1 : $0 })
+            decorated = Set(decorated.map { $0 > drop ? $0 - 1 : $0 })
+        }
+
         return tokens.joined(separator: " ")
     }
+
+    /// How long a line may get.
+    ///
+    /// A drill line is typed in one go before Enter, so its length is how long the writer
+    /// is committed for.  Lines grew past 170 characters once marks were being placed as
+    /// often as letters -- five wrapped lines of the target, and too far to see the end of
+    /// what you have started.
+    static let maxCharacters = 110
+
+    /// How often a focus mark or digit is asked for even in a line with no room.
+    static let minPerLine = 2
 
     /// How often a focus mark or digit is asked for in a line.
     ///
