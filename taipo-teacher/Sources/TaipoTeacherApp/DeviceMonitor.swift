@@ -83,6 +83,10 @@ public final class DeviceMonitor: ObservableObject {
     /// until the first rebuild finishes.
     @Published public private(set) var ladder: Ladder?
 
+    /// What the logs say about each chord, for the hint to fade by.  Nil in confusion
+    /// mode, and until the first rebuild finishes.
+    @Published public private(set) var skill: SkillModel?
+
     /// How many logged sessions were passed over as recorded against other chord tables.
     ///
     /// Worth saying out loud.  Reflashing with a changed table resets everything derived
@@ -194,7 +198,7 @@ public final class DeviceMonitor: ObservableObject {
     private let queue = DispatchQueue(label: "org.davidb.taipo-teacher.device")
     private let runningFlag = Flag(false)
     private let pausedFlag = Flag(false)
-    private var layouts: Layouts?
+    private(set) var layouts: Layouts?
     /// Only ever touched from `queue`, which is a single serial queue, so this is safe
     /// outside the actor.  Saying so explicitly rather than letting the isolation be
     /// implied: it is the kind of invariant that quietly stops being true.
@@ -308,6 +312,7 @@ public final class DeviceMonitor: ObservableObject {
         let seed = UInt64(Date().timeIntervalSince1970)
         Task.detached(priority: .userInitiated) {
             var ladder: Ladder?
+            var model: SkillModel?
             let programme: [Drill]
             var skipped = 0
             switch mode {
@@ -318,6 +323,7 @@ public final class DeviceMonitor: ObservableObject {
                     layouts: layouts, variant: variant)
                 let built = Ladder(layouts: layouts, variant: variant, skill: skill)
                 ladder = built
+                model = skill
                 let drill = LadderMaker(layouts: layouts, variant: variant)
                     .drill(built, lines: Self.ladderBlock, seed: seed)
                 programme = drill.lines.isEmpty ? [] : [drill]
@@ -328,12 +334,13 @@ public final class DeviceMonitor: ObservableObject {
                 programme = DrillMaker(layouts: layouts, variant: variant).programme(model)
                 skipped = model.skipped
             }
-            let result = (ladder, programme, skipped)
+            let result = (ladder, programme, skipped, model)
             await MainActor.run { [weak self] in
                 guard let self, self.practicing, self.variant == variant,
                     self.practiceMode == mode
                 else { return }
                 self.skippedSessions = result.2
+                self.skill = result.3
                 guard !result.1.isEmpty else { return }
                 self.ladder = result.0
                 self.programme = result.1
@@ -356,6 +363,7 @@ public final class DeviceMonitor: ObservableObject {
     public func endPractice() {
         practicing = false
         ladder = nil
+        skill = nil
         drill = nil
         drillTitle = nil
     }

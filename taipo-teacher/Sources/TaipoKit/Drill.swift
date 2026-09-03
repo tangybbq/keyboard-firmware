@@ -173,6 +173,30 @@ public final class DrillSession {
     /// Whether the text so far still matches the target.
     public var onTrack: Bool { target.text.hasPrefix(typed) }
 
+    /// Where the typing left the target, while it is off it.
+    ///
+    /// Kept because the cursor is no use for this: by the time a wrong chord has landed,
+    /// `typed` has already grown past the place it went wrong, so the offset has to be
+    /// taken at the moment it happens.
+    public private(set) var divergedAt: Int?
+
+    /// Whether the last chord that meant anything was a mistake.
+    ///
+    /// A hint that has faded out because the chord is known should come back when the
+    /// hand has just proved otherwise -- and a dead chord, which types nothing and moves
+    /// nothing, is the clearest case there is of reaching for something that is not there.
+    public private(set) var stumbled = false
+
+    /// The chord the target wants next, if there is one to name.
+    ///
+    /// While off the target it is the chord that was wanted where the typing left it,
+    /// which is the one worth showing.  Nil in the middle of a gram that is being spelled
+    /// out a letter at a time: no single chord is what comes next there.
+    public var wantedChord: DrillUnit? {
+        let at = divergedAt ?? cursor
+        return target.units.first { $0.offset == at }
+    }
+
     /// How far through the target the typing has got.
     public var cursor: Int { typed.count }
 
@@ -208,6 +232,7 @@ public final class DrillSession {
         guard let entry else {
             stats.deadChords += 1
             events.append(.deadChord(code: chord.code))
+            stumbled = true
             return
         }
 
@@ -221,6 +246,10 @@ public final class DrillSession {
                 typed.removeLast()
                 stats.characters = max(0, stats.characters - 1)
             }
+            // Backed up far enough to be on the target again, so there is no longer a
+            // place where it went wrong -- but the stumble stands until something is
+            // typed correctly, which is what keeps the hint up while it is needed.
+            if onTrack { divergedAt = nil }
             run.removeAll()
             return
         case "oneshot", "release":
@@ -245,10 +274,14 @@ public final class DrillSession {
             stats.correct += 1
             stats.characters += types.count
             events.append(.correct)
+            divergedAt = nil
+            stumbled = false
             noteRun(types, at: offset)
         } else {
             stats.wrong += 1
             events.append(.wrong(expected: expected, got: types))
+            if divergedAt == nil { divergedAt = offset }
+            stumbled = true
             run.removeAll()
         }
     }

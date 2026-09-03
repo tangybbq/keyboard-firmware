@@ -20,7 +20,11 @@ struct DrillView: View {
                         if let ladder = monitor.ladder { progress(ladder) }
                     }
                 }
-                target(drill)
+                HStack(alignment: .top, spacing: 20) {
+                    target(drill)
+                    Spacer(minLength: 0)
+                    hint(drill)
+                }
                 Divider()
                 scoreboard(drill.stats)
                 HStack(spacing: 14) {
@@ -106,6 +110,22 @@ struct DrillView: View {
             Text("\(ladder.unlockedCount)/\(ladder.items.count)")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    /// The next chord, drawn, for as long as it is still being learned.
+    ///
+    /// Driven by the skill model rather than by the drill, so what fades is a chord the
+    /// logs say is known -- not one that happens to have gone right twice in this line.
+    @ViewBuilder
+    private func hint(_ drill: DrillSession) -> some View {
+        if let layouts = monitor.layouts, let unit = drill.wantedChord {
+            ChordHint(
+                diagram: ChordDiagram(layouts: layouts),
+                code: unit.code,
+                types: unit.text,
+                confidence: monitor.skill?.confidence(unit.code) ?? 0,
+                stumbled: drill.stumbled)
         }
     }
 

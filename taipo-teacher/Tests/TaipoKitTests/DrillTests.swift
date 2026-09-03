@@ -98,6 +98,63 @@ final class DrillTests: XCTestCase {
         XCTAssertFalse(session.finished)
     }
 
+    // MARK: - What the hint needs
+
+    /// The chord the target wants next is the one the hint draws.
+    func testWantedChordFollowsTheCursor() throws {
+        let l = try layouts()
+        // Not `at`, which is one of taipo's gram chords and so a single unit.
+        let session = DrillSession(target: DrillTarget(text: "ax", layouts: l), layouts: l)
+        let a = try XCTUnwrap(codeTyping("a", l))
+        let x = try XCTUnwrap(codeTyping("x", l))
+        XCTAssertEqual(session.target.units.count, 2)
+
+        XCTAssertEqual(session.wantedChord?.code, a)
+        session.feed(chord(code: a, side: .left, at: 0))
+        XCTAssertEqual(session.wantedChord?.code, x)
+        session.feed(chord(code: x, side: .right, at: 200))
+        XCTAssertNil(session.wantedChord, "nothing is wanted once the line is done")
+    }
+
+    /// Off the target, the chord worth showing is the one that was wanted where it went
+    /// wrong -- not whatever is under a cursor that has since moved on.
+    func testWantedChordStaysWhereItWentWrong() throws {
+        let l = try layouts()
+        let session = DrillSession(target: DrillTarget(text: "ax", layouts: l), layouts: l)
+        let a = try XCTUnwrap(codeTyping("a", l))
+        let o = try XCTUnwrap(codeTyping("o", l))
+        let bk = try XCTUnwrap(backspace(l))
+
+        session.feed(chord(code: o, side: .left, at: 0))
+        XCTAssertFalse(session.onTrack)
+        XCTAssertEqual(session.divergedAt, 0)
+        XCTAssertEqual(session.wantedChord?.code, a, "still the `a` that was wanted")
+        XCTAssertTrue(session.stumbled)
+
+        // Backspacing onto the target ends the divergence, but the stumble stands until
+        // something goes right -- which is what keeps the hint up while it is needed.
+        session.feed(chord(code: bk, side: .right, at: 200))
+        XCTAssertTrue(session.onTrack)
+        XCTAssertNil(session.divergedAt)
+        XCTAssertTrue(session.stumbled)
+        XCTAssertEqual(session.wantedChord?.code, a)
+
+        session.feed(chord(code: a, side: .left, at: 400))
+        XCTAssertFalse(session.stumbled, "and it clears once the chord lands")
+    }
+
+    /// A dead chord types nothing, so nothing else would mark it -- but reaching for a
+    /// chord that does not exist is the clearest case for a hint there is.
+    func testADeadChordCountsAsAStumble() throws {
+        let l = try layouts()
+        let session = DrillSession(target: DrillTarget(text: "a", layouts: l), layouts: l)
+
+        XCTAssertFalse(session.stumbled)
+        session.feed(chord(code: 0x0ff, side: .left, at: 0))
+        XCTAssertTrue(session.stumbled)
+        XCTAssertEqual(session.wantedChord?.code, try XCTUnwrap(codeTyping("a", l)))
+    }
+
     // MARK: helpers
 
     private func chord(code: UInt16, side: Side, at time: UInt32) -> Chord {
