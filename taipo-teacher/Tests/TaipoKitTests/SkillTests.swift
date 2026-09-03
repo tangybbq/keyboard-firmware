@@ -141,8 +141,21 @@ final class SkillTests: XCTestCase {
         XCTAssertEqual(slow.parts(0x008).speed, 0.5, accuracy: 0.0001)
         XCTAssertFalse(slow.parts(0x008).complete)
 
+        // Corrections inside the allowance are not a shortfall.  This is the case the
+        // first cut got wrong: accuracy counted down from a clean sheet, so a chord with
+        // any correction at all read as short on the screen while the ladder had already
+        // finished with it.
+        let tidy = model(count: 40, ms: 300, deleted: 4)  // a tenth, which is the allowance
+        XCTAssertEqual(tidy.parts(0x008).accuracy, 1)
+        XCTAssertTrue(tidy.parts(0x008).complete)
+        XCTAssertTrue(tidy.learned(0x008))
+
+        let messy = model(count: 40, ms: 300, deleted: 16)  // twice the allowance
+        XCTAssertEqual(messy.parts(0x008).accuracy, 0.5, accuracy: 0.0001)
+        XCTAssertFalse(messy.learned(0x008))
+
         // Every part agrees with the number the ladder ranks by, and with `learned`.
-        for m in [new, slow, model(count: 40, ms: 300, deleted: 0)] {
+        for m in [new, slow, tidy, messy, model(count: 40, ms: 300, deleted: 0)] {
             XCTAssertEqual(m.parts(0x008).confidence, m.confidence(0x008), accuracy: 0.0001)
             XCTAssertEqual(m.parts(0x008).complete, m.learned(0x008))
         }

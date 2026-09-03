@@ -48,8 +48,14 @@ public struct ChordSkill: Equatable, Sendable {
     }
 
     /// How often typing it is followed by taking it back.
+    ///
+    /// Capped at all of them.  It can come out above that: a backspace run broken by a
+    /// modifier reads as two corrections, and both blame the chord before the run, so a
+    /// chord can be charged more deletions than it has uses.  That is a fault in the
+    /// correction scanner, which is pinned to the Rust side and cannot be changed on its
+    /// own; capping here keeps it from being reported as 114% taken back.
     public var errorRate: Double {
-        count > 0 ? Double(deleted) / Double(count) : 0
+        count > 0 ? min(1, Double(deleted) / Double(count)) : 0
     }
 }
 
@@ -238,10 +244,17 @@ public struct SkillModel: Sendable {
         guard let s = skills[code], s.count > 0 else {
             return Parts(exposure: 0, speed: 0, accuracy: 0)
         }
+        // Each is "how close to what is asked", capped at met.  Accuracy is the ratio of
+        // the allowance to what was used of it, the same shape as speed -- it used to
+        // count down from a clean sheet, which meant it only ever reached 1 at no
+        // corrections at all, while `learned` was happy with a tenth of them.  The two
+        // disagreeing made the screen call a chord short on accuracy that the ladder
+        // considered done with.
         return Parts(
             exposure: min(1, Double(s.count) / Double(max(1, options.minSamples))),
             speed: min(1, Double(options.targetMs) / Double(max(1, s.medianMs))),
-            accuracy: max(0, min(1, 1 - s.errorRate / max(0.0001, options.maxErrorRate))))
+            accuracy: s.errorRate <= options.maxErrorRate
+                ? 1 : options.maxErrorRate / max(0.0001, s.errorRate))
     }
 
     /// A single number for ordering the weakest first, in `0...1`.
