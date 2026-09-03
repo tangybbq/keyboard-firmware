@@ -111,16 +111,24 @@ These have no both-thumbs variant.
 
 ## Modifiers and brackets
 
-The three same-finger vertical pairs are modifiers, and their thumb layers are the brackets.
-The fourth chord is the wiki's `ralt`, which is Shift here, since there is no right-alt modifier
-to send; that leaves its both-thumbs variant unmapped, as it would be shift plus shift.
+**The modifiers are Taipo's.** Three of the four are the same-finger vertical pairs, exactly where
+Taipo has them: index is Shift, middle is Control, ring is Alt. Taipo's GUI is the *pinky* pair,
+which needs the upper pinky, so here it is the Alt chord plus the lower pinky instead.
+
+Shift has no both-thumbs variant, as it would be shift plus shift.
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| t+n | GUI | `)` | `(` | GUI+Shift |
-| e+i | Ctrl | `]` | `[` | Ctrl+Shift |
+| e+i | Shift | `]` | `[` |  |
+| t+n | Ctrl | `)` | `(` | Ctrl+Shift |
 | o+s | Alt | `}` | `{` | Alt+Shift |
-| o+t+s | Shift | `>` | `<` |  |
+| a+o+s | GUI |  |  | GUI+Shift |
+| o+t+s |  | `>` | `<` |  |
+
+The brackets stay on the chords they were learned on rather than following the modifiers that
+moved, so the mnemonic is still positional: `()` on the middle finger, `[]` on the index, `{}` on
+the ring. The last row is the wiki's `ralt` chord, which kept the angle brackets but no longer
+has a modifier on its base.
 
 ## Extras
 
@@ -182,7 +190,8 @@ The move to Taipo's chords vacated seven chords, which are deliberately unmapped
 | o+e+s | `q` |
 | o+e+n | `v`, until it moved to `e+s+n` |
 
-`e+s+n` held Posh's `k`, and now holds `v`.
+`e+s+n` held Posh's `k`, and now holds `v`. The base of `o+t+s` is free as well, though the chord
+still carries the angle brackets on its thumb layers.
 
 ## Modifiers: how they behave
 

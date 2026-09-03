@@ -57,8 +57,19 @@
 //! Seven letters still differ from Taipo.  Six of them — `b`, `g`, `m`, `r`,
 //! `x`, `z` — are on Taipo's upper pinky and so out of reach.  The seventh,
 //! `v`, is only blocked because Dosh has `m` on the chord Taipo types `v`
-//! with; it sits on `e+s+n` instead, one of the chords the move freed, which
-//! is a shorter reach than the `o+e+n` Posh had it on.  See DOSH.md.
+//! with; it sits on `e+s+n` instead, one of the chords the move freed.  See
+//! DOSH.md.
+//!
+//! # The modifiers
+//!
+//! Also Taipo's: the same-finger vertical pairs, with the index pair Shift,
+//! the middle pair Control and the ring pair Alt.  Taipo's GUI is the pinky
+//! pair, which Dosh cannot reach, so it is the Alt chord plus the lower pinky.
+//!
+//! The brackets stay on the chords they were learned on rather than following
+//! the modifier that moved, so the mnemonic is still positional: `()` on the
+//! middle finger, `[]` on the index, `{}` on the ring.  `<>` keep the chord
+//! that used to be the wiki's `ralt`, whose base is now unmapped.
 //!
 //! Differences from the Posh wiki, beyond the letters that moved:
 //!
@@ -71,9 +82,10 @@
 //! - **Both thumbs alone is the null key** (`Action::Release`), as in Taipo,
 //!   rather than the wiki's sticky shift.  Taipo's double-press sticky
 //!   modifiers already cover that need.
-//! - **`ralt` is Shift.**  [`Mods`] has no right-alt, so the wiki's `ralt`
-//!   chord (`0x026`) is a plain Shift one-shot.  Its "both" variant would then
-//!   be shift plus shift, so `0x326` is left unmapped.
+//! - **The modifiers are Taipo's**, as above.  The wiki's `ralt` chord
+//!   (`0x026`) has no modifier at all: [`Mods`] has no right-alt, and Shift is
+//!   on Taipo's chord.  Shift's own "both" variant would be shift plus shift,
+//!   so `0x388` is left unmapped.
 //! - **`s` and `h` have their punctuation swapped.**  The wiki puts the comma
 //!   and apostrophe on the chord that types `s` and the period and quote on
 //!   the one that types `h`; the developer wants them the other way around.
@@ -248,24 +260,33 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x18a, action: Action::Shifted(Keyboard::Grave), },       // ~
     Entry { code: 0x28a, action: Action::Shifted(Keyboard::Keyboard5), },   // %
 
-    // The modifiers, which are the same-finger vertical pairs, plus the wiki's
-    // `ralt` chord, which is Shift here.  Their layers are the brackets.
-    Entry { code: 0x044, action: Action::OneShot(Mods::GUI), },
-    Entry { code: 0x144, action: Action::Shifted(Keyboard::Keyboard0), },   // )
-    Entry { code: 0x244, action: Action::Shifted(Keyboard::Keyboard9), },   // (
-    Entry { code: 0x344, action: Action::OneShot(Mods::GUI.union(Mods::SHIFT)), },
-
-    Entry { code: 0x088, action: Action::OneShot(Mods::CONTROL), },
+    // The modifiers, which are Taipo's: the same-finger vertical pairs, with
+    // the index pair Shift, the middle pair Control and the ring pair Alt.
+    // Taipo's GUI is the pinky pair, which needs the upper pinky, so here it
+    // is the Alt chord plus the lower pinky instead.
+    //
+    // Their layers are the brackets, which stay on the chords they were
+    // learned on rather than following the modifier that moved.  Shift has no
+    // both-thumbs variant, as it would be shift plus shift.
+    Entry { code: 0x088, action: Action::OneShot(Mods::SHIFT), },
     Entry { code: 0x188, action: Action::Simple(Keyboard::RightBrace), },   // ]
     Entry { code: 0x288, action: Action::Simple(Keyboard::LeftBrace), },    // [
-    Entry { code: 0x388, action: Action::OneShot(Mods::CONTROL.union(Mods::SHIFT)), },
+
+    Entry { code: 0x044, action: Action::OneShot(Mods::CONTROL), },
+    Entry { code: 0x144, action: Action::Shifted(Keyboard::Keyboard0), },   // )
+    Entry { code: 0x244, action: Action::Shifted(Keyboard::Keyboard9), },   // (
+    Entry { code: 0x344, action: Action::OneShot(Mods::CONTROL.union(Mods::SHIFT)), },
 
     Entry { code: 0x022, action: Action::OneShot(Mods::ALT), },
     Entry { code: 0x122, action: Action::Shifted(Keyboard::RightBrace), },  // }
     Entry { code: 0x222, action: Action::Shifted(Keyboard::LeftBrace), },   // {
     Entry { code: 0x322, action: Action::OneShot(Mods::ALT.union(Mods::SHIFT)), },
 
-    Entry { code: 0x026, action: Action::OneShot(Mods::SHIFT), },
+    Entry { code: 0x023, action: Action::OneShot(Mods::GUI), },
+    Entry { code: 0x323, action: Action::OneShot(Mods::GUI.union(Mods::SHIFT)), },
+
+    // The angle brackets, on the chord that used to be the wiki's `ralt`.
+    // Its base is unmapped now that Shift is on Taipo's chord.
     Entry { code: 0x126, action: Action::Shifted(Keyboard::Dot), },         // >
     Entry { code: 0x226, action: Action::Shifted(Keyboard::Comma), },       // <
 
@@ -291,6 +312,7 @@ pub static DOSH_ACTIONS: &[Entry] = &[
 mod tests {
     use super::DOSH_ACTIONS;
     use crate::layout::taipo::{Action, TAIPO_ACTIONS};
+    use crate::Mods;
 
     fn action_for(code: u16) -> &'static Action {
         &DOSH_ACTIONS
@@ -375,6 +397,34 @@ mod tests {
                 "{letter} is not on Taipo's chord",
             );
         }
+    }
+
+    /// The chord a table sends a given modifier with.
+    fn mod_chord(table: &'static [super::Entry], want: Mods) -> Option<u16> {
+        table
+            .iter()
+            .find(|e| matches!(e.action, Action::OneShot(m) if m == want))
+            .map(|e| e.code)
+    }
+
+    /// Shift, Control and Alt are on Taipo's chords.  GUI cannot be: Taipo
+    /// has it on the pinky pair, and Dosh has no upper pinky, so it is the Alt
+    /// chord plus the lower pinky.
+    #[test]
+    fn test_modifiers_match_taipo() {
+        for m in [Mods::SHIFT, Mods::CONTROL, Mods::ALT] {
+            assert_eq!(
+                mod_chord(DOSH_ACTIONS, m),
+                mod_chord(TAIPO_ACTIONS, m),
+                "{m:?} is not on Taipo's chord",
+            );
+        }
+
+        assert_eq!(mod_chord(TAIPO_ACTIONS, Mods::GUI), Some(0x011));
+        assert_eq!(
+            mod_chord(DOSH_ACTIONS, Mods::GUI),
+            Some(mod_chord(DOSH_ACTIONS, Mods::ALT).unwrap() | 0x001),
+        );
     }
 
     /// And the seven they do not agree on, for the same reason.  Six of them

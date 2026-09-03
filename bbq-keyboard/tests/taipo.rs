@@ -1681,55 +1681,63 @@ fn test_dosh_digits_and_symbols() {
     script.run();
 }
 
-/// The modifier chords, which behave exactly as they do in taipo.  The wiki's
-/// `ralt` chord is a plain shift here.
+/// The modifier chords, which are taipo's and behave exactly as they do
+/// there.  GUI is the one that cannot be taipo's, since taipo puts it on the
+/// pinky pair; here it is the alt chord plus the lower pinky.
 #[test]
 fn test_dosh_modifiers() {
     let mut script = Script::dosh();
 
-    // One-shot gui, consumed by the next key.
-    script.chord(LEFT, N | T).mod_only(Mods::GUI);
-    script.chord(RIGHT, S).types_mods(Keyboard::S, Mods::GUI);
+    // One-shot control, consumed by the next key.
+    script.chord(LEFT, T | N).mod_only(Mods::CONTROL);
+    script.chord(RIGHT, S).types_mods(Keyboard::S, Mods::CONTROL);
 
-    // Control and alt.
-    script.chord(LEFT, I | E).mod_only(Mods::CONTROL);
-    script.chord(LEFT, S | O).mod_only(Mods::CONTROL | Mods::ALT);
+    // Shift and alt, which accumulate.
+    script.chord(LEFT, E | I).mod_only(Mods::SHIFT);
+    script.chord(LEFT, O | S).mod_only(Mods::SHIFT | Mods::ALT);
 
-    // The `ralt` chord is shift, and accumulates like the others.
-    script.chord(RIGHT, S | O | T).mod_only(Mods::CONTROL | Mods::ALT | Mods::SHIFT);
+    // And gui, the alt chord plus the pinky.
+    script.chord(RIGHT, A | O | S).mod_only(Mods::SHIFT | Mods::ALT | Mods::GUI);
 
     // Both thumbs alone releases everything.
     script.chord(LEFT, SP | BK).releases().no_mod_state();
 
-    // The both-thumbs variants are pairs of modifiers.
-    script.chord(LEFT, N | T | SP | BK).mod_only(Mods::GUI | Mods::SHIFT);
+    // The both-thumbs variants are pairs of modifiers.  Shift has none, as it
+    // would be shift plus shift.
+    script.chord(LEFT, T | N | SP | BK).mod_only(Mods::CONTROL | Mods::SHIFT);
     script.chord(LEFT, SP | BK).releases().no_mod_state();
 
-    script.chord(RIGHT, I | E | SP | BK).mod_only(Mods::CONTROL | Mods::SHIFT);
+    script.chord(RIGHT, O | S | SP | BK).mod_only(Mods::ALT | Mods::SHIFT);
     script.chord(LEFT, SP | BK).releases().no_mod_state();
 
-    script.chord(LEFT, S | O | SP | BK).mod_only(Mods::ALT | Mods::SHIFT);
+    script.chord(LEFT, A | O | S | SP | BK).mod_only(Mods::GUI | Mods::SHIFT);
     script.chord(LEFT, SP | BK).releases().no_mod_state();
+
+    // The old `ralt` chord types nothing at all now.
+    script.press(LEFT, O | T | S).tick(CHORD_TIME).release(LEFT, O | T | S).tick(1).idle();
 
     // A double press makes the held modifiers sticky, as in taipo.
     script
-        .chord(LEFT, S | O)
+        .chord(LEFT, O | S)
         .mod_only(Mods::ALT)
         .mod_state(Mods::ALT, Mods::empty());
-    script.chord(RIGHT, S | O).idle().mod_state(Mods::ALT, Mods::ALT);
+    script.chord(RIGHT, O | S).idle().mod_state(Mods::ALT, Mods::ALT);
     script
         .chord(LEFT, I | SP | BK)
         .presses(Keyboard::Tab, Mods::ALT)
         .mod_only(Mods::ALT);
     script.chord(LEFT, SP | BK).releases().no_mod_state();
 
-    // The bracket layers of the modifier chords.
-    script.chord(LEFT, I | E | SP).types(Keyboard::RightBrace);
-    script.chord(LEFT, I | E | BK).types(Keyboard::LeftBrace);
-    script.chord(LEFT, S | O | SP).types_mods(Keyboard::RightBrace, Mods::SHIFT);
-    script.chord(LEFT, S | O | BK).types_mods(Keyboard::LeftBrace, Mods::SHIFT);
-    script.chord(LEFT, N | T | SP).types_mods(Keyboard::Keyboard0, Mods::SHIFT);
-    script.chord(LEFT, N | T | BK).types_mods(Keyboard::Keyboard9, Mods::SHIFT);
+    // The bracket layers, which stay on the chords they were learned on
+    // rather than following the modifiers that moved.
+    script.chord(LEFT, E | I | SP).types(Keyboard::RightBrace);
+    script.chord(LEFT, E | I | BK).types(Keyboard::LeftBrace);
+    script.chord(LEFT, O | S | SP).types_mods(Keyboard::RightBrace, Mods::SHIFT);
+    script.chord(LEFT, O | S | BK).types_mods(Keyboard::LeftBrace, Mods::SHIFT);
+    script.chord(LEFT, T | N | SP).types_mods(Keyboard::Keyboard0, Mods::SHIFT);
+    script.chord(LEFT, T | N | BK).types_mods(Keyboard::Keyboard9, Mods::SHIFT);
+    script.chord(LEFT, O | T | S | SP).types_mods(Keyboard::Dot, Mods::SHIFT);
+    script.chord(LEFT, O | T | S | BK).types_mods(Keyboard::Comma, Mods::SHIFT);
 
     script.run();
 }
