@@ -52,7 +52,8 @@
 //!
 //! Seven chords are left with nothing on them by the move: `s+n+i`, `t+i`,
 //! `o+t+i`, `o+n+i`, `e+n+i`, `o+e+s` and `o+e+n`.  They are deliberately
-//! unmapped rather than filled.
+//! unmapped rather than filled.  `t+e+i` was another, and now carries the
+//! apostrophe; `h`'s both-thumbs layer, which used to, is free in its place.
 //!
 //! Seven letters still differ from Taipo.  Six of them — `b`, `g`, `m`, `r`,
 //! `x`, `z` — are on Taipo's upper pinky and so out of reach.  The seventh,
@@ -89,6 +90,7 @@
 //! - **`s` and `h` have their punctuation swapped.**  The wiki puts the comma
 //!   and apostrophe on the chord that types `s` and the period and quote on
 //!   the one that types `h`; the developer wants them the other way around.
+//!   The apostrophe has since left that shape altogether; see the table.
 //! - **`o` and `e` have their navigation swapped.**  The wiki puts left and
 //!   home on `o` and right and end on `e`, matching the order the keys sit on
 //!   the left hand; the developer finds the mirrored sense more intuitive, so
@@ -156,7 +158,17 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x00c, action: Action::Simple(Keyboard::H), },
     Entry { code: 0x10c, action: Action::Shifted(Keyboard::H), },
     Entry { code: 0x20c, action: Action::Simple(Keyboard::Comma), },
-    Entry { code: 0x30c, action: Action::Simple(Keyboard::Apostrophe), },
+
+    // The apostrophe, on a bare chord of its own.
+    //
+    // It was `h`'s both-thumbs layer, `t+e+Sp+Bk`: two fingers and both thumbs for one of
+    // the commonest marks in English.  It measured accordingly -- 1330ms and 19% of its
+    // uses taken back, when the letters around it sat at 300ms and 5% -- and it was one of
+    // the two chords that would not come off the practice list.
+    //
+    // `+Sp` is deliberately left free.  It is the cheapest thing still unspoken for on
+    // this shape, and it is being kept for a chord that needs to be cheap.
+    Entry { code: 0x08c, action: Action::Simple(Keyboard::Apostrophe), },
 
     // The letters whose +Bk is a digit, and whose +both is the matching
     // function key.

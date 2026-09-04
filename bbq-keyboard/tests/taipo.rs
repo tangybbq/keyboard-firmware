@@ -1663,7 +1663,22 @@ fn test_dosh_digits_and_symbols() {
     // And the rest of the symbols.
     script.chord(LEFT, S | N | SP | BK).types(Keyboard::Equal);
     script.chord(RIGHT, O | I | SP | BK).types_mods(Keyboard::Backslash, Mods::SHIFT);
-    script.chord(LEFT, T | E | SP | BK).types(Keyboard::Apostrophe);
+    // The apostrophe has a bare chord of its own, and `h`'s both-thumbs layer, where it
+    // used to be, does nothing now.
+    script.chord(LEFT, T | E | I).types(Keyboard::Apostrophe);
+    script
+        .press(LEFT, T | E | SP | BK)
+        .tick(CHORD_TIME)
+        .release(LEFT, T | E | SP | BK)
+        .tick(1)
+        .idle();
+    // And the layer kept for a future chord is silent too.
+    script
+        .press(RIGHT, T | E | I | SP)
+        .tick(CHORD_TIME)
+        .release(RIGHT, T | E | I | SP)
+        .tick(1)
+        .idle();
     script.chord(RIGHT, S | SP | BK).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
 
     // The punctuation-only chords, which have no both-thumbs variant.

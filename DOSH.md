@@ -62,13 +62,26 @@ here from `n+i`.
 | n | n | N | ↑ | Page Up |
 | i | i | I | Enter | Tab |
 
-## The comma pair
+## The comma
 
 The one same-row pair still carrying punctuation.
 
 | chord | alone | +Sp | +Bk | +Sp+Bk |
 |-------|-------|-----|-----|--------|
-| t+e | h | H | `,` | `'` |
+| t+e | h | H | `,` |  |
+
+## The apostrophe
+
+A bare chord of its own. It was `h`'s both-thumbs layer — two fingers and both thumbs for
+one of the commonest marks in English — and it measured accordingly: 1330ms and a fifth of
+its uses taken back, where the letters around it sat at 300ms and a twentieth.
+
+`+Sp` is deliberately left free. It is the cheapest thing still unspoken for on this shape,
+and it is being kept for a chord that needs to be cheap.
+
+| chord | alone | +Sp | +Bk | +Sp+Bk |
+|-------|-------|-----|-----|--------|
+| t+e+i | `'` |  |  |  |
 
 ## Letters whose +Bk is a digit
 
