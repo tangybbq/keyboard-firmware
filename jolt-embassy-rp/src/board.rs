@@ -833,9 +833,7 @@ mod mesa2 {
     use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
     use static_cell::StaticCell;
 
-    use smart_leds::RGB8;
-
-    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedGroup, LedSet}, matrix::Matrix, Irqs};
+    use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
     use super::{Board, Inter, UsbHandler};
@@ -845,38 +843,6 @@ mod mesa2 {
 
     /// The number of ws2812 LEDs on the keyboard.
     const NUM_LEDS: usize = 4;
-
-    /// HACK: whether to drive the ws2812 LEDs at all.
-    ///
-    /// The SK6812s run from VBUS while GP26 drives 3.3V logic, so their
-    /// `0.7 * VDD` input threshold is out of reach whenever VBUS is healthy.
-    /// On a hub port measuring 5.3V that threshold is 3.71V, and this board's
-    /// Tiny 2040 regulates to 3.15V, leaving the data 0.56V short: the LEDs
-    /// hold roughly the right base color but flicker wildly.  It is a fault in
-    /// the design rather than in this board -- every mesa1 and mesa2 is out of
-    /// spec here, and the ones that behave are winning on part tolerance -- so
-    /// the real fix is a level shifter (74AHCT1G125 from +5V) on the next spin.
-    ///
-    /// Until then, leave the data line parked low.  The SK6812s come out of
-    /// reset dark and, never being sent a frame, stay that way.
-    const LEDS_ENABLED: bool = false;
-
-    /// A stand-in LED group that reports the real size but drives nothing.
-    ///
-    /// This keeps [`LedManager`] sized as it would be normally, so the rest of
-    /// the firmware neither knows nor cares that the LEDs are off.  See
-    /// [`LEDS_ENABLED`].
-    ///
-    /// [`LedManager`]: crate::leds::manager::LedManager
-    struct NullLeds;
-
-    impl LedGroup for NullLeds {
-        fn len(&self) -> usize {
-            NUM_LEDS
-        }
-
-        fn update(&mut self, _values: &[RGB8]) {}
-    }
 
     // Split up the peripherals.  Named for the mesa2 nets, not for the scanner's roles.  The
     // Tiny 2040's analog pads are A0=GP26, A1=GP27, A2=GP28, A3=GP29.
@@ -957,16 +923,6 @@ mod mesa2 {
     }
 
     fn leds_init(r: RgbResources, spawner: SendSpawner) -> LedSet {
-        if !LEDS_ENABLED {
-            // Hold GP26 low for the life of the firmware.  The PIO is left
-            // untouched, so nothing can ever clock a frame out to the LEDs.
-            static RGB_PIN: StaticCell<Output<'static>> = StaticCell::new();
-            RGB_PIN.init(Output::new(r.rgb_pin, Level::Low));
-
-            static NULL: StaticCell<NullLeds> = StaticCell::new();
-            return LedSet::new([NULL.init(NullLeds)]);
-        }
-
         // The PIO and DMA are used for the LED driver.
         let Pio {
             mut common, sm0, ..
