@@ -128,12 +128,16 @@ struct SkillCollector {
     ///
     /// All variants at once, rather than only the one being asked about, so that switching
     /// tables does not mean folding the history again.
-    mutating func fold(text: String, layouts: Layouts, options: SkillModel.Options) {
+    mutating func fold(
+        text: String, layouts: Layouts, options: SkillModel.Options,
+        history: LayoutHistory = LayoutHistory.bundled()
+    ) {
         for session in KeyLogFile.sessions(from: text, layouts: layouts) {
-            // Recorded against other tables, so its chords mean something else.  Counted
-            // rather than dropped in silence: a ladder that has quietly reset is a thing
-            // the writer is owed an explanation for.
-            guard session.recorded(with: layouts) else {
+            // Logged under a layout nothing can interpret, so its chords might mean
+            // anything.  Counted rather than dropped in silence: a ladder that has quietly
+            // reset is a thing the writer is owed an explanation for.
+            guard let changed = history.changedCodes(since: session.layout, layouts: layouts)
+            else {
                 skipped += 1
                 continue
             }
@@ -159,9 +163,19 @@ struct SkillCollector {
                 let scanner = CorrectionScanner(layouts: layouts, variant: variant)
                 let undone = Set(
                     scanner.scanIndexed(mine.map(\.code)).compactMap(\.deletedIndex))
+                    .subtracting(mine.indices.filter { changed.contains(mine[$0].code) })
 
                 var previousMs: UInt32?
                 for (i, chord) in mine.enumerated() {
+                    // A chord whose meaning has changed since this was logged is not
+                    // evidence about the chord that lives there now.  It still moves the
+                    // clock on, but the chord after it gets no gap: the interval either
+                    // side of something that is not being counted is not an interval
+                    // anyone typed.
+                    guard !changed.contains(chord.code) else {
+                        previousMs = nil
+                        continue
+                    }
                     var gap: UInt32?
                     if let previous = previousMs, chord.timeMs >= previous {
                         let d = chord.timeMs - previous
@@ -349,12 +363,13 @@ public struct SkillModel: Sendable {
     /// the app uses.
     public static func build(
         logDirectory: URL, layouts: Layouts, variant: String = "taipo",
-        options: Options = Options()
+        options: Options = Options(), history: LayoutHistory = LayoutHistory.bundled()
     ) -> SkillModel {
         var collector = SkillCollector()
         for file in logFiles(in: logDirectory) {
             guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
-            collector.fold(text: text, layouts: layouts, options: options)
+            collector.fold(
+                text: text, layouts: layouts, options: options, history: history)
         }
         return collector.model(variant: variant, options: options)
     }

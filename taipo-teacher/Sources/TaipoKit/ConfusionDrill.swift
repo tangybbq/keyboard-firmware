@@ -44,7 +44,8 @@ public struct ConfusionModel {
     /// measured across a join, and a backspace does not correct something typed yesterday.
     public static func build(
         logDirectory: URL, layouts: Layouts, variant: String = "taipo",
-        shapes: Set<Confusion> = drillable
+        shapes: Set<Confusion> = drillable,
+        history: LayoutHistory = LayoutHistory.bundled()
     ) -> ConfusionModel {
         let files =
             (try? FileManager.default.contentsOfDirectory(
@@ -61,9 +62,10 @@ public struct ConfusionModel {
         for file in files {
             guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
             for session in KeyLogFile.sessions(from: text, layouts: layouts) {
-                // Recorded against other tables, so what its chords typed is not what
-                // this table says they type.  See `KeyLogSession.recorded(with:)`.
-                guard session.recorded(with: layouts) else {
+                // Logged under a layout nothing can interpret, so what its chords typed
+                // is not what this table says they type.  See `LayoutHistory`.
+                guard let changed = history.changedCodes(since: session.layout, layouts: layouts)
+                else {
                     skipped += 1
                     continue
                 }
@@ -81,7 +83,11 @@ public struct ConfusionModel {
                 // Only the variant being modelled.  Taipo and Dosh are different skills
                 // that happen to share an engine, and a correction made in one says
                 // nothing about the other.
-                let codes = chords.filter { $0.variant == variant }.map(\.code)
+                // Chords whose meaning has changed since are dropped: a correction
+                // between two of them is not about the chords that live there now.
+                let codes = chords
+                    .filter { $0.variant == variant && !changed.contains($0.code) }
+                    .map(\.code)
 
                 for c in scanner.scan(codes) {
                     corrections += 1

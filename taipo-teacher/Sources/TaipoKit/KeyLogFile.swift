@@ -47,6 +47,11 @@ public struct KeyLogSession {
     ///
     /// A session with no fingerprint at all is not recorded against these tables either:
     /// it came from a firmware too old to say, and that is not the same as agreeing.
+    ///
+    /// Deriving from a log asks [`LayoutHistory`] rather than this, because a session from
+    /// an older revision is usually still worth most of what is in it -- everything but
+    /// the chords that actually changed.  This is the exact question, for the places that
+    /// want it.
     public func recorded(with layouts: Layouts) -> Bool {
         layout != nil && layout == layouts.fingerprintValue
     }
