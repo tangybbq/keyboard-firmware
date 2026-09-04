@@ -164,6 +164,55 @@ final class SkillTests: XCTestCase {
         XCTAssertEqual(new.parts(0x001), SkillModel.Parts(exposure: 0, speed: 0, accuracy: 0))
     }
 
+    /// Practice buys patience at the gate, but only so much of it.
+    ///
+    /// A chord being drilled is measured in the writer's worst context, while the bar is
+    /// set by chords they meet in ordinary work -- so a hard one can sit just above it for
+    /// as long as it is being worked on.  The apostrophe and `b` both plateaued at 11%
+    /// against a bar of 10% and never once dipped under, over ninety-six and sixty-three
+    /// uses.  Neither was running ahead of the writer at 89% right.
+    func testExposureBuysPatienceAtTheGate() throws {
+        let options = SkillModel.Options(minSamples: 12, maxErrorRate: 0.1, patience: 60)
+
+        // Just above the bar, and not yet much practice: still short of the gate.
+        XCTAssertEqual(options.allowedErrorRate(after: 20), 0.1)
+        // The same rate with the practice behind it is through.
+        XCTAssertEqual(options.allowedErrorRate(after: 96), 0.2)
+
+        /// A chord taken back every `every` uses, starting with the first, so that the
+        /// opening window is already over the bar and the rate never dips under it.  That
+        /// is the shape the apostrophe had: a flat 11%, and not one moment below 10% in
+        /// ninety-six uses.
+        func model(uses: Int, undoneEvery every: Int, _ options: SkillModel.Options)
+            -> SkillModel
+        {
+            var samples = ChordSamples()
+            for i in 0..<uses {
+                samples.note(gap: 300, deleted: i % every == 0, options: options)
+            }
+            var collector = SkillCollector()
+            collector.samples = ["taipo": [0x008: samples]]
+            collector.sessions = 1
+            return collector.model(variant: "taipo", options: options)
+        }
+
+        // Every ninth taken back is 11%, just over the bar.  Thirty uses in, that is still
+        // a chord the writer has not shown they can do.
+        XCTAssertFalse(model(uses: 30, undoneEvery: 9, options).reached(0x008))
+        // At ninety-six, the same rate is through -- on the practice, not the accuracy.
+        XCTAssertTrue(model(uses: 96, undoneEvery: 9, options).reached(0x008))
+
+        // And without the patience there is no way through at all, however long it goes
+        // on.  This is the case that was stuck.
+        let strict = SkillModel.Options(
+            minSamples: 12, maxErrorRate: 0.1, patience: .max)
+        XCTAssertFalse(model(uses: 400, undoneEvery: 9, strict).reached(0x008))
+
+        // Patience is not indulgence: a third taken back is short of the gate whatever the
+        // practice behind it.
+        XCTAssertFalse(model(uses: 400, undoneEvery: 3, options).reached(0x008))
+    }
+
     /// Corrections are charged to the chord the backspace took back.
     func testDeletionsAreCounted() throws {
         let dir = try logDirectory(try golden("slips", "log"))

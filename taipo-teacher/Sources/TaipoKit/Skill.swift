@@ -106,9 +106,8 @@ struct ChordSamples: Codable, Equatable {
         }
         if !everReached, total >= options.minSamples {
             let bad = outcomes.filter { $0 }.count
-            if Double(bad) <= options.maxErrorRate * Double(outcomes.count) {
-                everReached = true
-            }
+            let allowed = options.allowedErrorRate(after: total)
+            if Double(bad) <= allowed * Double(outcomes.count) { everReached = true }
         }
     }
 }
@@ -203,6 +202,18 @@ public struct SkillModel: Sendable {
         public var targetMs: UInt32
         /// The share of a chord's uses that may be corrections.
         public var maxErrorRate: Double
+        /// After this many uses, twice that share will do.
+        ///
+        /// A hard chord can sit just above the bar for as long as it is being drilled,
+        /// because the window is filled with the drill -- which is the writer's worst
+        /// context, while the bar is set by chords they meet in ordinary work.  The
+        /// apostrophe and `b` both plateaued at 11% against a bar of 10% and never once
+        /// dipped under it in ninety-six and sixty-three uses.  Neither is running ahead
+        /// of the writer at 89% right; they are just harder than what came before.
+        ///
+        /// So exposure buys patience.  Being accurate is one way past the gate and having
+        /// put in the practice while not being wildly off is another.
+        public var patience: Int
         /// Gaps longer than this are a pause, not a chord that was slow to find.
         public var pauseMs: UInt32
         /// How many recent uses the median is taken over.
@@ -214,13 +225,20 @@ public struct SkillModel: Sendable {
 
         public init(
             minSamples: Int = 12, targetMs: UInt32 = 700, maxErrorRate: Double = 0.1,
-            pauseMs: UInt32 = 2000, window: Int = 64
+            pauseMs: UInt32 = 2000, window: Int = 64, patience: Int = 60
         ) {
             self.minSamples = minSamples
             self.targetMs = targetMs
             self.maxErrorRate = maxErrorRate
             self.pauseMs = pauseMs
             self.window = window
+            self.patience = patience
+        }
+
+        /// The share of recent uses that may be corrections, given how many there have
+        /// been in all.
+        public func allowedErrorRate(after uses: Int) -> Double {
+            uses >= patience ? maxErrorRate * 2 : maxErrorRate
         }
     }
 

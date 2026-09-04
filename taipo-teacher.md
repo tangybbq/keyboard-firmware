@@ -914,6 +914,16 @@ chord with 16 deletions in 57 uses needed 103 further clean ones to average a te
 the chords carrying the most were exactly the ones being drilled hardest.  It felt stuck
 because it was stuck.
 
+**Practice buys patience at the gate.**  A chord being drilled is measured in the writer's
+worst context, while the bar is set by chords they meet in ordinary work — so a hard one can
+sit just above it for as long as it is being worked on, and being worked on is what keeps
+it there.  Measured: the apostrophe and `b` both plateaued at 11% against a bar of 10% and
+never once dipped under, over 96 and 63 uses, while everything already through sat at 2–6%.
+Neither was running ahead of the writer at 89% right; they were simply harder than what came
+before.  So there are two ways past the gate — being accurate, or having put in the practice
+(`Options.patience`, 60 uses) while not being wildly off, which is twice the bar.  Patience
+is not indulgence: a third taken back is short of the gate however long it goes on.
+
 Windowing a measurement makes it something a bad spell can take away, and a gate that can
 be taken away costs the writer items they had — the reason speed is not a gate.  So the
 gate is not the current rate but whether the rate has *ever* been good with enough uses

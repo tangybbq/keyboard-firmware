@@ -27,7 +27,7 @@ public struct SkillStore {
     struct Contents: Codable {
         /// Bumped when the shape changes, so an old file is discarded rather than
         /// misread.  A wrong cache is worse than no cache.
-        var version: Int = 4
+        var version: Int = 5
         /// The window the samples were gathered with.  A different one means the stored
         /// gaps are the wrong length and have to be gathered again.
         var window: Int
