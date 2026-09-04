@@ -179,8 +179,9 @@ Both thumbs + a digit chord gives the matching function key; v and w extend past
 
 The same engine can interpret chords with the Dosh table instead, which leaves the *upper* pinky
 out. Nineteen of the twenty-six letters are on the same chord as they are here; the seven that
-differ are listed in DOSH.md. Tap the lower-left key by itself while in taipo mode to switch
-between them.
+differ are listed in DOSH.md. Dosh also has the **two thumbs swapped** from where they are here:
+`Bk` types Space there and `Sp` types Backspace, so a Dosh capital is `+Bk` and a Dosh digit is
+`+Sp`. Tap the lower-left key by itself while in taipo mode to switch between them.
 
 There are also two chords, which work in either table:
 

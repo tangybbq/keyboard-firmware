@@ -83,11 +83,14 @@ final class ConfusionDrillTests: XCTestCase {
         }
         let dir = try logDirectory(lines.joined(separator: "\n") + "\n")
 
-        // Each table sees exactly the corrections made while it was the live one.
-        for variant in ["taipo", "dosh"] {
+        // Each table sees exactly the corrections made while it was the live one: one
+        // pass each, never both.  The counts differ because Dosh has the thumbs swapped,
+        // so the same keystrokes read as backspaces in one table and spaces in the other
+        // -- what matters here is that neither table saw the other's pass.
+        for (variant, want) in [("taipo", 13), ("dosh", 9)] {
             let model = ConfusionModel.build(
                 logDirectory: dir, layouts: try layouts(), variant: variant)
-            XCTAssertEqual(model.corrections, 13, "\(variant)")
+            XCTAssertEqual(model.corrections, want, "\(variant)")
         }
     }
 

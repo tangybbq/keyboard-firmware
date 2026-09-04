@@ -12,11 +12,10 @@ buys is not more chords but agreement with Taipo: every letter Taipo types witho
 pinky sits on exactly the chord Taipo has it on. Nineteen of the twenty-six letters are shared,
 and only seven have to be learned twice. See "Differences from Taipo" below.
 
-The other differences from the Posh wiki: the thumbs are Taipo's rather than the wiki's (see
-"Physical layout" below), both thumbs together is Taipo's "release modifiers" null key rather than
-a sticky shift, the wiki's `ralt` chord is Shift, and the media, volume and brightness keys are
-not mapped. Two more local swaps: `s` and `h` trade their punctuation layers, and `o` and `e`
-trade their navigation layers.
+The other differences from the Posh wiki: both thumbs together is Taipo's "release modifiers"
+null key rather than a sticky shift, the wiki's `ralt` chord is Shift, and the media, volume and
+brightness keys are not mapped. Two more local swaps: `s` and `h` trade their punctuation
+layers, and `o` and `e` trade their navigation layers.
 
 ## Physical layout
 
@@ -33,17 +32,22 @@ named by the letter it types alone, which is also the name Taipo gives it:
 one exception is `r+s+n+i`, which selects the Taipo table; see below). Taipo calls that key `r`,
 and this document does too when it has to name it.
 
-Thumbs: **Sp** = the thumb that types Space alone, **Bk** = the thumb that types Backspace alone.
-These are where Taipo has them; the wiki has the two swapped. The layers follow the thumb's
-function rather than its position, again as in Taipo: **+Sp** gives capitals, **+Bk** gives the
-digits, symbols and navigation keys, and **+Sp+Bk** gives the function keys and the remaining
-symbols.
+Thumbs: **Sp** and **Bk** are Taipo's names for the two thumb keys, and this document keeps
+them, the same way it keeps `r` for the dead upper pinky — they name the physical key, not what
+Dosh does with it, and the JSON export, the event logs and the drills all speak them.
+
+**Dosh has the two swapped**, which is the wiki's arrangement and the mirror of Taipo's: the `Bk`
+key types Space here, and the `Sp` key types Backspace. The layers follow the thumb's function
+rather than the key's name, again as in Taipo: the space thumb (**+Bk**) gives capitals, the
+backspace thumb (**+Sp**) gives the digits, symbols and navigation keys, and **+Sp+Bk** gives the
+function keys and the remaining symbols. So nothing about which chord means what changed with the
+swap — only which thumb the hand reaches for.
 
 Both thumbs pressed alone releases any held modifiers without typing anything.
 
 ## Single keys
 
-+Bk turns six of the seven keys into the navigation cluster, and both thumbs into the far-motion
++Sp turns six of the seven keys into the navigation cluster, and both thumbs into the far-motion
 keys. Arrow mnemonic: up and down are the middle finger's two keys, and left and right are the
 bottom row's inner two, with the index finger giving left and the ring finger right. (The wiki
 has those two the other way around.) That leaves the index top key for Enter and the lower pinky
@@ -52,7 +56,7 @@ for Escape.
 `s` is the exception: it carries the period and the double quote, which it kept when it moved
 here from `n+i`.
 
-| chord | alone | +Sp | +Bk | +Sp+Bk |
+| chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | a | a | A | Escape | Delete (fwd) |
 | o | o | O | → | End |
@@ -66,7 +70,7 @@ here from `n+i`.
 
 The one same-row pair still carrying punctuation.
 
-| chord | alone | +Sp | +Bk | +Sp+Bk |
+| chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | t+e | h | H | `,` |  |
 
@@ -76,18 +80,18 @@ A bare chord of its own. It was `h`'s both-thumbs layer — two fingers and both
 one of the commonest marks in English — and it measured accordingly: 1330ms and a fifth of
 its uses taken back, where the letters around it sat at 300ms and a twentieth.
 
-`+Sp` is deliberately left free. It is the cheapest thing still unspoken for on this shape,
+`+Bk` is deliberately left free. It is the cheapest thing still unspoken for on this shape,
 and it is being kept for a chord that needs to be cheap.
 
-| chord | alone | +Sp | +Bk | +Sp+Bk |
+| chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | t+e+i | `'` |  |  |  |
 
-## Letters whose +Bk is a digit
+## Letters whose +Sp is a digit
 
 Both thumbs gives the matching function key.
 
-| chord | alone | +Sp | +Bk | +Sp+Bk |
+| chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | e+n | r | R | 0 | F10 |
 | a+e | d | D | 1 | F1 |
@@ -100,9 +104,9 @@ Both thumbs gives the matching function key.
 | o+n | g | G | 8 | F8 |
 | n+i | y | Y | 9 | F9 |
 
-## Letters whose +Bk is a symbol
+## Letters whose +Sp is a symbol
 
-| chord | alone | +Sp | +Bk | +Sp+Bk |
+| chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | s+n | p | P | `+` | `=` |
 | o+t+e | b | B | `-` | `_` |
@@ -117,7 +121,7 @@ Both thumbs gives the matching function key.
 
 These have no both-thumbs variant.
 
-| chord | alone | +Sp | +Bk | +Sp+Bk |
+| chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | t+s | `?` | `!` | `^` |  |
 | o+e+i | `` ` `` | `~` | `%` |  |
@@ -130,7 +134,7 @@ which needs the upper pinky, so here it is the Alt chord plus the lower pinky in
 
 Shift has no both-thumbs variant, as it would be shift plus shift.
 
-| chord | alone | +Sp | +Bk | +Sp+Bk |
+| chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | e+i | Shift | `]` | `[` |  |
 | t+n | Ctrl | `)` | `(` | Ctrl+Shift |
@@ -145,7 +149,7 @@ has a modifier on its base.
 
 ## Extras
 
-| chord | alone | +Sp | +Bk | +Sp+Bk |
+| chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
 | o+t+n | Print Screen |  |  |  |
 | e+s+i | Insert |  |  |  |
@@ -155,7 +159,12 @@ consumer-control HID report the firmware doesn't have yet.
 
 ## Differences from Taipo
 
-Nineteen letters are on the same chord in both layouts, and need learning only once:
+**The thumbs are swapped** — see "Physical layout" above. That is the one difference that touches
+every chord rather than a few of them: a Dosh capital is the thumb Taipo puts its digits on, and
+the other way round.
+
+The finger keys are a closer match. Nineteen letters are on the same chord in both layouts, and
+need learning only once:
 
 | chord | letter |     | chord | letter |     | chord | letter |
 |-------|--------|-----|-------|--------|-----|-------|--------|

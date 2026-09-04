@@ -1546,6 +1546,10 @@ fn test_mod_state_sticky() {
 // The chord bits are named here by their taipo letters, which is what dosh
 // types with them too: `a o t e` on the bottom row and `s n i` on the top.
 // Only taipo's `r`, the upper pinky, spells nothing.
+//
+// The thumbs are the exception: dosh has them the other way round, so `BK` is
+// the key that types Space here and `SP` the one that types Backspace.  The
+// names still name the physical key, so a dosh capital is `+BK`.
 //////////////////////////////////////////////////////////////////////////////
 
 /// The seven finger keys and the two thumbs, on both hands, alone and with the
@@ -1563,16 +1567,16 @@ fn test_dosh_single_keys() {
         script.chord(side, N).types(Keyboard::N);
         script.chord(side, I).types(Keyboard::I);
 
-        script.chord(side, SP).types(Keyboard::Space);
-        script.chord(side, BK).types(Keyboard::DeleteBackspace);
+        script.chord(side, BK).types(Keyboard::Space);
+        script.chord(side, SP).types(Keyboard::DeleteBackspace);
 
-        script.chord(side, A | SP).types_mods(Keyboard::A, Mods::SHIFT);
-        script.chord(side, O | SP).types_mods(Keyboard::O, Mods::SHIFT);
-        script.chord(side, T | SP).types_mods(Keyboard::T, Mods::SHIFT);
-        script.chord(side, E | SP).types_mods(Keyboard::E, Mods::SHIFT);
-        script.chord(side, S | SP).types_mods(Keyboard::S, Mods::SHIFT);
-        script.chord(side, N | SP).types_mods(Keyboard::N, Mods::SHIFT);
-        script.chord(side, I | SP).types_mods(Keyboard::I, Mods::SHIFT);
+        script.chord(side, A | BK).types_mods(Keyboard::A, Mods::SHIFT);
+        script.chord(side, O | BK).types_mods(Keyboard::O, Mods::SHIFT);
+        script.chord(side, T | BK).types_mods(Keyboard::T, Mods::SHIFT);
+        script.chord(side, E | BK).types_mods(Keyboard::E, Mods::SHIFT);
+        script.chord(side, S | BK).types_mods(Keyboard::S, Mods::SHIFT);
+        script.chord(side, N | BK).types_mods(Keyboard::N, Mods::SHIFT);
+        script.chord(side, I | BK).types_mods(Keyboard::I, Mods::SHIFT);
     }
 
     script.run();
@@ -1585,19 +1589,19 @@ fn test_dosh_single_keys() {
 fn test_dosh_navigation() {
     let mut script = Script::dosh();
 
-    script.chord(LEFT, E | BK).types(Keyboard::LeftArrow);
-    script.chord(LEFT, T | BK).types(Keyboard::DownArrow);
-    script.chord(LEFT, A | BK).types(Keyboard::Escape);
-    script.chord(LEFT, O | BK).types(Keyboard::RightArrow);
-    script.chord(LEFT, I | BK).types(Keyboard::ReturnEnter);
-    script.chord(LEFT, N | BK).types(Keyboard::UpArrow);
+    script.chord(LEFT, E | SP).types(Keyboard::LeftArrow);
+    script.chord(LEFT, T | SP).types(Keyboard::DownArrow);
+    script.chord(LEFT, A | SP).types(Keyboard::Escape);
+    script.chord(LEFT, O | SP).types(Keyboard::RightArrow);
+    script.chord(LEFT, I | SP).types(Keyboard::ReturnEnter);
+    script.chord(LEFT, N | SP).types(Keyboard::UpArrow);
 
-    script.chord(RIGHT, E | SP | BK).types(Keyboard::Home);
-    script.chord(RIGHT, T | SP | BK).types(Keyboard::PageDown);
-    script.chord(RIGHT, A | SP | BK).types(Keyboard::DeleteForward);
-    script.chord(RIGHT, O | SP | BK).types(Keyboard::End);
-    script.chord(RIGHT, I | SP | BK).types(Keyboard::Tab);
-    script.chord(RIGHT, N | SP | BK).types(Keyboard::PageUp);
+    script.chord(RIGHT, E | BK | SP).types(Keyboard::Home);
+    script.chord(RIGHT, T | BK | SP).types(Keyboard::PageDown);
+    script.chord(RIGHT, A | BK | SP).types(Keyboard::DeleteForward);
+    script.chord(RIGHT, O | BK | SP).types(Keyboard::End);
+    script.chord(RIGHT, I | BK | SP).types(Keyboard::Tab);
+    script.chord(RIGHT, N | BK | SP).types(Keyboard::PageUp);
 
     script.run();
 }
@@ -1630,8 +1634,8 @@ fn test_dosh_chords() {
     script.chord(RIGHT, E | S | N).types(Keyboard::V);
 
     // And their capitals.
-    script.chord(LEFT, N | I | SP).types_mods(Keyboard::Y, Mods::SHIFT);
-    script.chord(RIGHT, N | E | SP).types_mods(Keyboard::R, Mods::SHIFT);
+    script.chord(LEFT, N | I | BK).types_mods(Keyboard::Y, Mods::SHIFT);
+    script.chord(RIGHT, N | E | BK).types_mods(Keyboard::R, Mods::SHIFT);
 
     script.run();
 }
@@ -1643,53 +1647,53 @@ fn test_dosh_digits_and_symbols() {
     let mut script = Script::dosh();
 
     // Digits.
-    script.chord(LEFT, N | E | BK).types(Keyboard::Keyboard0);
-    script.chord(LEFT, A | E | BK).types(Keyboard::Keyboard1);
-    script.chord(LEFT, A | O | BK).types(Keyboard::Keyboard2);
-    script.chord(RIGHT, N | I | BK).types(Keyboard::Keyboard9);
+    script.chord(LEFT, N | E | SP).types(Keyboard::Keyboard0);
+    script.chord(LEFT, A | E | SP).types(Keyboard::Keyboard1);
+    script.chord(LEFT, A | O | SP).types(Keyboard::Keyboard2);
+    script.chord(RIGHT, N | I | SP).types(Keyboard::Keyboard9);
 
     // Symbols on the backspace thumb.
-    script.chord(LEFT, S | N | BK).types_mods(Keyboard::Equal, Mods::SHIFT);
-    script.chord(LEFT, O | T | E | BK).types(Keyboard::Minus);
-    script.chord(RIGHT, O | I | BK).types(Keyboard::Semicolon);
-    script.chord(LEFT, T | E | S | BK).types_mods(Keyboard::Keyboard4, Mods::SHIFT);
-    script.chord(LEFT, S | BK).types(Keyboard::Dot);
+    script.chord(LEFT, S | N | SP).types_mods(Keyboard::Equal, Mods::SHIFT);
+    script.chord(LEFT, O | T | E | SP).types(Keyboard::Minus);
+    script.chord(RIGHT, O | I | SP).types(Keyboard::Semicolon);
+    script.chord(LEFT, T | E | S | SP).types_mods(Keyboard::Keyboard4, Mods::SHIFT);
+    script.chord(LEFT, S | SP).types(Keyboard::Dot);
 
     // Function keys on both thumbs.
-    script.chord(LEFT, A | E | SP | BK).types(Keyboard::F1);
-    script.chord(RIGHT, N | T | E | SP | BK).types(Keyboard::F12);
-    script.chord(LEFT, A | T | SP | BK).types(Keyboard::F11);
+    script.chord(LEFT, A | E | BK | SP).types(Keyboard::F1);
+    script.chord(RIGHT, N | T | E | BK | SP).types(Keyboard::F12);
+    script.chord(LEFT, A | T | BK | SP).types(Keyboard::F11);
 
     // And the rest of the symbols.
-    script.chord(LEFT, S | N | SP | BK).types(Keyboard::Equal);
-    script.chord(RIGHT, O | I | SP | BK).types_mods(Keyboard::Backslash, Mods::SHIFT);
+    script.chord(LEFT, S | N | BK | SP).types(Keyboard::Equal);
+    script.chord(RIGHT, O | I | BK | SP).types_mods(Keyboard::Backslash, Mods::SHIFT);
     // The apostrophe has a bare chord of its own, and `h`'s both-thumbs layer, where it
     // used to be, does nothing now.
     script.chord(LEFT, T | E | I).types(Keyboard::Apostrophe);
     script
-        .press(LEFT, T | E | SP | BK)
+        .press(LEFT, T | E | BK | SP)
         .tick(CHORD_TIME)
-        .release(LEFT, T | E | SP | BK)
+        .release(LEFT, T | E | BK | SP)
         .tick(1)
         .idle();
     // And the layer kept for a future chord is silent too.
     script
-        .press(RIGHT, T | E | I | SP)
+        .press(RIGHT, T | E | I | BK)
         .tick(CHORD_TIME)
-        .release(RIGHT, T | E | I | SP)
+        .release(RIGHT, T | E | I | BK)
         .tick(1)
         .idle();
-    script.chord(RIGHT, S | SP | BK).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
+    script.chord(RIGHT, S | BK | SP).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
 
     // The punctuation-only chords, which have no both-thumbs variant.
     script.chord(LEFT, S | T).types_mods(Keyboard::ForwardSlash, Mods::SHIFT);
-    script.chord(LEFT, S | T | SP).types_mods(Keyboard::Keyboard1, Mods::SHIFT);
-    script.chord(LEFT, S | T | BK).types_mods(Keyboard::Keyboard6, Mods::SHIFT);
+    script.chord(LEFT, S | T | BK).types_mods(Keyboard::Keyboard1, Mods::SHIFT);
+    script.chord(LEFT, S | T | SP).types_mods(Keyboard::Keyboard6, Mods::SHIFT);
     script.chord(RIGHT, I | O | E).types(Keyboard::Grave);
     script
-        .press(RIGHT, I | O | E | SP | BK)
+        .press(RIGHT, I | O | E | BK | SP)
         .tick(CHORD_TIME)
-        .release(RIGHT, I | O | E | SP | BK)
+        .release(RIGHT, I | O | E | BK | SP)
         .tick(1)
         .idle();
 
@@ -1715,18 +1719,18 @@ fn test_dosh_modifiers() {
     script.chord(RIGHT, A | O | S).mod_only(Mods::SHIFT | Mods::ALT | Mods::GUI);
 
     // Both thumbs alone releases everything.
-    script.chord(LEFT, SP | BK).releases().no_mod_state();
+    script.chord(LEFT, BK | SP).releases().no_mod_state();
 
     // The both-thumbs variants are pairs of modifiers.  Shift has none, as it
     // would be shift plus shift.
-    script.chord(LEFT, T | N | SP | BK).mod_only(Mods::CONTROL | Mods::SHIFT);
-    script.chord(LEFT, SP | BK).releases().no_mod_state();
+    script.chord(LEFT, T | N | BK | SP).mod_only(Mods::CONTROL | Mods::SHIFT);
+    script.chord(LEFT, BK | SP).releases().no_mod_state();
 
-    script.chord(RIGHT, O | S | SP | BK).mod_only(Mods::ALT | Mods::SHIFT);
-    script.chord(LEFT, SP | BK).releases().no_mod_state();
+    script.chord(RIGHT, O | S | BK | SP).mod_only(Mods::ALT | Mods::SHIFT);
+    script.chord(LEFT, BK | SP).releases().no_mod_state();
 
-    script.chord(LEFT, A | O | S | SP | BK).mod_only(Mods::GUI | Mods::SHIFT);
-    script.chord(LEFT, SP | BK).releases().no_mod_state();
+    script.chord(LEFT, A | O | S | BK | SP).mod_only(Mods::GUI | Mods::SHIFT);
+    script.chord(LEFT, BK | SP).releases().no_mod_state();
 
     // The old `ralt` chord types nothing at all now.
     script.press(LEFT, O | T | S).tick(CHORD_TIME).release(LEFT, O | T | S).tick(1).idle();
@@ -1738,21 +1742,21 @@ fn test_dosh_modifiers() {
         .mod_state(Mods::ALT, Mods::empty());
     script.chord(RIGHT, O | S).idle().mod_state(Mods::ALT, Mods::ALT);
     script
-        .chord(LEFT, I | SP | BK)
+        .chord(LEFT, I | BK | SP)
         .presses(Keyboard::Tab, Mods::ALT)
         .mod_only(Mods::ALT);
-    script.chord(LEFT, SP | BK).releases().no_mod_state();
+    script.chord(LEFT, BK | SP).releases().no_mod_state();
 
     // The bracket layers, which stay on the chords they were learned on
     // rather than following the modifiers that moved.
-    script.chord(LEFT, E | I | SP).types(Keyboard::RightBrace);
-    script.chord(LEFT, E | I | BK).types(Keyboard::LeftBrace);
-    script.chord(LEFT, O | S | SP).types_mods(Keyboard::RightBrace, Mods::SHIFT);
-    script.chord(LEFT, O | S | BK).types_mods(Keyboard::LeftBrace, Mods::SHIFT);
-    script.chord(LEFT, T | N | SP).types_mods(Keyboard::Keyboard0, Mods::SHIFT);
-    script.chord(LEFT, T | N | BK).types_mods(Keyboard::Keyboard9, Mods::SHIFT);
-    script.chord(LEFT, O | T | S | SP).types_mods(Keyboard::Dot, Mods::SHIFT);
-    script.chord(LEFT, O | T | S | BK).types_mods(Keyboard::Comma, Mods::SHIFT);
+    script.chord(LEFT, E | I | BK).types(Keyboard::RightBrace);
+    script.chord(LEFT, E | I | SP).types(Keyboard::LeftBrace);
+    script.chord(LEFT, O | S | BK).types_mods(Keyboard::RightBrace, Mods::SHIFT);
+    script.chord(LEFT, O | S | SP).types_mods(Keyboard::LeftBrace, Mods::SHIFT);
+    script.chord(LEFT, T | N | BK).types_mods(Keyboard::Keyboard0, Mods::SHIFT);
+    script.chord(LEFT, T | N | SP).types_mods(Keyboard::Keyboard9, Mods::SHIFT);
+    script.chord(LEFT, O | T | S | BK).types_mods(Keyboard::Dot, Mods::SHIFT);
+    script.chord(LEFT, O | T | S | SP).types_mods(Keyboard::Comma, Mods::SHIFT);
 
     script.run();
 }
@@ -1993,7 +1997,7 @@ fn test_dosh_toggle_lower_rows() {
 
     script.chord(LEFT, A).types(Keyboard::A);
     script.chord(RIGHT, N | I).types(Keyboard::Y);
-    script.chord(LEFT, N | E | BK).types(Keyboard::Keyboard0);
+    script.chord(LEFT, N | E | SP).types(Keyboard::Keyboard0);
 
     // The upper pinky is still dead down here.
     script.press(LEFT, R).tick(CHORD_TIME).release(LEFT, R).tick(1).idle();

@@ -33,16 +33,17 @@ final class ChordDiagramTests: XCTestCase {
         let layouts = try layouts()
         let diagram = ChordDiagram(layouts: layouts)
 
-        // Dosh's `1` is `a+e+Bk` -- the lower pinky, the lower index, and a thumb.
+        // Dosh's `1` is `a+e+Sp` -- the lower pinky, the lower index, and a thumb.  Dosh
+        // has the thumbs swapped, so its digit layer is the key Taipo types Space with.
         let one = try XCTUnwrap(
             layouts.variants["dosh"]?.chords.first { $0.action.types == "1" })
-        XCTAssertEqual(Set(diagram.pressed(one.code).map(\.name)), ["a", "e", "Bk"])
-        XCTAssertEqual(diagram.spell(one.code), "a+e+Bk")
+        XCTAssertEqual(Set(diagram.pressed(one.code).map(\.name)), ["a", "e", "Sp"])
+        XCTAssertEqual(diagram.spell(one.code), "a+e+Sp")
 
         // And the same chord code in Taipo is a different letter but the same keys, which
         // is exactly what a picture is for.
         let taipo = try XCTUnwrap(layouts.chord(one.code, variant: "taipo"))
-        XCTAssertEqual(Set(diagram.pressed(taipo.code).map(\.name)), ["a", "e", "Bk"])
+        XCTAssertEqual(Set(diagram.pressed(taipo.code).map(\.name)), ["a", "e", "Sp"])
     }
 
     /// Every chord in both tables draws, and draws something.

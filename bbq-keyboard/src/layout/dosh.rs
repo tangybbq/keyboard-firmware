@@ -16,9 +16,10 @@
 //!
 //! Only the table differs from Taipo: the chord accumulation, the chord timing,
 //! the modifier handling, and the scan code mapping are all shared, so the same
-//! chord code bits are used.  Each key now types the letter its bit is named
-//! after in [`crate::layout::export::BIT_NAMES`], so a Dosh chord can be
-//! spelled in the same alphabet as a Taipo one:
+//! chord code bits are used.  Each finger key now types the letter its bit is
+//! named after in [`crate::layout::export::BIT_NAMES`], so a Dosh chord can be
+//! spelled in the same alphabet as a Taipo one.  The thumbs are the exception,
+//! and are swapped; see below.
 //!
 //! | bit     | finger | row    | Dosh letter typed alone |
 //! |---------|--------|--------|-------------------------|
@@ -30,11 +31,27 @@
 //! | `0x020` | ring   | top    | `s`                     |
 //! | `0x040` | middle | top    | `n`                     |
 //! | `0x080` | index  | top    | `i`                     |
-//! | `0x100` | thumb  |        | Space                   |
-//! | `0x200` | thumb  |        | Backspace               |
+//! | `0x100` | thumb  |        | Backspace               |
+//! | `0x200` | thumb  |        | Space                   |
 //!
 //! The upper pinky bit (`0x010`, Taipo's `r`) appears in no entry here but the
 //! `rsni` variant selection chord.
+//!
+//! # The thumbs
+//!
+//! The thumbs are the wiki's way round, which is the mirror of Taipo's: the
+//! key the shared bit naming calls `Sp` (`0x100`) types Backspace in Dosh, and
+//! the one it calls `Bk` (`0x200`) types Space.  The bit names stay Taipo's,
+//! the way `r` does, because they name the physical key rather than what a
+//! table does with it, and the JSON export, the event logs and the drills all
+//! speak them.
+//!
+//! The layers follow the thumb's *function* rather than the bit's name, as
+//! they do in Taipo: capitals are the space thumb, so `+0x200`, and the
+//! digits, symbols and navigation keys are the backspace thumb, so `+0x100`.
+//! Nothing about which chord means what changed with the swap — only which
+//! thumb the hand reaches for — but that is still every thumb chord in the
+//! table relearned.
 //!
 //! # Where the letters came from
 //!
@@ -74,12 +91,6 @@
 //!
 //! Differences from the Posh wiki, beyond the letters that moved:
 //!
-//! - **The thumbs are Taipo's.**  The wiki has space and backspace swapped
-//!   relative to Taipo; the developer wants them where Taipo has them, so
-//!   `0x100` is Space and `0x200` is Backspace.  The layers follow the thumb's
-//!   *function* rather than its position, exactly as in Taipo: the wiki's
-//!   "outer" (capitals) column is `+0x100`, and its "inner" (digits and
-//!   symbols) column is `+0x200`.
 //! - **Both thumbs alone is the null key** (`Action::Release`), as in Taipo,
 //!   rather than the wiki's sticky shift.  Taipo's double-press sticky
 //!   modifiers already cover that need.
@@ -111,53 +122,53 @@ use super::taipo::{Action, Entry, TaipoVariant};
 /// The mapping between each Dosh chord and its action.
 pub static DOSH_ACTIONS: &[Entry] = &[
     // The thumb keys by themselves, and together as the null key, as in Taipo.
-    Entry { code: 0x100, action: Action::Simple(Keyboard::Space), },
-    Entry { code: 0x200, action: Action::Simple(Keyboard::DeleteBackspace), },
+    Entry { code: 0x200, action: Action::Simple(Keyboard::Space), },
+    Entry { code: 0x100, action: Action::Simple(Keyboard::DeleteBackspace), },
     Entry { code: 0x300, action: Action::Release, },
 
-    // The seven single keys: alone, +Sp (capital), +Bk (navigation), +both.
+    // The seven single keys: alone, +Bk (capital), +Sp (navigation), +both.
     // These are Taipo's seven, less `r` on the upper pinky, which Dosh does
     // not use; each key types the letter its bit is named after.
     Entry { code: 0x001, action: Action::Simple(Keyboard::A), },
-    Entry { code: 0x101, action: Action::Shifted(Keyboard::A), },
-    Entry { code: 0x201, action: Action::Simple(Keyboard::Escape), },
+    Entry { code: 0x201, action: Action::Shifted(Keyboard::A), },
+    Entry { code: 0x101, action: Action::Simple(Keyboard::Escape), },
     Entry { code: 0x301, action: Action::Simple(Keyboard::DeleteForward), },
 
     Entry { code: 0x002, action: Action::Simple(Keyboard::O), },
-    Entry { code: 0x102, action: Action::Shifted(Keyboard::O), },
-    Entry { code: 0x202, action: Action::Simple(Keyboard::RightArrow), },
+    Entry { code: 0x202, action: Action::Shifted(Keyboard::O), },
+    Entry { code: 0x102, action: Action::Simple(Keyboard::RightArrow), },
     Entry { code: 0x302, action: Action::Simple(Keyboard::End), },
 
     Entry { code: 0x004, action: Action::Simple(Keyboard::T), },
-    Entry { code: 0x104, action: Action::Shifted(Keyboard::T), },
-    Entry { code: 0x204, action: Action::Simple(Keyboard::DownArrow), },
+    Entry { code: 0x204, action: Action::Shifted(Keyboard::T), },
+    Entry { code: 0x104, action: Action::Simple(Keyboard::DownArrow), },
     Entry { code: 0x304, action: Action::Simple(Keyboard::PageDown), },
 
     Entry { code: 0x008, action: Action::Simple(Keyboard::E), },
-    Entry { code: 0x108, action: Action::Shifted(Keyboard::E), },
-    Entry { code: 0x208, action: Action::Simple(Keyboard::LeftArrow), },
+    Entry { code: 0x208, action: Action::Shifted(Keyboard::E), },
+    Entry { code: 0x108, action: Action::Simple(Keyboard::LeftArrow), },
     Entry { code: 0x308, action: Action::Simple(Keyboard::Home), },
 
     Entry { code: 0x020, action: Action::Simple(Keyboard::S), },
-    Entry { code: 0x120, action: Action::Shifted(Keyboard::S), },
-    Entry { code: 0x220, action: Action::Simple(Keyboard::Dot), },
+    Entry { code: 0x220, action: Action::Shifted(Keyboard::S), },
+    Entry { code: 0x120, action: Action::Simple(Keyboard::Dot), },
     Entry { code: 0x320, action: Action::Shifted(Keyboard::Apostrophe), },
 
     Entry { code: 0x040, action: Action::Simple(Keyboard::N), },
-    Entry { code: 0x140, action: Action::Shifted(Keyboard::N), },
-    Entry { code: 0x240, action: Action::Simple(Keyboard::UpArrow), },
+    Entry { code: 0x240, action: Action::Shifted(Keyboard::N), },
+    Entry { code: 0x140, action: Action::Simple(Keyboard::UpArrow), },
     Entry { code: 0x340, action: Action::Simple(Keyboard::PageUp), },
 
     Entry { code: 0x080, action: Action::Simple(Keyboard::I), },
-    Entry { code: 0x180, action: Action::Shifted(Keyboard::I), },
-    Entry { code: 0x280, action: Action::Simple(Keyboard::ReturnEnter), },
+    Entry { code: 0x280, action: Action::Shifted(Keyboard::I), },
+    Entry { code: 0x180, action: Action::Simple(Keyboard::ReturnEnter), },
     Entry { code: 0x380, action: Action::Simple(Keyboard::Tab), },
 
     // `h`, the one same-row pair left carrying punctuation now that `s` is a
     // single key.
     Entry { code: 0x00c, action: Action::Simple(Keyboard::H), },
-    Entry { code: 0x10c, action: Action::Shifted(Keyboard::H), },
-    Entry { code: 0x20c, action: Action::Simple(Keyboard::Comma), },
+    Entry { code: 0x20c, action: Action::Shifted(Keyboard::H), },
+    Entry { code: 0x10c, action: Action::Simple(Keyboard::Comma), },
 
     // The apostrophe, on a bare chord of its own.
     //
@@ -166,111 +177,111 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     // uses taken back, when the letters around it sat at 300ms and 5% -- and it was one of
     // the two chords that would not come off the practice list.
     //
-    // `+Sp` is deliberately left free.  It is the cheapest thing still unspoken for on
+    // `+Bk` is deliberately left free.  It is the cheapest thing still unspoken for on
     // this shape, and it is being kept for a chord that needs to be cheap.
     Entry { code: 0x08c, action: Action::Simple(Keyboard::Apostrophe), },
 
-    // The letters whose +Bk is a digit, and whose +both is the matching
+    // The letters whose +Sp is a digit, and whose +both is the matching
     // function key.
     Entry { code: 0x048, action: Action::Simple(Keyboard::R), },
-    Entry { code: 0x148, action: Action::Shifted(Keyboard::R), },
-    Entry { code: 0x248, action: Action::Simple(Keyboard::Keyboard0), },
+    Entry { code: 0x248, action: Action::Shifted(Keyboard::R), },
+    Entry { code: 0x148, action: Action::Simple(Keyboard::Keyboard0), },
     Entry { code: 0x348, action: Action::Simple(Keyboard::F10), },
 
     Entry { code: 0x009, action: Action::Simple(Keyboard::D), },
-    Entry { code: 0x109, action: Action::Shifted(Keyboard::D), },
-    Entry { code: 0x209, action: Action::Simple(Keyboard::Keyboard1), },
+    Entry { code: 0x209, action: Action::Shifted(Keyboard::D), },
+    Entry { code: 0x109, action: Action::Simple(Keyboard::Keyboard1), },
     Entry { code: 0x309, action: Action::Simple(Keyboard::F1), },
 
     Entry { code: 0x003, action: Action::Simple(Keyboard::L), },
-    Entry { code: 0x103, action: Action::Shifted(Keyboard::L), },
-    Entry { code: 0x203, action: Action::Simple(Keyboard::Keyboard2), },
+    Entry { code: 0x203, action: Action::Shifted(Keyboard::L), },
+    Entry { code: 0x103, action: Action::Simple(Keyboard::Keyboard2), },
     Entry { code: 0x303, action: Action::Simple(Keyboard::F2), },
 
     Entry { code: 0x00a, action: Action::Simple(Keyboard::C), },
-    Entry { code: 0x10a, action: Action::Shifted(Keyboard::C), },
-    Entry { code: 0x20a, action: Action::Simple(Keyboard::Keyboard3), },
+    Entry { code: 0x20a, action: Action::Shifted(Keyboard::C), },
+    Entry { code: 0x10a, action: Action::Simple(Keyboard::Keyboard3), },
     Entry { code: 0x30a, action: Action::Simple(Keyboard::F3), },
 
     Entry { code: 0x006, action: Action::Simple(Keyboard::U), },
-    Entry { code: 0x106, action: Action::Shifted(Keyboard::U), },
-    Entry { code: 0x206, action: Action::Simple(Keyboard::Keyboard4), },
+    Entry { code: 0x206, action: Action::Shifted(Keyboard::U), },
+    Entry { code: 0x106, action: Action::Simple(Keyboard::Keyboard4), },
     Entry { code: 0x306, action: Action::Simple(Keyboard::F4), },
 
     Entry { code: 0x028, action: Action::Simple(Keyboard::M), },
-    Entry { code: 0x128, action: Action::Shifted(Keyboard::M), },
-    Entry { code: 0x228, action: Action::Simple(Keyboard::Keyboard5), },
+    Entry { code: 0x228, action: Action::Shifted(Keyboard::M), },
+    Entry { code: 0x128, action: Action::Simple(Keyboard::Keyboard5), },
     Entry { code: 0x328, action: Action::Simple(Keyboard::F5), },
 
     Entry { code: 0x081, action: Action::Simple(Keyboard::W), },
-    Entry { code: 0x181, action: Action::Shifted(Keyboard::W), },
-    Entry { code: 0x281, action: Action::Simple(Keyboard::Keyboard6), },
+    Entry { code: 0x281, action: Action::Shifted(Keyboard::W), },
+    Entry { code: 0x181, action: Action::Simple(Keyboard::Keyboard6), },
     Entry { code: 0x381, action: Action::Simple(Keyboard::F6), },
 
     Entry { code: 0x0a0, action: Action::Simple(Keyboard::F), },
-    Entry { code: 0x1a0, action: Action::Shifted(Keyboard::F), },
-    Entry { code: 0x2a0, action: Action::Simple(Keyboard::Keyboard7), },
+    Entry { code: 0x2a0, action: Action::Shifted(Keyboard::F), },
+    Entry { code: 0x1a0, action: Action::Simple(Keyboard::Keyboard7), },
     Entry { code: 0x3a0, action: Action::Simple(Keyboard::F7), },
 
     Entry { code: 0x042, action: Action::Simple(Keyboard::G), },
-    Entry { code: 0x142, action: Action::Shifted(Keyboard::G), },
-    Entry { code: 0x242, action: Action::Simple(Keyboard::Keyboard8), },
+    Entry { code: 0x242, action: Action::Shifted(Keyboard::G), },
+    Entry { code: 0x142, action: Action::Simple(Keyboard::Keyboard8), },
     Entry { code: 0x342, action: Action::Simple(Keyboard::F8), },
 
     Entry { code: 0x0c0, action: Action::Simple(Keyboard::Y), },
-    Entry { code: 0x1c0, action: Action::Shifted(Keyboard::Y), },
-    Entry { code: 0x2c0, action: Action::Simple(Keyboard::Keyboard9), },
+    Entry { code: 0x2c0, action: Action::Shifted(Keyboard::Y), },
+    Entry { code: 0x1c0, action: Action::Simple(Keyboard::Keyboard9), },
     Entry { code: 0x3c0, action: Action::Simple(Keyboard::F9), },
 
-    // The letters whose +Bk and +both are symbols.
+    // The letters whose +Sp and +both are symbols.
     Entry { code: 0x060, action: Action::Simple(Keyboard::P), },
-    Entry { code: 0x160, action: Action::Shifted(Keyboard::P), },
-    Entry { code: 0x260, action: Action::Shifted(Keyboard::Equal), },      // +
+    Entry { code: 0x260, action: Action::Shifted(Keyboard::P), },
+    Entry { code: 0x160, action: Action::Shifted(Keyboard::Equal), },      // +
     Entry { code: 0x360, action: Action::Simple(Keyboard::Equal), },       // =
 
     Entry { code: 0x00e, action: Action::Simple(Keyboard::B), },
-    Entry { code: 0x10e, action: Action::Shifted(Keyboard::B), },
-    Entry { code: 0x20e, action: Action::Simple(Keyboard::Minus), },       // -
+    Entry { code: 0x20e, action: Action::Shifted(Keyboard::B), },
+    Entry { code: 0x10e, action: Action::Simple(Keyboard::Minus), },       // -
     Entry { code: 0x30e, action: Action::Shifted(Keyboard::Minus), },      // _
 
     Entry { code: 0x068, action: Action::Simple(Keyboard::V), },
-    Entry { code: 0x168, action: Action::Shifted(Keyboard::V), },
-    Entry { code: 0x268, action: Action::Simple(Keyboard::ForwardSlash), },// /
+    Entry { code: 0x268, action: Action::Shifted(Keyboard::V), },
+    Entry { code: 0x168, action: Action::Simple(Keyboard::ForwardSlash), },// /
     Entry { code: 0x368, action: Action::Simple(Keyboard::Backslash), },   // \
 
     Entry { code: 0x082, action: Action::Simple(Keyboard::K), },
-    Entry { code: 0x182, action: Action::Shifted(Keyboard::K), },
-    Entry { code: 0x282, action: Action::Simple(Keyboard::Semicolon), },   // ;
+    Entry { code: 0x282, action: Action::Shifted(Keyboard::K), },
+    Entry { code: 0x182, action: Action::Simple(Keyboard::Semicolon), },   // ;
     Entry { code: 0x382, action: Action::Shifted(Keyboard::Backslash), },  // |
 
     Entry { code: 0x041, action: Action::Simple(Keyboard::J), },
-    Entry { code: 0x141, action: Action::Shifted(Keyboard::J), },
-    Entry { code: 0x241, action: Action::Shifted(Keyboard::Semicolon), },  // :
+    Entry { code: 0x241, action: Action::Shifted(Keyboard::J), },
+    Entry { code: 0x141, action: Action::Shifted(Keyboard::Semicolon), },  // :
     Entry { code: 0x341, action: Action::Shifted(Keyboard::Keyboard8), },  // *
 
     Entry { code: 0x02c, action: Action::Simple(Keyboard::X), },
-    Entry { code: 0x12c, action: Action::Shifted(Keyboard::X), },
-    Entry { code: 0x22c, action: Action::Shifted(Keyboard::Keyboard4), },  // $
+    Entry { code: 0x22c, action: Action::Shifted(Keyboard::X), },
+    Entry { code: 0x12c, action: Action::Shifted(Keyboard::Keyboard4), },  // $
     Entry { code: 0x32c, action: Action::Shifted(Keyboard::Keyboard3), },  // #
 
     Entry { code: 0x005, action: Action::Simple(Keyboard::Q), },
-    Entry { code: 0x105, action: Action::Shifted(Keyboard::Q), },
-    Entry { code: 0x205, action: Action::Shifted(Keyboard::Keyboard2), },  // @
+    Entry { code: 0x205, action: Action::Shifted(Keyboard::Q), },
+    Entry { code: 0x105, action: Action::Shifted(Keyboard::Keyboard2), },  // @
     Entry { code: 0x305, action: Action::Simple(Keyboard::F11), },
 
     Entry { code: 0x04c, action: Action::Simple(Keyboard::Z), },
-    Entry { code: 0x14c, action: Action::Shifted(Keyboard::Z), },
-    Entry { code: 0x24c, action: Action::Shifted(Keyboard::Keyboard7), },  // &
+    Entry { code: 0x24c, action: Action::Shifted(Keyboard::Z), },
+    Entry { code: 0x14c, action: Action::Shifted(Keyboard::Keyboard7), },  // &
     Entry { code: 0x34c, action: Action::Simple(Keyboard::F12), },
 
     // The punctuation-only chords, which have no +both.
     Entry { code: 0x024, action: Action::Shifted(Keyboard::ForwardSlash), },// ?
-    Entry { code: 0x124, action: Action::Shifted(Keyboard::Keyboard1), },   // !
-    Entry { code: 0x224, action: Action::Shifted(Keyboard::Keyboard6), },   // ^
+    Entry { code: 0x224, action: Action::Shifted(Keyboard::Keyboard1), },   // !
+    Entry { code: 0x124, action: Action::Shifted(Keyboard::Keyboard6), },   // ^
 
     Entry { code: 0x08a, action: Action::Simple(Keyboard::Grave), },        // `
-    Entry { code: 0x18a, action: Action::Shifted(Keyboard::Grave), },       // ~
-    Entry { code: 0x28a, action: Action::Shifted(Keyboard::Keyboard5), },   // %
+    Entry { code: 0x28a, action: Action::Shifted(Keyboard::Grave), },       // ~
+    Entry { code: 0x18a, action: Action::Shifted(Keyboard::Keyboard5), },   // %
 
     // The modifiers, which are Taipo's: the same-finger vertical pairs, with
     // the index pair Shift, the middle pair Control and the ring pair Alt.
@@ -281,17 +292,17 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     // learned on rather than following the modifier that moved.  Shift has no
     // both-thumbs variant, as it would be shift plus shift.
     Entry { code: 0x088, action: Action::OneShot(Mods::SHIFT), },
-    Entry { code: 0x188, action: Action::Simple(Keyboard::RightBrace), },   // ]
-    Entry { code: 0x288, action: Action::Simple(Keyboard::LeftBrace), },    // [
+    Entry { code: 0x288, action: Action::Simple(Keyboard::RightBrace), },   // ]
+    Entry { code: 0x188, action: Action::Simple(Keyboard::LeftBrace), },    // [
 
     Entry { code: 0x044, action: Action::OneShot(Mods::CONTROL), },
-    Entry { code: 0x144, action: Action::Shifted(Keyboard::Keyboard0), },   // )
-    Entry { code: 0x244, action: Action::Shifted(Keyboard::Keyboard9), },   // (
+    Entry { code: 0x244, action: Action::Shifted(Keyboard::Keyboard0), },   // )
+    Entry { code: 0x144, action: Action::Shifted(Keyboard::Keyboard9), },   // (
     Entry { code: 0x344, action: Action::OneShot(Mods::CONTROL.union(Mods::SHIFT)), },
 
     Entry { code: 0x022, action: Action::OneShot(Mods::ALT), },
-    Entry { code: 0x122, action: Action::Shifted(Keyboard::RightBrace), },  // }
-    Entry { code: 0x222, action: Action::Shifted(Keyboard::LeftBrace), },   // {
+    Entry { code: 0x222, action: Action::Shifted(Keyboard::RightBrace), },  // }
+    Entry { code: 0x122, action: Action::Shifted(Keyboard::LeftBrace), },   // {
     Entry { code: 0x322, action: Action::OneShot(Mods::ALT.union(Mods::SHIFT)), },
 
     Entry { code: 0x023, action: Action::OneShot(Mods::GUI), },
@@ -299,8 +310,8 @@ pub static DOSH_ACTIONS: &[Entry] = &[
 
     // The angle brackets, on the chord that used to be the wiki's `ralt`.
     // Its base is unmapped now that Shift is on Taipo's chord.
-    Entry { code: 0x126, action: Action::Shifted(Keyboard::Dot), },         // >
-    Entry { code: 0x226, action: Action::Shifted(Keyboard::Comma), },       // <
+    Entry { code: 0x226, action: Action::Shifted(Keyboard::Dot), },         // >
+    Entry { code: 0x126, action: Action::Shifted(Keyboard::Comma), },       // <
 
     // The two extra keys that are simple enough to send.  Their remaining
     // layers are the volume, mute and brightness keys, which need a
