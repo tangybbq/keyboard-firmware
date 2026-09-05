@@ -59,7 +59,7 @@ use super::{DOSH_TOGGLE_KEY, ROW_TOGGLE_KEY};
 /// resolving every later chord against a table the keyboard is no longer
 /// using.  That is the same quiet wrongness the fingerprint exists to catch,
 /// so it gets a bump rather than being treated as a new field.
-const FORMAT_VERSION: u32 = 2;
+const FORMAT_VERSION: u32 = 3;
 
 /// The name of each chord bit, in bit order, as `TAIPO.md` names them: the
 /// bottom row from pinky to index, then the top row, then the two thumbs.
@@ -107,6 +107,13 @@ pub fn layouts_json() -> String {
     );
     out.push_str(&format!("  \"scancode_set\": \"{}\",\n", SCANCODE_SET));
     out.push_str(&format!("  \"chord_time_ms\": {},\n", CHORD_TIME));
+    // Which table the engine comes up in, so that a host replaying a log that
+    // never mentions the table does not have to assume -- assuming is how a
+    // morning of Dosh came to be folded into Taipo's measurements.
+    out.push_str(&format!(
+        "  \"default_variant\": \"{}\",\n",
+        TaipoVariant::DEFAULT.name()
+    ));
     // The same number the device reports in `Reply::Hello`, so a host can tell
     // whether the firmware it is talking to has the tables described here.
     out.push_str(&format!(

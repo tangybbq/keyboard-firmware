@@ -8,6 +8,15 @@ public struct Layouts: Decodable {
     public let formatVersion: Int
     public let scancodeSet: String
     public let chordTimeMs: UInt32
+    /// The table the engine comes up in, and so what a log that never mentions the table
+    /// means.
+    ///
+    /// Read rather than assumed.  A reader that guesses is a reader that disagrees with
+    /// the firmware the moment the firmware changes its mind, and the disagreement is
+    /// silent: chords resolve, words segment, and a whole session lands in the wrong
+    /// table's measurements.  `bbq-keyboard/src/layout/taipo.rs` holds the constant this
+    /// comes from.
+    public let defaultVariant: String
     /// The fingerprint the device reports in `Reply::Hello`.  They must agree, or every
     /// chord this resolves is a plausible lie.
     public let fingerprint: String
@@ -60,6 +69,7 @@ public struct Layouts: Decodable {
         case formatVersion = "format_version"
         case scancodeSet = "scancode_set"
         case chordTimeMs = "chord_time_ms"
+        case defaultVariant = "default_variant"
         case fingerprint, bits, variants
         case scanMap = "scan_map"
     }

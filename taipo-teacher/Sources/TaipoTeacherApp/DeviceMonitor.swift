@@ -37,6 +37,11 @@ public final class DeviceMonitor: ObservableObject {
     /// target, the confusions, the ladder -- because Taipo and Dosh are different skills
     /// that happen to share an engine.  Drilling Dosh against Taipo's table would score
     /// the right typing as wrong and, worse, teach the wrong chords.
+    ///
+    /// Seeded from `layouts.default_variant` as soon as the tables load, and thereafter
+    /// whatever the log's markers last said.  The keyboard announces its state when the
+    /// collector connects, so this placeholder is only what the menu shows for the moment
+    /// before the tables are in hand.
     @Published public private(set) var variant: String = "taipo"
 
     /// Practice lines.
@@ -515,6 +520,7 @@ public final class DeviceMonitor: ObservableObject {
             : LayoutMismatch(device: hello.layoutFingerprint, app: layouts.fingerprintValue)
         Task { @MainActor [weak self] in
             self?.layouts = layouts
+            self?.variant = layouts.defaultVariant
             self?.status = .connected(device: hello.info, mismatch: mismatch)
             self?.nextDrill()
         }

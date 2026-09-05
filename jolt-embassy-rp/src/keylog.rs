@@ -30,6 +30,8 @@ use embassy_time::Instant;
 use minder::keylog::{Delta, Marker, Record, RECORD_SIZE};
 use minder::Event;
 
+use bbq_keyboard::layout::taipo::TaipoVariant;
+
 use crate::minder::push_event;
 
 /// How many records the buffer holds.
@@ -112,7 +114,12 @@ impl KeyLog {
             enabled: false,
             watermark: 0,
             notified: false,
-            state: [0; STATE_MARKERS],
+            // Not all zeros: slot 1 is the chord table, and the engine comes up in
+            // `TaipoVariant::DEFAULT` rather than in whichever variant happens to encode
+            // as zero.  A host joining the stream is told this state verbatim by
+            // `log_state`, so a wrong value here is a whole session attributed to the
+            // wrong table.
+            state: [0, TaipoVariant::DEFAULT.marker(), 0],
         }
     }
 

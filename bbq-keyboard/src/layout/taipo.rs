@@ -62,17 +62,57 @@ use super::{taipo_map, LayoutActions};
 /// The engine, the chord timing, and the modifier handling are the same for
 /// every variant; only the table that maps a chord code to an [`Action`]
 /// differs.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TaipoVariant {
     /// The Taipo layout itself.
-    #[default]
     Taipo,
     /// Dosh, a Taipo-derived layout that leaves the upper pinky out.  See the
     /// [`dosh`](super::dosh) module.
     Dosh,
 }
 
+impl Default for TaipoVariant {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl TaipoVariant {
+    /// The table the engine comes up in, and therefore what a log that says
+    /// nothing about the table means.
+    ///
+    /// Three things have to agree about this and they are not in one place:
+    /// the engine here, the key log's idea of the state before anything has
+    /// changed it, and the host's replay in another language entirely.  They
+    /// disagreed once -- a day's typing that never mentioned the table read as
+    /// the other one, and a morning of practice landed in the wrong table's
+    /// measurements with nothing about the replay looking wrong.  So the first
+    /// two read this constant, and [`export`](super::export) writes it into
+    /// `layouts.json` for the third.
+    pub const DEFAULT: TaipoVariant = TaipoVariant::Taipo;
+
+    /// The `Marker::Variant` value that names this table in the key log.
+    ///
+    /// Distinct from the byte [`fingerprint`](super::fingerprint) hashes for
+    /// the same variant, which happens to be the same number and must not be
+    /// made to follow this one: that is a hash discriminant, and tying it to a
+    /// log format would let a change here move every fingerprint.
+    pub const fn marker(self) -> u8 {
+        match self {
+            TaipoVariant::Taipo => 0,
+            TaipoVariant::Dosh => 1,
+        }
+    }
+
+    /// What this table is called, in `layouts.json` and in the key log's
+    /// textual form.
+    pub const fn name(self) -> &'static str {
+        match self {
+            TaipoVariant::Taipo => "taipo",
+            TaipoVariant::Dosh => "dosh",
+        }
+    }
+
     fn toggle(self) -> Self {
         match self {
             TaipoVariant::Taipo => TaipoVariant::Dosh,

@@ -119,8 +119,13 @@ public final class ChordEngine {
     private let layouts: Layouts
     private let chordTimeMs: UInt32
 
-    /// The chord table in use.  Follows the log's `variant` markers.
-    public private(set) var variant: String = "taipo"
+    /// The chord table in use.  Follows the log's `variant` markers, and starts at the
+    /// table the keyboard itself comes up in.
+    ///
+    /// Taken from the tables rather than written down here: a log stretch with no
+    /// `variant` marker in it means "the device never said", which is a fact about the
+    /// firmware's default and not about this reader's opinion.
+    public private(set) var variant: String
     /// Whether the two-row layout sits on the lower rows of a three-row board.
     public private(set) var lowerRow = false
 
@@ -129,6 +134,7 @@ public final class ChordEngine {
 
     public init(layouts: Layouts) {
         self.layouts = layouts
+        self.variant = layouts.defaultVariant
         self.chordTimeMs = layouts.chordTimeMs
         self.sides = [SideManager(side: .left), SideManager(side: .right)]
     }

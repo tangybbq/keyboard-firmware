@@ -3,6 +3,7 @@
 //! Dispatch is shared across the system via immutable reference, so data within will need to be
 //! protected using Atomic or Mutexes.
 
+use bbq_keyboard::layout::taipo::TaipoVariant;
 use bbq_keyboard::layout::{LayoutActions, LayoutManager};
 #[cfg(feature = "steno")]
 use bbq_keyboard::steno_delay::StenoDelay;
@@ -404,7 +405,7 @@ impl LayoutActions for Dispatch {
         match submode {
             MinorMode::Dosh => {
                 *self.dosh.lock().await = true;
-                keylog::log_marker(Marker::Variant, 1);
+                keylog::log_marker(Marker::Variant, TaipoVariant::Dosh.marker());
                 self.update_variant_led().await;
             }
         }
@@ -414,7 +415,7 @@ impl LayoutActions for Dispatch {
         match submode {
             MinorMode::Dosh => {
                 *self.dosh.lock().await = false;
-                keylog::log_marker(Marker::Variant, 0);
+                keylog::log_marker(Marker::Variant, TaipoVariant::Taipo.marker());
                 self.update_variant_led().await;
             }
         }
