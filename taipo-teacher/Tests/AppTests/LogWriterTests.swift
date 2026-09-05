@@ -36,6 +36,11 @@ final class LogWriterTests: XCTestCase {
         .key(code: code, press: press, delta: Delta(raw: delta))
     }
 
+    /// A state marker, at no delay from the record before it.
+    private func marker(_ marker: Marker, _ value: UInt8) -> LogRecord {
+        .marker(marker: marker, value: value, delta: Delta(raw: 0))
+    }
+
     func testRollingOverStartsANewTimelineUnderItsOwnHeader() throws {
         var clock = Date(timeIntervalSince1970: 1_788_300_000)  // some afternoon
         let writer = LogWriter(directory: directory, now: { clock })
@@ -70,6 +75,69 @@ final class LogWriterTests: XCTestCase {
         let times = after.filter { !$0.hasPrefix("#") }
             .compactMap { UInt64($0.split(separator: " ")[0]) }
         XCTAssertEqual(times, [200, 260])
+    }
+
+    /// The state markers are what a reader restores the chord table from, and a marker
+    /// is a change rather than a statement -- so a file that opens without them reads as
+    /// the defaults.  A morning of Dosh typing was folded into the Taipo table this way,
+    /// and nothing about the replay looked wrong while it happened.
+    func testRollingOverRepeatsTheDeviceState() throws {
+        var clock = Date(timeIntervalSince1970: 1_788_300_000)
+        let writer = LogWriter(directory: directory, now: { clock })
+        let layouts = try Layouts.bundled()
+
+        writer.beginSession(device: "mesa2", bootID: 0x1234, fingerprint: 0xabcd)
+        writer.append(
+            [
+                marker(.mode, 0), marker(.variant, 1), marker(.rowShift, 1),
+                key(100, 0), key(50, 0, press: false),
+            ], layouts: layouts)
+
+        clock = clock.addingTimeInterval(24 * 3600)
+        let secondDay = Self.day(of: clock)
+        writer.append([key(200, 1), key(60, 1, press: false)], layouts: layouts)
+        writer.close()
+
+        let after = try contents(secondDay)
+        XCTAssertTrue(after.first?.hasPrefix("# session device=mesa2") == true)
+        // At offset zero: the state was already true before the first record of the day.
+        XCTAssertEqual(
+            after.filter { $0.contains(" = ") },
+            ["0 = mode 0", "0 = variant 1", "0 = row 1"])
+
+        // What a reader makes of it, which is the point of writing them.
+        let sessions = KeyLogFile.sessions(from: after.joined(separator: "\n") + "\n", layouts: layouts)
+        let engine = ChordEngine(layouts: layouts)
+        for entry in sessions.flatMap(\.entries) {
+            switch entry {
+            case .marker(let m): engine.marker(m.name, value: m.value)
+            case .key(let e): _ = engine.feed(key: e.key, press: e.press, timeMs: e.timeMs)
+            }
+        }
+        XCTAssertEqual(engine.variant, "dosh")
+        XCTAssertTrue(engine.lowerRow)
+    }
+
+    /// A reset ends the timeline the state belonged to.  The device announces its own on
+    /// the way back, and repeating what the last boot was doing would be a guess.
+    func testAResetDropsTheState() throws {
+        var clock = Date(timeIntervalSince1970: 1_788_300_000)
+        let writer = LogWriter(directory: directory, now: { clock })
+        let layouts = try Layouts.bundled()
+
+        writer.beginSession(device: "mesa2", bootID: 0x1234, fingerprint: 0xabcd)
+        writer.append([marker(.variant, 1), key(100, 0)], layouts: layouts)
+        writer.noteReset()
+
+        clock = clock.addingTimeInterval(24 * 3600)
+        let secondDay = Self.day(of: clock)
+        writer.append([key(200, 1)], layouts: layouts)
+        writer.close()
+
+        let after = try contents(secondDay)
+        XCTAssertFalse(after.contains { $0.contains(" = ") })
+        // And with the session over, there is no header to repeat either.
+        XCTAssertFalse(after.contains { $0.hasPrefix("# session") })
     }
 
     private static func day(of date: Date) -> String {

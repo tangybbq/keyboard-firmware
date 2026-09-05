@@ -670,6 +670,17 @@ either of them.  The plan's own habit — "found by writing its first real user"
   day before, step backwards, and have no session header covering either.  The fix chooses
   the file first, and repeats the session header into the new file so a reader still knows
   which keyboard and which tables produced what follows.
+- **...and then stranded the state along with it.**  Repeating the header was not enough.
+  The mode, the chord table and the row position reach the log as *markers*, which record a
+  change rather than state a fact, so a reader takes them from the markers it has seen and
+  its own defaults for the rest.  Within one file that is right; across a rollover it is
+  not.  A session that crossed midnight opened the new file with no markers at all, and
+  nothing said the state again until the writer next changed something — so a morning of
+  Dosh replayed as Taipo and was folded into the wrong table's measurements, while the
+  ladder for the table actually being typed sat still.  Four of the first seven days in the
+  corpus have such a file.  The rollover now repeats the state at offset zero, in the order
+  the device sends its own snapshot on connect, and a reset drops it rather than guessing
+  what the next boot is doing.
 - **The reader would only split a timeline where it was told to.**  `sessions_from_text`
   split at the three comment lines the collector writes, so the unannounced break above
   reached the replay's monotonic assert and panicked — a correct complaint from the wrong

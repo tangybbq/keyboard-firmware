@@ -33,6 +33,21 @@ final class LogWriter {
     /// check the fingerprint of.  Sessions outlive midnight, so the header has to be
     /// reproducible rather than only written when the device connects.
     private var sessionHeader: String?
+    /// What the device last said its state was: the mode, the chord table and the row
+    /// position.
+    ///
+    /// A marker records a *change*, so a reader takes the state from the markers it has
+    /// seen and its own defaults for whatever it has not.  That holds within a file and
+    /// breaks across two.  A session that crosses midnight opened the new file with no
+    /// markers in it at all, and nothing announced the state again until the writer next
+    /// changed something -- so a morning of Dosh read as Taipo, folded into the wrong
+    /// table's measurements, with nothing about the replay looking wrong.  A rollover
+    /// therefore repeats the state as well as the header.
+    private var state: [Marker: UInt8] = [:]
+
+    /// The order a repeated snapshot is written in, which is the order the device sends
+    /// its own on connect.
+    private static let stateMarkers: [Marker] = [.mode, .variant, .rowShift]
 
     /// Where the logs live.
     static var defaultDirectory: URL {
@@ -86,7 +101,13 @@ final class LogWriter {
         // a rollover in the middle of a session, and the new file needs its own copy or
         // it opens with records whose device, boot and tables are nowhere stated.
         if opening != nil, let header = sessionHeader {
-            try handle.write(contentsOf: Data(header.utf8))
+            var opener = header
+            // At offset zero, because that is where the new timeline starts and the state
+            // was already true before the first record in it.
+            for marker in Self.stateMarkers where state[marker] != nil {
+                opener += "0 = \(marker.name) \(state[marker]!)\n"
+            }
+            try handle.write(contentsOf: Data(opener.utf8))
         }
         return handle
     }
@@ -123,8 +144,11 @@ final class LogWriter {
     func noteReset() {
         rollOver()
         // The offsets carry on; it is the header that stops applying, since the session
-        // it described is over and `beginSession` is what says what replaced it.
+        // it described is over and `beginSession` is what says what replaced it.  The
+        // state goes with it: the device is starting again and will announce its own,
+        // and repeating what the last boot was doing would be a guess.
         sessionHeader = nil
+        state.removeAll()
         write("# device reset\n")
     }
 
@@ -147,6 +171,7 @@ final class LogWriter {
                 text += "\(offsetMs) \(press ? "+" : "-") \(keyName(code, layouts))\n"
             case .marker(let marker, let value, _):
                 text += "\(offsetMs) = \(marker.name) \(value)\n"
+                state[marker] = value
             case .unknown(let tag, _):
                 text += "# unknown record tag \(tag)\n"
             }
