@@ -34,11 +34,17 @@ final class GoldenTests: XCTestCase {
             let text = line.trimmingCharacters(in: .whitespaces)
             if text.isEmpty || text.hasPrefix("#") { continue }
             let fields = text.split(separator: " ").map(String.init)
-            guard fields.count == 3 else { continue }
 
-            if fields[1] == "=" {
-                continue  // markers carry no key
+            // `0 = variant 0`: which table the log was typed in.  Acted on, not skipped --
+            // the fixture says so precisely because neither engine should be guessing, and
+            // the Rust side that wrote it replayed it in the table named here.
+            if fields.count == 4, fields[1] == "=" {
+                if let value = UInt8(fields[3]) {
+                    engine.marker(fields[2], value: value)
+                }
+                continue
             }
+            guard fields.count == 3 else { continue }
             guard let time = UInt32(fields[0]) else { continue }
             let press = fields[1] == "+"
             guard let key = keyCode(fields[2], try layouts()) else { continue }

@@ -85,6 +85,11 @@ pub struct Style {
 impl Default for Style {
     fn default() -> Style {
         Style {
+            // Named rather than [`TaipoVariant::DEFAULT`], so that a test's claims about
+            // what a chord types stay claims about a particular table.  A synthetic log
+            // is bare key events -- the format has no `variant` marker -- so a caller
+            // generating for the table the engine does not come up in has to put the
+            // replay there itself, by tapping the toggle as a writer would.
             variant: TaipoVariant::Taipo,
             start_ms: 0,
             spread_ms: 0,

@@ -355,6 +355,15 @@ impl LayoutManager {
         }
     }
 
+    /// Put the taipo engine in a particular chord table.
+    ///
+    /// Nothing is reported: this says what the engine was already doing, for a
+    /// caller that knows it -- a replay reading a log's `variant` marker -- and
+    /// not that a writer switched.
+    pub fn set_taipo_variant(&mut self, variant: TaipoVariant) {
+        self.taipo.set_variant(variant);
+    }
+
     // For now, just pass everything through.
     pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
         #[cfg(feature = "steno")]

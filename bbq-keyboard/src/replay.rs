@@ -229,6 +229,16 @@ pub struct LogSession {
     pub layout: Option<u64>,
     /// The events, in non-decreasing time order.
     pub events: Vec<KeyLogEvent>,
+    /// The chord table the session opened in, when a `variant` marker said so.
+    ///
+    /// A marker records a change, so the ones that matter here are the ones before any
+    /// typing: the state the collector was told when it joined the stream.  Later markers
+    /// are the writer switching tables, which the engine sees for itself in the chord that
+    /// did it, and replaying them again would be reporting the same switch twice.
+    ///
+    /// `None` means the log never said, and the reader is left with the engine's own
+    /// default -- which is a fact about the firmware that wrote it, and has changed once.
+    pub variant: Option<TaipoVariant>,
 }
 
 /// Whether a comment line ends the timeline that precedes it.
@@ -283,6 +293,7 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
         started_unix: None,
         layout: None,
         events: Vec::new(),
+        variant: None,
     };
     for (num, line) in text.lines().enumerate() {
         if breaks_timeline(line) {
@@ -293,11 +304,19 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
                 // follows it, so the fingerprint is read from the same line.
                 layout: layout_from_line(line),
                 events: Vec::new(),
+                variant: None,
             };
             continue;
         }
         if let Some(started) = started_from_line(line) {
             current.started_unix = Some(started);
+            continue;
+        }
+        if let Some((_, name, value)) = marker_from_line(line) {
+            // Only while nothing has been typed yet: see `LogSession::variant`.
+            if name == "variant" && current.events.is_empty() {
+                current.variant = Some(TaipoVariant::from_marker(value));
+            }
             continue;
         }
         match KeyLogEvent::from_line(line) {
@@ -312,12 +331,17 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
                     // An unannounced break is a rollover within one session, so the
                     // tables carry across it even though the timeline does not.
                     let layout = current.layout;
+                    // ...and so does the chord table, for the same reason.  This is the
+                    // shape of a day rollover, and a morning of typing has already been
+                    // folded into the wrong table by a reader that started over here.
+                    let variant = current.variant;
                     out.push(core::mem::replace(
                         &mut current,
                         LogSession {
                             started_unix: None,
                             layout,
                             events: Vec::new(),
+                            variant,
                         },
                     ));
                 }
@@ -552,6 +576,19 @@ impl Replay {
         Replay::new_in_mode(two_row, LayoutMode::Taipo)
     }
 
+    /// A replay starting in a particular chord table.
+    ///
+    /// The log format's `variant` marker is the thing that says which table a
+    /// stretch of typing was in, and a reader that guesses instead is a reader
+    /// that goes quietly wrong: the chords all resolve, they just resolve to
+    /// something nobody typed.  This is how a caller passes on what it read.
+    pub fn new_in_variant(two_row: bool, variant: TaipoVariant) -> Replay {
+        let mut replay = Replay::new(two_row);
+        replay.layout.set_taipo_variant(variant);
+        replay.recorder.variant.replace(variant);
+        replay
+    }
+
     /// A replay starting in a particular mode.
     ///
     /// The mode is reached by tapping the mode key, using the layout's own
@@ -634,9 +671,17 @@ impl Replay {
     }
 }
 
-/// Replay a whole log in one call.
+/// Replay a whole log in one call, in the table the engine comes up in.
 pub fn replay(two_row: bool, events: &[KeyLogEvent]) -> Vec<Derived> {
-    let mut replay = Replay::new(two_row);
+    replay_in(two_row, TaipoVariant::DEFAULT, events)
+}
+
+/// Replay a whole log in one call, in a given chord table.
+///
+/// For a caller that knows which table the typing was in -- from a `variant` marker, or
+/// because it generated the log itself -- rather than one relying on the default.
+pub fn replay_in(two_row: bool, variant: TaipoVariant, events: &[KeyLogEvent]) -> Vec<Derived> {
+    let mut replay = Replay::new_in_variant(two_row, variant);
     for event in events {
         replay.feed(*event);
     }
@@ -652,7 +697,13 @@ pub fn replay(two_row: bool, events: &[KeyLogEvent]) -> Vec<Derived> {
 pub fn replay_sessions(two_row: bool, sessions: &[LogSession]) -> Vec<Vec<Derived>> {
     sessions
         .iter()
-        .map(|session| replay(two_row, &session.events))
+        .map(|session| {
+            replay_in(
+                two_row,
+                session.variant.unwrap_or(TaipoVariant::DEFAULT),
+                &session.events,
+            )
+        })
         .collect()
 }
 

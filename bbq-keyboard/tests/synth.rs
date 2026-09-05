@@ -9,7 +9,7 @@
 
 use bbq_keyboard::layout::export::char_for_key;
 use bbq_keyboard::layout::taipo::{ChordEnd, TaipoVariant};
-use bbq_keyboard::replay::{chords, replay, Derived};
+use bbq_keyboard::replay::{chords, replay_in, Derived};
 use bbq_keyboard::synth::{synth, ErrorKind, Purpose, Style, SynthLog};
 use bbq_keyboard::{KeyAction, Keyboard, Mods, Side};
 
@@ -37,10 +37,14 @@ fn typed(derived: &[Derived]) -> String {
     out
 }
 
-/// Generate and replay, on a two-row board.
+/// Generate and replay, on a two-row board, in the table the style names.
+///
+/// Told rather than assumed: a synthetic log is bare key events with no `variant` marker
+/// in them, so a replay left to its own default would read half these tests' logs in a
+/// table nobody generated them for.
 fn round_trip(target: &str, style: &Style) -> (SynthLog, Vec<Derived>) {
     let log = synth(target, style).expect("the table can type this");
-    let derived = replay(true, &log.events);
+    let derived = replay_in(true, style.variant, &log.events);
     (log, derived)
 }
 
@@ -61,42 +65,21 @@ fn test_mixed_text() {
     assert_eq!(typed(&derived), target);
 }
 
-/// The dosh table is a different layout, and the generator follows it.
+/// The two tables are different layouts, and the generator follows whichever it
+/// is given.
+///
+/// Both are named here rather than leaning on the default, since which one that
+/// is has changed once already.
 #[test]
-fn test_dosh() {
-    let style = Style {
-        variant: TaipoVariant::Dosh,
-        ..Style::default()
-    };
-    let log = synth("the rain in spain", &style).expect("dosh can type this");
-    // The replay has to be told to use the dosh table as well, which the
-    // device's Variant marker will say; here it is tapped in.
-    let mut events = log.events.clone();
-    for event in &mut events {
-        event.time_ms += 20;
+fn test_both_tables() {
+    for variant in [TaipoVariant::Taipo, TaipoVariant::Dosh] {
+        let style = Style {
+            variant,
+            ..Style::default()
+        };
+        let (_, derived) = round_trip("the rain in spain", &style);
+        assert_eq!(typed(&derived), "the rain in spain", "in {variant:?}");
     }
-    let toggle = bbq_keyboard::replay::key_for_name("k1").unwrap();
-    let mut all = toggle_tap(toggle);
-    all.extend(events);
-    let derived = replay(false, &all);
-    assert_eq!(typed(&derived), "the rain in spain");
-}
-
-/// A solo tap of the variant toggle key, at the start of a log.
-fn toggle_tap(toggle: u8) -> Vec<bbq_keyboard::replay::KeyLogEvent> {
-    use bbq_keyboard::replay::KeyLogEvent;
-    vec![
-        KeyLogEvent {
-            time_ms: 0,
-            key: toggle,
-            press: true,
-        },
-        KeyLogEvent {
-            time_ms: 5,
-            key: toggle,
-            press: false,
-        },
-    ]
 }
 
 /// A multi-character gram is one chord, and spelling it out makes it several

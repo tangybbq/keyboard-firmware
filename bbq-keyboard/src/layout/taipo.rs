@@ -104,6 +104,19 @@ impl TaipoVariant {
         }
     }
 
+    /// The table a `Marker::Variant` value names.
+    ///
+    /// Anything that is not dosh's value reads as taipo, because an unknown
+    /// value is newer firmware naming a table this build does not have, and
+    /// the tables it does have are the only ones it can look a chord up in.
+    pub const fn from_marker(value: u8) -> TaipoVariant {
+        if value == TaipoVariant::Dosh.marker() {
+            TaipoVariant::Dosh
+        } else {
+            TaipoVariant::Taipo
+        }
+    }
+
     /// What this table is called, in `layouts.json` and in the key log's
     /// textual form.
     pub const fn name(self) -> &'static str {
@@ -187,6 +200,18 @@ impl TaipoManager {
     pub fn toggle_variant(&mut self) -> TaipoVariant {
         self.variant = self.variant.toggle();
         self.variant
+    }
+
+    /// Select a chord table outright.
+    ///
+    /// For a caller that knows which table the engine should be in rather than
+    /// that it should change: a replay told by a log's `variant` marker, or a
+    /// boot that restores what was in use last.  Like [`toggle_variant`], it
+    /// leaves held modifiers alone.
+    ///
+    /// [`toggle_variant`]: Self::toggle_variant
+    pub fn set_variant(&mut self, variant: TaipoVariant) {
+        self.variant = variant;
     }
 
     /// Poll doesn't do anything.

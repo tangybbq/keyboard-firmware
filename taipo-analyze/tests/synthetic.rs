@@ -26,9 +26,22 @@ fn clean() -> Style {
     }
 }
 
-fn analyze(target: &str, style: &Style) -> Analysis {
+/// A synthetic log as text, opening with the marker that says which table it was typed in.
+///
+/// The analysis reads text, and a session that says nothing about its table is replayed in
+/// whichever one the engine comes up in.  Saying so is one line and costs nothing; leaving
+/// it out means half these fixtures quietly measure typing nobody did.
+fn synth_text(target: &str, style: &Style) -> String {
     let log = synth(target, style).expect("synth");
-    let text = log_to_text(&log.events);
+    format!(
+        "0 = variant {}\n{}",
+        style.variant.marker(),
+        log_to_text(&log.events)
+    )
+}
+
+fn analyze(target: &str, style: &Style) -> Analysis {
+    let text = synth_text(target, style);
     taipo_analyze::analyze(&text, true, &Options::default()).expect("analyze")
 }
 
@@ -37,8 +50,7 @@ fn analyze(target: &str, style: &Style) -> Analysis {
 /// What a day's log actually looks like: the collector appends to it each time it
 /// connects, and each session's offsets count from its own zero.
 fn analyze_twice(target: &str, style: &Style) -> Analysis {
-    let log = synth(target, style).expect("synth");
-    let one = log_to_text(&log.events);
+    let one = synth_text(target, style);
     let text = format!(
         "# session device=mesa1 boot_id=0x1 layout=0x2\n         # started 1788121960 (unix seconds)\n         {one}         # session device=mesa1 boot_id=0x1 layout=0x2\n         # started 1788122340 (unix seconds)\n         {one}"
     );
@@ -233,17 +245,13 @@ fn test_chord_endings() {
 #[test]
 fn test_a_mix_of_paces_ranks_nothing() {
     let target = "the quick brown fox jumps over the lazy dog and the dog does not mind";
-    let brisk = log_to_text(&synth(target, &clean()).expect("synth").events);
-    let slow = log_to_text(
-        &synth(
-            target,
-            &Style {
-                gap_ms: 600,
-                ..clean()
-            },
-        )
-        .expect("synth")
-        .events,
+    let brisk = synth_text(target, &clean());
+    let slow = synth_text(
+        target,
+        &Style {
+            gap_ms: 600,
+            ..clean()
+        },
     );
     // Each sitting is its own session, which is what a day's log is.
     let text = [&brisk, &brisk, &brisk, &slow]
@@ -343,7 +351,7 @@ fn test_the_ranking_is_only_of_chords_that_type() {
 #[test]
 fn test_a_foreign_layout_is_reported() {
     let target = "the quick brown fox";
-    let one = log_to_text(&synth(target, &clean()).expect("synth").events);
+    let one = synth_text(target, &clean());
     let ours = bbq_keyboard::layout::fingerprint::layout_fingerprint();
 
     // One session under the current tables, one under something else, one with no

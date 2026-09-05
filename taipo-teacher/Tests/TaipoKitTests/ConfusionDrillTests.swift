@@ -73,6 +73,10 @@ final class ConfusionDrillTests: XCTestCase {
             if pass == 1 { lines.append("\(lastTime + 1000) = variant 1") }
             for line in source.split(separator: "\n") {
                 let fields = line.split(separator: " ")
+                // The golden's own `variant` marker is dropped: this test says which
+                // table each pass is in, and a second opinion halfway through would
+                // put both passes in the same one.
+                if fields.count == 4, fields[1] == "=" { continue }
                 guard let time = UInt32(fields[0]) else { continue }
                 let shifted = time + UInt32(pass) * 100_000
                 lastTime = shifted

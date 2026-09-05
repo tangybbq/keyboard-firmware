@@ -24,7 +24,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use bbq_keyboard::replay::{derived_to_text, log_to_text, replay};
+use bbq_keyboard::replay::{derived_to_text, log_to_text, replay_in};
 use bbq_keyboard::synth::{synth, ErrorKind, Style};
 
 /// Where the checked-in files live.
@@ -72,10 +72,19 @@ fn check(name: &str, extension: &str, produced: &str) {
 }
 
 /// Generate a log, replay it, and check both halves.
+///
+/// The `.log` opens with a `variant` marker naming the table it was typed in, and is
+/// replayed in that table rather than in whatever the engine comes up in.  Both halves of
+/// that matter.  These files are the contract with the Swift trainer, whose engine takes
+/// its table from the markers and nothing else, so a fixture that did not say would be
+/// read here and there by two different defaults -- and the fixtures have to stay in
+/// taipo, because dosh has no n-gram chords and the corrections the `slips` and `sloppy`
+/// logs exist for do not survive the move.
 fn golden(name: &str, target: &str, style: &Style, two_row: bool) {
     let log = synth(target, style).expect("the table can type this");
-    let derived = replay(two_row, &log.events);
-    check(name, "log", &log_to_text(&log.events));
+    let derived = replay_in(two_row, style.variant, &log.events);
+    let marker = format!("0 = variant {}\n", style.variant.marker());
+    check(name, "log", &(marker + &log_to_text(&log.events)));
     check(name, "derived", &derived_to_text(&derived));
 }
 
