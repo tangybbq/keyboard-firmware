@@ -82,6 +82,11 @@ pub struct Dispatch {
     /// Whether the Taipo engine has the Dosh chord table selected.  Only
     /// meaningful in Taipo mode, but the engine keeps the setting across mode
     /// changes, so this does too.
+    ///
+    /// Seeded from the engine's own default, not from `false`.  The sub-mode is
+    /// reported on change, so nothing announces the table the keyboard came up
+    /// in: starting this at the wrong one would light the variant LED for a
+    /// table the engine is not in until the writer happened to toggle.
     dosh: Mutex<CriticalSectionRawMutex, bool>,
 }
 
@@ -121,7 +126,7 @@ impl Dispatch {
             current_mode: Mutex::new(INITIAL_MODE),
             #[cfg(feature = "steno")]
             raw_mode: Mutex::new(false),
-            dosh: Mutex::new(false),
+            dosh: Mutex::new(matches!(TaipoVariant::DEFAULT, TaipoVariant::Dosh)),
             inter: board.inter,
             usb: board.usb,
             #[cfg(feature = "steno")]

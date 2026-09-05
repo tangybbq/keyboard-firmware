@@ -274,7 +274,8 @@ fn test_single_chord() {
     assert_eq!(chord.side, Side::Left);
     assert_eq!(chord.code, 0x001);
     assert_eq!(chord.key_names(), "a");
-    assert_eq!(chord.variant, TaipoVariant::Taipo);
+    // Whatever the engine comes up in; `a` is `A` in both tables.
+    assert_eq!(chord.variant, TaipoVariant::DEFAULT);
     assert_eq!(chord.mode, LayoutMode::Taipo);
     assert_eq!(chord.end, ChordEnd::AllReleased);
     assert_eq!(chord.action, Some(ChordAction::Key(Keyboard::A)));
@@ -312,8 +313,11 @@ fn test_chord_spread() {
     assert_eq!(chords[0].last_key_ms, 40);
     assert_eq!(chords[0].spread_ms(), 40);
     assert_eq!(chords[0].end, ChordEnd::AllReleased);
-    // e+i+t is "the".
-    assert_eq!(chords[0].action, Some(ChordAction::Text("the")));
+    // e+i+t is the apostrophe in dosh, which is what the engine comes up in.
+    assert_eq!(
+        chords[0].action,
+        Some(ChordAction::Key(Keyboard::Apostrophe))
+    );
 }
 
 /// The three ways a chord can end, each reported as itself.
@@ -426,7 +430,8 @@ fn test_modifier() {
 //////////////////////////////////////////////////////////////////////////////
 
 /// The variant toggle is part of the replay: after it, chords are looked up in
-/// the dosh table, and the switch itself is reported.
+/// the other table, and the switch itself is reported.  The engine comes up in
+/// dosh, so the toggle here is the one that leaves it.
 #[test]
 fn test_variant_toggle() {
     // The dosh toggle is the steno `#` key of the outer left column, which the
@@ -449,15 +454,15 @@ fn test_variant_toggle() {
             _ => None,
         })
         .collect();
-    assert_eq!(variants, [TaipoVariant::Dosh]);
+    assert_eq!(variants, [TaipoVariant::Taipo]);
 
     let chords = chord_list(&derived);
     assert_eq!(chords.len(), 2);
     // e+s is `v` in taipo and `m` in dosh, on the same keys.
-    assert_eq!(chords[0].variant, TaipoVariant::Taipo);
-    assert_eq!(chords[0].action, Some(ChordAction::Key(Keyboard::V)));
-    assert_eq!(chords[1].variant, TaipoVariant::Dosh);
-    assert_eq!(chords[1].action, Some(ChordAction::Key(Keyboard::M)));
+    assert_eq!(chords[0].variant, TaipoVariant::Dosh);
+    assert_eq!(chords[0].action, Some(ChordAction::Key(Keyboard::M)));
+    assert_eq!(chords[1].variant, TaipoVariant::Taipo);
+    assert_eq!(chords[1].action, Some(ChordAction::Key(Keyboard::V)));
 }
 
 /// The variant selection chords replay the same way the key does: the switch
@@ -466,16 +471,18 @@ fn test_variant_toggle() {
 /// was looked up in.
 #[test]
 fn test_variant_chord() {
+    // The engine comes up in dosh, so the taipo selection goes first; selecting
+    // the table already in use is not a switch and reports nothing.
     let mut log = Log::new();
     log.tap('L', "e+s", 20)
         .wait(50)
-        // a+o+t+e, the whole bottom row, selects dosh.
-        .tap('L', "a+o+t+e", 20)
+        // r+s+n+i, the whole top row, selects taipo.
+        .tap('R', "r+s+n+i", 20)
         .wait(50)
         .tap('L', "e+s", 20)
         .wait(50)
-        // r+s+n+i, the whole top row, selects taipo again.
-        .tap('R', "r+s+n+i", 20)
+        // a+o+t+e, the whole bottom row, selects dosh again.
+        .tap('L', "a+o+t+e", 20)
         .wait(50)
         .tap('L', "e+s", 20);
 
@@ -487,34 +494,34 @@ fn test_variant_chord() {
             _ => None,
         })
         .collect();
-    assert_eq!(variants, [TaipoVariant::Dosh, TaipoVariant::Taipo]);
+    assert_eq!(variants, [TaipoVariant::Taipo, TaipoVariant::Dosh]);
 
     let chords = chord_list(&derived);
     assert_eq!(chords.len(), 5);
 
     // e+s is `v` in taipo and `m` in dosh, on the same keys.
-    assert_eq!(chords[0].variant, TaipoVariant::Taipo);
-    assert_eq!(chords[0].action, Some(ChordAction::Key(Keyboard::V)));
+    assert_eq!(chords[0].variant, TaipoVariant::Dosh);
+    assert_eq!(chords[0].action, Some(ChordAction::Key(Keyboard::M)));
 
     // The switching chord is reported in the table that named it, which is the
     // one it is replacing.
-    assert_eq!(chords[1].variant, TaipoVariant::Taipo);
+    assert_eq!(chords[1].variant, TaipoVariant::Dosh);
     assert_eq!(
         chords[1].action,
-        Some(ChordAction::Variant(TaipoVariant::Dosh))
-    );
-
-    assert_eq!(chords[2].variant, TaipoVariant::Dosh);
-    assert_eq!(chords[2].action, Some(ChordAction::Key(Keyboard::M)));
-
-    assert_eq!(chords[3].variant, TaipoVariant::Dosh);
-    assert_eq!(
-        chords[3].action,
         Some(ChordAction::Variant(TaipoVariant::Taipo))
     );
 
-    assert_eq!(chords[4].variant, TaipoVariant::Taipo);
-    assert_eq!(chords[4].action, Some(ChordAction::Key(Keyboard::V)));
+    assert_eq!(chords[2].variant, TaipoVariant::Taipo);
+    assert_eq!(chords[2].action, Some(ChordAction::Key(Keyboard::V)));
+
+    assert_eq!(chords[3].variant, TaipoVariant::Taipo);
+    assert_eq!(
+        chords[3].action,
+        Some(ChordAction::Variant(TaipoVariant::Dosh))
+    );
+
+    assert_eq!(chords[4].variant, TaipoVariant::Dosh);
+    assert_eq!(chords[4].action, Some(ChordAction::Key(Keyboard::M)));
 }
 
 /// The row position is part of the replay too: the log records key codes

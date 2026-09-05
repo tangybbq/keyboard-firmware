@@ -3,7 +3,7 @@
   "generator": "bbq-keyboard/src/layout/export.rs; regenerate with `cargo run --example gen-layouts > layouts.json`",
   "scancode_set": "proto3",
   "chord_time_ms": 100,
-  "default_variant": "taipo",
+  "default_variant": "dosh",
   "fingerprint": "0x5d2b31eb19679282",
   "bits": [
     { "bit": 0, "mask": 1, "name": "a", "finger": "pinky", "row": "bottom" },

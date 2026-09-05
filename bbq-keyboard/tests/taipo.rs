@@ -13,6 +13,7 @@
 
 use std::{cell::RefCell, collections::VecDeque};
 
+use bbq_keyboard::layout::taipo::TaipoVariant;
 use bbq_keyboard::{
     layout::{
         lower_row_remap, taipo::SCAN_MAP, LayoutActions, LayoutManager, TAIPO_CHORD_TIME,
@@ -215,7 +216,8 @@ struct Script {
     lower: bool,
 
     /// Whether the taipo engine is expected to be using the dosh table.  This
-    /// tracks which sub-mode action `toggle_dosh` should expect.
+    /// tracks which sub-mode action `toggle_dosh` should expect, and starts at
+    /// the table the engine comes up in.
     dosh: bool,
 }
 
@@ -227,7 +229,7 @@ impl Script {
             steps: Vec::new(),
             two_row: false,
             lower: false,
-            dosh: false,
+            dosh: TaipoVariant::DEFAULT == TaipoVariant::Dosh,
         };
         script.tick(1).mode(LayoutMode::Qwerty);
         script
@@ -239,23 +241,50 @@ impl Script {
             steps: Vec::new(),
             two_row: true,
             lower: false,
-            dosh: false,
+            dosh: TaipoVariant::DEFAULT == TaipoVariant::Dosh,
         };
         script.tick(1).mode(LayoutMode::Taipo);
         script
     }
 
-    /// A new script, already switched into taipo mode.
+    /// A new script, already switched into taipo mode with the *taipo* table
+    /// selected.
+    ///
+    /// The engine comes up in [`TaipoVariant::DEFAULT`], so this toggles when
+    /// that is not taipo.  Most of the tests below are about what a chord means
+    /// in the taipo table, and they should say so rather than depend on which
+    /// table happens to be the default.
     fn taipo() -> Script {
         let mut script = Script::new();
         script.to_mode(LayoutMode::Steno).to_mode(LayoutMode::Taipo);
+        if script.dosh {
+            script.toggle_dosh();
+        }
         script
     }
 
     /// A new script, already in taipo mode with the dosh table selected.
     fn dosh() -> Script {
+        let mut script = Script::new();
+        script.to_mode(LayoutMode::Steno).to_mode(LayoutMode::Taipo);
+        if !script.dosh {
+            script.toggle_dosh();
+        }
+        script
+    }
+
+    /// A new script in steno mode, with the *taipo* table selected for whatever
+    /// the taipo latch reaches.
+    ///
+    /// Built through taipo mode because that is the only place the table can be
+    /// chosen; in steno the toggle key is the `#` key and means `#`.  The mode
+    /// key cycles qwerty -> steno -> taipo, so coming back round to steno goes
+    /// the long way, and the table survives the trip.
+    fn steno_taipo() -> Script {
         let mut script = Script::taipo();
-        script.toggle_dosh();
+        script
+            .to_mode(LayoutMode::Qwerty)
+            .to_mode(LayoutMode::Steno);
         script
     }
 
@@ -1136,7 +1165,7 @@ fn test_multi_in_steno() {
 /// steno mode, and no stroke is sent.
 #[test]
 fn test_multi_steno_latched() {
-    let mut script = Script::steno();
+    let mut script = Script::steno_taipo();
 
     script.press_scan(TAIPO_KEY);
     script
@@ -1965,6 +1994,7 @@ fn test_dosh_toggle_only_in_taipo() {
 
     // Back in taipo it toggles, and the choice takes effect immediately.
     script.to_mode(LayoutMode::Taipo);
+    script.select_variant(LEFT, false);
     script.toggle_dosh();
     script.chord(LEFT, N | E).types(Keyboard::R);
 
@@ -1977,6 +2007,10 @@ fn test_dosh_toggle_only_in_taipo() {
 fn test_dosh_toggle_two_row() {
     let mut script = Script::two_row();
 
+    // Into taipo first, so the toggle under test has somewhere to go from
+    // whichever table the engine came up in.  Selecting the one already in use
+    // reports nothing, so this costs nothing when it is already there.
+    script.select_variant(LEFT, false);
     script.chord(LEFT, R).types(Keyboard::R);
 
     script.toggle_dosh();
@@ -2148,7 +2182,7 @@ fn test_variant_chord_and_key_agree() {
 /// taipo latch, live with it.
 #[test]
 fn test_variant_chord_steno_gated() {
-    let mut script = Script::steno();
+    let mut script = Script::steno_taipo();
 
     // No latch: the chord is assembled, but means nothing to taipo.  The keys
     // are still steno keys, so the release makes a stroke, as it would for any
@@ -2187,6 +2221,7 @@ fn test_variant_chord_steno_gated() {
 fn test_variant_chord_two_row() {
     let mut script = Script::two_row();
 
+    script.select_variant(LEFT, false);
     script.chord(LEFT, E | S).types(Keyboard::V);
     script.select_variant(LEFT, true);
     script.chord(LEFT, E | S).types(Keyboard::M);

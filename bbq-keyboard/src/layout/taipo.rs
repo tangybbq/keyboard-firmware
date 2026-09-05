@@ -89,7 +89,7 @@ impl TaipoVariant {
     /// measurements with nothing about the replay looking wrong.  So the first
     /// two read this constant, and [`export`](super::export) writes it into
     /// `layouts.json` for the third.
-    pub const DEFAULT: TaipoVariant = TaipoVariant::Taipo;
+    pub const DEFAULT: TaipoVariant = TaipoVariant::Dosh;
 
     /// The `Marker::Variant` value that names this table in the key log.
     ///
