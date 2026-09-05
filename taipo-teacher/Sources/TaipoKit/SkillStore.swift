@@ -37,6 +37,14 @@ public struct SkillStore {
         /// typed.  New tables therefore mean the whole checkpoint is about a keyboard
         /// that no longer exists.
         var fingerprint: String
+        /// The table a session with nothing to say about one was folded as.
+        ///
+        /// The fingerprint does not cover this -- which table the keyboard comes up in is
+        /// not part of what a chord means, so it can change without the tables changing --
+        /// but it decides how every unmarked stretch of log was read.  A checkpoint built
+        /// under a different one describes typing in the wrong table, and the cache's one
+        /// job is to give the same answer a fresh build would.
+        var defaultVariant: String
         var folded: [Folded] = []
         /// variant -> chord code, in decimal -> what has been seen of it.
         var samples: [String: [String: ChordSamples]] = [:]
@@ -62,10 +70,13 @@ public struct SkillStore {
         options: SkillModel.Options = SkillModel.Options()
     ) -> SkillModel {
         let files = SkillModel.logFiles(in: logDirectory)
-        let fresh = Contents(window: options.window, fingerprint: layouts.fingerprint)
+        let fresh = Contents(
+            window: options.window, fingerprint: layouts.fingerprint,
+            defaultVariant: layouts.defaultVariant)
         var contents = load(cache) ?? fresh
         if contents.version != fresh.version || contents.window != fresh.window
             || contents.fingerprint != fresh.fingerprint
+            || contents.defaultVariant != fresh.defaultVariant
         {
             contents = fresh
         }
