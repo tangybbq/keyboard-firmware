@@ -248,6 +248,130 @@ final class LadderTests: XCTestCase {
         XCTAssertEqual(ladder.focus.count, 3)
     }
 
+    // MARK: - Choosing what to work on
+
+    /// Everything reached, letters fast apart from `slow`, every mark and digit slow.
+    ///
+    /// The finished ladder as it actually measures: a mark is typed where the writer is
+    /// deciding what comes next, so the thinking pause is charged to it and its median
+    /// stays well over a letter's however well it is known.
+    private func matured(_ items: [LadderItem], slowLetters slow: Set<String>) -> SkillModel {
+        var skills = [UInt16: ChordSkill]()
+        for item in items {
+            let ms: UInt32 =
+                item.stage == .letter ? (slow.contains(item.label) ? 900 : 350) : 1400
+            for code in item.codes {
+                skills[code] = ChordSkill(code: code, count: 200, medianMs: ms, deleted: 0)
+            }
+        }
+        return SkillModel(skills: skills, sessions: 1, chords: 200 * items.count)
+    }
+
+    /// Left alone, a finished ladder drills nothing but marks and digits.
+    ///
+    /// Not a bug in the ranking so much as the reason the switches exist: confidence is
+    /// the only thing left to rank by once everything is reached, and punctuation loses it
+    /// permanently.
+    func testAFinishedLadderFillsUpWithMarks() throws {
+        let layouts = try layouts()
+        let items = Ladder.order(
+            layouts: layouts, variant: "dosh", options: Ladder.Options())
+        let ladder = Ladder(
+            layouts: layouts, variant: "dosh",
+            skill: matured(items, slowLetters: ["q", "z", "x"]))
+
+        XCTAssertTrue(ladder.complete)
+        XCTAssertTrue(ladder.focus.allSatisfy { $0.stage != .letter })
+    }
+
+    /// Switching the other stages off puts the weakest letters back in front.
+    func testStagesNarrowTheFocusSet() throws {
+        let layouts = try layouts()
+        let items = Ladder.order(
+            layouts: layouts, variant: "dosh", options: Ladder.Options())
+        let ladder = Ladder(
+            layouts: layouts, variant: "dosh",
+            skill: matured(items, slowLetters: ["q", "z", "x"]),
+            options: Ladder.Options(stages: [.letter]))
+
+        XCTAssertEqual(Set(ladder.focus.map(\.label)), ["q", "z", "x"])
+        // And the ladder itself is untouched: the switch says what to drill, not what has
+        // been learned.
+        XCTAssertTrue(ladder.complete)
+        XCTAssertTrue(ladder.deferred.isEmpty)
+    }
+
+    /// Letters only means letters only: no decorations, not even for circulation.
+    func testStagesKeepMarksOutOfTheMaterial() throws {
+        let layouts = try layouts()
+        let items = Ladder.order(
+            layouts: layouts, variant: "dosh", options: Ladder.Options())
+        let skill = matured(items, slowLetters: ["q", "z", "x"])
+        let maker = LadderMaker(layouts: layouts, variant: "dosh")
+
+        // With everything switched on the lines carry marks, which is what the complaint
+        // was about; with only letters they carry none.
+        let all = maker.drill(
+            Ladder(layouts: layouts, variant: "dosh", skill: skill), lines: 8, seed: 99)
+        XCTAssertTrue(all.lines.contains { $0.contains { !$0.isLetter && $0 != " " } })
+
+        let letters = maker.drill(
+            Ladder(
+                layouts: layouts, variant: "dosh", skill: skill,
+                options: Ladder.Options(stages: [.letter])), lines: 8, seed: 99)
+        XCTAssertFalse(letters.lines.isEmpty)
+        for line in letters.lines {
+            XCTAssertTrue(
+                line.allSatisfy { $0.isLowercase || $0 == " " },
+                "a letters-only drill asked for \(line)")
+        }
+    }
+
+    /// A switch turned off in front of something still being learned stalls the ladder,
+    /// and says which item it is stalled on.
+    func testDeferredNamesWhatIsHeldBack() throws {
+        let layouts = try layouts()
+        let items = Ladder.order(
+            layouts: layouts, variant: "dosh", options: Ladder.Options())
+
+        // The first point at which the ladder is waiting on something that is not a letter.
+        let learned = try XCTUnwrap(
+            (1..<items.count).first { n in
+                Ladder(layouts: layouts, variant: "dosh", skill: model(learning: n, of: items))
+                    .unlocked.dropFirst(n).contains { $0.stage != .letter }
+            })
+        let skill = model(learning: learned, of: items)
+        let open = Ladder(layouts: layouts, variant: "dosh", skill: skill)
+        let narrowed = Ladder(
+            layouts: layouts, variant: "dosh", skill: skill,
+            options: Ladder.Options(stages: [.letter]))
+
+        let held = open.unlocked.dropFirst(learned).filter { $0.stage != .letter }
+        XCTAssertEqual(narrowed.deferred.map(\.label), held.map(\.label))
+        // Held back means not drilled, and unlocking is unchanged either way -- which is
+        // exactly why the ladder cannot move past them until the switch goes back on.
+        for item in held {
+            XCTAssertFalse(narrowed.focus.contains(item))
+        }
+        XCTAssertEqual(narrowed.unlockedCount, open.unlockedCount)
+    }
+
+    /// Every switch off is not a reason to stop drilling.
+    ///
+    /// The screen will not allow it, but a defaults file can hold it and a drill still has
+    /// to ask for something.
+    func testNoStagesAtAllStillDrills() throws {
+        let layouts = try layouts()
+        let items = Ladder.order(
+            layouts: layouts, variant: "dosh", options: Ladder.Options())
+        let ladder = Ladder(
+            layouts: layouts, variant: "dosh",
+            skill: matured(items, slowLetters: ["q"]),
+            options: Ladder.Options(stages: []))
+
+        XCTAssertEqual(ladder.focus.count, 3)
+    }
+
     // MARK: - The material
 
     /// The rule the material must never break: nothing in a line needs a chord the ladder

@@ -102,11 +102,54 @@ struct DrillView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .help(
+                "Ladder unlocks letters, then numbers and marks, as each is learned.  "
+                + "Confusions drills the pairs your own corrections say you mix up.")
             Spacer()
+            if monitor.practiceMode == .ladder { stages }
+        }
+    }
+
+    /// Which kinds of item the ladder may work on.
+    ///
+    /// Needed because a finished ladder ranks by confidence alone, and marks lose that
+    /// ranking however well they are known: the pause to decide what comes next lands on
+    /// the punctuation that ends the clause, so its median stays two or three times a
+    /// letter's.  Left to itself the focus set fills with marks and digits for good, and
+    /// the letters -- which is where the typing speed actually is -- stop being drilled.
+    ///
+    /// Switches rather than a weighting.  A bias would have to guess how much of the
+    /// marks' slowness is thinking and how much is the chord, which nothing here measures;
+    /// a switch says what the afternoon is for and can be moved back in a second.  It
+    /// changes only what is drilled: everything goes on being learned from the logs, so
+    /// turning marks off does not lose the ladder's place in them.
+    private var stages: some View {
+        HStack(spacing: 10) {
+            stage(.letter, "Letters")
+            stage(.digit, "Digits")
+            stage(.punctuation, "Marks")
         }
         .help(
-            "Ladder unlocks letters, then numbers and marks, as each is learned.  "
-            + "Confusions drills the pairs your own corrections say you mix up.")
+            "What the ladder may drill.  Progress is read from your logs either way, so "
+            + "turning one off pauses its practice without losing what it has learned.")
+    }
+
+    private func stage(_ stage: LadderStage, _ label: String) -> some View {
+        Toggle(
+            label,
+            isOn: Binding(
+                get: { monitor.ladderStages.contains(stage) },
+                set: { on in
+                    var next = monitor.ladderStages
+                    if on { next.insert(stage) } else { next.remove(stage) }
+                    // The last one cannot be turned off: a drill has to ask for
+                    // something, and an empty set would silently fall back to all three.
+                    guard !next.isEmpty else { return }
+                    monitor.ladderStages = next
+                })
+        )
+        .toggleStyle(.checkbox)
+        .font(.callout)
     }
 
     /// Where the ladder is, and where each item it is working on has got to.
@@ -126,6 +169,18 @@ struct DrillView: View {
             }
             ForEach(ladder.focus, id: \.label) { item in
                 focusRow(item)
+            }
+            // The ladder only advances on items it is drilling, so a switch turned off in
+            // front of one that is still being learned stops the count -- which looks
+            // exactly like a broken ladder unless it says so.
+            if !ladder.deferred.isEmpty {
+                Label(
+                    "Held here by " + ladder.deferred.map(\.label).joined(separator: " ")
+                        + ", switched off and not learned yet.",
+                    systemImage: "pause.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
     }

@@ -84,6 +84,45 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// Which kinds of ladder item to drill.
+    ///
+    /// The writer's switch, not the model's.  A finished ladder ranks every item by
+    /// confidence, and punctuation loses that ranking permanently -- a mark is typed at a
+    /// clause boundary, so the pause to decide what comes next lands on it -- which left
+    /// the focus set showing nothing but marks and digits once the letters were all
+    /// learned.  Letters are where the typing speed is, so it has to be possible to say so.
+    ///
+    /// Kept in `UserDefaults` rather than derived, because it is a preference: the model
+    /// cannot tell what the writer wants to spend the afternoon on.
+    @Published public var ladderStages: Set<LadderStage> = DeviceMonitor.storedStages() {
+        didSet {
+            guard ladderStages != oldValue else { return }
+            DeviceMonitor.store(stages: ladderStages)
+            guard practiceMode == .ladder else { return }
+            programme = []
+            drillIndex = 0
+            lineIndex = 0
+            rebuildProgramme()
+        }
+    }
+
+    /// The key the stage switches are kept under.
+    private static let stagesKey = "ladderStages"
+
+    static func storedStages() -> Set<LadderStage> {
+        guard let raw = UserDefaults.standard.stringArray(forKey: stagesKey) else {
+            return Set(LadderStage.allCases)
+        }
+        let stages = Set(raw.compactMap(LadderStage.init(rawValue:)))
+        // An empty set would drill nothing, and a defaults file can hold one.
+        return stages.isEmpty ? Set(LadderStage.allCases) : stages
+    }
+
+    static func store(stages: Set<LadderStage>) {
+        UserDefaults.standard.set(
+            stages.map(\.rawValue).sorted(), forKey: stagesKey)
+    }
+
     /// Where the ladder has got to, for the screen to draw.  Nil in confusion mode, and
     /// until the first rebuild finishes.
     @Published public private(set) var ladder: Ladder?
@@ -332,6 +371,7 @@ public final class DeviceMonitor: ObservableObject {
         let directory = logDirectory
         let variant = self.variant
         let mode = self.practiceMode
+        let options = Ladder.Options(stages: self.ladderStages)
         // A fresh seed each time, so a block of ladder lines is never the block before.
         let seed = UInt64(Date().timeIntervalSince1970)
         Task.detached(priority: .userInitiated) {
@@ -345,7 +385,8 @@ public final class DeviceMonitor: ObservableObject {
                     logDirectory: directory,
                     cache: SkillStore.defaultURL(forLogsIn: directory),
                     layouts: layouts, variant: variant)
-                let built = Ladder(layouts: layouts, variant: variant, skill: skill)
+                let built = Ladder(
+                    layouts: layouts, variant: variant, skill: skill, options: options)
                 ladder = built
                 model = skill
                 let drill = LadderMaker(layouts: layouts, variant: variant)
@@ -361,7 +402,7 @@ public final class DeviceMonitor: ObservableObject {
             let result = (ladder, programme, skipped, model)
             await MainActor.run { [weak self] in
                 guard let self, self.practicing, self.variant == variant,
-                    self.practiceMode == mode
+                    self.practiceMode == mode, self.ladderStages == options.stages
                 else { return }
                 self.skippedSessions = result.2
                 self.skill = result.3
@@ -391,16 +432,19 @@ public final class DeviceMonitor: ObservableObject {
         refreshing = true
         let directory = logDirectory
         let variant = self.variant
+        let options = Ladder.Options(stages: self.ladderStages)
         Task.detached(priority: .utility) {
             let skill = SkillStore.model(
                 logDirectory: directory,
                 cache: SkillStore.defaultURL(forLogsIn: directory),
                 layouts: layouts, variant: variant)
-            let built = Ladder(layouts: layouts, variant: variant, skill: skill)
+            let built = Ladder(
+                layouts: layouts, variant: variant, skill: skill, options: options)
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.refreshing = false
-                guard self.practicing, self.practiceMode == .ladder, self.variant == variant
+                guard self.practicing, self.practiceMode == .ladder,
+                    self.variant == variant, self.ladderStages == options.stages
                 else { return }
                 let unlocked = self.ladder?.unlockedCount
                 self.skill = skill

@@ -9,7 +9,11 @@ import Foundation
 /// `50%` `$12`.  That teaches the chord and the context it belongs to at once.
 ///
 /// Every character of every line comes from an unlocked item, so a drill can never ask for
-/// a chord the ladder has not introduced.
+/// a chord the ladder has not introduced.  A stage switched off in `Ladder.Options.stages`
+/// is not decorated into a line at all -- neither as a focus item nor for circulation --
+/// so asking for letters only gives plain words, which is what asking for letters only
+/// ought to give.  Letters are exempt from that: they are what words are made of, and the
+/// switch is about what is *drilled*, not about what the vocabulary may use.
 
 /// A small deterministic generator.
 ///
@@ -98,7 +102,12 @@ public struct LadderMaker {
         // chosen for a focus letter: the line would then work the mark and quietly drop
         // the letter it was also meant to be practising.
         var slots = tokens.indices.filter { !reserved.contains($0) }.shuffled(using: &rng)
-        let digits = ladder.unlocked.filter { $0.stage == .digit }.map(\.label)
+        // With digits switched off, the marks whose natural shape wants a number fall back
+        // to their word forms -- `word%` rather than `50%` -- the same way they do before
+        // the first digit is unlocked.
+        let digits =
+            ladder.options.stages.contains(.digit)
+            ? ladder.unlocked.filter { $0.stage == .digit }.map(\.label) : []
 
         // The second word for the marks that join two things.  Kept short: `word*word`
         // puts a whole extra word in the line, and eight of those with the draw's usual
@@ -126,7 +135,8 @@ public struct LadderMaker {
         // Leave at least two plain words, or the line stops being typing practice.
         var budget = max(1, count - 2)
         let older = ladder.unlocked.filter {
-            $0.stage != .letter && !ladder.focus.contains($0)
+            $0.stage != .letter && ladder.options.stages.contains($0.stage)
+                && !ladder.focus.contains($0)
         }
         // One slot held back to keep what has just been learned in circulation.
         if !older.isEmpty && budget > 1 { budget -= 1 }

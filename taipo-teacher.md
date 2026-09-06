@@ -1046,6 +1046,31 @@ Speed still decides the focus set, the hint's fade and every number on the scree
 focus set holds a place for the weakest item that is reached but not yet fluent — so a slow
 comma goes on being drilled after the ladder has moved past it.
 
+**Which stages are drilled is a switch, not a measurement.**  Once the whole ladder is out,
+confidence is the only thing left to rank by, and punctuation loses that ranking
+permanently — a mark is typed at a clause boundary, where the writer is deciding what comes
+next, so the pause to think is charged to it and its median stays two to three times a
+letter's however well the chord is known.  The measured numbers say so plainly: the period
+and the comma at 786ms and 1012ms against letters at 385ms.  So a finished ladder settles
+into drilling nothing but marks and digits, while the letters — which are most of the
+typing, and so most of the speed — drop out of the focus set for good.
+
+Three checkboxes on the practice screen, `Ladder.Options.stages`, rather than a weighting.
+A bias would have to guess how much of a mark's slowness is thinking and how much is the
+chord, and nothing here measures that; a switch says what the sitting is for and can be put
+back in a second.  It is a lens on the focus set and on the material only — an item of a
+stage that is off keeps everything it has learned, since what is learned comes from the
+logs and not from what is being drilled today, and it returns to the same place when the
+switch goes back on.  Letters are exempt on the material side: the words are made of them
+whatever is switched on, because the switch is about what is *drilled*, not about what the
+vocabulary may use.  With marks and digits off, the lines are plain words — no decorations
+and none of the once-a-line circulation either.
+
+Unlocking is deliberately not filtered, which means a stage switched off in front of
+something still being learned stalls the ladder: the item stops being drilled, so it never
+reaches the gate.  Rather than leave that to be puzzled over, `Ladder.deferred` names the
+items it is held on and the screen says so.
+
 **Every item short of the gate is in the focus set, and the ladder carries one fewer than
 the set holds.**  The first is not a preference, it is what stops the ladder stalling: an
 item unlocked and then left out of the set gets no deliberate practice, so it never reaches

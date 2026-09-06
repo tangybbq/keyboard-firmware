@@ -32,12 +32,22 @@ import Foundation
 /// so `LadderMaker` decorates ordinary words rather than trying to find words containing a
 /// `%`.
 ///
+/// **The focus set can be narrowed by hand.**  `Options.stages` says which kinds of item
+/// may hold a place in it.  Once the ladder is complete every item competes for the three
+/// places on confidence alone, and the marks win that contest permanently: a mark is
+/// measured at a clause boundary where the writer is deciding what comes next, so the
+/// thinking pause is charged to it and its median stays two to three times a letter's
+/// however well it is known.  The result is a finished ladder that drills nothing but
+/// punctuation and digits.  Turning a stage off takes it out of the running for the focus
+/// set -- and out of the material -- without touching what has been learned, since the
+/// unlocked set is derived from the logs and not from what is being drilled today.
+///
 /// Nothing is stored.  The unlocked set is a pure function of `SkillModel`, which is a
 /// pure function of the logs, so progress survives without a progress file and cannot
 /// disagree with the typing it came from.
 
 /// What kind of thing a ladder item teaches.
-public enum LadderStage: String, Sendable {
+public enum LadderStage: String, CaseIterable, Codable, Sendable {
     case letter
     case digit
     case punctuation
@@ -74,15 +84,28 @@ public struct Ladder: Sendable {
         public var interleaveAfter: Int
         /// After that, one digit or mark every this many items.
         public var interleaveEvery: Int
+        /// Which kinds of item may be drilled.
+        ///
+        /// A lens on the focus set and on the material, not on the ladder: an item of a
+        /// stage that is turned off keeps whatever it has learned, and comes back to the
+        /// same place when it is turned on again.  What it does not do is take one of the
+        /// three focus places, or get decorated into a line.
+        ///
+        /// It does not touch unlocking either, so turning a stage off while the ladder is
+        /// still climbing can stall it -- the item it is waiting on stops being drilled
+        /// and so never reaches the gate.  Those items are reported in `deferred` rather
+        /// than left to be puzzled over.
+        public var stages: Set<LadderStage>
 
         public init(
             initial: Int = 7, focus: Int = 3, interleaveAfter: Int = 10,
-            interleaveEvery: Int = 3
+            interleaveEvery: Int = 3, stages: Set<LadderStage> = Set(LadderStage.allCases)
         ) {
             self.initial = initial
             self.focus = focus
             self.interleaveAfter = interleaveAfter
             self.interleaveEvery = interleaveEvery
+            self.stages = stages
         }
     }
 
@@ -92,6 +115,13 @@ public struct Ladder: Sendable {
     public let unlockedCount: Int
     /// The weakest unlocked items, which the material is weighted toward.
     public let focus: [LadderItem]
+    /// Unlocked items short of the gate that `Options.stages` keeps out of the focus set.
+    ///
+    /// These are what the ladder is waiting on, so while there are any of them it cannot
+    /// advance.  Worth reporting: a writer who has turned digits off and finds the count
+    /// stuck should be told which switch is holding it, not left to conclude the ladder
+    /// is broken.
+    public let deferred: [LadderItem]
     public let options: Options
 
     public var unlocked: ArraySlice<LadderItem> { items.prefix(unlockedCount) }
@@ -144,18 +174,26 @@ public struct Ladder: Sendable {
             // nothing is known about.
             return a != b ? a < b : $0 < $1
         }
-        var chosen = Array(ranked.filter { !reached(out[$0]) }.prefix(options.focus))
+        // Both rules draw from the stages that are switched on, and only those.
+        let eligible = ranked.filter { options.stages.contains(out[$0].stage) }
+        var chosen = Array(eligible.filter { !reached(out[$0]) }.prefix(options.focus))
         // Then whatever is past the gate and still short of fluent.  An item that is fully
         // learned is not offered the place: spending a line on something already done
         // teaches nothing.
-        for i in ranked
+        for i in eligible
         where chosen.count < options.focus && reached(out[i]) && confidence(out[i]) < 1 {
             chosen.append(i)
         }
         // A ladder with everything reached and fluent has nothing to point at by either
         // rule, and practice still has to go somewhere.
+        if chosen.isEmpty { chosen = Array(eligible.prefix(options.focus)) }
+        // And a filter that matches nothing at all -- every stage switched off, or a stage
+        // whose items are all still locked -- is not a reason to stop drilling.
         if chosen.isEmpty { chosen = Array(ranked.prefix(options.focus)) }
         self.focus = chosen.map { out[$0] }
+        self.deferred = out.indices
+            .filter { !options.stages.contains(out[$0].stage) && !reached(out[$0]) }
+            .map { out[$0] }
     }
 
     /// Where the ladder has got to, without saying what it is working on.
