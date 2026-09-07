@@ -32,32 +32,11 @@ use minder::keylog::{mode_code, Marker};
 use static_cell::StaticCell;
 
 use crate::board::{Inter, KeyChannel, UsbHandler};
-#[cfg(feature = "steno")]
-use crate::leds::manager::{get_steno_state, Indication};
-use crate::leds::manager::{self, get_mods_color, LedManager};
+use crate::leds::manager::LedManager;
 use crate::keylog;
 use crate::logging::unwrap;
 use crate::matrix::Matrix;
 use crate::{board::Board, matrix::MatrixAction};
-
-/// The LED showing the Taipo modifier state.
-///
-/// This is the 4th LED, which only some boards have; the manager ignores
-/// updates to LEDs that aren't there.
-const MODS_LED: usize = 3;
-
-/// The LED showing which chord table the Taipo engine is using.
-///
-/// This is the 3rd LED, which only some boards have, and which is dark outside
-/// of Taipo mode.
-const VARIANT_LED: usize = 2;
-
-/// The mode `current_mode` starts out holding, before the layout has reported
-/// its own.  Steno when it is built, and taipo in a taipo-only firmware.
-#[cfg(feature = "steno")]
-const INITIAL_MODE: LayoutMode = LayoutMode::Steno;
-#[cfg(not(feature = "steno"))]
-const INITIAL_MODE: LayoutMode = LayoutMode::Taipo;
 
 pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
@@ -74,20 +53,6 @@ pub struct Dispatch {
     /// Asks `typed_loop` to type everything it still has buffered, right now.
     #[cfg(feature = "steno")]
     flush_signal: Signal<CriticalSectionRawMutex, ()>,
-
-    current_mode: Mutex<CriticalSectionRawMutex, LayoutMode>,
-    #[cfg(feature = "steno")]
-    raw_mode: Mutex<CriticalSectionRawMutex, bool>,
-
-    /// Whether the Taipo engine has the Dosh chord table selected.  Only
-    /// meaningful in Taipo mode, but the engine keeps the setting across mode
-    /// changes, so this does too.
-    ///
-    /// Seeded from the engine's own default, not from `false`.  The sub-mode is
-    /// reported on change, so nothing announces the table the keyboard came up
-    /// in: starting this at the wrong one would light the variant LED for a
-    /// table the engine is not in until the writer happened to toggle.
-    dosh: Mutex<CriticalSectionRawMutex, bool>,
 }
 
 impl Dispatch {
@@ -98,19 +63,9 @@ impl Dispatch {
         #[cfg(feature = "steno")] stroke_sender: Sender<'static, CriticalSectionRawMutex, Stroke, 10>,
         #[cfg(feature = "steno")] typed_receiver: Receiver<'static, CriticalSectionRawMutex, Joined, 2>,
     ) -> &'static Dispatch {
-        let mut leds = LedManager::new(board.leds);
-
-        // TODO: This is a workaround until usb is present.  Until either USB connects, or the left
-        // side connects to us, just disable the global state.
-        leds.clear_global(0);
-
-        // The modifier indicator is dark until Taipo reports a modifier being held.
-        leds.set_base(MODS_LED, &manager::OFF_INDICATOR);
-
-        // The variant indicator is dark until we enter Taipo mode.
-        leds.set_base(VARIANT_LED, &manager::OFF_INDICATOR);
-
-        let leds = Mutex::new(leds);
+        // The LEDs come up dark, and stay that way until Taipo reports a
+        // modifier being held.
+        let leds = Mutex::new(LedManager::new(board.leds));
 
         // The layout is present, as long as we aren't the passive side.
         let layout = if board.inter.is_active() {
@@ -123,10 +78,6 @@ impl Dispatch {
         let this = THIS.init(Dispatch {
             leds,
             layout,
-            current_mode: Mutex::new(INITIAL_MODE),
-            #[cfg(feature = "steno")]
-            raw_mode: Mutex::new(false),
-            dosh: Mutex::new(matches!(TaipoVariant::DEFAULT, TaipoVariant::Dosh)),
             inter: board.inter,
             usb: board.usb,
             #[cfg(feature = "steno")]
@@ -156,25 +107,6 @@ impl Dispatch {
         }
 
         this
-    }
-
-    /// Update the Taipo variant indicator to match the current mode and
-    /// variant.  It is dark outside of Taipo mode, since the variant means
-    /// nothing there.
-    ///
-    /// The mutexes are taken one after another, never nested.
-    async fn update_variant_led(&self) {
-        let mode = *self.current_mode.lock().await;
-        let dosh = *self.dosh.lock().await;
-
-        let next = if mode != LayoutMode::Taipo {
-            &manager::OFF_INDICATOR
-        } else if dosh {
-            &manager::VARIANT_DOSH_INDICATOR
-        } else {
-            &manager::VARIANT_TAIPO_INDICATOR
-        };
-        self.leds.lock().await.set_base(VARIANT_LED, next);
     }
 }
 
@@ -214,25 +146,16 @@ async fn layout_loop(dispatch: &'static Dispatch) -> ! {
 }
 
 /// Legacy event loop handler.
+///
+/// Everything this used to do was an LED: the raw/cooked steno mode and the
+/// dictionary's cap and space state each had an indicator, and the LEDs now
+/// belong to the modifiers.  The events still have to be taken off the channel,
+/// or the sender blocks.
 #[cfg(feature = "steno")]
 #[embassy_executor::task]
 async fn event_loop(dispatch: &'static Dispatch) -> ! {
     loop {
-        let event = dispatch.event_receiver.receive().await;
-        match event {
-            Event::RawMode(raw) => {
-                if *dispatch.current_mode.lock().await == LayoutMode::Steno {
-                    *dispatch.raw_mode.lock().await = raw;
-                    dispatch.leds.lock().await.set_base(0, get_steno_indicator(raw));
-                }
-            },
-            Event::StenoState(state) => {
-                dispatch.leds.lock().await.set_base(1, get_steno_state(&state));
-            }
-            _ => (),
-        }
-        // TODO: This brings in fmt, but this Event type should be going away soon anyway.
-        // info!("Steno event: {}", &format!("{:?}", event));
+        let _ = dispatch.event_receiver.receive().await;
     }
 }
 
@@ -364,17 +287,6 @@ fn mode_marker(mode: LayoutMode) -> u8 {
 
 impl LayoutActions for Dispatch {
     async fn set_mode(&self, mode: LayoutMode) {
-        let next = match mode {
-            #[cfg(feature = "steno")]
-            LayoutMode::StenoDirect => todo!(),
-            #[cfg(feature = "steno")]
-            LayoutMode::Steno => get_steno_indicator(*self.raw_mode.lock().await),
-            LayoutMode::Taipo => &manager::TAIPO_INDICATOR,
-            #[cfg(feature = "qwerty")]
-            LayoutMode::Qwerty | LayoutMode::NKRO => &manager::QWERTY_INDICATOR,
-        };
-        self.leds.lock().await.set_base(0, next);
-        *self.current_mode.lock().await = mode;
         keylog::log_marker(Marker::Mode, mode_marker(mode));
 
         // Steno output is buffered briefly before being typed.  Leaving steno mode, get it out
@@ -384,21 +296,12 @@ impl LayoutActions for Dispatch {
         if mode != LayoutMode::Steno {
             self.flush_signal.signal(());
         }
-
-        self.update_variant_led().await;
     }
 
+    /// Nothing to show.  Mode select flashed the mode LED, and there is no
+    /// longer a mode LED to flash.
     async fn set_mode_select(&self, mode: LayoutMode) {
-        let next = match mode {
-            #[cfg(feature = "steno")]
-            LayoutMode::StenoDirect => todo!(),
-            #[cfg(feature = "steno")]
-            LayoutMode::Steno => get_steno_select_indicator(*self.raw_mode.lock().await),
-            LayoutMode::Taipo => &manager::TAIPO_SELECT_INDICATOR,
-            #[cfg(feature = "qwerty")]
-            LayoutMode::Qwerty | LayoutMode::NKRO => &manager::QWERTY_SELECT_INDICATOR,
-        };
-        self.leds.lock().await.set_base(0, next);
+        let _ = mode;
     }
 
     async fn send_key(&self, key: KeyAction) {
@@ -409,9 +312,7 @@ impl LayoutActions for Dispatch {
     async fn set_sub_mode(&self, submode: MinorMode) {
         match submode {
             MinorMode::Dosh => {
-                *self.dosh.lock().await = true;
                 keylog::log_marker(Marker::Variant, TaipoVariant::Dosh.marker());
-                self.update_variant_led().await;
             }
         }
     }
@@ -419,9 +320,7 @@ impl LayoutActions for Dispatch {
     async fn clear_sub_mode(&self, submode: MinorMode) {
         match submode {
             MinorMode::Dosh => {
-                *self.dosh.lock().await = false;
                 keylog::log_marker(Marker::Variant, TaipoVariant::Taipo.marker());
-                self.update_variant_led().await;
             }
         }
     }
@@ -436,26 +335,7 @@ impl LayoutActions for Dispatch {
     }
 
     async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
-        let color = get_mods_color(oneshot, sticky);
-        self.leds.lock().await.set_solid(MODS_LED, Some(color));
-    }
-}
-
-#[cfg(feature = "steno")]
-fn get_steno_indicator(raw: bool) -> &'static Indication {
-    if raw {
-        &crate::leds::manager::STENO_RAW_INDICATOR
-    } else {
-        &crate::leds::manager::STENO_INDICATOR
-    }
-}
-
-#[cfg(feature = "steno")]
-fn get_steno_select_indicator(raw: bool) -> &'static Indication {
-    if raw {
-        &crate::leds::manager::STENO_RAW_SELECT_INDICATOR
-    } else {
-        &crate::leds::manager::STENO_SELECT_INDICATOR
+        self.leds.lock().await.set_mods(oneshot, sticky);
     }
 }
 

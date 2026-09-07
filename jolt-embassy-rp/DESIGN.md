@@ -285,7 +285,8 @@ The runtime model is:
 
 `Dispatch` implements `LayoutActions` so layout output becomes firmware effects:
 
-- `set_mode` and `set_mode_select` update LED indicators
+- `set_mode` writes the mode marker to the key log; `set_mode_select` does nothing
+- `set_mod_state` drives the modifier LEDs
 - `send_key` forwards `KeyAction` to USB
 - `send_raw_steno` forwards `Stroke` to the steno task
 
@@ -316,7 +317,7 @@ Its responsibilities:
 - emit translated typing edits
 - publish steno-state changes back into the generic event queue
 
-This task also publishes the current steno join state as `Event::StenoState`, which is used by the LED layer to reflect spacing/capitalization state.
+This task also publishes the current steno join state as `Event::StenoState`. Nothing consumes it now that the LEDs show the modifiers; `event_loop` drains the queue and drops it.
 
 ### `typed_loop`
 
@@ -436,7 +437,7 @@ LED handling is split into three layers:
 
 - `leds.rs`: generic grouping abstraction
 - `leds/led_strip.rs`: concrete WS2812 transport
-- `leds/manager.rs`: animation/indicator policy
+- `leds/manager.rs`: the modifier indicator
 
 ### `LedSet`
 
@@ -444,29 +445,15 @@ LED handling is split into three layers:
 
 ### `LedManager`
 
-`LedManager` is the stateful policy engine.
+`LedManager` holds the color each LED is showing and writes them out.
 
-Each LED has:
+Every LED is one Taipo modifier, in `Mods` bit order: dark while it is not held, its own color while it is one-shot, and that color plus white while it is latched. `set_mods` is called from `Dispatch::set_mod_state`, which the Taipo engine calls on every change.
 
-- a base indication
-- an optional global override
-- an optional oneshot animation
-- current phase/count tracking
-
-It is tick-driven and expected to run about every 100 ms.
+The 100 ms tick remains, but only rewrites what is already displayed, so a WS2812 that takes a bad bit corrects itself.
 
 ### Semantic use
 
-The current firmware uses LEDs to communicate:
-
-- startup/init state
-- selected layout mode
-- mode-selection preview
-- steno raw mode
-- steno spacing/capitalization state
-- other-side override status
-
-This is tightly integrated with `Dispatch`, which updates LED state in response to layout and steno events.
+The LEDs show the Taipo modifier state and nothing else. The mode, mode-selection preview, chord-table variant, steno raw mode, steno spacing/capitalization and startup indicators were all removed: a keyboard used only for Taipo on one chord table showed the same thing every day on three of the four LEDs while the fourth carried 31 modifier states as a single learned color. See git history for the indicators and the generated palette they used.
 
 ## Logging and Build Metadata
 

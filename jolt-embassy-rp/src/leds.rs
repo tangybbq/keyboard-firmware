@@ -1,8 +1,5 @@
 //! Control of the LEDs.
 
-#![allow(unused_variables)]
-#![allow(dead_code)]
-
 extern crate alloc;
 
 use heapless::Vec;
@@ -10,7 +7,6 @@ use smart_leds::RGB8;
 
 pub mod led_strip;
 pub mod manager;
-pub mod mod_palette;
 /*
 mod pwm;
 */
