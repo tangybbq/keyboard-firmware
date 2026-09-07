@@ -10,16 +10,21 @@
 //! One modifier per LED makes the *position* carry which modifier it is, which is the part that
 //! needs no learning at all.  That leaves each LED with three states to show rather than 31, so
 //! the color only has to separate held from latched, and it can do that by a wide margin: the
-//! whitened form is 0.10 to 0.12 apart in Oklab, against the 0.067 that the packed 31-color
+//! whitened form is 0.08 to 0.10 apart in Oklab, against the 0.067 that the packed 31-color
 //! palette could manage between any two of its states.
 //!
 //! The colors are ordinary saturated primaries, so they can be named -- "red is shift" is
 //! something you can be told, where "the mauve one" is not.  Their wire values are not equal,
 //! because equal PWM is not equal light: a ws2812's green is an order of magnitude brighter than
-//! its blue at the same value.  These four sit within 0.31 to 0.35 Oklab lightness of each other,
-//! which is as near as the budget allows without pulling green down into the quantization noise.
-//! That balance assumes sRGB primaries; a real ws2812's green is hotter still than sRGB says, so
-//! expect these to want tuning by eye on the board rather than by the numbers.
+//! its blue at the same value.  These four sit within 0.20 to 0.22 Oklab lightness of each other.
+//!
+//! They are dim on purpose -- a quarter of the light the first version used, which was glaring on
+//! the board -- and that is about as far down as this can go.  Balancing the four costs green
+//! most, so green is the channel that runs out first: it is at 3 of 255, where a ws2812 has only
+//! a few steps left and the cheaper ones start behaving oddly.  Below this, take the balance out
+//! rather than the brightness.  The balance also assumes sRGB primaries, and a real ws2812's
+//! green is hotter still than sRGB says, so expect these to want tuning by eye on the board
+//! rather than by the numbers.
 //!
 //! A board with fewer LEDs than modifiers shows the leading ones and drops the rest.  That is not
 //! really supported -- the boards in use all have four -- but it is what falls out, rather than a
@@ -48,19 +53,19 @@ struct ModLed {
 static MOD_LEDS: [ModLed; 4] = [
     ModLed {
         modifier: Mods::CONTROL,
-        color: RGB8::new(0, 12, 0), // green
+        color: RGB8::new(0, 3, 0), // green
     },
     ModLed {
         modifier: Mods::SHIFT,
-        color: RGB8::new(32, 0, 0), // red
+        color: RGB8::new(8, 0, 0), // red
     },
     ModLed {
         modifier: Mods::ALT,
-        color: RGB8::new(0, 0, 96), // blue
+        color: RGB8::new(0, 0, 24), // blue
     },
     ModLed {
         modifier: Mods::GUI,
-        color: RGB8::new(12, 12, 0), // yellow
+        color: RGB8::new(3, 3, 0), // yellow
     },
 ];
 
@@ -68,8 +73,13 @@ static MOD_LEDS: [ModLed; 4] = [
 ///
 /// White, so it works the same on all four hues and reads as one thing happening to whichever
 /// LEDs are lit rather than as four separate colors to learn.  It raises Oklab lightness by about
-/// 0.11 and leaves enough chroma that a latched red is still recognizably red.
-const LATCH: RGB8 = RGB8::new(11, 11, 11);
+/// 0.09 and leaves enough chroma that a latched red is still recognizably red.
+///
+/// A little more than a quarter of what it was, where the held colors are exactly a quarter.  At
+/// a straight quarter this fell to 3, and the held-to-latched difference with it, to 0.066 --
+/// which is the distinction the whole indicator turns on, and the one worth spending the light
+/// on.
+const LATCH: RGB8 = RGB8::new(4, 4, 4);
 
 pub struct LedManager {
     leds: LedSet,
