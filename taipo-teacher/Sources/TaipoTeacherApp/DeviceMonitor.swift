@@ -77,9 +77,6 @@ public final class DeviceMonitor: ObservableObject {
     @Published public var practiceMode: PracticeMode = .ladder {
         didSet {
             guard practiceMode != oldValue else { return }
-            programme = []
-            drillIndex = 0
-            lineIndex = 0
             rebuildProgramme()
         }
     }
@@ -99,9 +96,6 @@ public final class DeviceMonitor: ObservableObject {
             guard ladderStages != oldValue else { return }
             DeviceMonitor.store(stages: ladderStages)
             guard practiceMode == .ladder else { return }
-            programme = []
-            drillIndex = 0
-            lineIndex = 0
             rebuildProgramme()
         }
     }
@@ -408,31 +402,50 @@ public final class DeviceMonitor: ObservableObject {
                 self.skill = result.3
                 guard !result.1.isEmpty else { return }
                 self.ladder = result.0
-                self.programme = result.1
-                self.drillIndex = 0
-                self.lineIndex = 0
-                self.nextDrill()
+                self.adopt(result.1)
             }
         }
     }
 
-    /// Re-read the logs and update the measurements, leaving the lines alone.
+    /// Take a freshly built programme, without moving the target under the writer's hands.
+    ///
+    /// A line that has been started is left to be finished; the new material is what the
+    /// *next* line comes from.  An untouched line is swapped at once, so a stage switch
+    /// takes effect while it is still obvious what it did.
+    private func adopt(_ programme: [Drill]) {
+        self.programme = programme
+        drillIndex = 0
+        lineIndex = 0
+        if drill?.typed.isEmpty ?? true { nextDrill() }
+    }
+
+    /// Re-read the logs, update the measurements, and follow the focus set.
     ///
     /// Split from `rebuildProgramme` because the two want different rhythms.  The
-    /// *material* has to hold still while it is being typed -- regenerating it every line
-    /// would move the target out from under the writer -- but the *measurements* are what
+    /// *material* has to hold still while it is being typed -- regenerating it under the
+    /// writer's hands would move the target mid-line -- but the *measurements* are what
     /// the screen is reporting, and they were only refreshed when a block of sixteen lines
     /// ran out.  A few drills therefore changed nothing on screen while the model behind
     /// it moved by thousands of chords.
     ///
-    /// New material is asked for only when the ladder actually unlocks something, which is
-    /// rare and is exactly when the lines are out of date.
+    /// New material whenever the ladder moves, which on a finished ladder means the focus
+    /// set and not the unlocked count.  Once every item is out nothing unlocks again, and
+    /// the three places go to whatever is weakest -- which turns over every few lines,
+    /// because drilling the weakest three is what stops them being the weakest three.
+    /// Watching only the count left the heading naming one set of marks while the lines
+    /// went on decorating the set the block happened to be built for, for as long as
+    /// sixteen lines.  The swap still waits for a line boundary, so nothing changes under
+    /// the hands.
     private func refreshSkill() {
         guard practicing, practiceMode == .ladder, !refreshing, let layouts else { return }
         refreshing = true
         let directory = logDirectory
         let variant = self.variant
         let options = Ladder.Options(stages: self.ladderStages)
+        let previous = self.ladder
+        // A fresh seed each time, so following the focus does not mean typing the same
+        // lines over again.
+        let seed = UInt64(Date().timeIntervalSince1970)
         Task.detached(priority: .utility) {
             let skill = SkillStore.model(
                 logDirectory: directory,
@@ -440,17 +453,31 @@ public final class DeviceMonitor: ObservableObject {
                 layouts: layouts, variant: variant)
             let built = Ladder(
                 layouts: layouts, variant: variant, skill: skill, options: options)
+            // Only when what the material would be built for has changed, so an ordinary
+            // line costs the replay and nothing more.
+            var moved = false
+            if let previous {
+                moved =
+                    built.unlockedCount != previous.unlockedCount
+                    || built.focus != previous.focus
+            }
+            let material =
+                moved
+                ? LadderMaker(layouts: layouts, variant: variant)
+                    .drill(built, lines: Self.ladderBlock, seed: seed)
+                : nil
             await MainActor.run { [weak self] in
                 guard let self else { return }
-                self.refreshing = false
+                // Cleared last, so the `nextDrill` below cannot start another refresh
+                // before this one has finished being applied.
+                defer { self.refreshing = false }
                 guard self.practicing, self.practiceMode == .ladder,
                     self.variant == variant, self.ladderStages == options.stages
                 else { return }
-                let unlocked = self.ladder?.unlockedCount
                 self.skill = skill
                 self.ladder = built
                 self.skippedSessions = skill.skipped
-                if let unlocked, built.unlockedCount != unlocked { self.rebuildProgramme() }
+                if let material, !material.lines.isEmpty { self.adopt([material]) }
             }
         }
     }
