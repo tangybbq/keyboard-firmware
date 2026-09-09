@@ -985,6 +985,21 @@ letter would be, and the line grows a little when it is carrying several — thr
 focus at once cannot each be placed three times in seven words and still leave two words
 plain.  Measured after: 2.5–3.4 a line, against letters at 1.3–2.5.
 
+**Nothing being drilled opens a line.**  The skill model times a chord by the gap from the
+chord before it, so the first chord of a line is not evidence about anything: there is no
+previous key to time in from, and what gap there is is the writer reading the new line.
+The generator put a focus item there all the same — a word chosen for a focus letter took
+the first slot, and the marks that go on the front of their word (`"word"` `(word)` `~word`
+`$12`) could be decorated onto it — and it did so in 17% of lines.  Worse than wasted, in
+fact: the gap after Enter is counted whenever it comes in under the two-second pause
+threshold, so a mark placed first was not ignored but charged for the reading.  And a line
+asks for a focus mark only two or three times, so losing one of those to the front is a
+third of the practice the line was built to give.  The first word is now an ordinary one
+that does not begin with anything in focus, and no placing may take that slot; the line
+grows by one word so the placings still fit.  For the ladder's first lines, where three
+letters are unlocked and all three are in focus, it falls back to any word at all: an
+opening word matters less than having a line.
+
 **And a cap on the length.**  Placing marks as often as letters made lines long: 174
 characters at the worst, which is five wrapped lines of the target and enough to be
 truncated on screen.  A drill line is typed in one go before Enter, so its length is how

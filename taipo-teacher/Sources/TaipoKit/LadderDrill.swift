@@ -77,22 +77,30 @@ public struct LadderMaker {
 
         let focusLetters = ladder.focus.filter { $0.stage == .letter }.map(\.label)
         let focusExtras = ladder.focus.filter { $0.stage != .letter }
+        // The characters the line is being built to work, which is what may not open it.
+        let drilled = Set(ladder.focus.compactMap { $0.label.first })
         // A longer line when it has more marks to carry.  Every mark wants `perLine`
         // placings and every line wants two plain words left in it, and with three marks
         // in focus at once a seven-word line cannot have both -- they came out at one
         // apiece, which is the problem this is meant to fix.  Bounded, because a line
-        // nobody wants to read teaches nothing either.
+        // nobody wants to read teaches nothing either.  One slot more than the placings
+        // themselves need, because the first word is never one of them -- see `opener`.
         let count = min(
-            wordCount + 4, max(wordCount, focusExtras.count * Self.perLine + 2))
+            wordCount + 4,
+            max(wordCount, focusLetters.count + 1, focusExtras.count * Self.perLine + 3))
         var tokens = [String]()
         /// Slots holding a word chosen for a focus letter, which a decoration must not take.
         var reserved = Set<Int>()
         for i in 0..<count {
-            if i < focusLetters.count,
-                let word = pick(pool, containing: Character(focusLetters[i]), using: &rng)
+            // Slot 0 is the opener, so the focus letters begin at slot 1.
+            if i > 0, i - 1 < focusLetters.count,
+                let word = pick(
+                    pool, containing: Character(focusLetters[i - 1]), using: &rng)
             {
                 tokens.append(word)
                 reserved.insert(i)
+            } else if i == 0 {
+                tokens.append(opener(pool, avoiding: drilled, using: &rng))
             } else {
                 tokens.append(pick(pool, using: &rng))
             }
@@ -100,8 +108,12 @@ public struct LadderMaker {
 
         // A decoration replaces the word in its slot, so it may not have one that was
         // chosen for a focus letter: the line would then work the mark and quietly drop
-        // the letter it was also meant to be practising.
-        var slots = tokens.indices.filter { !reserved.contains($0) }.shuffled(using: &rng)
+        // the letter it was also meant to be practising.  Nor the opening slot: several
+        // of the marks go on the front of their word, which would make the mark the
+        // first chord of the line.
+        var slots = tokens.indices
+            .filter { $0 > 0 && !reserved.contains($0) }
+            .shuffled(using: &rng)
         // With digits switched off, the marks whose natural shape wants a number fall back
         // to their word forms -- `word%` rather than `50%` -- the same way they do before
         // the first digit is unlocked.
@@ -231,6 +243,26 @@ public struct LadderMaker {
     private func pick(_ pool: [String], using rng: inout DrillRandom) -> String {
         let u = Double(rng.next() >> 11) / Double(1 << 53)
         return pool[min(pool.count - 1, Int(u * u * Double(pool.count)))]
+    }
+
+    /// The word a line opens with: an ordinary one that does not *begin* with anything
+    /// in focus.
+    ///
+    /// The skill model times a chord by the gap from the chord before it, so the first
+    /// chord of a line is not evidence about anything -- there is no previous key to time
+    /// in from, and what gap there is is the writer reading the new line.  A placing there
+    /// is therefore a placing that measures nothing, and with the marks it is worse than
+    /// nothing: a line asks for a focus mark two or three times, so losing one of those to
+    /// the front loses a third of the practice the line was built to give.
+    ///
+    /// Falling back to any word at all, for the ladder's first lines: with three letters
+    /// unlocked and all three in focus there may be nothing else a line could open with,
+    /// and an opening word matters less than having a line.
+    private func opener(
+        _ pool: [String], avoiding drilled: Set<Character>, using rng: inout DrillRandom
+    ) -> String {
+        let rest = pool.filter { word in word.first.map { !drilled.contains($0) } ?? false }
+        return pick(rest.isEmpty ? pool : rest, using: &rng)
     }
 
     /// The same, restricted to words using a particular letter.

@@ -447,6 +447,31 @@ final class LadderTests: XCTestCase {
         }
     }
 
+    /// A line never *begins* with something being drilled.
+    ///
+    /// The whole skill model times a chord by the gap from the chord before it, so the
+    /// first chord of a line is not evidence about anything: there is no previous key to
+    /// time in from, and the gap that is there is the writer reading the new line.  A
+    /// focus item placed first is therefore a placing that measures nothing -- and with
+    /// marks it is worse than nothing, because one line often asks for a mark only two or
+    /// three times and losing one of those to the front is losing a third of the practice
+    /// the line was built to give.
+    func testNothingDrilledStartsALine() throws {
+        let maker = LadderMaker(layouts: try layouts(), variant: "dosh")
+        for learned in [0, 9, 14, 18, 22, 25, 33, 45] {
+            let ladder = try ladder(learning: learned)
+            let drilled = Set(ladder.focus.compactMap { $0.label.first })
+            for seed: UInt64 in [5, 909, 31, 606] {
+                for line in maker.drill(ladder, lines: 25, seed: seed).lines {
+                    let first = try XCTUnwrap(line.first)
+                    XCTAssertFalse(
+                        drilled.contains(first),
+                        "\"\(line)\" starts with the drilled \"\(first)\" at \(learned)")
+                }
+            }
+        }
+    }
+
     /// A mark or a digit gets as much practice in a line as a letter does.
     ///
     /// It did not, and that is what this pins.  A focus letter is worked by every word
