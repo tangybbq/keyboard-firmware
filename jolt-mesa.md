@@ -164,17 +164,18 @@ Two things moved out from under the port since March:
    | `davidb-led-strip` (on #148) | #149 | `device::led_strip::{LedStrip, LedRgb}` with `update_rgb(&mut [LedRgb])` and `length()`; an RP2040 test | the missing `led_strip.rs` backend |
    | `davidb-i2c` (on #149) | #150 | I2C controller `transfer()`, I2C target registration with safe callbacks | the future split link (`TASKS.md`: "Port … inter.rs … to jolt") |
 
-   None of the four is merged; all are based on a March–April `main`.
-   Upstream `main` has since gained (May–August) Clippy CI, the `__UINTxx_C`
-   bindgen fix, **kconfig-gated device modules and selective binding
-   exports** (`8c6a29d`, `a763400`) and the **`zephyr::blocking` module**
-   (`5a41774`, 2026-08-13) that the module's `TASKS.md` re-plans async I2C
-   on.  `davidb-embassy-upgrade` (`f36729b`, on top of that August `main`)
-   moves the `zephyr` crate to embassy-executor **0.10** / embassy-sync
-   **0.8** / time-queue-utils 0.3; `jolt/Cargo.toml` pins 0.7 / 0.6, and
-   `jolt-embassy-rp` is on 0.8-era releases.  Whichever branch `jolt`
-   builds against, its embassy versions must be the ones the `zephyr` crate
-   was built with, or the executor feature fails to resolve.
+   None of the four is merged (checked on GitHub 2026-09-09: all open,
+   local bookmarks identical to the remote branches, #146 approved twice).
+   The stack sits on `davidb-ci-davidb-base` (#162) and is based on
+   upstream `main` as of 2026-05-27; upstream `main` (`5a41774`,
+   2026-08-13) is only four commits further: the `__UINTxx_C` bindgen fix
+   and the **`zephyr::blocking` module** that the module's `TASKS.md`
+   re-plans async I2C on.  `davidb-embassy-upgrade` (#161, `f36729b`) is
+   already on that `main` and moves the `zephyr` crate to embassy-executor
+   **0.10** / embassy-sync **0.8** / time-queue-utils 0.3; `jolt/Cargo.toml`
+   pins 0.7 / 0.6, and `jolt-embassy-rp` is on 0.8-era releases.  Whichever
+   branch `jolt` builds against, its embassy versions must be the ones the
+   `zephyr` crate was built with, or the executor feature fails to resolve.
 
    In short: the last configuration `jolt` was known to build in was
    `zephyr` at the fork's `rust-wip` (2026-03-27 base, with the PWM patch)
@@ -267,15 +268,18 @@ the result runs on the proto4 — the last hardware `jolt` was seen on.
    is jj-colocated (`jj` 0.44; the remote branch is `main@upstream` in jj
    terms, with bookmarks `davidb-dt-all-properties`, `davidb-pwm-led`,
    `davidb-led-strip`, `davidb-i2c`, `davidb-embassy-upgrade`).  Rebase
-   #146 → #148 → #149 → #150 onto `main@upstream`, then the embassy upgrade
-   on top, and put a bookmark `jolt-base` on the tip.  This is the shape
-   the PRs need to merge in anyway, so the rebase is the first step of the
-   upstreaming, not a detour; expect conflicts in `zephyr/src/device.rs`
-   (upstream's kconfig-gated device modules, `8c6a29d`, and every branch's
-   `pub mod`) and in `zephyr-sys/build.rs` (selective binding exports,
-   `a763400`, against the branches' wrapper.h/build.rs changes).  `jolt`
-   is then the real application that exercises the stack, and each PR
-   can be re-pushed as its rebased bookmark.
+   the #162 → #146 → #148 → #149 → #150 stack onto `main@upstream` (four
+   commits to cross; the likely rubs are `zephyr-sys/build.rs`/`wrapper.h`
+   against the `__UINTxx_C` fix and `zephyr/src/lib.rs` against the
+   `blocking` module), then make `jolt-base` a jj merge of the rebased
+   `davidb-i2c` with `davidb-embassy-upgrade`, so the PR lines stay
+   independent.  This is the shape the PRs need to merge in anyway, so the
+   rebase is the first step of the upstreaming, not a detour; `jolt` is
+   then the real application that exercises the stack, and each PR can be
+   re-pushed as its rebased bookmark.  **The step-by-step plan for that
+   repository is `~/zephyrproject/modules/lang/rust/jolt-base.md`** (a
+   local-only file there, pointed to from its `TASKS.md`); it starts with a
+   fetch, since the PR states can change.
 2. **Pinning routine.**  `zephyr/submanifests/optional.yaml` keeps its
    `dd73abc` pin; after each `west update`, restore the working copy with
    `jj new jolt-base` (or `jj edit`) in `modules/lang/rust`.  Record the
