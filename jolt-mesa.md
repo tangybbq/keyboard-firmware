@@ -12,8 +12,13 @@ Read this whole document before starting.  The facts in "What was found"
 were read out of the tree, the `~/zephyrproject` workspace and one build
 attempt, not remembered; the derivation is given so it can be re-checked.
 
-Status: **plan only.  `jolt` does not currently configure, for reasons given
-below; nothing has been changed.**
+Status: **plan agreed, nothing started.  `jolt` does not currently
+configure, for reasons given below; nothing has been changed.**  Decisions
+taken on 2026-09-09 (developer): build against `zephyr-lang-rust`
+`upstream/main` and get the needed bindings merged there; the proto4 is
+available for the first smoke test; `west update` runs periodically and the
+wanted lang-rust revision is restored with jj afterwards; the mesa2 stays on
+the embassy firmware until the key log is ported.
 
 ---
 
@@ -31,6 +36,13 @@ below; nothing has been changed.**
 - (Carried over from `port-zmk.md`.)  Initial focus is Dosh only, on the mesa
   line, starting on the mesa1 while the mesa3 is in production; the single
   mesa2 is the daily driver.  Longer term, a split wireless design.
+- (Answers to the first draft's open questions.)  Let's try to build on
+  upstream/main of zephyr-lang-rust, with the plan to get the needed changes
+  merged into upstream.  That will also give us a nice real app to test
+  against.  The proto4 should be available, I just have to find it.  For
+  pinning, I'll need to periodically west update, but it is fine to restore
+  our desired branch in jj after each time.  Let's leave the mesa2 on the
+  embassy code until we have the logging ported.
 
 ---
 
@@ -247,26 +259,34 @@ done, and nothing can be flashed to a mesa until phase 2.
 ## Phase 1 — make `jolt` configure and build on today's workspace
 
 Goal: `./jolt/b-proto4.sh` produces `build/zephyr/zephyr.uf2` against
-`~/zephyrproject/zephyr` as checked out (upstream main) and a chosen
-`zephyr-lang-rust` branch.  Test on the proto4 if it is still around, since
-that is the last hardware `jolt` was seen on; otherwise this phase is
-"builds and enumerates on USB".
+`~/zephyrproject/zephyr` as checked out (upstream main) and
+`zephyr-lang-rust` at `upstream/main` plus the bindings `jolt` needs, and
+the result runs on the proto4 — the last hardware `jolt` was seen on.
 
-1. **Pick the `zephyr-lang-rust` branch and pin it.**  Proposal: a new
-   integration branch in `~/zephyrproject/modules/lang/rust`, `jolt-base`,
-   made by rebasing the #146 → #148 → #149 → #150 stack onto `upstream/main`
-   and then `davidb-embassy-upgrade` on top.  That is the branch the PRs want
-   to be on anyway, and rebasing them is due regardless (upstream's
-   kconfig-gated device modules will touch `device.rs`, where all four
-   branches add their `pub mod`s).  The fallback if the rebase is a fight:
-   check out `davidb-i2c` as-is and put `jolt` on embassy 0.7 — it is what
-   `jolt` last built with.  Either way, record the commit in `jolt/README`
-   or the build script, and point `zephyr/submanifests/optional.yaml` in the
-   fork at it (or accept that `west update` must be told to leave
-   `modules/lang/rust` alone).
-2. **Match embassy versions** in `jolt/Cargo.toml` to the `zephyr` crate's
-   (0.10 / 0.8 / 0.5.x with `jolt-base`), and regenerate `Cargo.lock`.
-3. **Stop depending on the PWM patch.**  In `proto4.overlay` (and the other
+1. **Rebase the binding stack onto `upstream/main`.**  The module checkout
+   is jj-colocated (`jj` 0.44; the remote branch is `main@upstream` in jj
+   terms, with bookmarks `davidb-dt-all-properties`, `davidb-pwm-led`,
+   `davidb-led-strip`, `davidb-i2c`, `davidb-embassy-upgrade`).  Rebase
+   #146 → #148 → #149 → #150 onto `main@upstream`, then the embassy upgrade
+   on top, and put a bookmark `jolt-base` on the tip.  This is the shape
+   the PRs need to merge in anyway, so the rebase is the first step of the
+   upstreaming, not a detour; expect conflicts in `zephyr/src/device.rs`
+   (upstream's kconfig-gated device modules, `8c6a29d`, and every branch's
+   `pub mod`) and in `zephyr-sys/build.rs` (selective binding exports,
+   `a763400`, against the branches' wrapper.h/build.rs changes).  `jolt`
+   is then the real application that exercises the stack, and each PR
+   can be re-pushed as its rebased bookmark.
+2. **Pinning routine.**  `zephyr/submanifests/optional.yaml` keeps its
+   `dd73abc` pin; after each `west update`, restore the working copy with
+   `jj new jolt-base` (or `jj edit`) in `modules/lang/rust`.  Record the
+   `jolt-base` commit in the jolt build script's header comment so a
+   mismatch is diagnosable.  The pin moves upstream as PRs merge; once all
+   of #146–#150 and the embassy upgrade are in, `jolt-base` is
+   `main@upstream` and the routine goes away.
+3. **Match embassy versions** in `jolt/Cargo.toml` to the `zephyr` crate's
+   on `jolt-base` (0.10 / 0.8 / 0.5.x with the upgrade included), and
+   regenerate `Cargo.lock`.
+4. **Stop depending on the PWM patch.**  In `proto4.overlay` (and the other
    `bbqboards` overlays that reference `&pwm_leds`), either define the
    `pwm_leds` node and `&pwm` pinctrl in the shield overlay itself — it is
    an ordinary node, the board does not have to declare it — or drop the
@@ -274,11 +294,13 @@ that is the last hardware `jolt` was seen on; otherwise this phase is
    define it in a shared `bbqboards/dts/tiny2040-pwm-leds.dtsi` that the
    overlays include, so the upstream patch stays a separate, optional
    contribution.  `build.rs`'s `chosen::bbq_pwm_leds` cfg keeps working.
-4. **Environment**: fold `wbuild.sh`'s `LIBCLANG_PATH` /
+5. **Environment**: fold `wbuild.sh`'s `LIBCLANG_PATH` /
    `BINDGEN_EXTRA_CLANG_ARGS` exports into the root `.envrc`, drop the
    0.17.1 `PATH` entry, and fix `check.sh` to source the root `.envrc`.
-5. Commit in that order — lang-rust pin and Cargo versions; overlays;
-   environment — each with what compiled.
+6. Commit in that order — lang-rust rebase (in that repository); Cargo
+   versions; overlays; environment — each with what compiled.  Then flash
+   the proto4 and confirm keys type and the PWM LED still shows the mode
+   colour, which is the baseline every later phase is measured against.
 
 ## Phase 2 — mesa shields and translation
 
@@ -340,20 +362,13 @@ here.)
 4. Test on the mesa1: the four LEDs follow one-shot/sticky exactly as on the
    embassy firmware; watch for flicker while typing.
 
-## Phase 5 — live on the mesa2
-
-Flash the mesa2 (`west build` → `zephyr.uf2` → `RPI-RP2`; a `just uf2`
-equivalent for `jolt`) and use it.  Expected differences from embassy to
-watch for: none in chording (same engine, same 1 ms tick, same debounce),
-possibly USB report latency under the new stack's HID class, and boot time.
-Anything that differs is a bug in this port, not a tuning question.  Keep
-`jolt-embassy-rp` flashable as the way back; nothing about the flash layout
-changes (board info at the same address).
-
-## Phase 6 — key log and minder on the new USB stack
+## Phase 5 — key log and minder on the new USB stack
 
 `TASKS.md` "Phase 6: port to `jolt` (Zephyr)" and the "Minder" bullets.
-Needed for TaipoTeacher; not needed to type.
+Not needed to type, but a precondition for the mesa2: its logs are
+TaipoTeacher's training data, and a gap in them is not worth an early
+switch.  Developed and tested on the mesa1, which by now types Dosh with
+its LEDs working.
 
 1. A vendor-specific USB function with one bulk IN and one bulk OUT
    endpoint, as a `usbd` class in C.  The new stack has no generic vendor
@@ -370,6 +385,18 @@ Needed for TaipoTeacher; not needed to type.
    identity for the same keyboard under both firmwares.
 3. Serial number descriptor from the same string (`CONFIG_HWINFO=y` already
    wires `USBD_DESC_SERIAL_NUMBER_DEFINE`).
+4. Done when `keyminder` and TaipoTeacher talk to a `jolt` mesa1 exactly as
+   they do to an embassy one, including a replayed day's log matching.
+
+## Phase 6 — live on the mesa2
+
+Flash the mesa2 (`west build` → `zephyr.uf2` → `RPI-RP2`; a `just uf2`
+equivalent for `jolt`) and use it.  Expected differences from embassy to
+watch for: none in chording (same engine, same 1 ms tick, same debounce),
+possibly USB report latency under the new stack's HID class, and boot time.
+Anything that differs is a bug in this port, not a tuning question.  Keep
+`jolt-embassy-rp` flashable as the way back; nothing about the flash layout
+changes (board info at the same address).
 
 ## Phase 7 — consumer-control keys
 
@@ -400,50 +427,46 @@ testing convention, hardware testing happens in review; each response says
 what was built, what was tested under what conditions, and what could not
 be.
 
-1. lang-rust integration branch + `optional.yaml` pin; `jolt/Cargo.toml`
-   embassy versions.  *(2 commits, one in each repository.)*
+1. lang-rust stack rebased onto `main@upstream`, `jolt-base` bookmark (in
+   that repository); `jolt/Cargo.toml` embassy versions.  *(2 commits.)*
 2. `bbqboards` PWM LED dtsi and overlay updates; root `.envrc` and
-   `check.sh`.  *(2 commits.)*  → `b-proto4.sh` builds.
+   `check.sh`.  *(2 commits.)*  → `b-proto4.sh` builds; proto4 types.
 3. `mapping.rs` → `translate`; `mesa1` shield; `mesa2` shield; build
    script.  *(3 commits.)*  → keys type on the mesa1.
 4. Taipo-only features and cfg gating.  *(1–2 commits.)*
 5. `led_strip.rs` backend; manager port and `set_mod_state`.  *(2 commits.)*
-6. `mesa3` translation and shield, when the matrix is final.  *(2 commits.)*
-7. Vendor USB class; keylog + minder port.  *(3–4 commits.)*
+6. Vendor USB class; keylog + minder port.  *(3–4 commits.)*  → mesa1
+   talks to TaipoTeacher.
+7. The mesa2 switches.  `mesa3` translation and shield, when the matrix is
+   final.  *(2 commits.)*
 8. Consumer control.  Housekeeping.
 
 ---
 
 # Open questions
 
-1. **Which `zephyr-lang-rust` to build against.**  Rebase the #146–#150
-   stack plus the embassy upgrade onto `upstream/main` now (proposed — it is
-   work the PRs need anyway), or build against `davidb-i2c` as it stands
-   with embassy 0.7 and rebase later?  The answer also decides whether
-   `jolt/Cargo.toml` goes to embassy 0.10 or stays at 0.7.
-2. **The manifest pin.**  `zephyr/submanifests/optional.yaml` in the fork
-   pins `dd73abc`; a `west update` resets the module to it.  Bump the pin in
-   the fork (clean, but the fork's checkout is a detached upstream HEAD, so
-   it means a local branch), or leave the module on a branch and never run
-   `west update` on it?
-3. **Is the proto4 still available** for the phase 1 smoke test, or does the
-   mesa1 take that role too?
-4. **PWM LED**: keep Tiny 2040 onboard-LED support alive in `jolt` (for
+Decided 2026-09-09: build against `upstream/main` and upstream the
+bindings; the proto4 is the phase 1 test board; `west update` then
+`jj new jolt-base`; the mesa2 waits for the key log.  Still open:
+
+1. **PWM LED**: keep Tiny 2040 onboard-LED support alive in `jolt` (for
    proto4/jolt3) via the shield dtsi as proposed, or drop it until the
-   Zephyr patch is upstream?
-5. **Key log before or after daily use?**  Phase 6 is after phase 5 above;
-   if TaipoTeacher's logs matter more than switching the daily driver early,
-   swap them.  Also whether the mesa2 should switch at all before the key
-   log exists, since a gap in its logs is a gap in the training data.
-6. **Feature passthrough**: `rust_cargo_application()` has no way to select
+   Zephyr patch is upstream?  Phase 1 assumes "keep", because the proto4
+   is the test board and its LED is the visible sign the build is alive.
+2. **Feature passthrough**: `rust_cargo_application()` has no way to select
    cargo features per shield.  Fine for now (default = taipo-only, and the
    jolt3 build script can pass `-DCONFIG_…`-free cargo flags another way),
-   but if a per-shield feature set is wanted, that is a lang-rust change.
-7. **What happens to `jolt-embassy-rp`** once the mesas run on `jolt` — kept
+   but if a per-shield feature set is wanted, that is a lang-rust change —
+   and a natural small upstream PR while the stack is being merged.
+3. **What happens to `jolt-embassy-rp`** once the mesas run on `jolt` — kept
    as the reference and the jolt3's firmware, or retired?  This affects
    whether phase 7 (consumer control) is done twice.
-8. **The wireless design's firmware** is deliberately not decided here; see
+4. **The wireless design's firmware** is deliberately not decided here; see
    "The split-wireless question".  When that board is on the bench, the
    inputs are: whether `davidb-i2c` has merged, whether a C-shim BLE HID
    proved tolerable, and whether ZMK has moved off the legacy USB stack by
    then (it is on ZMK's announced roadmap).
+5. **Rebase conflicts in phase 1** may reveal that upstream's kconfig-gated
+   device modules want the LED/LED-strip/I2C bindings structured
+   differently than the branches have them.  If so, that is a design
+   conversation for the PRs, not something to paper over in `jolt-base`.
