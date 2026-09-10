@@ -71,29 +71,55 @@ set is the right model: *cap next*, *don't cap next*, *cap previous N words*.
 through the vowel's ending form rather than emitting a space per stroke — it is worth
 having only for compounds and repairs.
 
-## Numbers
+## One-hand strokes, and where an escape can live
 
-Michela's number bar, kept: a modifier held while the outer fives spell digits.
+**Both one-hand forms are valid and common**, so neither can be reserved wholesale:
 
-**Number bar** — left inner `i`+`Sp`+`Bk`, the other spare Series 2 chord.
+| stroke | share | example |
+|---|---|---|
+| both hands | 78.4% | most syllables |
+| right hand only | 13.2% | vowel-initial words — *a*, *and*, *of* |
+| left hand only | 8.4% | trailing consonants, prefixes |
 
-With it held, each outer five spells a digit — tens on the left, units on the right,
-counting outward from the pinky:
+An escape therefore has to be one *specific* unused shape rather than a positional rule.
+There is no shortage: a hand has 511 non-empty shapes, and real English uses only 184 of
+them as left-only strokes and 182 as right-only, leaving **327 and 329 free**.
 
-| digit | keys | | digit | keys |
-|---|---|---|---|---|
-| 1 | `a` | | 6 | `a`+`o` |
-| 2 | `o` | | 7 | `o`+`s` |
-| 3 | `s` | | 8 | `s`+`t` |
-| 4 | `t` | | 9 | `t`+`n` |
-| 5 | `n` | | 0 | `a`+`n` |
+## Numbers, punctuation and symbols: escape to Dosh
 
-So 47 is the number bar with `t` on the left and `n`+`t` on the right. Phoenix's
-right-hand 1–9 shapes are the same idea; using both hands gets two digits per stroke.
+Rather than design any of this, switch to Dosh and use what is already there. Dosh has
+digits, symbols, navigation and function keys on its thumb layers, all of them already
+learned. This removes the whole problem *and* its learning cost.
 
-**This is the least designed part of the mapping.** The digit shapes above are merely
-positional, multi-digit handling beyond two digits is unaddressed, and Michela's dedicated
-chords for runs of zeros have no counterpart yet.
+**The firmware already does exactly this.** `LayoutManager::dosh_event` toggles
+`TaipoVariant` when `DOSH_TOGGLE_KEY` is pressed and released by itself, and raises
+`MinorMode::Dosh` so the mode is visible. The mechanism, the mode indicator and its tests
+all exist. The one change needed is that on mesa3 every one of the 18 keys is spoken for,
+so the toggle must be a chord rather than a lone key — one of the 327 free left-only
+shapes.
+
+Two forms are worth having, matching how the two cases behave:
+
+| | for | cost |
+|---|---|---|
+| **toggle** | runs — numbers, code, symbol-heavy text | 2 strokes per run, whatever its length |
+| **one-shot** | a single mark mid-sentence | 1 stroke, then the Dosh chord |
+
+**Numbers should use the toggle, not a number bar.** Michela's number bar plus ten digit
+shapes is ten things to learn for something used rarely and almost always in runs, where
+a toggle amortises to nothing. Dosh's digits are already known. This supersedes the
+number-bar sketch that this document previously carried.
+
+**Punctuation should be split.** Commas and full stops are the bulk of marks in ordinary
+prose, and they are frequent enough to deserve native strokes — there are ~255,000 free
+ones, and Midi4Text's own dictionary shows how to pick safe ones. Everything rarer goes
+through the escape. Rough cost, at ~0.15 marks per word in ordinary prose: escaping
+*everything* would add about 8% to the stroke count, while keeping `.` and `,` native
+brings that to roughly 3%.
+
+(The manual's own prose measures 0.46 marks per word, but it is stuffed with `(les. IV)`
+citations and slashes; ordinary prose is far lower. The 0.15 figure is an estimate, not a
+measurement.)
 
 ## The mapping as grids
 
