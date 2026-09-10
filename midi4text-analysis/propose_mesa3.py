@@ -14,9 +14,11 @@ import collections
 
 from m4t import corpus, layout as L, theory, writer
 
-# mesa3 hand in Dosh key names; thumbs are S (space) and B (backspace).
+# mesa3 hand in Dosh key names, following BIT_NAMES.  Dosh swaps the thumbs
+# relative to Taipo, so Bk is the key that types Space and Sp the one that
+# types Backspace.
 CONS_FINGERS = [("pinky", ["a"]), ("ring", ["o", "s"]), ("middle", ["t", "n"])]
-VOWEL_FINGERS = [("index", ["e", "i"]), ("thumb", ["S", "B"])]
+VOWEL_FINGERS = [("index", ["e", "i"]), ("thumb", ["Sp", "Bk"])]
 
 # Michela forbids a finger pressing both its keys, but that is a property of
 # wide piano keys, not of the theory.  On a keyboard the two keys of a finger

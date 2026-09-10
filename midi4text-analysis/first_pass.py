@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """A complete first-pass Midi4Text mapping for a 9-key-per-hand board.
 
-Each hand: a (pinky), o/s (ring), t/n (middle), e/i (index), S/B (thumbs),
-where S is the thumb that types Space in Dosh and B the one that types
-Backspace.  Chords are written left-hand, hyphen, right-hand.
+Each hand: a (pinky), o/s (ring), t/n (middle), e/i (index), Sp/Bk (thumbs),
+named as in BIT_NAMES.  Dosh swaps the thumbs relative to Taipo, so Bk is the
+key that types Space and Sp the one that types Backspace.  Chords are written
+left-hand, hyphen, right-hand; thumb names are two letters so a chord like
+`eiSp` reads unambiguously as e + i + Sp.
 
-    consonant group  a o s t n     Series 1 (onset) left, Series 4 (coda) right
-    vowel group      e i S B       Series 2 left, Series 3 (vowel) right
+    consonant group  a o s t n       Series 1 (onset) left, Series 4 (coda) right
+    vowel group      e i Sp Bk       Series 2 left, Series 3 (vowel) right
 
 Three design rules, each costing a little against a pure frequency fit:
 
@@ -19,7 +21,7 @@ Three design rules, each costing a little against a pure frequency fit:
     Michela's, which is phonetic and marks no spaces at all -- is that the
     ending form of a vowel is the plain one plus a key, which folds the
     inter-word space into the last stroke instead of spending a stroke on it.
-    S is Dosh's Space thumb, so the mnemonic is exact.
+    Bk is Dosh's Space thumb, so the mnemonic is exact.
 """
 
 import collections
@@ -30,15 +32,15 @@ from m4t import corpus, layout as L, theory, writer
 
 # Seven vowel identities on e/i/B; S added marks the end of a word.
 VOWEL_IDENTITY = {
-    "e": "e",           # Dosh key
-    "i": "i",           # Dosh key
-    "a": "B",
+    "e": "e",            # Dosh key
+    "i": "i",            # Dosh key
+    "a": "Sp",
     "o": "ei",
-    "u": "iB",
-    "ea": "eB",         # = e + a
-    "ou": "eiB",        # = o + u
+    "u": "iSp",
+    "ea": "eSp",         # = e + a
+    "ou": "eiSp",        # = o + u
 }
-END_MARKER = "S"
+END_MARKER = "Bk"        # the thumb that types Space in Dosh
 
 # Series 3 patterns, as (identity, closes the word).
 SERIES3 = {
@@ -52,7 +54,8 @@ SERIES3 = {
 # Series 2 keeps the vowel chords wherever it means the same vowel, so a chord
 # reads the same on either hand; the consonants fill in by frequency.  R and RI
 # are the two commonest and take the remaining single keys.
-SERIES2_FIXED = {"X": "e", "I": "i", "RXI": "ei", "U": "iB", "R": "S", "RI": "B"}
+SERIES2_FIXED = {"X": "e", "I": "i", "RXI": "ei", "U": "iSp",
+                 "R": "Bk", "RI": "Sp"}
 
 
 def series2_map(freq):
@@ -62,7 +65,7 @@ def series2_map(freq):
     used = set(fixed.values())
     chords = []
     for n in range(1, 5):
-        for c in itertools.combinations("eiSB", n):
+        for c in itertools.combinations(["e", "i", "Sp", "Bk"], n):
             chords.append("".join(c))
     out = dict(fixed)
     for pat, _ in freq.most_common():
@@ -112,7 +115,7 @@ def main():
               f"{theory.CODA.get(L.mirror(shape),'-'):>6}  {cmap[shape]:<7} {note}")
 
     print("\nVOWEL GROUP, right hand -- Series 3")
-    print("  Seven identities; add S to end the word.\n")
+    print("  Seven identities; add Bk, the Space thumb, to end the word.\n")
     print(f"  {'vowel':>6}  {'plain':<7} {'+ space':<8} note")
     seen = set()
     for ident, chord in VOWEL_IDENTITY.items():

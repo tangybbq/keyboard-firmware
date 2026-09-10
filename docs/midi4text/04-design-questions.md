@@ -68,8 +68,9 @@ face cost.
 ### Proposed mapping, in Dosh key names
 
 Keys per hand: `a` (pinky), `o`/`s` (ring), `t`/`n` (middle), `e`/`i` (index), and the two
-thumbs, written `S` and `B`. Hands separated by `-`, steno-style, since both hands now
-share one set of names. Shapes are assigned smallest-chord-first by corpus frequency, so
+thumbs, written `Sp` and `Bk` as in `BIT_NAMES`. Dosh swaps the thumbs relative to Taipo,
+so **`Bk` is the key that types Space** and `Sp` the one that types Backspace. Hands are
+separated by `-`, steno-style, since both hands now share one set of names. Shapes are assigned smallest-chord-first by corpus frequency, so
 the commonest consonants get single keys.
 
 **Consonant group** — `a`, `o`/`s`, `t`/`n`. One alphabet, both hands: onset on the left,
@@ -88,19 +89,10 @@ coda on the right. 30 shapes into 31 chords, one spare.
 | y | `st` | | | | | z | `ostn` |
 | | | | | | | ck | `aotn` |
 
-**Vowel group** — `e`/`i` (index), `S`/`B` (thumbs). Series 2 left, Series 3 right. 13
+**Vowel group** — `e`/`i` (index), `Sp`/`Bk` (thumbs). Series 2 left, Series 3 right. 13
 shapes into 15 chords, two spare.
 
-| Series 2 | Series 3 | chord | | Series 2 | Series 3 | chord |
-|---|---|---|---|---|---|---|
-| r | a | `S` | | c | o | `iB` |
-| s | e | `B` | | t | u | `ei` |
-| i | i | `e` | | u | u | `eSB` |
-| n | e | `i` | | o | _ | `iSB` |
-| m | a | `SB` | | e | ° | `eiS` |
-| w | o | `eS` | | | | |
-| p | i | `eB` | | | | |
-| l | * | `iS` | | | | |
+This group is superseded by the designed assignment in `05-first-pass-mapping.md`.
 
 ### The re-encoding is better than Michela's
 
