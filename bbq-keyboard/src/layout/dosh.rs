@@ -102,6 +102,10 @@
 //!   and apostrophe on the chord that types `s` and the period and quote on
 //!   the one that types `h`; the developer wants them the other way around.
 //!   The apostrophe has since left that shape altogether; see the table.
+//! - **`s` and `i` have their thumb layers swapped.**  The period and quote
+//!   arrived on `s` with the letter, and Enter and Tab sat on `i`; they are
+//!   now the other way about, so the period is on the index top key and Enter
+//!   on the ring top one.
 //! - **`o` and `e` have their navigation swapped.**  The wiki puts left and
 //!   home on `o` and right and end on `e`, matching the order the keys sit on
 //!   the left hand; the developer finds the mirrored sense more intuitive, so
@@ -151,8 +155,8 @@ pub static DOSH_ACTIONS: &[Entry] = &[
 
     Entry { code: 0x020, action: Action::Simple(Keyboard::S), },
     Entry { code: 0x220, action: Action::Shifted(Keyboard::S), },
-    Entry { code: 0x120, action: Action::Simple(Keyboard::Dot), },
-    Entry { code: 0x320, action: Action::Shifted(Keyboard::Apostrophe), },
+    Entry { code: 0x120, action: Action::Simple(Keyboard::ReturnEnter), },
+    Entry { code: 0x320, action: Action::Simple(Keyboard::Tab), },
 
     Entry { code: 0x040, action: Action::Simple(Keyboard::N), },
     Entry { code: 0x240, action: Action::Shifted(Keyboard::N), },
@@ -161,8 +165,8 @@ pub static DOSH_ACTIONS: &[Entry] = &[
 
     Entry { code: 0x080, action: Action::Simple(Keyboard::I), },
     Entry { code: 0x280, action: Action::Shifted(Keyboard::I), },
-    Entry { code: 0x180, action: Action::Simple(Keyboard::ReturnEnter), },
-    Entry { code: 0x380, action: Action::Simple(Keyboard::Tab), },
+    Entry { code: 0x180, action: Action::Simple(Keyboard::Dot), },
+    Entry { code: 0x380, action: Action::Shifted(Keyboard::Apostrophe), },
 
     // `h`, the one same-row pair left carrying punctuation now that `s` is a
     // single key.

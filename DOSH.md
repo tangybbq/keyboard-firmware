@@ -50,11 +50,11 @@ Both thumbs pressed alone releases any held modifiers without typing anything.
 +Sp turns six of the seven keys into the navigation cluster, and both thumbs into the far-motion
 keys. Arrow mnemonic: up and down are the middle finger's two keys, and left and right are the
 bottom row's inner two, with the index finger giving left and the ring finger right. (The wiki
-has those two the other way around.) That leaves the index top key for Enter and the lower pinky
+has those two the other way around.) That leaves the ring top key for Enter and the lower pinky
 for Escape.
 
-`s` is the exception: it carries the period and the double quote, which it kept when it moved
-here from `n+i`.
+`i` is the exception: it carries the period and the double quote. Those arrived on `s` when the
+letter moved here from `n+i`, and have since traded places with `s`'s Enter and Tab.
 
 | chord | alone | +Bk | +Sp | +Sp+Bk |
 |-------|-------|-----|-----|--------|
@@ -62,9 +62,9 @@ here from `n+i`.
 | o | o | O | → | End |
 | t | t | T | ↓ | Page Down |
 | e | e | E | ← | Home |
-| s | s | S | `.` | `"` |
+| s | s | S | Enter | Tab |
 | n | n | N | ↑ | Page Up |
-| i | i | I | Enter | Tab |
+| i | i | I | `.` | `"` |
 
 ## The comma
 

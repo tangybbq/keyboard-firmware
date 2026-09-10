@@ -1612,7 +1612,7 @@ fn test_dosh_single_keys() {
 }
 
 /// The backspace thumb turns the single keys into the navigation cluster, and
-/// both thumbs into the far-motion keys.  `s` is the exception: it carries the
+/// both thumbs into the far-motion keys.  `i` is the exception: it carries the
 /// period and the double quote instead.
 #[test]
 fn test_dosh_navigation() {
@@ -1622,14 +1622,16 @@ fn test_dosh_navigation() {
     script.chord(LEFT, T | SP).types(Keyboard::DownArrow);
     script.chord(LEFT, A | SP).types(Keyboard::Escape);
     script.chord(LEFT, O | SP).types(Keyboard::RightArrow);
-    script.chord(LEFT, I | SP).types(Keyboard::ReturnEnter);
+    script.chord(LEFT, I | SP).types(Keyboard::Dot);
+    script.chord(LEFT, S | SP).types(Keyboard::ReturnEnter);
     script.chord(LEFT, N | SP).types(Keyboard::UpArrow);
 
     script.chord(RIGHT, E | BK | SP).types(Keyboard::Home);
     script.chord(RIGHT, T | BK | SP).types(Keyboard::PageDown);
     script.chord(RIGHT, A | BK | SP).types(Keyboard::DeleteForward);
     script.chord(RIGHT, O | BK | SP).types(Keyboard::End);
-    script.chord(RIGHT, I | BK | SP).types(Keyboard::Tab);
+    script.chord(RIGHT, I | BK | SP).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
+    script.chord(RIGHT, S | BK | SP).types(Keyboard::Tab);
     script.chord(RIGHT, N | BK | SP).types(Keyboard::PageUp);
 
     script.run();
@@ -1686,7 +1688,7 @@ fn test_dosh_digits_and_symbols() {
     script.chord(LEFT, O | T | E | SP).types(Keyboard::Minus);
     script.chord(RIGHT, O | I | SP).types(Keyboard::Semicolon);
     script.chord(LEFT, T | E | S | SP).types_mods(Keyboard::Keyboard4, Mods::SHIFT);
-    script.chord(LEFT, S | SP).types(Keyboard::Dot);
+    script.chord(LEFT, I | SP).types(Keyboard::Dot);
 
     // Function keys on both thumbs.
     script.chord(LEFT, A | E | BK | SP).types(Keyboard::F1);
@@ -1712,7 +1714,7 @@ fn test_dosh_digits_and_symbols() {
         .release(RIGHT, T | E | I | BK)
         .tick(1)
         .idle();
-    script.chord(RIGHT, S | BK | SP).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
+    script.chord(RIGHT, I | BK | SP).types_mods(Keyboard::Apostrophe, Mods::SHIFT);
 
     // The punctuation-only chords, which have no both-thumbs variant.
     script.chord(LEFT, S | T).types_mods(Keyboard::ForwardSlash, Mods::SHIFT);
@@ -1771,7 +1773,7 @@ fn test_dosh_modifiers() {
         .mod_state(Mods::ALT, Mods::empty());
     script.chord(RIGHT, O | S).idle().mod_state(Mods::ALT, Mods::ALT);
     script
-        .chord(LEFT, I | BK | SP)
+        .chord(LEFT, S | BK | SP)
         .presses(Keyboard::Tab, Mods::ALT)
         .mod_only(Mods::ALT);
     script.chord(LEFT, BK | SP).releases().no_mod_state();
