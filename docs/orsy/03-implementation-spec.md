@@ -88,7 +88,7 @@ Much smaller than the steno typer, because nothing is ever retranslated.
 
 ## Mode integration
 
-Add `LayoutMode::Orsy` behind a `orsy` feature, dispatched in `LayoutManager::handle_event`
+Add `LayoutMode::Orsy` behind an `orsy` feature, dispatched in `LayoutManager::handle_event`
 beside `Taipo` and `Steno`.
 
 The Dosh escape needs the layout manager, not the crate:
