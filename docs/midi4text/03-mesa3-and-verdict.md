@@ -168,14 +168,27 @@ measurements cannot settle.
 
 ### Revised recommendation
 
-**A real but modest ceiling of roughly 1.5×, contingent on large chords being as cheap as
-small ones — and bought with 43 chords, a dozen composition rules, and syllable division
+Two later corrections improve the case further. Finger exclusion turns out to be the
+piano's constraint rather than the theory's, so a keyboard port pays no penalty for it;
+and re-encoding the chords by frequency instead of inheriting Michela's historic
+assignment makes the 9-key version cheaper than the 10-key original — **7.52 keys per
+word against Michela's 8.36 and Dosh's 8.13**, with the 9-plus-key strokes cut from 4.3%
+to 1.4% (see `04-design-questions.md`).
+
+So a mesa3 Midi4Text would beat Dosh on hand cycles (1.68 vs 2.45), on keys per word
+(7.52 vs 8.13) and on keys per hand (3.78 vs 4.06). The one axis where it stays behind is
+**keys per cycle: 2.25 against 1.66** — its chords are still half again as large.
+
+**A real ceiling of roughly 1.5×, resting on whether a 2.25-key chord forms as fast as a
+1.66-key one — and bought with 43 chords, a dozen composition rules, and syllable division
 as a live decision while typing.**
 
-That is a much better case than "no gain", but it is still a thin one, because the
-contingency is the part most likely to fail and the syllable-division cost is the part
-hardest to amortise. The recommendation remains against adopting it — but on grounds of
-poor return for the learning investment, not because the speed is not there.
+The speed case is genuine. The recommendation is still against adopting it, but now purely
+on return for the learning investment: the chords are a fortnight's work, while syllable
+division is an open-ended skill, and 1.5× is not obviously worth that when Dosh already
+works. It is a much closer call than the first pass suggested, and if the space-folding
+of `04-design-questions.md` is adopted for Dosh anyway, the gap narrows from the other
+side too.
 
 **What is worth keeping.** Two ideas from this theory are worth stealing independently of
 the rest:

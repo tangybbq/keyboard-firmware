@@ -18,9 +18,12 @@ from m4t import corpus, layout as L, theory, writer
 CONS_FINGERS = [("pinky", ["a"]), ("ring", ["o", "s"]), ("middle", ["t", "n"])]
 VOWEL_FINGERS = [("index", ["e", "i"]), ("thumb", ["S", "B"])]
 
-# The thumb may press both its keys at once; Michela exempts it, and IU is an
-# ordinary chord there.  Every other finger pays for a double.
-FREE_DOUBLE = {"thumb"}
+# Michela forbids a finger pressing both its keys, but that is a property of
+# wide piano keys, not of the theory.  On a keyboard the two keys of a finger
+# are adjacent and small, and rolling or flattening onto both is easy -- Dosh
+# already does it in 25 of its 132 entries.  So no finger pays a penalty here
+# and chords are ranked purely by how many keys they need.
+FREE_DOUBLE = {"pinky", "ring", "middle", "index", "thumb"}
 
 
 def states(fingers):
