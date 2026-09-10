@@ -19,7 +19,9 @@
 
 pub mod chord;
 pub mod compose;
+pub mod output;
 pub mod tables;
 
 pub use chord::Chord;
 pub use compose::{translate, Translation};
+pub use output::{Op, Ops, Output};
