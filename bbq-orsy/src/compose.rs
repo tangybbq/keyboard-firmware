@@ -24,7 +24,7 @@
 //!    makes a fragment that binds backward, unless it is a bare onset, which
 //!    binds forward.
 
-use crate::chord::Chord;
+use crate::chord::{Chord, HAND_MASK};
 use crate::tables::{Outer, Second, Vowel};
 
 /// What a stroke spells and how it joins onto its neighbours.
@@ -167,6 +167,11 @@ fn onset_override(s1: Outer, s2: Second) -> Option<&'static str> {
 
 /// Translate one stroke, or `None` if it is not a valid syllable.
 pub fn translate(chord: Chord) -> Option<Translation> {
+    // A key the layout does not have (the upper pinky, on a board that has
+    // one) is not silently ignored.
+    if (chord.left | chord.right) & !HAND_MASK != 0 {
+        return None;
+    }
     let s1 = Outer::lookup(chord.series1())?;
     let s2 = Second::lookup(chord.series2())?;
     let s3 = Vowel::lookup(chord.series3())?;
@@ -337,5 +342,7 @@ mod tests {
         assert_eq!(translate(Chord::new(0, 0x200)), None);
         assert_eq!(translate(Chord::new(0x380, 0x008)), None);
         assert_eq!(translate(chord(Outer::FCZ, Second::Empty, Vowel::A, Outer::Empty)), None);
+        // The upper pinky is not an Orsy key.
+        assert_eq!(translate(Chord::new(0x014, 0x008)), None);
     }
 }
