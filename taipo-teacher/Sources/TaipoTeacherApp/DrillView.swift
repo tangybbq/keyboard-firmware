@@ -31,11 +31,17 @@ struct DrillView: View {
                 Divider()
                 scoreboard(drill.stats)
                 HStack(spacing: 14) {
-                    if drill.finished {
-                        Label("Enter for the next line", systemImage: "return")
-                            .font(.callout)
-                            .foregroundStyle(Color.accentColor)
-                    } else {
+                    // Enter is offered on every line, not only a finished one: it moves
+                    // on regardless, and a writer who is told about it only after typing
+                    // the line perfectly has no way to learn that it is the way out of a
+                    // line that went wrong.
+                    Label(
+                        drill.finished ? "Enter for the next line" : "Enter to move on",
+                        systemImage: "return"
+                    )
+                    .font(.callout)
+                    .foregroundStyle(drill.finished ? Color.accentColor : Color.secondary)
+                    if !drill.finished {
                         Text("Both thumbs to start over")
                             .font(.callout)
                             .foregroundStyle(.secondary)
@@ -61,7 +67,7 @@ struct DrillView: View {
                     }
                     if !drill.onTrack {
                         Label(
-                            "Off the target — backspace to fix it.",
+                            "Off the target — backspace to fix it, or Enter to move on.",
                             systemImage: "exclamationmark.triangle"
                         )
                         .font(.callout)

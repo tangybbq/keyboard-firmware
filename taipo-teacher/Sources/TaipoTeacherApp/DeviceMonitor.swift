@@ -822,13 +822,17 @@ public final class DeviceMonitor: ObservableObject {
             // nothing anyway: Enter is not in any target, and the null chord exists to
             // release modifiers.
             switch drill.control(for: live.chord) {
-            case .next where drill.finished:
+            // Enter moves on whether or not the line came out right.  Holding a writer on
+            // a line until it is a perfect copy turns one mistyped word into a wall, and
+            // there is nothing to gain by it: the score has already recorded what
+            // happened, and the logs the skill model reads are the keyboard's own.
+            case .next:
                 nextDrill()
                 return
             case .restart:
                 restartDrill()
                 return
-            case .next, .none:
+            case .none:
                 break
             }
             if !drill.finished {
