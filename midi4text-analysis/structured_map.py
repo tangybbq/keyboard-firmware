@@ -34,15 +34,23 @@ def by_spelling():
     return {v: k for k, v in theory.ONSET.items() if k}
 
 
-def base_chords():
+def all_chords():
+    """Every chord on the five consonant keys, cheapest first."""
     out = []
-    for n in range(1, len(BASE_KEYS) + 1):
-        for combo in itertools.combinations(BASE_KEYS, n):
-            out.append("".join(combo))
-    return out                                       # 15 of them
+    keys = [PINKY] + BASE_KEYS
+    for n in range(1, len(keys) + 1):
+        for combo in itertools.combinations(keys, n):
+            out.append("".join(sorted(combo, key=(PINKY + "".join(BASE_KEYS)).index)))
+    return sorted(out, key=len)
 
 
 def build(freq):
+    """Assign chords: Dosh anchors first, then frequency order, pairs last.
+
+    Only the six paired consonants need the pinky reserved -- their partner is
+    the base chord plus the pinky.  Everything else may use any free chord,
+    which keeps the single-key chords from going to waste.
+    """
     pat = by_spelling()
     ANCHORS = {pat[k]: v for k, v in ANCHORS_BY_SPELLING.items() if k in pat}
     PAIRS = {}
@@ -50,42 +58,51 @@ def build(freq):
         if k not in pat or v not in pat:
             continue
         a, b = pat[k], pat[v]
-        # The commoner member is the base; the rarer one is base + pinky.
-        if freq[a] > freq[b]:
+        if freq[a] > freq[b]:            # the commoner member is the base
             a, b = b, a
         PAIRS[a] = b
-    order = [s for s, _ in freq.most_common()]
-    chords = base_chords()
-    assigned, used = {}, set()
-    for shape, chord in ANCHORS.items():
-        assigned[shape] = chord
-        used.add(chord)
-    # Bases first, commonest to rarest, skipping shapes that are a pair's partner.
+
+    chords = all_chords()
+    assigned = dict(ANCHORS)
+    used = set(assigned.values())
+    bases = set(PAIRS.values())
     partners = set(PAIRS)
-    for shape in order:
+    # An anchor that is also a pair's base must reserve its pinky partner too,
+    # or a later shape will take the chord the partner needs.
+    for shape, chord in ANCHORS.items():
+        if shape in bases:
+            used.add(PINKY + chord)
+
+    for shape, _ in freq.most_common():
         if shape in assigned or shape in partners:
+            continue
+        # A base needs a pinky-free chord, so that base + pinky stays available.
+        free = [c for c in chords
+                if c not in used
+                and not (shape in bases and (PINKY in c or PINKY + c in used))]
+        if not free:
+            break
+        c = free[0]
+        assigned[shape] = c
+        used.add(c)
+        if shape in bases:
+            used.add(PINKY + c)
+
+    for partner, base in PAIRS.items():
+        if base in assigned:
+            assigned[partner] = PINKY + assigned[base]
+
+    for shape, _ in freq.most_common():        # anything still unplaced
+        if shape in assigned:
             continue
         free = [c for c in chords if c not in used]
         if not free:
             break
-        c = min(free, key=len)
-        assigned[shape] = c
-        used.add(c)
-    # Then each partner as its base plus the pinky.
-    for shape, base in PAIRS.items():
-        if base in assigned:
-            assigned[shape] = PINKY + assigned[base]
-    # Anything left over takes the cheapest remaining pinky chord.
-    taken = set(assigned.values())
-    for shape in order:
-        if shape in assigned:
-            continue
-        free = [PINKY + c for c in chords if PINKY + c not in taken]
-        if not free:
-            break
-        c = min(free, key=len)
-        assigned[shape] = c
-        taken.add(c)
+        assigned[shape] = free[0]
+        used.add(free[0])
+
+    clash = [c for c, n in collections.Counter(assigned.values()).items() if n > 1]
+    assert not clash, f"chords assigned twice: {clash}"
     return assigned, ANCHORS, PAIRS
 
 
