@@ -1,0 +1,162 @@
+# Midi4Text — follow-up design questions
+
+Four questions arising from the Phase 5/6 verdict, answered with measurements.
+
+## 1. Did the Dosh figure include the space?
+
+Yes. Dosh's 5.90 chords per word is 4.90 letters plus one space chord — one chord per
+letter, plus the thumb. That is the honest comparison, since Midi4Text folds its space
+into the last stroke and pays nothing extra for it.
+
+## 2. Folding the space into Dosh without four-key chords
+
+**Dosh's chord space is numerically empty and ergonomically full.** It uses 132 of the
+508 available finger-chord slots — 26% — but the cheap shapes are gone:
+
+| thumb layer | used | free |
+|---|---|---|
+| alone | 37 | 90 |
+| +Sp | 33 | 94 |
+| +Bk | 33 | 94 |
+| +both | 29 | 98 |
+
+In the *alone* layer only **2 free two-key chords and 26 free three-key chords** remain;
+everything else free is four keys or more. So adding 26 new "letter+space" chords is not
+affordable as new chord shapes.
+
+**The way in is to repurpose rather than add.** `Bk` alone already types Space. Make
+`letter + Bk` mean *that letter, then a space*. This:
+
+- adds **no new chord shapes** — it reuses the 26 slots capitals currently hold;
+- adds **no keys** — one thumb key, exactly the one the separate space chord would have
+  cost;
+- is mnemonically exact: the space thumb adds a space, alone or in company.
+
+Capitals have to move. The cheapest home is a one-shot shift chord: at roughly 3% of
+letters that costs about 0.15 chords per word against a saving of 1.00. Net **5.90 →
+~5.05 chords per word**, with keys per word unchanged at 8.13. The same trick applies to
+sentence-final punctuation, which is nearly always followed by a space.
+
+**One caveat, and it matters.** Dosh's space is already the cheapest possible chord: a
+one-key thumb tap, and because the hands alternate it can be made by the hand that is
+*not* mid-word. In wall-clock terms it may already overlap almost completely with the
+next letter. So 5.90 overstates what space actually costs, and folding it will improve
+the chord count more than it improves real typing speed. It is still worth doing — but it
+is not a free 17%.
+
+## 3. What Midi4Text needs to run on 9 keys per side
+
+The earlier "512 chords per hand, fits comfortably" was too glib. The binding constraint
+is not the key count but **finger exclusion**, and once that is accounted for the real
+structure of a Michela hand appears:
+
+| group | fingers | keys | states | Midi4Text needs |
+|---|---|---|---|---|
+| Series 1 / 4 | pinky, ring, middle | 2 each | 3×3×3 = **27** | 30 shapes |
+| Series 2 / 3 | index, thumb | 2 each | 4×4 = **16** | 13 shapes |
+
+Series 1 never uses more than three keys at once, one per finger — `FSCZPN` appears only
+in the licence chord. That is the whole design: three fingers spell the consonant, index
+and thumb spell the vowel.
+
+**mesa3 breaks exactly one thing: its pinky has one key where Michela's has two.** The
+consonant group becomes 5 keys (pinky 1, ring 2, middle 2) giving 18 finger-exclusive
+states against the 30 needed. Allowing ring and middle to press both their keys — which
+Dosh already does for `z` — restores 32 states, enough.
+
+### Proposed mapping, in Dosh key names
+
+Keys per hand: `a` (pinky), `o`/`s` (ring), `t`/`n` (middle), `e`/`i` (index), and the
+two thumbs, written `S` and `B`. Hands separated by `-`, steno-style, since both hands
+now share one set of names.
+
+**Consonant group** — `a`, `o`/`s`, `t`/`n`. Same alphabet both hands: onset on the left,
+coda on the right.
+
+| spells | chord | | spells | chord | | spells | chord |
+|---|---|---|---|---|---|---|---|
+| n | `t` | | th | `at` | | ind / nd | `tn` ◆ |
+| s | `n` | | l | `an` | | inc / ng | `os` ◆ |
+| t | `o` | | b | `ao` | | k | `otn` ◆ |
+| r | `s` | | w | `as` | | ch | `stn` ◆ |
+| c | `a` | | g | `aot` | | int / nt | `ost` ◆ |
+| d | `ot` | | h / st | `aon` | | x | `osn` ◆ |
+| p | `on` | | v | `ast` | | sh | `atn` ◆ |
+| f | `st` | | m | `asn` | | gh | `aos` ◆ |
+| y | `sn` | | | | | z | `aotn` ◆ |
+| | | | | | | ck | `astn` ◆ |
+
+◆ = needs a same-finger double on the ring or middle finger.
+
+**Vowel group** — `e`/`i` (index), `S`/`B` (thumbs). Series 2 on the left, Series 3 on
+the right.
+
+| Series 2 | Series 3 | chord | | Series 2 | Series 3 | chord |
+|---|---|---|---|---|---|---|
+| r | a | `S` | | c | o | `iB` |
+| s | e | `B` | | t | u | `eSB` |
+| i | i | `e` | | u | u | `iSB` |
+| n | e | `i` | | o | _ | `ei` ◆ |
+| m | a | `SB` | | e | ° | `eiS` ◆ |
+| w | o | `eS` | | | | |
+| p | i | `eB` | | | | |
+| l | * | `iS` | | | | |
+
+### What it costs
+
+Frequency-weighted over the corpus, same-finger doubles are needed on **8.6% of consonant
+slots and 5.7% of vowel slots** — roughly half a double per word. The vowel doubles are
+`ei`, which is precisely Michela's own `RX` "thumb passage"; that half of the problem is
+not new and already has a documented technique. The consonant doubles are new, and land
+on the rarest shapes by construction (`z`, `ck`, `gh`, `sh`).
+
+Generated by `midi4text-analysis/propose_mesa3.py`, which assigns shapes to states
+cheapest-first by corpus frequency, so the table is optimal for this split rather than
+hand-picked.
+
+## 4. Learning effort
+
+Because the mirror lets one alphabet serve both hands, the inventory is small:
+
+| system | chords to memorise | dictionary |
+|---|---|---|
+| Dosh | 26 letters | none |
+| Midi4Text | **43** (30 consonant + 13 vowel) | none |
+| phonetic steno | ~30 key-to-sound mappings | 100k+ entries, briefs mandatory |
+
+The acquisition curves are closer than the totals suggest, because both are dominated by
+a few frequent shapes:
+
+| coverage of running English | Midi4Text | Dosh |
+|---|---|---|
+| ~40% | 20 shapes | 10 chords |
+| ~90% | 33 shapes | 20 chords |
+| 100% | 43 shapes | 26 chords |
+
+So the rote memorisation is about **1.65× Dosh**, and your suspicion is right that it is
+far below a phonetic theory — Midi4Text's whole point is that it needs *no dictionary at
+all*, where a phonetic system's dictionary is the bulk of the learning and never really
+finishes.
+
+**But the chord count is not the real cost.** Midi4Text adds two things Dosh has no
+analogue for: about a dozen composition rules (the ending-vowel space marker, the
+mirrored-vowel silent E, the inter-series clusters), and **syllable division as a live
+decision**. The manual is explicit that English hyphenation does not apply, that words
+have several legal divisions, and that awkward clusters force unnatural ones. That skill
+is the part that takes months, and it is not bounded by a chord count. Realistically:
+chords in a week or two, fluency gated by division practice.
+
+## 5. On the 3× margin
+
+With the space folded into Dosh, the chord ratio falls from 3.22× to **2.68×** — and
+Dosh's space chord was already the cheapest and most pipelinable one it has. That is the
+right way to read the margin: it is thin, and it is thin *before* accounting for the fact
+that Midi4Text's strokes are serialised while Dosh's are not.
+
+You are right that briefs are where Midi4Text would pull ahead — 1.83 strokes/word is a
+brief-free figure, and a brief dictionary would cut it substantially. But that reopens
+the objection the orthographic design exists to close: the moment briefs carry the speed,
+the system is a dictionary system again, and its advantage over phonetic steno
+evaporates. Briefs can equally be added to Dosh.
+
+**The verdict from Phase 6 stands, with the margin now measured rather than asserted.**
