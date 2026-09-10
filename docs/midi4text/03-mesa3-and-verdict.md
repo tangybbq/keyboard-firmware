@@ -166,29 +166,72 @@ lore, Posh's pinky removal included, assumes it does — the advantage erodes to
 parity. That is the crux, and it is an empirical question about hands that these
 measurements cannot settle.
 
+### Correction to the cycle count
+
+The 1.68 cycles/word first recorded above was miscounted: it took the maximum of the two
+hands' *averages*, which lets a one-handed stroke overlap a two-handed neighbour when it
+cannot. Averaging the per-word maximum gives **1.83** — effectively the stroke count,
+since 78% of strokes need both hands. The unbriefed advantage over Dosh is therefore
+**1.34×** with Dosh's space folded, or 1.61× without.
+
+## Briefs: the argument that actually decides it
+
+Everything above measures the systems *brief-free*, and that undersells Midi4Text badly.
+The chord space of an 18-key Michela-derived layout is enormous, and briefs are learned
+gradually, each paying off in proportion to its frequency.
+
+**Brief capacity:**
+
+| | free chords | |
+|---|---|---|
+| Dosh | **376** | one-handed, 4 thumb layers x 127, less the 132 the layout uses |
+| mesa3 Midi4Text | **255,162** | of 2^18 strokes, real English needs only 6,982 (2.7%) |
+
+That is a **678× difference**, and it is structural: Dosh chords are one-handed by design,
+so its brief space is a few hundred slots, while a Midi4Text stroke is inherently
+two-handed and spends a quarter of a million.
+
+**What that buys** (cycles per word on the busiest hand; `midi4text-analysis/briefs.py`):
+
+| briefs | Midi4Text | Dosh |
+|---|---|---|
+| 0 | 1.83 | 2.45 |
+| 100 | 1.71 | 2.08 |
+| 376 | 1.58 | **1.78 — exhausted** |
+| 1,000 | 1.43 | 1.78 |
+| 5,000 | 1.15 | 1.78 |
+| 20,000 | 1.00 | 1.78 |
+
+Dosh hits a wall at 376 briefs and stops at 1.78. Midi4Text keeps descending. At a brief
+set a steno writer would accumulate over a few years — 2,000 to 5,000 — it reaches
+1.15–1.26 against Dosh's floor of 1.78, a **1.4–1.5× advantage that the unbriefed
+comparison does not show at all**.
+
+**The counter, and why it does not fully answer.** Dosh could allow two-handed briefs with
+an engine change, and its brief space would become vast too. But a two-handed Dosh brief
+costs a full cycle, forfeiting the half-cycle advantage its one-handed chords enjoy — so
+the two systems would converge on briefed words. What would *not* converge is the
+**unbriefed fallback**: every word you have not briefed still costs Midi4Text 1.83 cycles
+and Dosh 2.45. Midi4Text's syllabic layer is itself a brief system covering the entire
+tail of the language, which is precisely what a per-letter layout cannot have.
+
 ### Revised recommendation
 
-Two later corrections improve the case further. Finger exclusion turns out to be the
-piano's constraint rather than the theory's, so a keyboard port pays no penalty for it;
-and re-encoding the chords by frequency instead of inheriting Michela's historic
-assignment makes the 9-key version cheaper than the 10-key original — **7.52 keys per
-word against Michela's 8.36 and Dosh's 8.13**, with the 9-plus-key strokes cut from 4.3%
-to 1.4% (see `04-design-questions.md`).
+I have moved on this twice, so plainly: **the analysis no longer supports a confident
+recommendation against.**
 
-So a mesa3 Midi4Text would beat Dosh on hand cycles (1.68 vs 2.45), on keys per word
-(7.52 vs 8.13) and on keys per hand (3.78 vs 4.06). The one axis where it stays behind is
-**keys per cycle: 2.25 against 1.66** — its chords are still half again as large.
+The case for is now: a 1.34× floor unbriefed, 678× the brief headroom, a graceful fallback
+for every word never briefed, briefs learnable incrementally with immediate per-brief
+payoff, and a 9-key re-encoding that is cheaper per keypress than Dosh (7.52 vs 8.13 keys
+per word).
 
-**A real ceiling of roughly 1.5×, resting on whether a 2.25-key chord forms as fast as a
-1.66-key one — and bought with 43 chords, a dozen composition rules, and syllable division
-as a live decision while typing.**
+The case against is unchanged and still real: syllable division is an open-ended skill
+with no analogue in Dosh, the chords are half again as large (2.25 vs 1.66 keys per
+cycle), and it is a firmware project rather than a table swap.
 
-The speed case is genuine. The recommendation is still against adopting it, but now purely
-on return for the learning investment: the chords are a fortnight's work, while syllable
-division is an open-ended skill, and 1.5× is not obviously worth that when Dosh already
-works. It is a much closer call than the first pass suggested, and if the space-folding
-of `04-design-questions.md` is adopted for Dosh anyway, the gap narrows from the other
-side too.
+What it is *not* is a system with no headroom, which is what the first pass concluded from
+keys per word. Whether the return justifies the learning is a judgement about your time
+that these numbers inform but cannot make.
 
 **What is worth keeping.** Two ideas from this theory are worth stealing independently of
 the rest:
