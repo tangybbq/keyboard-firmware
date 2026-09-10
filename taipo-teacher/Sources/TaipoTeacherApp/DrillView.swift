@@ -434,7 +434,12 @@ struct FlowText: View {
             if c.gram {
                 piece.underlineStyle = .single
             }
-            if c.sameHand {
+            // The same-hand tint goes under the text's own colouring and never over it.
+            // A wrong character has to keep its red: tinted orange instead it reads as a
+            // faint pink, so the one character on the line that has to be dealt with is
+            // drawn more quietly than the ones that are right.  The fault itself is not
+            // lost -- every chord has its bead in the technique strip.
+            if c.sameHand, c.state != .wrong {
                 piece.backgroundColor = .orange.opacity(0.35)
             }
             out += piece
