@@ -23,8 +23,10 @@ those combinations for the corresponding English *spellings*: soft C → `ch`, h
 ## 2. Physical layout
 
 20 keys, 10 per hand, taken from two regions of a MIDI keyboard (D♯–C and E–C♯). Each
-hand is split into two **Series**, and the split is the piano's own geometry: **6 white
-keys and 4 black keys per hand**.
+hand is split into two **Series**. The split is *positional*, not by key colour: each
+hand covers ten contiguous semitones, and the Series are the first six and the last four
+of them. (Series 1 is `F` D#2 black, `S` E2 white, `C` F2 white, `Z` F#2 black, `P` G2
+white, `N` G#2 black — a mix.)
 
 | Series | Keys | Role |
 |---|---|---|

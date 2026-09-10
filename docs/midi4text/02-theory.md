@@ -156,6 +156,33 @@ The full four-way cross product is only 41% populated, but per hand it is 98.9%
 hand, not between them** — the hands compose almost freely, which is what makes the
 dictionary a near-perfect rectangle.
 
+## The finger-exclusion constraint
+
+The manual states that each finger owns two keys "which have not to be pressed
+simultaneously (with the exception of the thumbs)", but gives the finger assignment only
+as a diagram. Pairing each finger with two adjacent keys, thumb innermost, gives
+`FS` pinky, `CZ` ring, `PN` middle, `RX` index, `IU` thumb — and the dictionary bears
+that out almost perfectly:
+
+| finger | pair | strokes using both keys |
+|---|---|---|
+| pinky | `FS` | 0 |
+| middle | `PN` | 0 |
+| ring | `CZ` | 1 |
+| index | `RX` | 22,609 (14.3%) |
+| thumb | `IU` | 34,099 (21.5%) |
+
+Every violation is one the manual itself flags. The single ring-finger case is `CZ`, the
+extra-ordinem *ck*. The index cases are `RX` and `RXI`, which the manual describes as
+being played "by rotating the thumb under the index finger, similarly to the piano
+thumb passage". The thumb is exempt by design.
+
+So the real chord space is much smaller than 2^10 per hand. Under strict exclusion a
+Michela hand offers 3x3x3x3x4 = 324 combinations; Midi4Text uses 379 on the left and 421
+on the right, and the excess is exactly what the thumb passage and the extra-ordinem
+chords buy. This constraint, not the key count, is what governs whether the system can
+be re-hosted on other hardware.
+
 ## Residue: the 1.74% not reproduced
 
 2,757 entries. None of it threatens the theory; most of it looks like inconsistency in
