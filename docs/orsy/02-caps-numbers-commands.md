@@ -1,6 +1,6 @@
-# Midi4Text on mesa3 — capitals, numbers and commands
+# Orsy — capitals, numbers and commands
 
-Follows `05-first-pass-mapping.md`. Keys keep their **Dosh** names throughout — `a` `o` `s`
+Follows `01-mapping.md`. Keys keep their **Dosh** names throughout — `a` `o` `s`
 `t` `n` `e` `i` `Sp` `Bk` per hand — and Taipo is not referred to at all.
 
 Chords are drawn as grids rather than written as strings of key names. A chord is a shape

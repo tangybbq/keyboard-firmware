@@ -92,7 +92,7 @@ coda on the right. 30 shapes into 31 chords, one spare.
 **Vowel group** — `e`/`i` (index), `Sp`/`Bk` (thumbs). Series 2 left, Series 3 right. 13
 shapes into 15 chords, two spare.
 
-This group is superseded by the designed assignment in `05-first-pass-mapping.md`.
+This group is superseded by the designed assignment in `../orsy/01-mapping.md`.
 
 ### The re-encoding is better than Michela's
 

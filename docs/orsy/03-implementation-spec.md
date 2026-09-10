@@ -1,8 +1,12 @@
-# Implementation spec — an orthographic syllabic layout for mesa3
+# Orsy — implementation spec
 
-Working name **SYLO** (placeholder; "Midi4Text" names a MIDI keyboard this has nothing to
-do with). Everything below refers to the mesa3 mapping in `05-first-pass-mapping.md` and
-`06-caps-numbers-commands.md`, not to the original 20-key theory.
+**Orsy** is an orthographic syllabic chord layout for mesa3, derived from the Michela
+machine-shorthand layout by way of the Midi4Text theory (analysed in `../midi4text/`).
+The name is short for *orthographic-syllabic*; the parent theory's name refers to a MIDI
+keyboard, which nothing here involves.
+
+Everything below refers to the mesa3 mapping in `01-mapping.md` and
+`02-caps-numbers-commands.md`, not to the original 20-key theory.
 
 ## Is enough settled? Yes, with three exceptions
 
@@ -24,7 +28,7 @@ The decisive facts are that a stroke translates on its own and nothing later rev
 and that undo is a count of characters. Together these remove almost everything the steno
 path exists to provide.
 
-| stage | steno | SYLO |
+| stage | steno | Orsy |
 |---|---|---|
 | chord accumulation | whole board, last-up | **same** |
 | stroke type | `Stroke`, 23 steno keys | 18-bit mask, own order |
@@ -32,19 +36,19 @@ path exists to provide.
 | multi-stroke matching | longest match, retranslates | **none** |
 | output | `Typer` with replace/undo protocol | **ring buffer, backspace N** |
 
-So SYLO borrows steno's *front* (accumulate the whole board, fire on last release — not
+So Orsy borrows steno's *front* (accumulate the whole board, fire on last release — not
 Taipo's per-side rollover, which is wrong here because both hands form one chord) and
 replaces everything behind it. It needs neither `bbq_steno::dict` nor `bbq_steno::typer`.
 
 ## Crate layout
 
-    bbq-sylo/                    no_std, no dependencies, host-testable
+    bbq-orsy/                    no_std, no dependencies, host-testable
       src/chord.rs               18-bit chord, the four Series, bit order
       src/tables.rs              the four alphabets (~110 rows)
       src/compose.rs             chord -> output, the composition rules
       src/output.rs              spacing, capitals, undo
 
-    bbq-keyboard/src/layout/sylo.rs
+    bbq-keyboard/src/layout/orsy.rs
       accumulation and the mode handler; converts scancodes to chord bits
 
 A separate crate for the same reason `bbq-steno` is one: it is pure logic that wants host
@@ -84,7 +88,7 @@ Much smaller than the steno typer, because nothing is ever retranslated.
 
 ## Mode integration
 
-Add `LayoutMode::Sylo` behind a `sylo` feature, dispatched in `LayoutManager::handle_event`
+Add `LayoutMode::Orsy` behind a `orsy` feature, dispatched in `LayoutManager::handle_event`
 beside `Taipo` and `Steno`.
 
 The Dosh escape needs the layout manager, not the crate:
