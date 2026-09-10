@@ -410,6 +410,9 @@ pub enum ChordAction {
     /// [`Chord`] carrying it names the variant the chord was *looked up* in,
     /// which is the one it is replacing.
     Variant(TaipoVariant),
+    /// The chord that switches to the Orsy layout.
+    #[cfg(feature = "orsy")]
+    Orsy,
 }
 
 impl ChordAction {
@@ -421,6 +424,8 @@ impl ChordAction {
             Action::OneShot(m) => ChordAction::OneShot(*m),
             Action::Release => ChordAction::Release,
             Action::Variant(v) => ChordAction::Variant(*v),
+            #[cfg(feature = "orsy")]
+            Action::Orsy => ChordAction::Orsy,
         }
     }
 }
@@ -925,6 +930,8 @@ impl Chord {
                 Some(ChordAction::OneShot(m)) => format!("oneshot {m:?}"),
                 Some(ChordAction::Release) => "release".to_string(),
                 Some(ChordAction::Variant(v)) => format!("variant {v:?}"),
+                #[cfg(feature = "orsy")]
+                Some(ChordAction::Orsy) => "orsy".to_string(),
             },
         )
     }

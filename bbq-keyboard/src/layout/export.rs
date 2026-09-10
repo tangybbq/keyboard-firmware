@@ -318,6 +318,8 @@ fn action_json(action: &Action) -> String {
                 TaipoVariant::Dosh => "dosh",
             }),
         ),
+        #[cfg(feature = "orsy")]
+        Action::Orsy => "{ \"kind\": \"orsy\" }".to_string(),
     }
 }
 

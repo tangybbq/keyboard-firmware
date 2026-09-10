@@ -4,7 +4,7 @@
   "scancode_set": "proto3",
   "chord_time_ms": 100,
   "default_variant": "dosh",
-  "fingerprint": "0x63f950138443ea96",
+  "fingerprint": "0xc949602093a6f7c0",
   "bits": [
     { "bit": 0, "mask": 1, "name": "a", "finger": "pinky", "row": "bottom" },
     { "bit": 1, "mask": 2, "name": "o", "finger": "ring", "row": "bottom" },
@@ -305,7 +305,7 @@
       ]
     },
     "dosh": {
-      "count": 132,
+      "count": 133,
       "chords": [
         { "code": 512, "code_hex": "0x200", "keys": ["Bk"], "action": { "kind": "key", "key": "Space", "usage": 44, "types": " " } },
         { "code": 256, "code_hex": "0x100", "keys": ["Sp"], "action": { "kind": "key", "key": "DeleteBackspace", "usage": 42 } },
@@ -438,7 +438,8 @@
         { "code": 70, "code_hex": "0x046", "keys": ["o", "t", "n"], "action": { "kind": "key", "key": "PrintScreen", "usage": 70 } },
         { "code": 168, "code_hex": "0x0a8", "keys": ["e", "s", "i"], "action": { "kind": "key", "key": "Insert", "usage": 73 } },
         { "code": 240, "code_hex": "0x0f0", "keys": ["r", "s", "n", "i"], "action": { "kind": "variant", "variant": "taipo" } },
-        { "code": 15, "code_hex": "0x00f", "keys": ["a", "o", "t", "e"], "action": { "kind": "variant", "variant": "dosh" } }
+        { "code": 15, "code_hex": "0x00f", "keys": ["a", "o", "t", "e"], "action": { "kind": "variant", "variant": "dosh" } },
+        { "code": 904, "code_hex": "0x388", "keys": ["e", "i", "Sp", "Bk"], "action": { "kind": "orsy" } }
       ]
     }
   }

@@ -113,6 +113,22 @@ fn scans(side: Side, chord: u16, lower: bool) -> impl Iterator<Item = u8> {
 /// every test that waits for it.
 const CHORD_TIME: usize = TAIPO_CHORD_TIME as usize;
 
+/// The mode the mode key cycles to from `mode`: taipo, orsy (when it is built),
+/// qwerty (on a three-row board), steno, and round again.
+fn next_mode(mode: LayoutMode, two_row: bool) -> LayoutMode {
+    let after_chords = if two_row { LayoutMode::Steno } else { LayoutMode::Qwerty };
+    match mode {
+        #[cfg(feature = "orsy")]
+        LayoutMode::Taipo => LayoutMode::Orsy,
+        #[cfg(feature = "orsy")]
+        LayoutMode::Orsy => after_chords,
+        #[cfg(not(feature = "orsy"))]
+        LayoutMode::Taipo => after_chords,
+        LayoutMode::Qwerty | LayoutMode::NKRO => LayoutMode::Steno,
+        LayoutMode::Steno | LayoutMode::StenoDirect => LayoutMode::Taipo,
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // The test harness
 //////////////////////////////////////////////////////////////////////////////
@@ -219,6 +235,10 @@ struct Script {
     /// tracks which sub-mode action `toggle_dosh` should expect, and starts at
     /// the table the engine comes up in.
     dosh: bool,
+
+    /// The mode the layout is expected to be in, so that `to_mode` knows how
+    /// many taps of the mode key it takes.
+    mode: LayoutMode,
 }
 
 impl Script {
@@ -230,6 +250,7 @@ impl Script {
             two_row: false,
             lower: false,
             dosh: TaipoVariant::DEFAULT == TaipoVariant::Dosh,
+            mode: LayoutMode::Qwerty,
         };
         script.tick(1).mode(LayoutMode::Qwerty);
         script
@@ -242,6 +263,7 @@ impl Script {
             two_row: true,
             lower: false,
             dosh: TaipoVariant::DEFAULT == TaipoVariant::Dosh,
+            mode: LayoutMode::Taipo,
         };
         script.tick(1).mode(LayoutMode::Taipo);
         script
@@ -397,13 +419,19 @@ impl Script {
             .tick(1)
     }
 
-    /// Switch to the given mode by tapping the mode key.  Only the modes in the
-    /// normal cycle can be reached this way.
+    /// Switch to the given mode by tapping the mode key, as many times as it
+    /// takes.  Only the modes in the normal cycle can be reached this way.
     fn to_mode(&mut self, mode: LayoutMode) -> &mut Self {
-        self.press_scan(MODE_KEY)
-            .mode_select(mode)
-            .release_scan(MODE_KEY)
-            .mode(mode)
+        loop {
+            let next = next_mode(self.mode, self.two_row);
+            self.press_scan(MODE_KEY)
+                .mode_select(next)
+                .release_scan(MODE_KEY)
+                .mode(next);
+            if next == mode {
+                return self;
+            }
+        }
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -424,6 +452,7 @@ impl Script {
 
     /// Expect a mode change.
     fn mode(&mut self, mode: LayoutMode) -> &mut Self {
+        self.mode = mode;
         self.expect(Actions::SetMode(mode))
     }
 
@@ -1450,7 +1479,7 @@ fn test_row_toggle_mode_select() {
     // Mode key plus the physical qwerty 's' selects steno.
     script
         .press_scan(MODE_KEY)
-        .mode_select(LayoutMode::Qwerty)
+        .mode_select(next_mode(LayoutMode::Taipo, false))
         .press_scan(9)
         .mode_select(LayoutMode::Steno)
         .release_scan(9)

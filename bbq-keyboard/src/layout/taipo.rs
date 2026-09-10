@@ -165,6 +165,11 @@ pub struct TaipoManager {
     /// [`LayoutActions::set_mod_state`], so that the indicator is only told
     /// about actual changes.
     reported: (Mods, Mods),
+
+    /// Set when the Orsy chord is typed, for the layout manager to pick up
+    /// with [`take_orsy_request`](Self::take_orsy_request).
+    #[cfg(feature = "orsy")]
+    orsy_request: bool,
 }
 
 impl Default for TaipoManager {
@@ -179,6 +184,8 @@ impl Default for TaipoManager {
             taipo_keys: 0,
             taipo_latch: 0,
             reported: (Mods::empty(), Mods::empty()),
+            #[cfg(feature = "orsy")]
+            orsy_request: false,
         }
     }
 }
@@ -212,6 +219,39 @@ impl TaipoManager {
     /// [`toggle_variant`]: Self::toggle_variant
     pub fn set_variant(&mut self, variant: TaipoVariant) {
         self.variant = variant;
+    }
+
+    /// The chord table in use.
+    pub fn variant(&self) -> TaipoVariant {
+        self.variant
+    }
+
+    /// Whether the Orsy chord has been typed since this was last asked.
+    #[cfg(feature = "orsy")]
+    pub fn take_orsy_request(&mut self) -> bool {
+        core::mem::take(&mut self.orsy_request)
+    }
+
+    /// Type a chord as though it had been struck and released on `side`.
+    ///
+    /// For the Orsy one-shot escape, which plays a Dosh chord through this
+    /// engine so that it gets the same modifier handling as any other.  The
+    /// chord is typed on the next tick.  Nothing is reported through
+    /// `taipo_chord`: it was not a chord this engine assembled.
+    #[cfg(feature = "orsy")]
+    pub fn inject_chord(&mut self, side: Side, code: u16) {
+        let _ = self.keys.push_back(TaipoEvent {
+            is_press: true,
+            side,
+            code,
+            end: None,
+        });
+        let _ = self.keys.push_back(TaipoEvent {
+            is_press: false,
+            side,
+            code,
+            end: None,
+        });
     }
 
     /// Poll doesn't do anything.
@@ -297,6 +337,15 @@ impl TaipoManager {
                         self.oneshot = Mods::empty();
                         self.sticky = Mods::empty();
                         self.taipo_latch = 0;
+                    }
+                }
+                #[cfg(feature = "orsy")]
+                Some(Entry { action: Action::Orsy, .. }) => {
+                    // Gated the way the variant chords are.  The layout
+                    // manager does the switching, on its tick; nothing is
+                    // typed, so the chord's release does nothing.
+                    if self.active(is_steno) {
+                        self.orsy_request = true;
                     }
                 }
                 Some(Entry { action: Action::Variant(variant), .. }) => {
@@ -1115,6 +1164,10 @@ pub enum Action {
     /// selects rather than toggles, so that a chord that was not felt cannot
     /// leave the layout inverted.
     Variant(TaipoVariant),
+    /// Switch to the Orsy layout.  Like `Variant`, this exists for boards
+    /// with no mode key; the same chord in Orsy switches back.
+    #[cfg(feature = "orsy")]
+    Orsy,
 }
 
 /// The mapping between each key and its Action.

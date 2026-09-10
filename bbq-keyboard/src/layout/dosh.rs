@@ -333,6 +333,12 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     // and `a+e` are `l`, `q` and `d`, but all four together spell nothing.
     Entry { code: 0x0f0, action: Action::Variant(TaipoVariant::Taipo), },
     Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Dosh), },
+
+    // Switching to Orsy: all four inner keys, `e+i+Sp+Bk`.  Nothing else
+    // here uses that chord, and in Orsy it is the command that switches
+    // back, so the one shape does both.
+    #[cfg(feature = "orsy")]
+    Entry { code: 0x388, action: Action::Orsy, },
 ];
 
 #[cfg(test)]

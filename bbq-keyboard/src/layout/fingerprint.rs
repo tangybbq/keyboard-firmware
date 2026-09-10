@@ -136,6 +136,8 @@ fn entry_hash(h: &mut Fnv, entry: &Entry) {
                 TaipoVariant::Dosh => 1,
             });
         }
+        #[cfg(feature = "orsy")]
+        Action::Orsy => h.byte(6),
     }
 }
 

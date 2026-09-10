@@ -6,6 +6,8 @@
 
 use crate::{KeyEvent, MinorMode};
 
+#[cfg(feature = "orsy")]
+use self::orsy::OrsyManager;
 #[cfg(feature = "qwerty")]
 use self::qwerty::QwertyManager;
 #[cfg(feature = "steno")]
@@ -16,6 +18,8 @@ use self::taipo::{TaipoManager, TaipoVariant};
 pub mod export;
 pub mod fingerprint;
 pub mod dosh;
+#[cfg(feature = "orsy")]
+pub mod orsy;
 #[cfg(feature = "qwerty")]
 mod qwerty;
 #[cfg(feature = "steno")]
@@ -211,6 +215,16 @@ pub fn taipo_map(key: u8) -> Option<u8> {
 // `LayoutMode`, from the mode cycle, and from the mode select chords, so there
 // is no way to reach it at runtime. A build with none of them enabled is a
 // taipo-only keyboard, and the mode key does nothing.
+//
+// Orsy:
+//
+// Orsy (see the `orsy` module) is a syllabic chord layout on the same keys as
+// Dosh, and escapes to Dosh for everything that is not a word. It is in the
+// mode cycle after taipo, but the boards it is for have no mode key, so it is
+// also reachable from Dosh by a chord: all four inner keys of one hand, which
+// is unmapped in Dosh and a command in Orsy, so the one shape switches both
+// ways. The one-shot escape plays a right-hand Dosh chord through the taipo
+// engine for a single stroke, without leaving Orsy.
 
 mod async_traits {
     // This is generally warned because it makes the API fragile.  This makes the API fragile, as
@@ -310,6 +324,8 @@ pub struct LayoutManager {
     #[cfg(feature = "qwerty")]
     qwerty: qwerty::QwertyManager,
     taipo: taipo::TaipoManager,
+    #[cfg(feature = "orsy")]
+    orsy: orsy::OrsyManager,
 
     // Global mode.  This indicates what mode we are in.
     mode: ModeSelector,
@@ -344,6 +360,8 @@ impl LayoutManager {
             #[cfg(feature = "qwerty")]
             qwerty: QwertyManager::default(),
             taipo: TaipoManager::default(),
+            #[cfg(feature = "orsy")]
+            orsy: OrsyManager::default(),
             first_tick: true,
             two_row,
             #[cfg(feature = "proto3")]
@@ -372,6 +390,15 @@ impl LayoutManager {
         self.qwerty.tick(actions, ticks).await;
 
         self.taipo.tick(actions, ticks, self.mode.is_steno()).await;
+
+        // The Orsy chord in the Dosh table.  Only from taipo mode: through
+        // the taipo latch in steno mode it is nothing.
+        #[cfg(feature = "orsy")]
+        if self.taipo.take_orsy_request() && self.mode.get() == LayoutMode::Taipo {
+            self.mode.mode = LayoutMode::Orsy;
+            self.orsy.reset();
+            actions.set_mode(LayoutMode::Orsy).await;
+        }
 
         // Inform the upper layer what our initial mode is.
         if self.first_tick {
@@ -422,10 +449,57 @@ impl LayoutManager {
                 LayoutMode::NKRO => {
                     self.qwerty.handle_event(event, actions, true).await;
                 }
+                #[cfg(feature = "orsy")]
+                LayoutMode::Orsy => {
+                    if let Some(escape) = self.orsy.handle_event(event, actions).await {
+                        self.orsy_escape(escape, actions).await;
+                    }
+                }
             }
         }
 
         self.mode.after_event(actions, next).await;
+    }
+
+    /// Act on an Orsy stroke that escapes to Dosh.
+    #[cfg(feature = "orsy")]
+    async fn orsy_escape<ACT: LayoutActions>(&mut self, escape: orsy::Escape, actions: &ACT) {
+        match escape {
+            orsy::Escape::ToggleDosh => {
+                // The rest of the toggle chord's releases go to the taipo
+                // engine, which has nothing down and ignores them.
+                self.orsy.reset();
+                self.mode.mode = LayoutMode::Taipo;
+                actions.set_mode(LayoutMode::Taipo).await;
+                // Dosh, whatever table the engine was last in.  Reported the
+                // way the variant chords report it, for the same reason.
+                if self.taipo.variant() != TaipoVariant::Dosh {
+                    self.taipo.set_variant(TaipoVariant::Dosh);
+                    actions.set_sub_mode(MinorMode::Dosh).await;
+                }
+            }
+            orsy::Escape::Dosh(code) => {
+                // The taipo engine types it on the next tick, with its
+                // modifier handling and all.  The right hand is where the
+                // chord was struck, though the Dosh table is the same on
+                // both.
+                self.taipo.inject_chord(crate::Side::Right, code);
+
+                // Sentence-ending punctuation capitalises the next word.
+                let ends_sentence = dosh::DOSH_ACTIONS.iter().any(|e| {
+                    e.code == code
+                        && matches!(
+                            e.action,
+                            taipo::Action::Simple(crate::Keyboard::Dot)
+                                | taipo::Action::Shifted(crate::Keyboard::Keyboard1)
+                                | taipo::Action::Shifted(crate::Keyboard::ForwardSlash)
+                        )
+                });
+                if ends_sentence {
+                    self.orsy.cap_next();
+                }
+            }
+        }
     }
 
     /// Handle the row position toggle key, and remap events for the current row
@@ -547,6 +621,8 @@ pub enum LayoutMode {
     Qwerty,
     #[cfg(feature = "qwerty")]
     NKRO,
+    #[cfg(feature = "orsy")]
+    Orsy,
 }
 
 impl Default for LayoutMode {
@@ -756,6 +832,8 @@ impl ModeSelector {
             LayoutMode::Steno | LayoutMode::StenoDirect => true,
             #[cfg(feature = "qwerty")]
             LayoutMode::Qwerty | LayoutMode::NKRO => false,
+            #[cfg(feature = "orsy")]
+            LayoutMode::Orsy => true,
         }
     }
 }
@@ -763,13 +841,16 @@ impl ModeSelector {
 impl LayoutMode {
     /// Move to the next mode.
     ///
-    /// The cycle is taipo, then qwerty, then steno, and back around to taipo.
-    /// A two-row board has no qwerty in the cycle, so taipo goes straight on to
-    /// steno.  The modes that can only be entered directly (`StenoDirect` and
-    /// `NKRO`) rejoin the cycle wherever their companion mode leaves it.
+    /// The cycle is taipo, then orsy, then qwerty, then steno, and back around
+    /// to taipo.  A two-row board has no qwerty in the cycle, so orsy goes
+    /// straight on to steno.  The modes that can only be entered directly
+    /// (`StenoDirect` and `NKRO`) rejoin the cycle wherever their companion
+    /// mode leaves it.
     fn next(self, two_row: bool) -> Self {
         match self {
             LayoutMode::Taipo => after_taipo(two_row),
+            #[cfg(feature = "orsy")]
+            LayoutMode::Orsy => after_orsy(two_row),
             #[cfg(feature = "qwerty")]
             LayoutMode::Qwerty | LayoutMode::NKRO => after_qwerty(),
             #[cfg(feature = "steno")]
@@ -780,6 +861,17 @@ impl LayoutMode {
 
 /// The mode the cycle moves to after taipo.
 fn after_taipo(two_row: bool) -> LayoutMode {
+    #[cfg(feature = "orsy")]
+    {
+        let _ = two_row;
+        LayoutMode::Orsy
+    }
+    #[cfg(not(feature = "orsy"))]
+    after_orsy(two_row)
+}
+
+/// The mode the cycle moves to after orsy.
+fn after_orsy(two_row: bool) -> LayoutMode {
     let _ = two_row;
     #[cfg(feature = "qwerty")]
     if !two_row {
@@ -809,6 +901,8 @@ impl defmt::Format for LayoutMode {
             #[cfg(feature = "qwerty")]
             LayoutMode::NKRO => defmt::write!(fmt, "nkro"),
             LayoutMode::Taipo => defmt::write!(fmt, "taipo"),
+            #[cfg(feature = "orsy")]
+            LayoutMode::Orsy => defmt::write!(fmt, "orsy"),
         }
     }
 }
