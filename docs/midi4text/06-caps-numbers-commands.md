@@ -47,13 +47,14 @@ words costs 1.72 → 1.76 keys per consonant slot and eats the one spare outer c
 prefix stroke costs one extra stroke on a capitalised word — about 0.03 strokes per word
 in ordinary prose — and leaves both alphabets untouched.
 
-**Cap next word** — left inner four, nothing on the right:
+**Cap next word** — left outer `a`+`s` with inner `e`, nothing on the right:
 
-      LEFT              RIGHT
-      e  i Sp Bk        e  i Sp Bk
-      #  #  #  #        .  .  .  .
+      LEFT                        RIGHT
+      a  o  s  t  n  e  i Sp Bk   a  o  s  t  n  e  i Sp Bk
+      #  .  #  .  .  #  .  .  .   .  .  .  .  .  .  .  .  .
 
-This is the spare Series 2 chord `eiSpBk`, so it collides with no syllable.
+A shape the syllabic system never produces. (An earlier draft put this on all four inner
+keys; that shape is now the Dosh toggle, which needs to be free in both layouts.)
 
 ## A command family, Phoenix-style
 
@@ -87,39 +88,65 @@ them as left-only strokes and 182 as right-only, leaving **327 and 329 free**.
 
 ## Numbers, punctuation and symbols: escape to Dosh
 
-Rather than design any of this, switch to Dosh and use what is already there. Dosh has
-digits, symbols, navigation and function keys on its thumb layers, all of them already
-learned. This removes the whole problem *and* its learning cost.
+Rather than design any of this, switch to Dosh and use what is already there — digits,
+symbols, navigation and function keys, all on thumb layers that are already learned. This
+removes the whole problem *and* its learning cost.
 
-**The firmware already does exactly this.** `LayoutManager::dosh_event` toggles
-`TaipoVariant` when `DOSH_TOGGLE_KEY` is pressed and released by itself, and raises
-`MinorMode::Dosh` so the mode is visible. The mechanism, the mode indicator and its tests
-all exist. The one change needed is that on mesa3 every one of the 18 keys is spoken for,
-so the toggle must be a chord rather than a lone key — one of the 327 free left-only
-shapes.
+### One-shot: left hand marks, right hand is Dosh
 
-Two forms are worth having, matching how the two cases behave:
+The escape does not need to be a stroke of its own. **Hold the escape shape on the left
+while the right hand plays a literal Dosh chord**, and the whole thing is a single stroke:
 
-| | for | cost |
-|---|---|---|
-| **toggle** | runs — numbers, code, symbol-heavy text | 2 strokes per run, whatever its length |
-| **one-shot** | a single mark mid-sentence | 1 stroke, then the Dosh chord |
+      LEFT                        RIGHT
+      a  o  s  t  n  e  i Sp Bk   a  o  s  t  n  e  i Sp Bk
+      .  .  .  .  .  .  #  #  #   <------ any Dosh chord ------>
+
+That is the important consequence: **a punctuation mark costs one stroke — exactly what a
+purpose-designed native stroke would cost.** So there is no reason to design native
+punctuation at all. Every symbol Dosh can reach becomes available at the same price, with
+nothing new to learn.
+
+The right hand has all nine keys, so every Dosh chord is reachable, thumb layers included,
+and the hands are identical so nothing is lost by the Dosh chord always being right-handed.
+
+The shape is the left inner `i`+`Sp`+`Bk`, three keys on index and thumbs. It leaves the
+left outer five — the strong fingers — completely free, and the syllabic system never
+produces it: of the 511 left-hand shapes, English uses 343, and this is among the 169 that
+never occur in any stroke.
+
+### Toggle: for runs
+
+For numbers, code, or symbol-heavy text, switch wholesale. In Dosh both hands are
+independent layouts with rollover, so a run goes at full Dosh speed rather than one
+right-handed chord at a time.
+
+**Toggle: all four inner keys of one hand**, `e`+`i`+`Sp`+`Bk`. This shape is free in
+*both* layouts — it is a spare Series 2 chord in Midi4Text, and Dosh leaves `0x388`
+unmapped — so the same chord enters and leaves, with no special-casing needed beyond
+intercepting it the way `dosh_event` already intercepts `DOSH_TOGGLE_KEY`.
+
+**The firmware already has all of this.** `LayoutManager::dosh_event` toggles
+`TaipoVariant` on a lone press-and-release and raises `MinorMode::Dosh` so the mode is
+visible; the mechanism, the indicator and the tests exist. The only change is that on
+mesa3 all 18 keys are spoken for, so the trigger is a chord rather than a lone key.
 
 **Numbers should use the toggle, not a number bar.** Michela's number bar plus ten digit
-shapes is ten things to learn for something used rarely and almost always in runs, where
-a toggle amortises to nothing. Dosh's digits are already known. This supersedes the
-number-bar sketch that this document previously carried.
+shapes is ten things to learn for something used rarely and almost always in runs, where a
+toggle amortises to nothing and Dosh's digits are already known. This supersedes the
+number-bar sketch this document previously carried.
 
-**Punctuation should be split.** Commas and full stops are the bulk of marks in ordinary
-prose, and they are frequent enough to deserve native strokes — there are ~255,000 free
-ones, and Midi4Text's own dictionary shows how to pick safe ones. Everything rarer goes
-through the escape. Rough cost, at ~0.15 marks per word in ordinary prose: escaping
-*everything* would add about 8% to the stroke count, while keeping `.` and `,` native
-brings that to roughly 3%.
+### Revised chord assignment
 
-(The manual's own prose measures 0.46 marks per word, but it is stuffed with `(les. IV)`
-citations and slashes; ordinary prose is far lower. The 0.15 figure is an estimate, not a
-measurement.)
+Frequency decides which gets the cheapest shape, and the one-shot escape is the most used
+of the three — punctuation is commoner than capitals:
+
+| | shape | keys | roughly |
+|---|---|---|---|
+| one-shot Dosh escape | left inner `i`+`Sp`+`Bk` | 3 | 0.15 / word |
+| capitalise | left outer `a`+`s`, inner `e` | 3 | 0.03 / word |
+| Dosh toggle | all four inner | 4 | rare |
+
+All three are among the 169 left-hand shapes the syllabic system never produces.
 
 ## The mapping as grids
 
