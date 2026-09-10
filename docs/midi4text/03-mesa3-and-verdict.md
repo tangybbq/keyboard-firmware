@@ -207,13 +207,30 @@ set a steno writer would accumulate over a few years — 2,000 to 5,000 — it r
 1.15–1.26 against Dosh's floor of 1.78, a **1.4–1.5× advantage that the unbriefed
 comparison does not show at all**.
 
-**The counter, and why it does not fully answer.** Dosh could allow two-handed briefs with
-an engine change, and its brief space would become vast too. But a two-handed Dosh brief
-costs a full cycle, forfeiting the half-cycle advantage its one-handed chords enjoy — so
-the two systems would converge on briefed words. What would *not* converge is the
-**unbriefed fallback**: every word you have not briefed still costs Midi4Text 1.83 cycles
-and Dosh 2.45. Midi4Text's syllabic layer is itself a brief system covering the entire
-tail of the language, which is precisely what a per-letter layout cannot have.
+**Dosh's 376 is a hard architectural ceiling, not a soft one.** The obvious counter — give
+Dosh two-handed briefs and its space becomes vast too — does not work, and not merely
+because such a brief would cost a full cycle. It is incoherent with what Dosh is for.
+
+`TaipoManager` holds `sides: [SideManager; 2]`, two independent state machines, and the
+module says why: *"the intent is to be able to freely type between the two halves,
+allowing, for example, rollover between the halves. As such, we have to maintain the state
+of the two halves separately."* Complete overlap during rollover is the entire point. In
+normal typing the next chord on one hand is already forming while the other hand's chord
+is still down — so a simultaneous press across both hands is **the normal case**, and it
+is indistinguishable from a hypothetical two-handed brief. Disambiguating them would need
+a timing heuristic, which reintroduces exactly the latency rollover exists to remove.
+
+So the two systems make opposite bets, and no hybrid exists:
+
+- **Dosh buys speed from *inter-chord* overlap.** That requires one-handed chords, which
+  caps information per chord at one hand's worth — and caps briefs at 376.
+- **Midi4Text buys speed from *intra-chord* parallelism.** That requires two-handed
+  strokes, which forfeits rollover completely.
+
+Dosh's floor of 1.78 cycles per word is therefore permanent. And the **unbriefed fallback**
+never converges either: every word not briefed costs Midi4Text 1.83 cycles and Dosh 2.45.
+Midi4Text's syllabic layer is itself a brief system covering the entire tail of the
+language, which is precisely what a per-letter layout cannot have.
 
 ### Revised recommendation
 
