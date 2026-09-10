@@ -7,8 +7,12 @@ key that types Space and Sp the one that types Backspace.  Chords are written
 left-hand, hyphen, right-hand; thumb names are two letters so a chord like
 `eiSp` reads unambiguously as e + i + Sp.
 
-    consonant group  a o s t n       Series 1 (onset) left, Series 4 (coda) right
-    vowel group      e i Sp Bk       Series 2 left, Series 3 (vowel) right
+    outer five  a o s t n     Series 1 (onset) on the left, Series 4 (coda) right
+    inner four  e i Sp Bk     Series 2 (second character) left, Series 3 (vowel) right
+
+The groups are positional, not phonetic: the inner four spell vowels only on the
+right hand.  On the left the same keys are Series 2, which is mostly consonants.
+Read across the board and the four Series come out in spelling order.
 
 Three design rules, each costing a little against a pure frequency fit:
 
@@ -102,8 +106,8 @@ def main():
                 f2[s2] += fr
     s2map = series2_map(f2)
 
-    print("CONSONANT GROUP   a (pinky), o/s (ring), t/n (middle)")
-    print("  Series 1 on the left is the onset, Series 4 on the right the coda.\n")
+    print("OUTER FIVE   a (pinky), o/s (ring), t/n (middle)")
+    print("  Consonants on both hands: Series 1 is the onset, Series 4 the coda.\n")
     print(f"  {'onset':>6} {'coda':>6}  {'chord':<7} note")
     for shape, _ in cons.most_common():
         if shape not in cmap:
@@ -114,7 +118,7 @@ def main():
         print(f"  {theory.ONSET.get(shape,'-'):>6} "
               f"{theory.CODA.get(L.mirror(shape),'-'):>6}  {cmap[shape]:<7} {note}")
 
-    print("\nVOWEL GROUP, right hand -- Series 3")
+    print("\nINNER FOUR, right hand -- Series 3, the vowel")
     print("  Seven identities; add Bk, the Space thumb, to end the word.\n")
     print(f"  {'vowel':>6}  {'plain':<7} {'+ space':<8} note")
     seen = set()
@@ -126,8 +130,9 @@ def main():
                 "ea": "= e + a", "ou": "= o + u"}.get(ident, "")
         print(f"  {ident:>6}  {chord:<7} {chord + END_MARKER:<8} {note}")
 
-    print("\nVOWEL GROUP, left hand -- Series 2")
-    print("  Same chord shapes; e, i, o and u read as the same vowel on both hands.\n")
+    print("\nINNER FOUR, left hand -- Series 2, the second character")
+    print("  Mostly consonants, not vowels.  Where Series 2 does mean a vowel it")
+    print("  keeps the Series 3 chord, so e, i, o and u read alike on both hands.\n")
     print(f"  {'spells':>6}  {'chord':<7} note")
     for pat, _ in f2.most_common():
         same = {"X": "e", "I": "i", "RXI": "o", "U": "u"}.get(pat)

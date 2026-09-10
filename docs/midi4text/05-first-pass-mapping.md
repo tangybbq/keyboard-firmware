@@ -11,11 +11,28 @@ Taipo**, so `Bk` is the key that types Space and `Sp` the one that types Backspa
 Chords are written left-hand, hyphen, right-hand; thumb names are two letters, so `eiSp`
 reads unambiguously as `e` + `i` + `Sp`.
 
-    consonant group   a o s t n       Series 1 (onset) left, Series 4 (coda) right
-    vowel group       e i Sp Bk       Series 2 left, Series 3 (vowel) right
+    outer five   a o s t n     Series 1 (onset) on the left, Series 4 (coda) right
+    inner four   e i Sp Bk     Series 2 (second character) left, Series 3 (vowel) right
+
+**The groups are positional, not phonetic.** The inner four spell vowels only on the
+*right* hand. On the left the same four keys are Series 2, the "second character", which
+is mostly consonants — r, l, m, n, p, t, c, s, w. So there is no "vowel group" as such:
+there is an inner group whose meaning depends on which hand it is under.
+
+The reason is that the four Series are positions in the syllable, and they run
+left-to-right across the board in the order the letters come out:
+
+```
+         LEFT HAND                            RIGHT HAND
+    a o s t n   e i Sp Bk          |      e i Sp Bk   a o s t n
+    Series 1    Series 2           |      Series 3    Series 4
+    onset       second char        |      vowel       coda
+```
+
+So *dream* is d + r + ea + m, read straight across the board.
 
 This split follows Michela's own finger assignment: Series 1 never uses more than three
-keys and lives on pinky, ring and middle, while the vowels sit on index and thumb.
+keys and lives on pinky, ring and middle, while the vowel sits on index and thumb.
 
 ## Midi4Text's central rule, preserved
 
@@ -52,8 +69,8 @@ position, so chords are scored purely by frequency times size.
 ## The mapping
 
 ```
-CONSONANT GROUP   a (pinky), o/s (ring), t/n (middle)
-  Series 1 on the left is the onset, Series 4 on the right the coda.
+OUTER FIVE   a (pinky), o/s (ring), t/n (middle)
+  Consonants on both hands: Series 1 is the onset, Series 4 the coda.
 
    onset   coda  chord   note
        n      n  n       Dosh key
@@ -87,7 +104,7 @@ CONSONANT GROUP   a (pinky), o/s (ring), t/n (middle)
        -      h  astn    
        -      e  ostn    
 
-VOWEL GROUP, right hand -- Series 3
+INNER FOUR, right hand -- Series 3, the vowel
   Seven identities; add Bk, the Space thumb, to end the word.
 
    vowel  plain   + space  note
@@ -99,8 +116,9 @@ VOWEL GROUP, right hand -- Series 3
       ea  eSp     eSpBk    = e + a
       ou  eiSp    eiSpBk   = o + u
 
-VOWEL GROUP, left hand -- Series 2
-  Same chord shapes; e, i, o and u read as the same vowel on both hands.
+INNER FOUR, left hand -- Series 2, the second character
+  Mostly consonants, not vowels.  Where Series 2 does mean a vowel it
+  keeps the Series 3 chord, so e, i, o and u read alike on both hands.
 
   spells  chord   note
        r  Bk      
