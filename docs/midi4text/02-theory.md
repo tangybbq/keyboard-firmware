@@ -177,11 +177,36 @@ extra-ordinem *ck*. The index cases are `RX` and `RXI`, which the manual describ
 being played "by rotating the thumb under the index finger, similarly to the piano
 thumb passage". The thumb is exempt by design.
 
-So the real chord space is much smaller than 2^10 per hand. Under strict exclusion a
-Michela hand offers 3x3x3x3x4 = 324 combinations; Midi4Text uses 379 on the left and 421
-on the right, and the excess is exactly what the thumb passage and the extra-ordinem
-chords buy. This constraint, not the key count, is what governs whether the system can
-be re-hosted on other hardware.
+Under strict exclusion a Michela hand offers 3x3x3x3x4 = 324 combinations; Midi4Text uses
+379 on the left and 421 on the right, and the excess is exactly what the thumb passage
+and the extra-ordinem chords buy.
+
+**This is a constraint of the instrument, not of the theory.** Piano keys are wide, so one
+finger genuinely cannot take two at once and the rule had to be designed around. On a
+keyboard the two keys of a finger are small and adjacent, and rolling or flattening onto
+both is easy -- Dosh already does it in 25 of its 132 entries. So a keyboard port is *not*
+bound by finger exclusion, and the extra-ordinem chords and the thumb passage, which exist
+only to work around it, need no counterpart.
+
+## The overlay dictionaries use no special mechanism
+
+The punctuation, word-parts and briefs dictionaries are not a separate encoding. Of their
+277 entries, **268 are ordinary strokes that the main dictionary also defines** -- the
+remaining 9 are simply strokes the enumeration never generated. They win because Plover
+consults them first.
+
+What makes that safe is that their main-dictionary readings are orthographic nonsense:
+`CPpc` reads `{^cc}`, `CPXIen` reads `{cwen^}`, `CPRUanzs` reads `{cmax^}`, `CNRuiezs`
+reads `wrok`, `CNieacs` reads `w_v`. None can occur in English, so nothing is lost by
+shadowing them -- exactly the rule the manual states, that a brief "should not use common
+syllables, or sequences of them, which can be present inside words".
+
+The rule is followed, with a handful of lapses. Ten overlay entries shadow a stroke whose
+main reading is a real English word, and after discarding frequency-list noise the genuine
+casualties are five: **rent** (`Ruenzf`, taken by *aren't*), **tar** (`RIUuancf`, by
+`{^ard}`), **teas** (`RIUieas`, by *it's*), **scion** (`SXuien`, by *session*) and
+**teal** (`RIUieancs`, by *it'll*). All five remain writable under a different syllable
+division, so the cost is a memorised exception rather than a hole.
 
 ## Residue: the 1.74% not reproduced
 
