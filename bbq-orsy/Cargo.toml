@@ -1,0 +1,13 @@
+[package]
+name = "bbq-orsy"
+version = "0.1.0"
+edition = "2021"
+description = "The Orsy orthographic syllabic chord layout: chord to text, by rule"
+
+[dependencies]
+
+[features]
+default = ["std"]
+# Nothing in the crate needs std; the feature exists so that the examples
+# and the host tools can use it while the firmware builds without.
+std = []
