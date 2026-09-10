@@ -93,6 +93,7 @@ pub mod mode_code {
     pub const STENO_DIRECT: u8 = 2;
     pub const QWERTY: u8 = 3;
     pub const NKRO: u8 = 4;
+    pub const ORSY: u8 = 5;
 }
 
 /// The time since the previous record.

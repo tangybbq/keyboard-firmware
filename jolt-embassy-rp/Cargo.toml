@@ -110,9 +110,9 @@ default-features = false
 path = "../minder"
 
 [features]
-# The jolt3 is built as a taipo-only keyboard.  `just build-full` adds the
-# other layouts back.
-default = ["defmt"]
+# The default build is taipo and orsy; `just build-full` adds the other
+# layouts back.
+default = ["defmt", "orsy"]
 # default = ["log"]
 
 nightly = ["embassy-executor/nightly"]
@@ -121,6 +121,7 @@ nightly = ["embassy-executor/nightly"]
 # firmware with no way to reach the other modes at all.
 qwerty = ["bbq-keyboard/qwerty"]
 steno = ["bbq-keyboard/steno", "dep:bbq-steno"]
+orsy = ["bbq-keyboard/orsy"]
 
 defmt = [
   "dep:defmt", "embassy-embedded-hal/defmt", "embassy-sync/defmt", "embassy-executor/defmt",

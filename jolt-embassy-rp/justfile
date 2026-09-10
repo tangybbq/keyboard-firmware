@@ -1,7 +1,7 @@
 tdir := "target/thumbv6m-none-eabi/debug"
 app := "jolt-embassy-rp"
 
-# The default build is taipo-only.
+# The default build is taipo and orsy.
 build:
 	cargo build --bin {{app}}
 

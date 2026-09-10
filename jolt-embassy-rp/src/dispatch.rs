@@ -282,6 +282,8 @@ fn mode_marker(mode: LayoutMode) -> u8 {
         LayoutMode::Qwerty => mode_code::QWERTY,
         #[cfg(feature = "qwerty")]
         LayoutMode::NKRO => mode_code::NKRO,
+        #[cfg(feature = "orsy")]
+        LayoutMode::Orsy => mode_code::ORSY,
     }
 }
 
