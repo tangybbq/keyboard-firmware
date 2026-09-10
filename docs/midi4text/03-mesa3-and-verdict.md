@@ -126,18 +126,56 @@ The manual's claim of far-below-the-usual-1.5-years is credible.
 
 ### Verdict
 
-**Not worth learning as a replacement for Dosh, and not worth building for mesa3.**
+**Superseded — see "Speed potential, with alternation credited" below.** The conclusion
+first recorded here read the comparison off keys per word (8.36 vs 8.13) and concluded
+there was no headroom. That is the wrong yardstick: keys per word says how much finger
+motion a system costs, not how fast it can go. The right yardstick is *hand cycles* —
+how many times a hand must form, strike and release a chord — because that is what
+serialises.
 
-The decisive number is 8.36 versus 8.13 keys per word. Midi4Text does not reduce the
-physical work; it repackages it into fewer, much larger, strictly two-handed chords, and
-then gives up hand alternation to do so. Against QWERTY that is a large win. Against a
-well-tuned one-hand-at-a-time chording layout that already achieves the same keypress
-count *with* alternation and 1–3 key chords, there is no headroom left for it to win.
+## Speed potential, with alternation credited
 
-The honest summary is that Dosh has already collected the gain Midi4Text is offering, by
-a route that keeps the alternation. Adopting Midi4Text would trade a pipelined 5.9-chord
-word for a serialised 1.8-chord word at equal key cost — and the pipelining is worth more
-than the chord count.
+Chords per word is the numerator for speed, but Dosh's must be divided by its
+alternation. Both hands are complete layouts and either can type any letter, including
+doubled ones, so **perfect alternation is always available** — unlike QWERTY, where it
+depends on the text. Dosh's per-hand chord rate is therefore half its chord rate.
+Midi4Text gets a small credit too: 21.6% of its strokes touch only one hand.
+
+Per word, frequency-weighted:
+
+| | Midi4Text | Dosh | Dosh, space folded |
+|---|---|---|---|
+| chords/strokes | 1.83 | 5.90 | 4.90 |
+| **cycles on the busiest hand** | **1.68** | **2.95** | **2.45** |
+| keys per hand | 4.15 / 4.21 | 4.06 | 4.06 |
+| keys per cycle | 2.5 | 1.38 | 1.66 |
+| Midi4Text advantage | — | **1.76×** | **1.46×** |
+
+The striking line is *keys per hand*: **4.2 against 4.1.** Both systems ask each hand to
+move essentially the same number of keys per word. The entire difference is how those
+keys are packed — Midi4Text into 1.68 large simultaneous chords, Dosh into 2.95 small
+ones.
+
+So the ceiling is **1.46–1.76×**, not the 3.22× the raw chord count suggests, and the
+lower figure applies if Dosh adopts the space-folding of `04-design-questions.md`.
+
+**Whether even that is achievable turns on one unmeasured question: does a 2.5-key chord
+take the same time to form as a 1.38-key one?** If chord time is flat in key count,
+Midi4Text is genuinely ~1.5× faster. If it grows — and every chording layout's design
+lore, Posh's pinky removal included, assumes it does — the advantage erodes toward
+parity. That is the crux, and it is an empirical question about hands that these
+measurements cannot settle.
+
+### Revised recommendation
+
+**A real but modest ceiling of roughly 1.5×, contingent on large chords being as cheap as
+small ones — and bought with 43 chords, a dozen composition rules, and syllable division
+as a live decision while typing.**
+
+That is a much better case than "no gain", but it is still a thin one, because the
+contingency is the part most likely to fail and the syllable-division cost is the part
+hardest to amortise. The recommendation remains against adopting it — but on grounds of
+poor return for the learning investment, not because the speed is not there.
 
 **What is worth keeping.** Two ideas from this theory are worth stealing independently of
 the rest:

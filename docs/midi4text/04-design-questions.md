@@ -159,4 +159,8 @@ the objection the orthographic design exists to close: the moment briefs carry t
 the system is a dictionary system again, and its advantage over phonetic steno
 evaporates. Briefs can equally be added to Dosh.
 
-**The verdict from Phase 6 stands, with the margin now measured rather than asserted.**
+The margin is now measured rather than asserted — but see "Speed potential, with
+alternation credited" in `03-mesa3-and-verdict.md`, which revises the Phase 6 verdict.
+Crediting Dosh's alternation and Midi4Text's one-handed strokes, the comparison is 2.95
+against 1.68 hand cycles per word, or 2.45 against 1.68 once the space is folded — a
+ceiling of 1.46-1.76x rather than no gain at all.
