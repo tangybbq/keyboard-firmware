@@ -174,6 +174,24 @@ cannot. Averaging the per-word maximum gives **1.83** — effectively the stroke
 since 78% of strokes need both hands. The unbriefed advantage over Dosh is therefore
 **1.34×** with Dosh's space folded, or 1.61× without.
 
+### Same-side rollover makes the cycle model an upper bound on Dosh
+
+The cycle model credits Dosh only with alternation between hands. It also rolls over
+*within* a hand: `SideManager::press` ends the chord in progress the instant a new key
+lands on the same side, marking the old keys `inactive` until they come up. So the next
+same-hand chord can begin before the previous one is released, and this shows up as speed
+increases.
+
+The consequence is that **2.45 cycles/word overstates what Dosh actually costs**, by an
+amount only measurement on real hands can settle. Its true floor lies somewhere between
+the cycle count and the key count — and keys per hand per word is 4.06 for Dosh against
+3.78 for a re-encoded mesa3 Midi4Text, which is near parity.
+
+Midi4Text has no equivalent slack: every stroke is a hard barrier, because both hands must
+land together. So the unbriefed advantage of 1.34x is a ceiling, not an estimate, and the
+real figure is lower. What this does *not* touch is the brief argument below, which turns
+on capacity rather than timing.
+
 ## Briefs: the argument that actually decides it
 
 Everything above measures the systems *brief-free*, and that undersells Midi4Text badly.
