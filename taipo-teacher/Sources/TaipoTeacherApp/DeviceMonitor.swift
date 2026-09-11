@@ -149,6 +149,16 @@ public final class DeviceMonitor: ObservableObject {
     private var lineIndex = 0
     /// The heading for the line being typed, for the practice screen to show.
     @Published public private(set) var drillTitle: String?
+
+    /// The Orsy drill in progress, when the keyboard is in Orsy and the practice screen is
+    /// showing.  `drill` is nil then; the two layouts are different skills.
+    @Published public private(set) var orsyDrill: OrsyDrillSession?
+    /// Where the Orsy ladder has got to, and what the logs say about each pattern.
+    @Published public private(set) var orsyLadder: OrsyLadder?
+    @Published public private(set) var orsySkill: OrsySkillModel?
+    /// The Orsy word table and theory, loaded with the tables.
+    private(set) var orsyWords: OrsyWords?
+    private(set) var orsyTheory: OrsyTheory?
     /// The alternation rule, applied to everything that arrives.  The same class the drill
     /// uses, so the strip and the score cannot disagree about what a fault is.
     private let alternation = AlternationTracker()
@@ -393,6 +403,10 @@ public final class DeviceMonitor: ObservableObject {
     /// it has left is worse than none.
     private func rebuildProgramme() {
         guard practicing, let layouts else { return }
+        if mode == .orsy {
+            rebuildOrsyProgramme()
+            return
+        }
         let directory = logDirectory
         let variant = self.variant
         let mode = self.practiceMode
@@ -438,6 +452,80 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// The keyboard changed mode.  Material built for the other layout is about strokes
+    /// the keyboard is no longer making, so it goes, as it does on a table change.
+    private func modeChanged(to mode: KeyboardMode) {
+        guard mode != self.mode else { return }
+        self.mode = mode
+        programme = []
+        drillIndex = 0
+        lineIndex = 0
+        if practicing {
+            nextDrill()
+            rebuildProgramme()
+        }
+    }
+
+    /// The Orsy programme: the pattern ladder, and lines from the words it can write.
+    private func rebuildOrsyProgramme() {
+        guard practicing, let layouts, let words = orsyWords, let theory = orsyTheory else {
+            return
+        }
+        let directory = logDirectory
+        let seed = UInt64(Date().timeIntervalSince1970)
+        Task.detached(priority: .userInitiated) {
+            let skill = SkillStore.orsyModel(
+                logDirectory: directory, cache: SkillStore.defaultURL(forLogsIn: directory),
+                layouts: layouts)
+            let ladder = OrsyLadder(words: words, theory: theory, skill: skill)
+            let drill = OrsyLadderMaker(words: words)
+                .drill(ladder, lines: Self.ladderBlock, seed: seed)
+            await MainActor.run { [weak self] in
+                guard let self, self.practicing, self.mode == .orsy else { return }
+                self.orsySkill = skill
+                self.orsyLadder = ladder
+                self.skippedSessions = skill.skipped
+                guard !drill.lines.isEmpty else { return }
+                self.adopt([drill])
+            }
+        }
+    }
+
+    /// Re-read the logs for the Orsy ladder after a line, and follow the focus set; the
+    /// Orsy half of `refreshSkill`.
+    private func refreshOrsySkill() {
+        guard practicing, !refreshing, let layouts, let words = orsyWords,
+            let theory = orsyTheory
+        else { return }
+        refreshing = true
+        let directory = logDirectory
+        let previous = orsyLadder
+        let seed = UInt64(Date().timeIntervalSince1970)
+        Task.detached(priority: .utility) {
+            let skill = SkillStore.orsyModel(
+                logDirectory: directory, cache: SkillStore.defaultURL(forLogsIn: directory),
+                layouts: layouts)
+            let built = OrsyLadder(words: words, theory: theory, skill: skill)
+            var moved = false
+            if let previous {
+                moved = built.unlockedCount != previous.unlockedCount || built.focus != previous.focus
+            }
+            let material =
+                moved
+                ? OrsyLadderMaker(words: words).drill(built, lines: Self.ladderBlock, seed: seed)
+                : nil
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                defer { self.refreshing = false }
+                guard self.practicing, self.mode == .orsy else { return }
+                self.orsySkill = skill
+                self.orsyLadder = built
+                self.skippedSessions = skill.skipped
+                if let material, !material.lines.isEmpty { self.adopt([material]) }
+            }
+        }
+    }
+
     /// Take a freshly built programme, without moving the target under the writer's hands.
     ///
     /// A line that has been started is left to be finished; the new material is what the
@@ -447,7 +535,9 @@ public final class DeviceMonitor: ObservableObject {
         self.programme = programme
         drillIndex = 0
         lineIndex = 0
-        if drill?.typed.isEmpty ?? true { nextDrill() }
+        let untouched =
+            mode == .orsy ? (orsyDrill?.typed.isEmpty ?? true) : (drill?.typed.isEmpty ?? true)
+        if untouched { nextDrill() }
     }
 
     /// Re-read the logs, update the measurements, and follow the focus set.
@@ -468,6 +558,10 @@ public final class DeviceMonitor: ObservableObject {
     /// sixteen lines.  The swap still waits for a line boundary, so nothing changes under
     /// the hands.
     private func refreshSkill() {
+        if mode == .orsy {
+            refreshOrsySkill()
+            return
+        }
         guard practicing, practiceMode == .ladder, !refreshing, let layouts else { return }
         refreshing = true
         let directory = logDirectory
@@ -531,6 +625,9 @@ public final class DeviceMonitor: ObservableObject {
         skill = nil
         drill = nil
         drillTitle = nil
+        orsyDrill = nil
+        orsyLadder = nil
+        orsySkill = nil
     }
 
     /// Start the next practice line.
@@ -561,14 +658,27 @@ public final class DeviceMonitor: ObservableObject {
             // changed.  Cheap: only the day in progress is replayed.
             refreshSkill()
         }
-        drill = DrillSession(
-            target: DrillTarget(text: text, layouts: layouts, variant: variant),
-            layouts: layouts)
+        startLine(text, layouts: layouts)
     }
 
     /// Start the current line over.
     public func restartDrill() {
-        guard let layouts, let text = drill?.target.text else { return }
+        guard let layouts, let text = drill?.target.text ?? orsyDrill?.target.text else {
+            return
+        }
+        startLine(text, layouts: layouts)
+    }
+
+    /// A fresh session on a line, for whichever layout the keyboard is in.
+    private func startLine(_ text: String, layouts: Layouts) {
+        if mode == .orsy, let words = orsyWords, let theory = orsyTheory {
+            drill = nil
+            orsyDrill = OrsyDrillSession(
+                target: OrsyDrillTarget(text: text, words: words, theory: theory),
+                theory: theory, layouts: layouts)
+            return
+        }
+        orsyDrill = nil
         drill = DrillSession(
             target: DrillTarget(text: text, layouts: layouts, variant: variant),
             layouts: layouts)
@@ -623,6 +733,8 @@ public final class DeviceMonitor: ObservableObject {
         Task { @MainActor [weak self] in
             self?.layouts = layouts
             self?.variant = layouts.defaultVariant
+            self?.orsyWords = try? OrsyWords.bundled()
+            self?.orsyTheory = layouts.orsy.map { OrsyTheory($0) }
             self?.status = .connected(device: hello.info, mismatch: mismatch)
             self?.nextDrill()
         }
@@ -783,7 +895,7 @@ public final class DeviceMonitor: ObservableObject {
                     engine.marker(marker.name, value: value)
                     if marker.name == "mode" {
                         let mode = engine.mode
-                        Task { @MainActor [weak self] in self?.mode = mode }
+                        Task { @MainActor [weak self] in self?.modeChanged(to: mode) }
                     }
                 case .unknown:
                     break
@@ -871,6 +983,20 @@ public final class DeviceMonitor: ObservableObject {
             if self.entries.count > self.historyLimit {
                 self.entries.removeFirst(self.entries.count - self.historyLimit)
             }
+            // And to the drill, while the practice screen has the keyboard.
+            guard self.practicing, self.focused, let drill = self.orsyDrill else { return }
+            switch drill.control(for: stroke) {
+            case .next:
+                self.nextDrill()
+                return
+            case .restart:
+                self.restartDrill()
+                return
+            case .none:
+                break
+            }
+            if !drill.finished { drill.feed(stroke) }
+            self.objectWillChange.send()
         }
     }
 

@@ -10,6 +10,27 @@ struct DrillView: View {
     @Environment(\.controlActiveState) private var activeState
 
     var body: some View {
+        Group {
+            // Orsy is a different skill with a different drill; the keyboard's mode says
+            // which one this screen is for.
+            if monitor.mode == .orsy {
+                OrsyDrillView(monitor: monitor)
+            } else {
+                taipoBody
+            }
+        }
+        .padding(16)
+        // Scoring belongs to the screen, not to the app.  The collector runs whether or not
+        // this is showing; the drill only consumes chords while it is.
+        .onAppear {
+            monitor.focused = activeState == .key
+            monitor.beginPractice()
+        }
+        .onDisappear { monitor.endPractice() }
+        .onChange(of: activeState) { _, state in monitor.focused = state == .key }
+    }
+
+    private var taipoBody: some View {
         VStack(alignment: .leading, spacing: 16) {
             modes
             if let drill = monitor.drill {
@@ -80,15 +101,6 @@ struct DrillView: View {
             Spacer()
             technique
         }
-        .padding(16)
-        // Scoring belongs to the screen, not to the app.  The collector runs whether or not
-        // this is showing; the drill only consumes chords while it is.
-        .onAppear {
-            monitor.focused = activeState == .key
-            monitor.beginPractice()
-        }
-        .onDisappear { monitor.endPractice() }
-        .onChange(of: activeState) { _, state in monitor.focused = state == .key }
     }
 
     /// The two kinds of practice.
