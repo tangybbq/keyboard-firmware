@@ -813,7 +813,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | food | `otei-ateiBk` | food |
 | source | `sei-aiSp o-eBk` | sour·ce |
 | learn | `stiBk-aSp -n` | lear·n |
-| course | `oei-aiSp e-eBk` | cour·se |
+| course | `oei-aiSp s-eBk` | cour·se |
 | teen | `tiBk-neBk` | teen |
 | too | `tei-eiBk` | too |
 | features | `otiBk-tSp -aiSp -seBk` | feat·ur·es |
@@ -832,7 +832,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | word | strokes | division |
 |---|---|---|
 | two | `tSpBk-eiBk` | two |
-| software | `e-otei tSpBk-aSp -eBk` | sof·twar·e |
+| software | `s-otei tSpBk-aSp -eBk` | sof·twar·e |
 | special | `seiBk-oe i-stSpBk` | spec·ial |
 | sports | `seiBk-aei t-s` | spor·ts |
 | guide | `aoiSp-ati -eBk` | guid·e |
@@ -847,7 +847,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | annual | `-nSp niSp-stSpBk` | an·nual |
 | hardware | `tn-aSp atSpBk-aSp -eBk` | har·dwar·e |
 | build | `aosiSp-i Sp-at` | bui·ld |
-| sponsored | `seiBk-nei e-aei -ateBk` | spon·sor·ed |
+| sponsored | `seiBk-nei s-aei -ateBk` | spon·sor·ed |
 | continue | `o-nei t-ni iSp-eBk` | con·tin·ue |
 | tuesday | `tiSp-se at-anSpBk` | tues·day |
 | score | `seiSp-aei -eBk` | scor·e |
@@ -870,7 +870,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | guidelines | `aoiSp-ati -e Sp-ni -seBk` | guid·e·lin·es |
 | suite | `siSp-ti -eBk` | suit·e |
 | species | `seiBk-oe i-seBk` | spec·ies |
-| situation | `e-ti iSp-tSp i-neiBk` | sit·uat·ion |
+| situation | `s-ti iSp-tSp i-neiBk` | sit·uat·ion |
 
 ## Lesson 21 — ea and ou
 
@@ -893,7 +893,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | greater | `aoBk-teSp -aeBk` | great·er |
 | clean | `oSp-neSpBk` | clean |
 | measures | `eBk-seSp -aiSp -seBk` | meas·ur·es |
-| serious | `e-ae i-seiSpBk` | ser·ious |
+| serious | `s-ae i-seiSpBk` | ser·ious |
 | religious | `a-e Sp-aoi i-seiSpBk` | re·lig·ious |
 | anonymous | `-nSp -nei aneBk-seiSpBk` | an·on·ymous |
 | miscellaneous | `eBk-si o-ste Sp-nSp iBk-seiSpBk` | mis·cel·lan·eous |
@@ -932,7 +932,7 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 | from | `otBk-aoneiBk` | from |
 | view | `aoti-sneBk` | view |
 | am | `-aonSpBk` | am |
-| services | `e-ae aot-oi -seBk` | ser·vic·es |
+| services | `s-ae aot-oi -seBk` | ser·vic·es |
 | over | `-aotei -aeBk` | ov·er |
 | work | `sn-aei -atn` | wor·k |
 | them | `on-aoneBk` | them |
@@ -984,7 +984,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | management | `eBk-nSp -aoSp -e eBk-osneBk` | man·ag·e·ment |
 | international | `osn-ae n-tSp i-nei -stSpBk` | inter·nat·ion·al |
 | development | `at-aote -e Sp-osei eBk-osneBk` | dev·e·lop·ment |
-| send | `e-asteBk` | send |
+| send | `s-asteBk` | send |
 | using | `-siSp -asniBk` | us·ing |
 | internet | `osn-ae n-teBk` | inter·net |
 | want | `sn-osnSpBk` | want |
@@ -1009,9 +1009,9 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | print | `osBk-osniBk` | print |
 | training | `tBk-Sp -ni -asniBk` | tra·in·ing |
 | point | `osei-osniBk` | point |
-| second | `e-oe -asteiBk` | sec·ond |
+| second | `s-oe -asteiBk` | sec·ond |
 | going | `aoei-asniBk` | going |
-| friend | `otBk-i -asteBk` | fri·end |
+| friend | `ot- ai-asteBk` | f·riend |
 | looking | `stei-atnei -asniBk` | look·ing |
 | comment | `o-aonei eBk-osneBk` | com·ment |
 | working | `sn-aei atn-asniBk` | wor·king |
@@ -1031,7 +1031,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | click | `oSp-aosniBk` | click |
 | back | `aos-aosnSpBk` | back |
 | should | `aostei-iSp Sp-at` | shou·ld |
-| such | `e-ostiSpBk` | such |
+| such | `s-ostiSpBk` | such |
 | high | `tn-stniBk` | high |
 | school | `s- ostei-steiBk` | s·chool |
 | through | `onBk-stneiSpBk` | through |
@@ -1087,7 +1087,7 @@ Two four-key right-hand shapes with no onset reading: a final `h` and a final `e
 | scientific | `seiSp-ostni neSp-oti -oiBk` | scie·ntif·ic |
 | freedom | `otBk-ostne at-aoneiBk` | free·dom |
 | influence | `-ni otSp-ostniSp neiSp-eBk` | in·flue·nce |
-| suppliers | `e-osiSp osSp-ostni a-s` | sup·plie·rs |
+| suppliers | `s-osiSp osSp-ostni a-s` | sup·plie·rs |
 | paragraph | `os-aSp -aoSp a-osSp -astn` | par·ag·rap·h |
 | bluetooth | `aosSp-ostniSp tei-oneiBk` | blue·tooth |
 | greece | `aoBk-ostne o-eBk` | gree·ce |
@@ -1109,7 +1109,7 @@ Two four-key right-hand shapes with no onset reading: a final `h` and a final `e
 | briefing | `aosBk-ostni ot-asniBk` | brie·fing |
 | eh | `-astneBk` | eh |
 | speeches | `seiBk-ostne ost-seBk` | spee·ches |
-| savannah | `e-aotSp -nSp n-astnSpBk` | sav·an·nah |
+| savannah | `s-aotSp -nSp n-astnSpBk` | sav·an·nah |
 | aerial | `-ostnSp ai-stSpBk` | ae·rial |
 | reggae | `a-aoe ao-ostnSpBk` | reg·gae |
 | influenced | `-ni otSp-ostniSp neiSp-ateBk` | in·flue·nced |
@@ -1141,7 +1141,7 @@ With no vowel on the right hand and a real coda, a second character that is also
 | some | `sSpBk-aon` | some |
 | these | `one-s` | these |
 | like | `sti-atn` | like |
-| service | `e-ae aoti-o` | ser·vice |
+| service | `s-ae aoti-o` | ser·vice |
 | date | `atBk-t` | date |
 | name | `nBk-aon` | name |
 | make | `aonBk-atn` | make |
@@ -1175,7 +1175,7 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | word | strokes | division |
 |---|---|---|
 | just | `ani-tniSpBk` | just |
-| subject | `e-aosiSp ani-oe -t` | sub·jec·t |
+| subject | `s-aosiSp ani-oe -t` | sub·jec·t |
 | project | `osBk-ei ani-oe -t` | pro·jec·t |
 | jobs | `ani-aosei -s` | job·s |
 | job | `ani-aoseiBk` | job |
@@ -1192,7 +1192,7 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | journal | `ani-ei -aiSp n-stSpBk` | jo·ur·nal |
 | requirements | `a-e oeiSp-ai -e eBk-ne t-s` | re·quir·e·men·ts |
 | projects | `osBk-ei ani-oe t-s` | pro·jec·ts |
-| subscribe | `e-aosiSp tneiSp-aosi -eBk` | sub·scrib·e |
+| subscribe | `s-aosiSp tneiSp-aosi -eBk` | sub·scrib·e |
 | construction | `o-nei tnBk-oiSp ti-neiBk` | con·struc·tion |
 | quick | `oeiSp-aosniBk` | quick |
 | japan | `ani-osSp -nSpBk` | jap·an |
@@ -1213,7 +1213,7 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | japanese | `ani-osSp -nSp e-s` | jap·an·ese |
 | instructions | `-ni tnBk-oiSp ti-nei -s` | in·struc·tion·s |
 | enjoy | `-ne ani-aneiBk` | en·joy |
-| subjects | `e-aosiSp ani-oe t-s` | sub·jec·ts |
+| subjects | `s-aosiSp ani-oe t-s` | sub·jec·ts |
 
 ## Lesson 28 — w reads as h after p, w and r
 
@@ -1233,7 +1233,7 @@ The second character `w` (`Sp+Bk`) spells `h` after an onset ending in `p`, `w` 
 | phones | `osSpBk-nei -seBk` | phon·es |
 | wholesale | `snSpBk-ei Sp-se Bk-st` | who·les·ale |
 | whatever | `snSpBk-tSp -aote -aeBk` | what·ev·er |
-| philadelphia | `osSpBk-i Sp-atSp -ste osSpBk-i -SpBk` | phi·lad·el·phi·a |
+| philadelphia | `osSpBk-i Sp-atSp -ste os- tni-SpBk` | phi·lad·el·p·hia |
 | whom | `snSpBk-aoneiBk` | whom |
 | phoenix | `osSpBk-ostnei n-otniBk` | phoe·nix |
 | alpha | `-stSp osSpBk-SpBk` | al·pha |
@@ -1330,12 +1330,12 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | privacy | `osBk-aoti -oSp -aniBk` | priv·ac·y |
 | company | `o-aonei os-nSp -aniBk` | com·pan·y |
 | many | `eBk-nSp -aniBk` | man·y |
-| university | `-niSp -aoti -ae e-ti -aniBk` | un·iv·er·sit·y |
+| university | `-niSp -aoti -ae s-ti -aniBk` | un·iv·er·sit·y |
 | january | `ani-nSp iSp-aSp -aniBk` | jan·uar·y |
 | community | `o-aonei eBk-niSp -ti -aniBk` | com·mun·it·y |
 | family | `ot-Sp eBk-i Sp-aniBk` | fa·mi·ly |
 | technology | `t-oste n-ei Sp-aoei -aniBk` | tech·no·log·y |
-| security | `e-oe -aiSp -ti -aniBk` | sec·ur·it·y |
+| security | `s-oe -aiSp -ti -aniBk` | sec·ur·it·y |
 | county | `oei-niSp t-aniBk` | coun·ty |
 | history | `tn-tni -aei -aniBk` | hist·or·y |
 | directory | `at-ai -oe t-aei -aniBk` | dir·ec·tor·y |

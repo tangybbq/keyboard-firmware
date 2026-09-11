@@ -15,16 +15,18 @@
 //! never start one.
 //!
 //! Many words divide equally well in more than one way (`ten|s` and `te|ns`
-//! are both two strokes of four keys).  The remaining tie is broken towards
-//! longer earlier strokes, so a word reads as a syllable and a suffix rather
-//! than a stub and a lump.
+//! are both two strokes of four keys).  Ties are broken towards fewer inner
+//! keys, so a consonant that could be an onset or a second character is the
+//! onset -- `set` is `s` on the outer keys, not the second-character `s` on
+//! the index finger -- and then towards longer earlier strokes, so a word
+//! reads as a syllable and a suffix rather than a stub and a lump.
 //!
 //! The index is built by translating every chord once, which takes a moment,
 //! so a `Writer` is meant to be made once and kept.
 
 use std::collections::HashMap;
 
-use crate::chord::{Chord, HAND_MASK};
+use crate::chord::{Chord, HAND_MASK, INNER_MASK};
 use crate::compose::translate;
 
 /// How many letters a single stroke can spell.  The longest is `str` plus a
@@ -39,6 +41,8 @@ struct Entry {
     space_before: bool,
     space_after: bool,
     keys: u32,
+    /// How many of the keys are on the inner four of either hand.
+    inner: u32,
     rules: u8,
 }
 
@@ -74,12 +78,14 @@ impl Writer {
                     space_before: t.space_before,
                     space_after: t.space_after,
                     keys: chord.keys(),
+                    inner: ((left | right) & INNER_MASK).count_ones()
+                        + (left & right & INNER_MASK).count_ones(),
                     rules: t.rules,
                 });
             }
         }
         for entries in chunks.values_mut() {
-            entries.sort_by_key(|e| (e.keys, e.chord.left, e.chord.right));
+            entries.sort_by_key(|e| (e.keys, e.inner, e.chord.left, e.chord.right));
         }
         Writer { chunks }
     }
@@ -104,13 +110,12 @@ impl Writer {
         }
         let n = word.len();
         // best[i]: the cheapest way to spell the first i letters, as
-        // (strokes, keys, length of the last stroke's chunk, path).  The
-        // chunk length only decides ties, in favour of longer earlier
-        // strokes.
-        let mut best: Vec<Option<(usize, u32, usize, Vec<Chord>)>> = vec![None; n + 1];
-        best[0] = Some((0, 0, 0, Vec::new()));
+        // (strokes, keys, inner keys, length of the last stroke's chunk,
+        // path).  The inner count and the chunk length only decide ties.
+        let mut best: Vec<Option<(usize, u32, u32, usize, Vec<Chord>)>> = vec![None; n + 1];
+        best[0] = Some((0, 0, 0, 0, Vec::new()));
         for i in 0..n {
-            let Some((strokes, keys, _, path)) = best[i].clone() else { continue };
+            let Some((strokes, keys, inner, _, path)) = best[i].clone() else { continue };
             for j in (i + 1)..=n.min(i + MAX_CHUNK) {
                 let Some(entries) = self.chunks.get(&word[i..j]) else { continue };
                 let last = j == n;
@@ -122,19 +127,19 @@ impl Writer {
                         && allowed(e.chord, e.rules)
                 });
                 let Some(entry) = entry else { continue };
-                let candidate = (strokes + 1, keys + entry.keys, j - i);
+                let candidate = (strokes + 1, keys + entry.keys, inner + entry.inner, j - i);
                 let better = match &best[j] {
                     None => true,
-                    Some((s, k, l, _)) => candidate < (*s, *k, *l),
+                    Some((s, k, n, l, _)) => candidate < (*s, *k, *n, *l),
                 };
                 if better {
                     let mut path = path.clone();
                     path.push(entry.chord);
-                    best[j] = Some((candidate.0, candidate.1, candidate.2, path));
+                    best[j] = Some((candidate.0, candidate.1, candidate.2, candidate.3, path));
                 }
             }
         }
-        best[n].take().map(|(_, _, _, path)| path)
+        best[n].take().map(|(_, _, _, _, path)| path)
     }
 }
 
@@ -142,7 +147,7 @@ impl Writer {
 mod tests {
     use super::*;
     use crate::compose::rules;
-    use crate::tables::{Patterns, Second, Vowel};
+    use crate::tables::{Outer, Patterns, Second, Vowel};
 
     fn texts(writer: &Writer, word: &str) -> Vec<String> {
         writer
@@ -166,13 +171,18 @@ mod tests {
         assert_eq!(texts(&w, "tennis").len(), 2);
     }
 
-    /// Ties in strokes are broken by fewest keys.
+    /// Ties in strokes are broken by fewest keys, then by fewest inner keys:
+    /// a consonant that could be an onset or a second character is the onset.
     #[test]
     fn fewest_keys() {
         let w = Writer::new();
         let strokes = w.write("ten").unwrap();
         assert_eq!(strokes.len(), 1);
         assert_eq!(strokes[0].keys(), 4);
+        let set = w.write("set").unwrap();
+        assert_eq!(set.len(), 1);
+        assert_eq!(Patterns::of(set[0]).unwrap().onset, Outer::S);
+        assert_eq!(Patterns::of(set[0]).unwrap().second, Second::Empty);
     }
 
     /// A fragment that leans back cannot start a word, and nothing unspellable
