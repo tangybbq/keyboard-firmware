@@ -144,6 +144,39 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertNil(session.diagnosis)
     }
 
+    /// A word left open is not a mistake until the next word runs on; undoing back to
+    /// it and closing it properly then gets no stray space, because the undo puts the
+    /// spacing state back as it was.
+    func testUndoRestoresTheSpacingState() throws {
+        let (layouts, theory, words) = try fixtures()
+        let target = OrsyDrillTarget(text: "tennis sit", words: words, theory: theory)
+        let session = OrsyDrillSession(target: target, theory: theory, layouts: layouts)
+        // ten, then nis with the plain vowel: the word is left open.
+        session.feed(stroke(theory, 0x004, 0x048, at: 1000))
+        XCTAssertFalse(session.wordOpen, "mid-word is not open")
+        session.feed(stroke(theory, 0x040, 0x0a0, at: 1500))
+        XCTAssertEqual(session.typed, "tennis")
+        XCTAssertTrue(session.onTrack)
+        XCTAssertTrue(session.wordOpen)
+        // The next word runs on: no space.
+        session.feed(stroke(theory, 0x020, 0x284, at: 2000))
+        XCTAssertEqual(session.typed, "tennissit")
+        XCTAssertFalse(session.onTrack)
+        // Undo twice, back to `ten`.
+        session.feed(stroke(theory, 0x067, 0, at: 2500))
+        session.feed(stroke(theory, 0x067, 0, at: 3000))
+        XCTAssertEqual(session.typed, "ten")
+        XCTAssertEqual(session.wantedStroke?.text, "nis")
+        // nis with the ending form: no space before it, and the word closes.
+        session.feed(stroke(theory, 0x040, 0x2a0, at: 3500))
+        XCTAssertEqual(session.typed, "tennis")
+        XCTAssertTrue(session.onTrack)
+        XCTAssertFalse(session.wordOpen)
+        session.feed(stroke(theory, 0x020, 0x284, at: 4000))
+        XCTAssertTrue(session.finished)
+        XCTAssertEqual(session.stats.wrong, 1)
+    }
+
     /// A dead stroke counts, and the escapes control the line.
     func testDeadAndControls() throws {
         let (layouts, theory, words) = try fixtures()

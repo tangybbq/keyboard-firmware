@@ -190,6 +190,13 @@ struct OrsyDrillView: View {
                 Label(diagnosis, systemImage: "hand.point.up.left")
                     .font(.callout)
                     .foregroundStyle(.orange)
+            } else if drill.wordOpen {
+                Label(
+                    "Word not closed: the next stroke will run on.  Undo and use the "
+                        + "ending form (add Bk), or strike the space.",
+                    systemImage: "space")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
             }
             HStack(spacing: 14) {
                 Label(

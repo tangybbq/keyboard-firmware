@@ -14,15 +14,25 @@ import Foundation
 /// "coda: s+t is l" rather than paint a word red.
 
 /// The output stage, as the firmware runs it.  See `bbq-orsy/src/output.rs`.
+///
+/// A port rather than an approximation, because the drill judges by the text this
+/// produces, and anywhere it differs from the keyboard the drill marks right typing
+/// wrong.  The first version guessed the pending space after an undo from the last
+/// character on the record; the firmware restores the flag that was in force before the
+/// undone stroke, and after a stroke that binds forward that is "no space", whatever the
+/// character.  Retyping the end of a word after an undo got a space it should not have.
 struct OrsyOutput {
     private(set) var recent: [Character] = []
-    /// Characters typed by each stroke, oldest first.
-    private var strokes: [Int] = []
-    private var pendingSpace = false
+    /// What each stroke did, oldest first: the characters it typed, and whether a space
+    /// was pending before it, to put back.
+    private var strokes: [(chars: Int, pendingSpace: Bool)] = []
+    /// The last stroke allowed a space after it, so the next word gets one.
+    private(set) var pendingSpace = false
     private var pendingCap = false
 
     /// Type a syllable, returning the characters it puts on the screen.
     mutating func stroke(_ t: OrsyTranslation) -> String {
+        let before = pendingSpace
         var out = ""
         if pendingSpace && t.spaceBefore && !t.text.isEmpty {
             out.append(" ")
@@ -37,42 +47,42 @@ struct OrsyOutput {
         }
         pendingSpace = t.spaceAfter
         recent.append(contentsOf: out)
-        strokes.append(out.count)
+        strokes.append((out.count, before))
         return out
     }
 
     mutating func space() -> String {
+        let before = pendingSpace
         recent.append(" ")
-        strokes.append(1)
+        strokes.append((1, before))
         pendingSpace = false
         return " "
     }
 
     mutating func capNext() { pendingCap = true }
 
-    /// Take back the last stroke, returning how many characters go.
+    /// Take back the last stroke, returning how many characters go, and put the spacing
+    /// state back as it was before it.
     mutating func undo() -> Int {
-        guard let count = strokes.popLast() else { return 0 }
-        recent.removeLast(min(count, recent.count))
+        guard let stroke = strokes.popLast() else { return 0 }
+        recent.removeLast(min(stroke.chars, recent.count))
         pendingCap = false
-        // The firmware restores the space that was pending before the stroke; near
-        // enough here to say a space is owed again if the record now ends a word.
-        pendingSpace = recent.last.map { $0 != " " } ?? false
-        return count
+        pendingSpace = stroke.pendingSpace
+        return stroke.chars
     }
 
     /// A character erased by a backspace through the Dosh escape.
     mutating func erase() {
         guard let erased = recent.popLast() else { return }
         if erased == " " { pendingSpace = true }
-        if let last = strokes.indices.last { strokes[last] = max(0, strokes[last] - 1) }
+        if let last = strokes.indices.last {
+            strokes[last].chars = max(0, strokes[last].chars - 1)
+        }
     }
 
-    /// Something typed through the Dosh escape.
-    mutating func typed(_ text: String) {
-        recent.append(contentsOf: text)
-        strokes.append(text.count)
-    }
+    /// Something typed through the Dosh escape.  The firmware's output stage does not see
+    /// it at all -- it is neither on the record nor undoable -- and neither does this.
+    mutating func typed(_ text: String) {}
 }
 
 /// One stroke of the table's division of a target.
@@ -193,6 +203,15 @@ public final class OrsyDrillSession {
     public var onTrack: Bool { target.text.hasPrefix(typed) }
     public var cursor: Int { typed.count }
     public var finished: Bool { typed == target.text }
+
+    /// The typing is at the end of a target word, and the last stroke did not close it:
+    /// the next stroke will run on without the space.  The one mistake the text cannot
+    /// show until the next stroke lands, so it is worth saying now.
+    public var wordOpen: Bool {
+        guard onTrack, !finished, !typed.isEmpty else { return false }
+        let chars = Array(target.text)
+        return chars[cursor] == " " && !output.pendingSpace
+    }
 
     /// The stroke the table wants next, if the typing is at the start of one.
     public var wantedStroke: OrsyDrillUnit? {
