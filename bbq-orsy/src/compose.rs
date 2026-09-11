@@ -24,8 +24,32 @@
 //!    makes a fragment that binds backward, unless it is a bare onset, which
 //!    binds forward.
 
-use crate::chord::{Chord, HAND_MASK};
-use crate::tables::{Outer, Second, Vowel};
+use crate::chord::Chord;
+use crate::tables::{Outer, Patterns, Second, Vowel};
+
+/// The composition rules a stroke used, as flags in [`Translation::rules`].
+///
+/// A rule is something to learn beyond the patterns themselves, so a
+/// trainer wants to know which strokes exercise which.  The plain readings
+/// -- an onset, a second character, a vowel, a coda, each spelling what its
+/// table says -- are not rules.
+pub mod rules {
+    /// Series 2 supplied the nucleus: a mirrored vowel with its silent `e`,
+    /// or `RX`/`RXI`.
+    pub const MIRRORED: u8 = 0x01;
+    /// The onset and Series 2 spelled a cluster together (`str`, `qu`, `j`).
+    pub const CLUSTER: u8 = 0x02;
+    /// Series 2 `XI` read as `h`, after `p`, `w` or `r`.
+    pub const XI_H: u8 = 0x04;
+    /// A Series 2 vowel fused with the Series 3 vowel (`au`, `ai`).
+    pub const DIPHTHONG: u8 = 0x08;
+    /// One of the free Series 3 combinations (`ea`, `ou`, or a glyph alone).
+    pub const FREE: u8 = 0x10;
+    /// A bare final `y` taking its space from the `ui` keys.
+    pub const BARE_Y: u8 = 0x20;
+    /// The capitalising coda.
+    pub const CAPITALISE: u8 = 0x40;
+}
 
 /// What a stroke spells and how it joins onto its neighbours.
 ///
@@ -43,6 +67,8 @@ pub struct Translation {
     /// A space may come after this stroke.  False when the stroke binds
     /// forward onto the next.
     pub space_after: bool,
+    /// Which composition rules were used; see [`rules`].
+    pub rules: u8,
 }
 
 impl Translation {
@@ -80,11 +106,17 @@ struct Nucleus {
     closes: bool,
     /// Series 2 was used up as the nucleus, and spells no consonant.
     consumed: bool,
+    /// The rule that chose it, if one did.
+    rule: u8,
 }
 
 impl Nucleus {
     const fn new(text: &'static str, silent_e: bool, closes: bool, consumed: bool) -> Nucleus {
-        Nucleus { text, silent_e, closes, consumed }
+        Nucleus { text, silent_e, closes, consumed, rule: 0 }
+    }
+
+    const fn by(self, rule: u8) -> Nucleus {
+        Nucleus { rule, ..self }
     }
 }
 
@@ -98,21 +130,24 @@ fn nucleus(s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
                 Nucleus::new("\u{b0}", false, true, false)
             } else {
                 Nucleus::new("ea", false, false, false)
-            };
+            }
+            .by(rules::FREE);
         }
         Vowel::Iea => {
             return if s2 == Second::Empty {
                 Nucleus::new("_", false, true, false)
             } else {
                 Nucleus::new("ea", false, true, false)
-            };
+            }
+            .by(rules::FREE);
         }
         Vowel::Ia => {
             return if s2 == Second::Empty {
                 Nucleus::new("*", false, true, false)
             } else {
                 Nucleus::new("ou", false, true, false)
-            };
+            }
+            .by(rules::FREE);
         }
         _ => (),
     }
@@ -120,10 +155,10 @@ fn nucleus(s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
     // A Series 2 vowel fused with the Series 3 vowel.
     match (s2, s3) {
         (Second::U, Vowel::U) | (Second::U, Vowel::Uia) => {
-            return Nucleus::new("au", false, s3.ends_word(), true);
+            return Nucleus::new("au", false, s3.ends_word(), true).by(rules::DIPHTHONG);
         }
         (Second::I, Vowel::I) | (Second::I, Vowel::Ui) => {
-            return Nucleus::new("ai", false, s3.ends_word(), true);
+            return Nucleus::new("ai", false, s3.ends_word(), true).by(rules::DIPHTHONG);
         }
         _ => (),
     }
@@ -134,8 +169,8 @@ fn nucleus(s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
 
     // No Series 3.  Series 2 may supply the nucleus instead.
     match s2 {
-        Second::RX => return Nucleus::new("ea", true, true, true),
-        Second::RXI => return Nucleus::new("o", false, false, true),
+        Second::RX => return Nucleus::new("ea", true, true, true).by(rules::MIRRORED),
+        Second::RXI => return Nucleus::new("o", false, false, true).by(rules::MIRRORED),
         _ => (),
     }
     if let Some(vowel) = s2.mirrored_vowel() {
@@ -143,7 +178,7 @@ fn nucleus(s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
         // digraph tails or commands rather than consonants, and do not
         // license the mirrored reading.
         if s4 != Outer::Empty && !matches!(s4, Outer::CZ | Outer::SCZ) {
-            return Nucleus::new(vowel, true, true, true);
+            return Nucleus::new(vowel, true, true, true).by(rules::MIRRORED);
         }
     }
     Nucleus::new("", false, false, false)
@@ -168,30 +203,30 @@ fn onset_override(s1: Outer, s2: Second) -> Option<&'static str> {
 /// Translate one stroke, or `None` if it is not a valid syllable.
 pub fn translate(chord: Chord) -> Option<Translation> {
     // A key the layout does not have (the upper pinky, on a board that has
-    // one) is not silently ignored.
-    if (chord.left | chord.right) & !HAND_MASK != 0 {
-        return None;
-    }
-    let s1 = Outer::lookup(chord.series1())?;
-    let s2 = Second::lookup(chord.series2())?;
-    let s3 = Vowel::lookup(chord.series3())?;
-    let s4 = Outer::lookup(chord.series4())?;
+    // one) is not silently ignored, and a combination outside the tables
+    // is not a syllable.
+    let Patterns { onset: s1, second: s2, vowel: s3, coda: s4 } = Patterns::of(chord)?;
     // The coda-only shapes have no onset reading.
     let s1_onset = s1.onset()?;
 
     let n = nucleus(s2, s3, s4);
+    let mut used = n.rule;
 
     // An onset cluster like FC+R = "str" needs Series 2 as a consonant; when
     // Series 2 has been taken for the nucleus instead, the cluster is off.
     let override_ = if n.consumed { None } else { onset_override(s1, s2) };
     let (onset, middle) = match override_ {
-        Some(onset) => (onset, ""),
+        Some(onset) => {
+            used |= rules::CLUSTER;
+            (onset, "")
+        }
         None => {
             let onset = if s1 == Outer::FN && n.consumed { "gn" } else { s1_onset };
             let middle = if n.consumed {
                 ""
             } else if s2 == Second::XI {
                 if onset.ends_with('p') || onset.ends_with('w') || onset.ends_with('r') {
+                    used |= rules::XI_H;
                     "h"
                 } else {
                     "w"
@@ -205,9 +240,17 @@ pub fn translate(chord: Chord) -> Option<Translation> {
 
     // A bare final Y takes its word-final space from the `ui` keys, which
     // then spell nothing themselves.
-    let nucleus_text = if s3 == Vowel::Ui && s4 == Outer::ZN { "" } else { n.text };
+    let nucleus_text = if s3 == Vowel::Ui && s4 == Outer::ZN {
+        used |= rules::BARE_Y;
+        ""
+    } else {
+        n.text
+    };
 
     let capitalize = s4 == Outer::SCZ;
+    if capitalize {
+        used |= rules::CAPITALISE;
+    }
     let coda = if capitalize { "" } else { s4.coda() };
     let silent_e = if n.silent_e { "e" } else { "" };
 
@@ -233,6 +276,7 @@ pub fn translate(chord: Chord) -> Option<Translation> {
         capitalize,
         space_before,
         space_after,
+        rules: used,
     })
 }
 
@@ -332,6 +376,25 @@ mod tests {
     #[test]
     fn capitalise() {
         check(chord(Outer::FP, Second::Empty, Vowel::Ie, Outer::SCZ), "To", true, false);
+    }
+
+    /// Each rule is reported on the strokes that use it.
+    #[test]
+    fn rules_reported() {
+        fn used(c: Chord) -> u8 {
+            translate(c).unwrap().rules
+        }
+        assert_eq!(used(chord(Outer::FP, Second::Empty, Vowel::Ue, Outer::N)), 0);
+        assert_eq!(used(chord(Outer::FP, Second::R, Vowel::Empty, Outer::SZP)), rules::MIRRORED);
+        assert_eq!(used(chord(Outer::FP, Second::RXI, Vowel::Empty, Outer::SZP)), rules::MIRRORED);
+        assert_eq!(used(chord(Outer::FC, Second::R, Vowel::Ua, Outer::N)), rules::CLUSTER);
+        assert_eq!(used(chord(Outer::P, Second::XI, Vowel::Ua, Outer::SCN)), rules::XI_H);
+        assert_eq!(used(chord(Outer::CN, Second::XI, Vowel::E, Outer::N)), rules::XI_H);
+        assert_eq!(used(chord(Outer::S, Second::XI, Vowel::E, Outer::FP)), 0);
+        assert_eq!(used(chord(Outer::P, Second::U, Vowel::U, Outer::SCN)), rules::DIPHTHONG);
+        assert_eq!(used(chord(Outer::SCP, Second::R, Vowel::Ea, Outer::SZP)), rules::FREE);
+        assert_eq!(used(chord(Outer::Empty, Second::Empty, Vowel::Ui, Outer::ZN)), rules::BARE_Y);
+        assert_eq!(used(chord(Outer::FP, Second::Empty, Vowel::Ie, Outer::SCZ)), rules::CAPITALISE);
     }
 
     /// Unassigned combinations, and the coda-only shapes as onsets, are

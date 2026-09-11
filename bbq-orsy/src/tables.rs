@@ -489,6 +489,32 @@ impl Vowel {
     }
 }
 
+/// The four patterns of a chord, one per Series.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Patterns {
+    pub onset: Outer,
+    pub second: Second,
+    pub vowel: Vowel,
+    pub coda: Outer,
+}
+
+impl Patterns {
+    /// Split a chord into its patterns, or `None` if any Series holds a
+    /// combination its table has no entry for, or the chord has a key the
+    /// layout does not.
+    pub fn of(chord: crate::chord::Chord) -> Option<Patterns> {
+        if (chord.left | chord.right) & !crate::chord::HAND_MASK != 0 {
+            return None;
+        }
+        Some(Patterns {
+            onset: Outer::lookup(chord.series1())?,
+            second: Second::lookup(chord.series2())?,
+            vowel: Vowel::lookup(chord.series3())?,
+            coda: Outer::lookup(chord.series4())?,
+        })
+    }
+}
+
 /// The commands: whole strokes that no syllable can produce, because each
 /// sits on a key combination unassigned within its own group.
 pub mod commands {
