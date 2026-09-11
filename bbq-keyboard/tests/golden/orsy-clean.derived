@@ -1,0 +1,99 @@
+stroke 30 [o+n-e+Bk] spread=0 text "the" before=1 after=1
+key 30 KeyPress(T, Mods(0x0))
+key 30 KeyRelease
+key 30 KeyPress(H, Mods(0x0))
+key 30 KeyRelease
+key 30 KeyPress(E, Mods(0x0))
+key 30 KeyRelease
+stroke 120 [o+e+i+Sp-a+o+s+n+i+Bk] spread=0 text "quick" before=1 after=1
+key 120 KeyPress(Space, Mods(0x0))
+key 120 KeyRelease
+key 120 KeyPress(Q, Mods(0x0))
+key 120 KeyRelease
+key 120 KeyPress(U, Mods(0x0))
+key 120 KeyRelease
+key 120 KeyPress(I, Mods(0x0))
+key 120 KeyRelease
+key 120 KeyPress(C, Mods(0x0))
+key 120 KeyRelease
+key 120 KeyPress(K, Mods(0x0))
+key 120 KeyRelease
+stroke 210 [a+o+s+Bk-e+s+n+i] spread=0 text "brow" before=1 after=0
+key 210 KeyPress(Space, Mods(0x0))
+key 210 KeyRelease
+key 210 KeyPress(B, Mods(0x0))
+key 210 KeyRelease
+key 210 KeyPress(R, Mods(0x0))
+key 210 KeyRelease
+key 210 KeyPress(O, Mods(0x0))
+key 210 KeyRelease
+key 210 KeyPress(W, Mods(0x0))
+key 210 KeyRelease
+stroke 300 [-n] spread=0 text "n" before=0 after=1
+key 300 KeyPress(N, Mods(0x0))
+key 300 KeyRelease
+stroke 390 [o+t-o+t+e+n+i+Bk] spread=0 text "fox" before=1 after=1
+key 390 KeyPress(Space, Mods(0x0))
+key 390 KeyRelease
+key 390 KeyPress(F, Mods(0x0))
+key 390 KeyRelease
+key 390 KeyPress(O, Mods(0x0))
+key 390 KeyRelease
+key 390 KeyPress(X, Mods(0x0))
+key 390 KeyRelease
+stroke 480 [a+n+i-a+o+n+i+Sp] spread=0 text "jum" before=1 after=0
+key 480 KeyPress(Space, Mods(0x0))
+key 480 KeyRelease
+key 480 KeyPress(J, Mods(0x0))
+key 480 KeyRelease
+key 480 KeyPress(U, Mods(0x0))
+key 480 KeyRelease
+key 480 KeyPress(M, Mods(0x0))
+key 480 KeyRelease
+stroke 570 [o+s-s] spread=0 text "ps" before=0 after=1
+key 570 KeyPress(P, Mods(0x0))
+key 570 KeyRelease
+key 570 KeyPress(S, Mods(0x0))
+key 570 KeyRelease
+stroke 660 [-a+o+t+e+i] spread=0 text "ov" before=1 after=0
+key 660 KeyPress(Space, Mods(0x0))
+key 660 KeyRelease
+key 660 KeyPress(O, Mods(0x0))
+key 660 KeyRelease
+key 660 KeyPress(V, Mods(0x0))
+key 660 KeyRelease
+stroke 750 [-a+e+Bk] spread=0 text "er" before=1 after=1
+key 750 KeyPress(E, Mods(0x0))
+key 750 KeyRelease
+key 750 KeyPress(R, Mods(0x0))
+key 750 KeyRelease
+stroke 840 [o+n-e+Bk] spread=0 text "the" before=1 after=1
+key 840 KeyPress(Space, Mods(0x0))
+key 840 KeyRelease
+key 840 KeyPress(T, Mods(0x0))
+key 840 KeyRelease
+key 840 KeyPress(H, Mods(0x0))
+key 840 KeyRelease
+key 840 KeyPress(E, Mods(0x0))
+key 840 KeyRelease
+stroke 930 [Sp-a+s+Sp] spread=0 text "laz" before=1 after=0
+key 930 KeyPress(Space, Mods(0x0))
+key 930 KeyRelease
+key 930 KeyPress(L, Mods(0x0))
+key 930 KeyRelease
+key 930 KeyPress(A, Mods(0x0))
+key 930 KeyRelease
+key 930 KeyPress(Z, Mods(0x0))
+key 930 KeyRelease
+stroke 1020 [-a+n+i+Bk] spread=0 text "y" before=1 after=1
+key 1020 KeyPress(Y, Mods(0x0))
+key 1020 KeyRelease
+stroke 1110 [a+t-a+o+e+i+Bk] spread=0 text "dog" before=1 after=1
+key 1110 KeyPress(Space, Mods(0x0))
+key 1110 KeyRelease
+key 1110 KeyPress(D, Mods(0x0))
+key 1110 KeyRelease
+key 1110 KeyPress(O, Mods(0x0))
+key 1110 KeyRelease
+key 1110 KeyPress(G, Mods(0x0))
+key 1110 KeyRelease

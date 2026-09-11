@@ -27,6 +27,15 @@ use std::path::PathBuf;
 use bbq_keyboard::replay::{derived_to_text, log_to_text, replay_in};
 use bbq_keyboard::synth::{synth, ErrorKind, Style};
 
+#[cfg(feature = "orsy")]
+use bbq_keyboard::layout::taipo::TaipoVariant;
+#[cfg(feature = "orsy")]
+use bbq_keyboard::replay::replay_in_mode;
+#[cfg(feature = "orsy")]
+use bbq_keyboard::synth::orsy::{synth_orsy, OrsyError, OrsyStyle};
+#[cfg(feature = "orsy")]
+use bbq_keyboard::LayoutMode;
+
 /// Where the checked-in files live.
 fn golden_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden")
@@ -147,6 +156,62 @@ fn test_golden_slips() {
     golden(
         "slips",
         "some of those seasons matter to no one at all",
+        &style,
+        true,
+    );
+}
+
+/// Generate an Orsy log, replay it, and check both halves.
+///
+/// The `.log` opens with a `mode` marker naming Orsy and a `variant` marker naming Dosh,
+/// which is the table the escapes play through, and is replayed in both.
+#[cfg(feature = "orsy")]
+fn golden_orsy(name: &str, target: &str, style: &OrsyStyle, two_row: bool) {
+    let log = synth_orsy(target, style).expect("the rules can spell this");
+    assert_eq!(log.screen(), target);
+    let derived = replay_in_mode(two_row, LayoutMode::Orsy, TaipoVariant::Dosh, &log.events);
+    let markers = format!(
+        "0 = mode {}\n0 = variant {}\n",
+        LayoutMode::Orsy.marker(),
+        TaipoVariant::Dosh.marker()
+    );
+    check(name, "log", &(markers + &log_to_text(&log.events)));
+    check(name, "derived", &derived_to_text(&derived));
+}
+
+/// A tidy Orsy writer: strokes struck, one per syllable, nothing wrong.
+#[cfg(feature = "orsy")]
+#[test]
+fn test_golden_orsy_clean() {
+    golden_orsy(
+        "orsy-clean",
+        "the quick brown fox jumps over the lazy dog",
+        &OrsyStyle::default(),
+        true,
+    );
+}
+
+/// The same writer assembling strokes finger by finger and making all three
+/// kinds of mistake: a wrong stroke undone, a wrong Series backspaced through
+/// the Dosh escape, and a dead chord.
+#[cfg(feature = "orsy")]
+#[test]
+fn test_golden_orsy_sloppy() {
+    let style = OrsyStyle {
+        spread_ms: 14,
+        hold_ms: 45,
+        gap_ms: 20,
+        error_every: 4,
+        errors: vec![
+            OrsyError::WrongStroke,
+            OrsyError::WrongSeries,
+            OrsyError::DeadStroke,
+        ],
+        ..OrsyStyle::default()
+    };
+    golden_orsy(
+        "orsy-sloppy",
+        "the rain in spain falls mainly on the plain",
         &style,
         true,
     );

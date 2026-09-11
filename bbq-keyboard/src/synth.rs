@@ -31,6 +31,9 @@ use crate::layout::taipo::{Action, Entry, TaipoVariant, CHORD_TIME, SCAN_MAP, TA
 use crate::replay::KeyLogEvent;
 use crate::Side;
 
+#[cfg(feature = "orsy")]
+pub mod orsy;
+
 /// The longest string any table entry types, which bounds the greedy match.
 const MAX_GRAM: usize = 8;
 
