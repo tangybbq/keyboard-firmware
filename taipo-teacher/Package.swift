@@ -22,7 +22,7 @@ let package = Package(
             name: "TaipoKit",
             resources: [
                 .copy("layouts.json"), .copy("layout-history.json"),
-                .copy("english_10k.json"),
+                .copy("english_10k.json"), .copy("orsy-words.json"),
             ]
         ),
         .executableTarget(name: "minderctl", dependencies: ["MinderKit"]),

@@ -12,7 +12,13 @@
 //! chords.  So a word appears once, where the last thing it needs is taught,
 //! and a lesson's list is exactly the words it makes writable.
 //!
-//!     cargo run --release --example lessons [--words FILE] [--out DIR] [--limit N]
+//! The same run writes `orsy-words.json` for the trainer: every writable word
+//! with its division and the pattern keys it needs, and the lesson plan as
+//! pattern keys, so the trainer's ladder and this file cannot disagree about
+//! the order.
+//!
+//!     cargo run --release --example lessons [--words FILE] [--out DIR] \
+//!         [--table FILE] [--limit N]
 
 use std::collections::HashSet;
 use std::fmt::Write as _;
@@ -206,6 +212,68 @@ impl Allowed {
     }
 }
 
+impl Item {
+    /// The pattern keys a skill model measures for this item, as `s1:FC`.  An
+    /// outer shape is its onset and coda readings together.
+    fn keys(self) -> Vec<String> {
+        match self {
+            Outer(o) => {
+                let mut keys = Vec::new();
+                if o.onset().is_some() {
+                    keys.push(format!("s1:{}", o.michela()));
+                }
+                keys.push(format!("s4:{}", o.michela()));
+                keys
+            }
+            Second(s) => vec![format!("s2:{}", s.michela())],
+            Vowel(v) => vec![format!("s3:{}", v.michela())],
+            Rule(r) => vec![format!("rule:{}", rule_name(r))],
+        }
+    }
+}
+
+/// The export's name for a rule flag.
+fn rule_name(flag: u8) -> &'static str {
+    match flag {
+        rules::MIRRORED => "mirrored",
+        rules::CLUSTER => "cluster",
+        rules::XI_H => "xi_h",
+        rules::DIPHTHONG => "diphthong",
+        rules::FREE => "free",
+        rules::BARE_Y => "bare_y",
+        rules::CAPITALISE => "capitalise",
+        _ => panic!("unknown rule flag {flag:#x}"),
+    }
+}
+
+/// The pattern keys a stroke gives a sample to, rules included.
+fn stroke_keys(chord: Chord) -> Vec<String> {
+    let p = Patterns::of(chord).expect("a written stroke has patterns");
+    let t = translate(chord).expect("a written stroke translates");
+    let mut keys = Vec::new();
+    if p.onset != Outer::Empty {
+        keys.push(format!("s1:{}", p.onset.michela()));
+    }
+    if p.second != Second::Empty {
+        keys.push(format!("s2:{}", p.second.michela()));
+    }
+    if p.vowel != Vowel::Empty {
+        keys.push(format!("s3:{}", p.vowel.michela()));
+    }
+    if p.coda != Outer::Empty {
+        keys.push(format!("s4:{}", p.coda.michela()));
+    }
+    for flag in [
+        rules::MIRRORED, rules::CLUSTER, rules::XI_H, rules::DIPHTHONG, rules::FREE,
+        rules::BARE_Y, rules::CAPITALISE,
+    ] {
+        if t.rules & flag != 0 {
+            keys.push(format!("rule:{}", rule_name(flag)));
+        }
+    }
+    keys
+}
+
 /// A hand's keys, in the order the documents write them.
 fn keys(hand: u16) -> String {
     const NAMES: [(u16, &str); 9] = [
@@ -228,6 +296,7 @@ fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut words_path = root.join("words/english_10k.json");
     let mut out = root.join("docs/orsy");
+    let mut table = root.join("taipo-teacher/Sources/TaipoKit/orsy-words.json");
     let mut limit = 40usize;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -235,6 +304,7 @@ fn main() {
         match arg.as_str() {
             "--words" => words_path = PathBuf::from(value()),
             "--out" => out = PathBuf::from(value()),
+            "--table" => table = PathBuf::from(value()),
             "--limit" => limit = value().parse().expect("number"),
             other => panic!("unknown argument {other}"),
         }
@@ -267,11 +337,21 @@ fn main() {
     let mut lessons: Vec<Vec<Entry>> = (0..LESSONS.len()).map(|_| Vec::new()).collect();
     let mut unwritable = Vec::new();
     let mut never = Vec::new();
+    // The word table for the trainer, in frequency order.
+    let mut table_words = Vec::new();
     for word in &words {
         let Some(best) = writer.write(word) else {
             unwritable.push(word.clone());
             continue;
         };
+        let mut keys: Vec<String> = best.iter().flat_map(|c| stroke_keys(*c)).collect();
+        keys.sort();
+        keys.dedup();
+        table_words.push(serde_json::json!({
+            "w": word,
+            "s": best.iter().map(|c| [c.left, c.right]).collect::<Vec<_>>(),
+            "p": keys,
+        }));
         let placed = allowed.iter().enumerate().find_map(|(i, a)| {
             let strokes = writer.write_with(word, |c, r| a.accepts(c, r))?;
             (strokes.len() == best.len()).then_some((i, strokes))
@@ -281,6 +361,27 @@ fn main() {
             None => never.push(word.clone()),
         }
     }
+
+    // The word table.
+    let plan: Vec<serde_json::Value> = LESSONS
+        .iter()
+        .map(|lesson| {
+            serde_json::json!({
+                "name": lesson.name,
+                "title": lesson.title,
+                "note": lesson.note,
+                "items": lesson.items.iter().map(|i| i.keys()).collect::<Vec<_>>(),
+            })
+        })
+        .collect();
+    let table_json = serde_json::json!({
+        "generator": "bbq-orsy/examples/lessons.rs; regenerate with `cargo run --release --example lessons`",
+        "lessons": plan,
+        "words": table_words,
+    });
+    fs::write(&table, serde_json::to_string(&table_json).expect("json") + "\n")
+        .expect("write the word table");
+    eprintln!("{}: {} words, {} lessons", table.display(), table_words.len(), plan.len());
 
     // The markdown.
     let mut md = String::new();
