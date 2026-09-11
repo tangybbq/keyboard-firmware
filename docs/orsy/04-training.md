@@ -211,6 +211,13 @@ device; and the practice tab scores nothing in Orsy mode until Phase C.
 - Auto-capitalisation after a one-shot `.`, the undo command and the space command all
   go through the drill's output stage so the target stays in step with the keyboard.
 
+Done, in a first form. `orsy-words.json` (the word table and the lesson plan, written
+by the `lessons` example), `OrsyLadder`, `OrsyLadderMaker`, `OrsyDrillSession` with the
+output-stage port and diagnosis by Series, and `OrsyDrillView` with `StrokeHint`. The
+practice screen follows the keyboard's mode. Left for later: decorations, since
+punctuation is the Dosh escape and not on this ladder; a stage filter; and the
+per-word division figure, which the stats do not yet report.
+
 ## Phase D: on the hands
 
 Nothing here has been typed, so the thresholds are guesses and two decisions wait on
