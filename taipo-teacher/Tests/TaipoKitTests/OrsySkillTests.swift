@@ -48,6 +48,35 @@ final class OrsySkillTests: XCTestCase {
         XCTAssertEqual(collector.model(variant: "dosh", options: SkillModel.Options()).chords, 0)
     }
 
+    /// The reset marker disowns the Orsy practice before it and nothing else: the same
+    /// log twice with a marker between counts as one pass, and the chord models are
+    /// untouched.
+    func testOrsyResetDiscardsWhatCameBefore() throws {
+        let clean = try golden("orsy-clean", "log")
+        let once = try logDirectory(clean)
+        let twiceWithReset = try logDirectory(
+            clean + KeyLogSession.orsyResetMarker + " 1789000000 (unix seconds)\n" + clean)
+        let expected = OrsySkillModel.build(logDirectory: once, layouts: try layouts())
+        let got = OrsySkillModel.build(logDirectory: twiceWithReset, layouts: try layouts())
+        XCTAssertEqual(got.strokes, expected.strokes)
+        XCTAssertEqual(got.skill("s1:FZ")?.count, expected.skill("s1:FZ")?.count)
+        XCTAssertEqual(got.skills.count, expected.skills.count)
+
+        // Without the marker the same file counts twice, which is what the marker undoes.
+        let twice = try logDirectory(clean + clean)
+        let both = OrsySkillModel.build(logDirectory: twice, layouts: try layouts())
+        XCTAssertEqual(both.strokes, expected.strokes * 2)
+
+        // And the chords are not disowned by it: both halves are still read.
+        let header = "# session device=test boot_id=0x1 layout=\(try layouts().fingerprint)\n"
+        var collector = SkillCollector()
+        collector.fold(
+            text: header + clean + KeyLogSession.orsyResetMarker + "\n" + clean,
+            layouts: try layouts(), options: SkillModel.Options())
+        XCTAssertEqual(collector.sessions, 2)
+        XCTAssertEqual(collector.orsy.strokes, expected.strokes)
+    }
+
     /// Blame goes to the Series that differ from the retype, or to the whole stroke.
     func testBlame() throws {
         let dir = try logDirectory(try golden("orsy-sloppy", "log"))

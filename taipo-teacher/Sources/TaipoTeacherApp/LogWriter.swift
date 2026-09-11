@@ -152,6 +152,18 @@ final class LogWriter {
         write("# device reset\n")
     }
 
+    /// Note that the Orsy practice up to here is disowned.
+    ///
+    /// Written into the log rather than kept as a setting, so that what the log means is
+    /// in the log.  It does not break the timeline: the offsets carry on and the session
+    /// is the same one, since nothing about the recording changed -- only what the writer
+    /// thinks the typing before it was worth.
+    func noteOrsyReset() {
+        rollOver()
+        let at = UInt64(now().timeIntervalSince1970)
+        write("\(KeyLogSession.orsyResetMarker) \(at) (unix seconds)\n")
+    }
+
     /// Note records the device dropped before they could be fetched.
     func noteGap(dropped: UInt32, beforeSeq: UInt32) {
         rollOver()

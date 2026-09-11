@@ -31,6 +31,8 @@ final class ConfusionTests: XCTestCase {
             var codes = [UInt16]()
             for entry in session.entries {
                 switch entry {
+                case .orsyReset:
+                    break
                 case .marker(let m):
                     engine.marker(m.name, value: m.value)
                 case .key(let e):

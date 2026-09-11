@@ -110,6 +110,7 @@ final class LogWriterTests: XCTestCase {
         let engine = ChordEngine(layouts: layouts)
         for entry in sessions.flatMap(\.entries) {
             switch entry {
+            case .orsyReset: break
             case .marker(let m): engine.marker(m.name, value: m.value)
             case .key(let e): _ = engine.feed(key: e.key, press: e.press, timeMs: e.timeMs)
             }

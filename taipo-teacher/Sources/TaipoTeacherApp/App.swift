@@ -56,6 +56,10 @@ struct MenuContents: View {
         // Flat, not a submenu.  A `Menu` inside `MenuBarExtra` opens and closes again
         // before it can be clicked, which makes the one item here that has to work when it
         // is wanted the one item that does not.
+        Button("Discard Orsy practice…") { monitor.discardOrsyPractice() }
+            .help(
+                "Marks the log so the Orsy patterns are counted from here.  Nothing is "
+                + "deleted, and Taipo and Dosh are untouched.")
         Button("Discard the last minute") { monitor.scrub(minutes: 1) }
         Button("Discard the last 5 minutes") { monitor.scrub(minutes: 5) }
         Button("Discard the last 30 minutes") { monitor.scrub(minutes: 30) }

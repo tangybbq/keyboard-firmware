@@ -29,7 +29,7 @@ public final class DeviceMonitor: ObservableObject {
     /// Recording is suspended because macOS has secure keyboard entry on: a password field,
     /// a `sudo` prompt, the login window, or the lock screen.
     @Published public private(set) var secureInput = false
-    /// What the last scrub did, so the menu can confirm it happened.
+    /// What the last discard did, so the menu can confirm it happened.
     @Published public private(set) var lastScrub: String?
     /// Where the logs are being written.
     public let logDirectory = LogWriter.defaultDirectory
@@ -363,6 +363,33 @@ public final class DeviceMonitor: ObservableObject {
             let bytes = self.log.discard(since: cutoff)
             Task { @MainActor [weak self] in
                 self?.lastScrub = "Discarded \(bytes) bytes from the last \(minutes) min"
+            }
+        }
+    }
+
+    /// Disown the Orsy practice so far and start the ladder again.
+    ///
+    /// Not a deletion: a line goes into the log saying the practice before it is not to be
+    /// counted, and everything else about the record stays -- the keystrokes, the Taipo and
+    /// Dosh skill, the day's timings.  Deleting that line by hand puts it all back.
+    ///
+    /// The reason it exists is that a drill which draws the answer teaches copying, and
+    /// copying banks uses against a pattern nobody has learned.  A gate widened after the
+    /// fact cannot tell those uses from real ones; only the writer can.
+    public func discardOrsyPractice() {
+        orsySkill = nil
+        orsyLadder = nil
+        programme = []
+        drillIndex = 0
+        lineIndex = 0
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.log.noteOrsyReset()
+            Task { @MainActor [weak self] in
+                self?.lastScrub = "Discarded the Orsy practice; the ladder starts again"
+                guard let self, self.practicing else { return }
+                self.nextDrill()
+                self.rebuildProgramme()
             }
         }
     }

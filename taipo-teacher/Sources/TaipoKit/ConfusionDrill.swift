@@ -74,6 +74,8 @@ public struct ConfusionModel {
                 var chords = [Chord]()
                 for entry in session.entries {
                     switch entry {
+                    // Orsy's own marker; the confusions are about the chord tables.
+                    case .orsyReset: break
                     case .marker(let m): engine.marker(m.name, value: m.value)
                     case .key(let e):
                         chords += engine.feed(key: e.key, press: e.press, timeMs: e.timeMs)

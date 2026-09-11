@@ -35,7 +35,17 @@ public struct KeyLogSession {
     public enum Entry: Equatable {
         case key(KeyLogEvent)
         case marker(KeyLogMarker)
+        /// The writer asked for the Orsy practice so far to be discarded.
+        ///
+        /// A line in the log rather than a setting, because it is a fact about what the
+        /// log means and belongs beside the typing it disowns: it survives deleting the
+        /// skill cache, it says when it happened, and it can be taken back by deleting
+        /// the line.  See `SkillCollector.fold`.
+        case orsyReset
     }
+
+    /// The comment line that discards the Orsy practice before it.
+    public static let orsyResetMarker = "# orsy reset"
 
     /// Whether this session was recorded against the tables in hand.
     ///
@@ -85,7 +95,11 @@ public enum KeyLogFile {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.isEmpty { continue }
             if line.hasPrefix("#") {
-                if breaksTimeline(line) { flush(next: layoutFingerprint(line)) }
+                if line.hasPrefix(KeyLogSession.orsyResetMarker) {
+                    entries.append(.orsyReset)
+                } else if breaksTimeline(line) {
+                    flush(next: layoutFingerprint(line))
+                }
                 continue
             }
             // `1234 + L.a` for a key, `1381 = mode 0` for a marker: three fields or four.

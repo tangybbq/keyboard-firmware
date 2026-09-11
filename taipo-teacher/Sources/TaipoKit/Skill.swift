@@ -143,6 +143,10 @@ struct SkillCollector {
             guard let changed = history.changedCodes(since: session.layout, layouts: layouts)
             else {
                 skipped += 1
+                // A reset inside it still counts.  Discarding practice is a claim about
+                // whether it was worth anything, not about what the chords meant, so it
+                // does not need the session to be interpretable.
+                if session.entries.contains(.orsyReset) { orsy = OrsySamples() }
                 continue
             }
             sessions += 1
@@ -155,6 +159,12 @@ struct SkillCollector {
                 case .marker(let m): engine.marker(m.name, value: m.value)
                 case .key(let e):
                     chords += engine.feed(key: e.key, press: e.press, timeMs: e.timeMs)
+                case .orsyReset:
+                    // Everything Orsy has said so far, in this session and in every file
+                    // before it, is disowned.  The chords are not: Taipo and Dosh are a
+                    // different skill and this says nothing about them.
+                    strokes.removeAll()
+                    orsy = OrsySamples()
                 }
             }
             chords += engine.finish()
