@@ -27,7 +27,7 @@ public struct SkillStore {
     struct Contents: Codable {
         /// Bumped when the shape changes, so an old file is discarded rather than
         /// misread.  A wrong cache is worse than no cache.
-        var version: Int = 5
+        var version: Int = 6
         /// The window the samples were gathered with.  A different one means the stored
         /// gaps are the wrong length and have to be gathered again.
         var window: Int
@@ -45,9 +45,17 @@ public struct SkillStore {
         /// under a different one describes typing in the wrong table, and the cache's one
         /// job is to give the same answer a fresh build would.
         var defaultVariant: String
+        /// The Orsy fingerprint the strokes were folded under, or nil when the tables
+        /// carry no Orsy.  A change to it throws the whole checkpoint away, as a change
+        /// to the chord fingerprint does: the two share one fold over the files, and a
+        /// rebuild costs seconds.  Independence between the layouts is the layout
+        /// history's job, not the cache's.
+        var orsyFingerprint: String?
         var folded: [Folded] = []
         /// variant -> chord code, in decimal -> what has been seen of it.
         var samples: [String: [String: ChordSamples]] = [:]
+        /// The Orsy strokes, by pattern.
+        var orsy: OrsySamples = OrsySamples()
     }
 
     /// Where the checkpoint lives, given where the logs do.
@@ -69,14 +77,32 @@ public struct SkillStore {
         logDirectory: URL, cache: URL, layouts: Layouts, variant: String = "taipo",
         options: SkillModel.Options = SkillModel.Options()
     ) -> SkillModel {
+        collector(logDirectory: logDirectory, cache: cache, layouts: layouts, options: options)
+            .model(variant: variant, options: options)
+    }
+
+    /// The Orsy model, from the same checkpoint.
+    public static func orsyModel(
+        logDirectory: URL, cache: URL, layouts: Layouts,
+        options: SkillModel.Options = SkillModel.Options()
+    ) -> OrsySkillModel {
+        collector(logDirectory: logDirectory, cache: cache, layouts: layouts, options: options)
+            .orsyModel(options: options)
+    }
+
+    /// Fold what has not been folded before, and return the whole accumulation.
+    static func collector(
+        logDirectory: URL, cache: URL, layouts: Layouts, options: SkillModel.Options
+    ) -> SkillCollector {
         let files = SkillModel.logFiles(in: logDirectory)
         let fresh = Contents(
             window: options.window, fingerprint: layouts.fingerprint,
-            defaultVariant: layouts.defaultVariant)
+            defaultVariant: layouts.defaultVariant, orsyFingerprint: layouts.orsy?.fingerprint)
         var contents = load(cache) ?? fresh
         if contents.version != fresh.version || contents.window != fresh.window
             || contents.fingerprint != fresh.fingerprint
             || contents.defaultVariant != fresh.defaultVariant
+            || contents.orsyFingerprint != fresh.orsyFingerprint
         {
             contents = fresh
         }
@@ -90,7 +116,7 @@ public struct SkillStore {
         }
 
         var collector = SkillCollector(
-            samples: decode(contents.samples), sessions: 0)
+            samples: decode(contents.samples), sessions: 0, orsy: contents.orsy)
         var folded = contents.folded
 
         for file in settled.dropFirst(folded.count) {
@@ -104,6 +130,7 @@ public struct SkillStore {
         if folded != contents.folded {
             contents.folded = folded
             contents.samples = encode(collector.samples)
+            contents.orsy = collector.orsy
             save(contents, to: cache)
         }
 
@@ -111,7 +138,7 @@ public struct SkillStore {
         if let live, let text = try? String(contentsOf: live, encoding: .utf8) {
             collector.fold(text: text, layouts: layouts, options: options)
         }
-        return collector.model(variant: variant, options: options)
+        return collector
     }
 
     /// Whether the checkpoint still describes the files it was built from.

@@ -123,6 +123,9 @@ struct SkillCollector {
     var sessions = 0
     /// Sessions passed over because they were recorded against other tables.
     var skipped = 0
+    /// The Orsy strokes, by pattern.  Folded in the same pass, so that switching layouts
+    /// does not mean folding the history again.
+    var orsy = OrsySamples()
 
     /// Fold one log file's sessions in, for every variant it contains.
     ///
@@ -144,6 +147,8 @@ struct SkillCollector {
             sessions += 1
             let engine = ChordEngine(layouts: layouts)
             var chords = [Chord]()
+            var strokes = [Stroke]()
+            engine.onStroke = { strokes.append($0) }
             for entry in session.entries {
                 switch entry {
                 case .marker(let m): engine.marker(m.name, value: m.value)
@@ -152,6 +157,14 @@ struct SkillCollector {
                 }
             }
             chords += engine.finish()
+
+            if !strokes.isEmpty {
+                if let changedPatterns = history.changedPatterns(since: session.layout, layouts: layouts) {
+                    orsy.fold(strokes, changed: changedPatterns, options: options)
+                } else {
+                    orsy.skipped += 1
+                }
+            }
 
             for variant in Set(chords.map(\.variant)) {
                 let mine = chords.filter { $0.variant == variant }
@@ -188,6 +201,20 @@ struct SkillCollector {
                 samples[variant] = byCode
             }
         }
+    }
+
+    /// The finished measurements for Orsy.
+    func orsyModel(options: SkillModel.Options) -> OrsySkillModel {
+        var skills = [String: PatternSkill]()
+        for (name, s) in orsy.patterns {
+            skills[name] = PatternSkill(
+                name: name, count: s.total, medianMs: SkillModel.median(s.gaps),
+                deleted: s.outcomes.filter { $0 }.count, recent: s.outcomes.count,
+                everReached: s.everReached)
+        }
+        return OrsySkillModel(
+            skills: skills, sessions: orsy.sessions, skipped: orsy.skipped,
+            strokes: orsy.strokes, dead: orsy.dead, options: options)
     }
 
     /// The finished measurements for one variant.

@@ -26,6 +26,15 @@ public struct LayoutHistory {
         let fingerprint: String
         /// variant -> chord code, in decimal -> what the chord did.
         let variants: [String: [String: String]]
+        /// The Orsy tables of the revision, when it had them.  A default, so that a
+        /// revision written before there were any still reads.
+        var orsy: OrsyRevision? = nil
+    }
+
+    struct OrsyRevision: Decodable {
+        let fingerprint: String
+        /// pattern key -> what it spelled, as `orsySignatures` writes them.
+        let patterns: [String: String]
     }
 
     private let revisions: [Revision]
@@ -48,6 +57,66 @@ public struct LayoutHistory {
             action.key ?? action.text ?? action.mods?.joined(separator: "+").nilIfEmpty
         guard let detail, !detail.isEmpty else { return action.kind }
         return "\(action.kind):\(detail)"
+    }
+
+    /// Every Orsy pattern with what it spells, keyed as the skill model keys them.
+    ///
+    /// Written the same way as `orsy_patterns` in `sync-layouts.py`, which is what records
+    /// them; `LayoutHistoryTests` holds the two together.  An outer shape is two patterns,
+    /// its onset and its coda reading; a rule is keyed by name with the rules version.
+    public static func orsySignatures(_ orsy: Layouts.Orsy) -> [String: String] {
+        var out = [String: String]()
+        for o in orsy.outer {
+            if let onset = o.onset { out["s1:\(o.michela)"] = onset }
+            out["s4:\(o.michela)"] = o.coda
+        }
+        for s in orsy.second {
+            out["s2:\(s.michela)"] = s.mirroredVowel.map { "\(s.spells)|\($0)" } ?? s.spells
+        }
+        for v in orsy.vowel {
+            out["s3:\(v.michela)"] = v.text + (v.endsWord ? "+" : "")
+        }
+        for c in orsy.commands {
+            out["cmd:\(c.name)"] = "\(c.hand):\(c.bits)"
+        }
+        for r in orsy.rules {
+            out["rule:\(r.name)"] = String(orsy.rulesVersion)
+        }
+        return out
+    }
+
+    /// The Orsy pattern keys whose meaning has changed since the layout a session was
+    /// logged under, or nil when nothing can say.
+    ///
+    /// A session header carries only the chord tables' fingerprint, so the Orsy tables a
+    /// session was typed under are the ones recorded alongside that fingerprint.  Under
+    /// the current chord tables that is taken to be the current Orsy tables, which is
+    /// right until an Orsy-only change ships without a firmware that reports its own
+    /// fingerprint; the history keeps both, so that day can be told apart later.
+    public func changedPatterns(since fingerprint: UInt64?, layouts: Layouts) -> Set<String>? {
+        guard let fingerprint, let orsy = layouts.orsy else { return nil }
+        if fingerprint == layouts.fingerprintValue { return [] }
+        guard
+            let old = revisions.last(where: {
+                UInt64($0.fingerprint.dropFirst(2), radix: 16) == fingerprint && $0.orsy != nil
+            })?.orsy
+        else { return nil }
+        if old.fingerprint == orsy.fingerprint { return [] }
+        let now = Self.orsySignatures(orsy)
+        var changed = Set<String>()
+        for (key, signature) in now where old.patterns[key] != signature {
+            changed.insert(key)
+        }
+        for (key, _) in old.patterns where now[key] == nil {
+            changed.insert(key)
+        }
+        return changed
+    }
+
+    /// The Orsy patterns recorded for an Orsy fingerprint, for the test that holds this
+    /// and the sync script together.
+    func recordedOrsy(fingerprint: String) -> [String: String]? {
+        revisions.last { $0.orsy?.fingerprint == fingerprint }?.orsy?.patterns
     }
 
     /// The chords whose meaning has changed since the layout a session was logged under,
