@@ -94,10 +94,10 @@ final class OrsyDrillTests: XCTestCase {
         var rng = DrillRandom(seed: 7)
         for _ in 0..<8 {
             let line = OrsyLadderMaker(words: words).line(ladder, words: 6, using: &rng)
-            let onsetS = line.split(separator: " ").contains {
+            let onsetS = line.split(separator: " ").filter {
                 words.word(String($0))?.patterns.contains("s1:S") ?? false
-            }
-            XCTAssertTrue(onsetS, line)
+            }.count
+            XCTAssertGreaterThanOrEqual(onsetS, OrsyLadderMaker.perFocus, line)
         }
     }
 
