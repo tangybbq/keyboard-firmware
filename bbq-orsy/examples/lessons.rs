@@ -302,6 +302,19 @@ fn main() {
          `e`+`Bk` on the right.  The division column shows what each stroke spells.\n"
     )
     .unwrap();
+    writeln!(
+        md,
+        "**One shape per Series.**  A stroke holds at most one onset, one second character, \
+         one vowel and one coda, and the keys of a group pressed together are one shape, \
+         not several letters: `s`+`t` on the right is the coda `l`, so `i`+`t`+`s` spells \
+         `il`.  A word that needs two consonants where one shape goes takes another \
+         stroke, and the extra consonant leans back onto the syllable before it -- `its` \
+         is `it`, then `s` alone.  The only two-consonant codas that fit one stroke are the \
+         shapes the mapping has for them: `st`, `nd`, `ng`, `nt`, `ch`, `sh`, `th`, `ck`, \
+         `gh`.  For a Dosh hand this is the thing to unlearn first: adding a key changes \
+         the consonant rather than adding one.\n"
+    )
+    .unwrap();
     writeln!(md, "| lesson | new | words |").unwrap();
     writeln!(md, "|---|---|---|").unwrap();
     for (i, lesson) in LESSONS.iter().enumerate() {
