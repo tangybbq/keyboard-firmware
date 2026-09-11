@@ -240,12 +240,12 @@ struct OrsyDrillView: View {
     }
 }
 
-/// The next stroke, drawn on both hands as the board lays them out.
+/// The next stroke, drawn on both hands.
 ///
-/// Each hand is its outer five keys in two rows, then the index column set lower, with
-/// the thumbs under it: `Sp` straight below the index keys and `Bk` inboard and lower
-/// still, which is where they are on the mesa.  The left hand runs pinky to index from
-/// the left and the right hand is its mirror, so the two thumbs meet in the middle.
+/// Each hand is its four finger columns in two rows, pinky to index from the outside in,
+/// and the two thumbs in a row below, under the index side; the right hand is the mirror,
+/// so the thumbs meet in the middle.  No column stagger: the board has one, but drawn it
+/// misleads more than it helps.
 ///
 /// The four Series have four colours, so a stroke reads as onset, second, vowel, coda
 /// from left to right, which is the order the letters come out in.
@@ -264,17 +264,16 @@ struct StrokeHint: View {
 
     private static let keySize: CGFloat = 12
     private static let gap: CGFloat = 3
-    /// Two hands of five columns, a gap between them.
-    static let width: CGFloat = 2 * (5 * keySize + 4 * gap) + 5 * gap
+    /// Two hands of four columns, a gap between them.
+    static let width: CGFloat = 2 * (4 * keySize + 3 * gap) + 5 * gap
 
     private static let outerMask: UInt16 = 0x067
 
     /// The left hand, row by row, pinky on the left; nil is empty board.
     private static let leftHand: [[String?]] = [
-        [nil, "s", "n", nil, nil],
-        ["a", "o", "t", "i", nil],
-        [nil, nil, nil, "e", nil],
-        [nil, nil, nil, "Sp", "Bk"],
+        [nil, "s", "n", "i"],
+        ["a", "o", "t", "e"],
+        [nil, nil, "Sp", "Bk"],
     ]
 
     var body: some View {
