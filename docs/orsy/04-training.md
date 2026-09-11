@@ -105,14 +105,16 @@ Lesson order, for a Dosh hand:
    first, on words whose patterns are all known.
 2. **The conflicts, one pair at a time**, commonest first: `a` (r, not a), `o` (c),
    `a+t` (d), `o+s` (p), `o+t` (f), and the rest of the thirteen.
-3. **Vowels** `a` `o` `u`, then `ea` and `ou`; **Series 2** by frequency, `r` `l` first.
+3. **Vowels** `a` `o` `u`; **Series 2** by frequency, `r` `l` first; then `ea` and
+   `ou`, which spell their digraph only with a second character.
 4. **The free shapes** by frequency.
 5. **The rules**, each with words that need it: mirrored vowels (tame, hide, tone), onset
    clusters (strap, quit, jam), `h`/`w` (when, phase), diphthongs (paul, pail), `y`.
 6. **The escapes**: the one-shot for punctuation with the Dosh chords already known; the
    toggle for a run of digits.
 
-A day's work, and it gives something to type tomorrow.
+A day's work, and it gives something to type tomorrow.  Done: `cargo run --release
+--example lessons` in `bbq-orsy` writes `drills.md` and `drills/`.
 
 ## Phase A: replay, synth and export (Rust)
 
