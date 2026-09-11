@@ -142,6 +142,12 @@ impl OrsyManager {
         self.output.cap_next();
     }
 
+    /// A character was erased by a backspace played through the Dosh
+    /// escape, so the output stage's idea of the text keeps up.
+    pub fn backspace(&mut self) {
+        self.output.erase();
+    }
+
     /// Forget the keys held.  For a mode change: the releases of whatever is
     /// down go to the other mode, and would otherwise leave keys stuck in a
     /// stroke that never ends.  The output stage is kept, so that a word

@@ -43,6 +43,15 @@ fn scan_of(side: Side, bit: u16) -> u8 {
         .unwrap_or_else(|| panic!("no key for {side:?} bit {bit:#x}"))
 }
 
+/// The Dosh chord for a plain key.
+fn dosh_chord_for(key: Keyboard) -> u16 {
+    DOSH_ACTIONS
+        .iter()
+        .find(|e| matches!(e.action, Action::Simple(k) if k == key))
+        .unwrap_or_else(|| panic!("dosh has no {key:?}"))
+        .code
+}
+
 /// The Dosh chord that types a character.
 fn dosh_chord(ch: char) -> u16 {
     DOSH_ACTIONS
@@ -302,6 +311,32 @@ fn test_dosh_oneshot() {
     assert_eq!(t.typed(), ".");
     t.stroke(ten());
     assert_eq!(t.typed(), " Ten");
+}
+
+/// A backspace played through the escape is taken off the output stage's
+/// record, so an undo afterwards takes back only what is still there, and
+/// an erased space is owed again.
+#[test]
+fn test_dosh_backspace_keeps_up() {
+    let mut t = Tester::new();
+    t.stroke(ten());
+    t.stroke(ten());
+    assert_eq!(t.typed(), "ten ten");
+    let backspace = dosh_chord_for(Keyboard::DeleteBackspace);
+    t.stroke((commands::DOSH_ONESHOT, backspace));
+    assert_eq!(t.typed(), "\u{8}");
+    t.stroke((commands::UNDO, 0));
+    assert_eq!(t.typed(), "\u{8}\u{8}\u{8}");
+    // Back to "ten", and the next word gets its space.
+    t.stroke(ten());
+    assert_eq!(t.typed(), " ten");
+    // Erase the whole of " ten" by hand: the space is owed again.
+    for _ in 0..4 {
+        t.stroke((commands::DOSH_ONESHOT, backspace));
+    }
+    assert_eq!(t.typed(), "\u{8}\u{8}\u{8}\u{8}");
+    t.stroke(ten());
+    assert_eq!(t.typed(), " ten");
 }
 
 /// The toggle switches to Dosh, and the same chord there switches back.

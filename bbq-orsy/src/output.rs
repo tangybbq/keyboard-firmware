@@ -198,6 +198,28 @@ impl Output {
         // over a retype would only lose the capitals it added.
     }
 
+    /// A character was erased by something other than this stage -- a
+    /// backspace played through the Dosh escape -- so the record of the
+    /// text keeps up with the screen.  Nothing is sent.
+    ///
+    /// The erased character comes off the last stroke's count, so an undo
+    /// afterwards takes back only what is still there.  Erasing a space
+    /// puts the space back on order, so the next word gets one again.
+    pub fn erase(&mut self) {
+        if self.recent_len == 0 {
+            return;
+        }
+        self.recent_len -= 1;
+        let erased = self.recent[self.recent_len];
+        if erased == ' ' {
+            self.pending_space = true;
+        }
+        if self.strokes_len > 0 {
+            let last = &mut self.strokes[self.strokes_len - 1];
+            last.chars = last.chars.saturating_sub(1);
+        }
+    }
+
     /// Take back the last stroke.
     pub fn undo(&mut self, ops: &mut Ops) {
         if self.strokes_len == 0 {
@@ -361,6 +383,34 @@ mod tests {
         let mut ops = Ops::new();
         out.undo(&mut ops);
         assert_eq!(ops.as_slice().len(), 0);
+    }
+
+    /// An erased character comes off the record and off the last stroke's
+    /// undo count; an erased space is owed again.
+    #[test]
+    fn erase() {
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        stroke(&mut out, c(TEN));
+        out.erase();
+        out.erase();
+        assert_eq!(out.recent(), "ten t");
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        assert_eq!(ops.text(), "\u{8}\u{8}");
+        assert_eq!(out.recent(), "ten");
+        // Erasing the space between words asks for it back.
+        stroke(&mut out, c(TEN));
+        out.erase();
+        out.erase();
+        out.erase();
+        out.erase();
+        assert_eq!(out.recent(), "ten");
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        // Erasing into nothing is harmless.
+        let mut out = Output::new();
+        out.erase();
+        assert_eq!(out.recent(), "");
     }
 
     /// Undo reaches back a bounded number of strokes.

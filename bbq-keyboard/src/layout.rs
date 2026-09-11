@@ -498,18 +498,23 @@ impl LayoutManager {
                 // both.
                 self.taipo.inject_chord(crate::Side::Right, code);
 
-                // Sentence-ending punctuation capitalises the next word.
-                let ends_sentence = dosh::DOSH_ACTIONS.iter().any(|e| {
-                    e.code == code
-                        && matches!(
-                            e.action,
-                            taipo::Action::Simple(crate::Keyboard::Dot)
-                                | taipo::Action::Shifted(crate::Keyboard::Keyboard1)
-                                | taipo::Action::Shifted(crate::Keyboard::ForwardSlash)
-                        )
-                });
-                if ends_sentence {
-                    self.orsy.cap_next();
+                // What the Dosh chord does to the text the output stage is
+                // keeping track of: a backspace erases a character of it,
+                // and sentence-ending punctuation capitalises the next word.
+                let action = dosh::DOSH_ACTIONS
+                    .iter()
+                    .find(|e| e.code == code)
+                    .map(|e| &e.action);
+                match action {
+                    Some(taipo::Action::Simple(crate::Keyboard::DeleteBackspace)) => {
+                        self.orsy.backspace();
+                    }
+                    Some(
+                        taipo::Action::Simple(crate::Keyboard::Dot)
+                        | taipo::Action::Shifted(crate::Keyboard::Keyboard1)
+                        | taipo::Action::Shifted(crate::Keyboard::ForwardSlash),
+                    ) => self.orsy.cap_next(),
+                    _ => (),
                 }
             }
         }
