@@ -101,6 +101,30 @@ final class OrsyDrillTests: XCTestCase {
         }
     }
 
+    /// A reading no word in the pool can exercise is not held against its item: with
+    /// everything through the `l` lesson reached but the onset `l`, whose words all need
+    /// later patterns, the ladder moves on and the item's weak key is not the onset.
+    func testUnreachableReadingDoesNotStallTheLadder() throws {
+        let (_, theory, words) = try fixtures()
+        let l = try XCTUnwrap(words.lessons.firstIndex { $0.name == "l" })
+        var skills = [String: PatternSkill]()
+        for lesson in words.lessons[...l] {
+            for key in lesson.items.flatMap({ $0 }) where key != "s1:SCN" {
+                skills[key] = PatternSkill(name: key, count: 20, medianMs: 400, deleted: 0)
+            }
+        }
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let ladder = OrsyLadder(words: words, theory: theory, skill: model)
+        let through = words.lessons[...l].reduce(0) { $0 + $1.items.count }
+        XCTAssertGreaterThan(ladder.unlockedCount, through, "the ladder should move past l")
+        if let i = ladder.focus.firstIndex(where: { $0.keys.contains("s1:SCN") }) {
+            XCTAssertNotEqual(ladder.focusKeys[i], "s1:SCN")
+        }
+        // No line asks for it either.
+        let pool = OrsyLadderMaker(words: words).pool(ladder)
+        XCTAssertFalse(pool.contains { $0.patterns.contains("s1:SCN") })
+    }
+
     /// Typing the target's own division is all correct, with the spacing coming from the
     /// output stage.
     func testTypingTheDivision() throws {

@@ -11,6 +11,16 @@ import Foundation
 /// The order is the lesson plan in `orsy-words.json`, which is also what the printed
 /// drill sheets follow.
 ///
+/// **An item is judged by the readings the material can reach.**  A shape's two readings
+/// are not equally available: the onset `l` has a hundred and fifty words in the table
+/// and not one of them is writable until the mirrored vowel and the vowel `o` are out,
+/// while the coda `l` has words from the start.  Judged by both readings the item sat
+/// in the focus set waiting on a reading no line could contain, taking a place and an
+/// unlock allowance with it.  So reach, confidence and the weak key all look only at the
+/// keys some word of the current pool uses; a reading the pool cannot exercise yet is
+/// not held against the item, and comes back into the reckoning when the pool grows to
+/// include it.
+///
 /// Nothing is stored: the unlocked set is a pure function of `OrsySkillModel`.
 
 /// What kind of thing an Orsy ladder item teaches.
@@ -81,22 +91,46 @@ public struct OrsyLadder: Sendable {
         let items = OrsyLadder.order(words: words, theory: theory)
         self.items = items
 
-        func reached(_ item: OrsyLadderItem) -> Bool { item.keys.allSatisfy(skill.reached) }
-        func confidence(_ item: OrsyLadderItem) -> Double {
-            item.keys.map(skill.confidence).min() ?? 0
+        /// The keys some word writable with `unlocked` uses: the readings a line can ask
+        /// for.
+        func exercisable(_ unlocked: ArraySlice<OrsyLadderItem>) -> Set<String> {
+            let keys = Set(unlocked.flatMap(\.keys))
+            var out = Set<String>()
+            for word in words.words where word.patterns.isSubset(of: keys) {
+                out.formUnion(word.patterns)
+            }
+            return out
+        }
+        /// An item's keys that can be practised, or all of them when none can.
+        func live(_ item: OrsyLadderItem, _ exercisable: Set<String>) -> [String] {
+            let usable = item.keys.filter(exercisable.contains)
+            return usable.isEmpty ? item.keys : usable
+        }
+        func reached(_ item: OrsyLadderItem, _ exercisable: Set<String>) -> Bool {
+            let usable = item.keys.filter(exercisable.contains)
+            return usable.isEmpty || usable.allSatisfy(skill.reached)
+        }
+        func confidence(_ item: OrsyLadderItem, _ exercisable: Set<String>) -> Double {
+            live(item, exercisable).map(skill.confidence).min() ?? 0
         }
 
         // Unlock while there is room: see `Ladder` for why the allowance is one less than
-        // the focus set holds.
+        // the focus set holds.  The pool grows with each unlock, so what counts as short
+        // is re-read each time round.
         let allowance = max(1, options.focus - 1)
         let initial = options.initial ?? words.lessons.first?.items.count ?? 7
         var count = min(initial, items.count)
+        var reach = exercisable(items.prefix(count))
         while count < items.count {
-            let short = items.prefix(count).filter { !reached($0) }.count
+            let short = items.prefix(count).filter { !reached($0, reach) }.count
             guard short < allowance else { break }
             count += 1
+            reach = exercisable(items.prefix(count))
         }
         self.unlockedCount = count
+        let exercisableNow = reach
+        func reached(_ item: OrsyLadderItem) -> Bool { reached(item, exercisableNow) }
+        func confidence(_ item: OrsyLadderItem) -> Double { confidence(item, exercisableNow) }
 
         let out = Array(items.prefix(count))
         let ranked = out.indices.sorted {
@@ -110,7 +144,8 @@ public struct OrsyLadder: Sendable {
         if chosen.isEmpty { chosen = Array(ranked.prefix(options.focus)) }
         self.focus = chosen.map { out[$0] }
         self.focusKeys = self.focus.map { item in
-            item.keys.min { skill.confidence($0) < skill.confidence($1) } ?? item.keys[0]
+            let usable = live(item, exercisableNow)
+            return usable.min { skill.confidence($0) < skill.confidence($1) } ?? item.keys[0]
         }
     }
 
