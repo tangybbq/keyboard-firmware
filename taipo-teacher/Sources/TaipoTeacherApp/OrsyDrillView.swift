@@ -240,12 +240,15 @@ struct OrsyDrillView: View {
     }
 }
 
-/// The next stroke, drawn on both hands.
+/// The next stroke, drawn on both hands as the board lays them out.
 ///
-/// The left hand's columns run pinky to index and the right's index to pinky, as the
-/// hands sit on the board; the thumbs are innermost.  The four Series have four colours,
-/// so a stroke reads as onset, second, vowel, coda from left to right, which is the order
-/// the letters come out in.
+/// Each hand is its outer five keys in two rows, then the index column set lower, with
+/// the thumbs under it: `Sp` straight below the index keys and `Bk` inboard and lower
+/// still, which is where they are on the mesa.  The left hand runs pinky to index from
+/// the left and the right hand is its mirror, so the two thumbs meet in the middle.
+///
+/// The four Series have four colours, so a stroke reads as onset, second, vowel, coda
+/// from left to right, which is the order the letters come out in.
 struct StrokeHint: View {
     let diagram: ChordDiagram
     let left: UInt16
@@ -265,11 +268,18 @@ struct StrokeHint: View {
     static let width: CGFloat = 2 * (5 * keySize + 4 * gap) + 5 * gap
 
     private static let outerMask: UInt16 = 0x067
-    private static let innerMask: UInt16 = 0x388
+
+    /// The left hand, row by row, pinky on the left; nil is empty board.
+    private static let leftHand: [[String?]] = [
+        [nil, "s", "n", nil, nil],
+        ["a", "o", "t", "i", nil],
+        [nil, nil, nil, "e", nil],
+        [nil, nil, nil, "Sp", "Bk"],
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: Self.gap * 5) {
+            HStack(alignment: .top, spacing: Self.gap * 5) {
                 hand(code: left, isLeft: true)
                 hand(code: right, isLeft: false)
             }
@@ -286,44 +296,34 @@ struct StrokeHint: View {
         .frame(width: Self.width, alignment: .leading)
         .opacity(0.15 + 0.85 * strength)
         .animation(.easeInOut(duration: 0.25), value: strength)
-        .help("The next stroke, both hands.  It fades as its patterns are learned.")
+        .help("The next stroke, both hands, as the board lays them out.  It fades as its patterns are learned.")
     }
 
     private func hand(code: UInt16, isLeft: Bool) -> some View {
         VStack(spacing: Self.gap) {
-            row(code: code, isLeft: isLeft, top: true)
-            row(code: code, isLeft: isLeft, top: false)
-        }
-    }
-
-    private func row(code: UInt16, isLeft: Bool, top: Bool) -> some View {
-        // The diagram's columns are index, middle, ring, pinky, thumb: the right hand read
-        // from the middle of the board outwards, with the thumb last.  The left hand is
-        // its mirror, so the thumb comes first there.
-        let columns = isLeft
-            ? [ChordDiagram.Column.thumb, .index, .middle, .ring, .pinky]
-            : [ChordDiagram.Column.index, .middle, .ring, .pinky, .thumb]
-        return HStack(spacing: Self.gap) {
-            ForEach(columns, id: \.rawValue) { column in
-                key(code: code, isLeft: isLeft, column: column, top: top)
+            ForEach(Self.leftHand.indices, id: \.self) { row in
+                let cells = isLeft ? Self.leftHand[row] : Self.leftHand[row].reversed()
+                HStack(spacing: Self.gap) {
+                    ForEach(cells.indices, id: \.self) { column in
+                        key(code: code, isLeft: isLeft, name: cells[column])
+                    }
+                }
             }
         }
     }
 
-    private func key(code: UInt16, isLeft: Bool, column: ChordDiagram.Column, top: Bool)
-        -> some View
-    {
-        let key = diagram.keys.first { $0.column == column && $0.top == top }
+    private func key(code: UInt16, isLeft: Bool, name: String?) -> some View {
+        let key = name.flatMap { n in diagram.keys.first { $0.name == n } }
         let down = key.map { code & $0.mask != 0 } ?? false
         let outer = key.map { $0.mask & Self.outerMask != 0 } ?? false
         // Onset blue, second teal, vowel orange, coda purple.
         let colour: Color =
             isLeft ? (outer ? .blue : .teal) : (outer ? .purple : .orange)
         return RoundedRectangle(cornerRadius: 3)
-            .fill(down ? colour : Color.secondary.opacity(0.18))
+            .fill(key == nil ? Color.clear : (down ? colour : Color.secondary.opacity(0.18)))
             .frame(width: Self.keySize, height: Self.keySize)
             .overlay {
-                if down, let key, key.column == .thumb {
+                if down, let key, key.name == "Sp" || key.name == "Bk" {
                     Text(key.name)
                         .font(.system(size: 7, weight: .bold))
                         .foregroundStyle(.white)
