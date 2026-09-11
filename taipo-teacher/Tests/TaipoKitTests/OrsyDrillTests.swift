@@ -132,6 +132,27 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertFalse(pool.contains { $0.patterns.contains("s1:SCN") })
     }
 
+    /// The mnemonics come out of the tables: the voicing rule, the ending form, the
+    /// two-letter vowels, and what Dosh does with the same keys.
+    func testMnemonics() throws {
+        let (layouts, theory, _) = try fixtures()
+        func of(_ key: String) -> String? {
+            OrsyMnemonic.of(key, tables: theory.tables, layouts: layouts)
+        }
+        // d is t plus the pinky, and Dosh types q there.
+        XCTAssertEqual(of("s1:SCP"), "t + pinky · Dosh: q")
+        // The coda reading takes the coda of the same base shape.
+        XCTAssertTrue(of("s4:SCP")?.hasPrefix("t + pinky") ?? false)
+        // s transfers from Dosh untouched.
+        XCTAssertEqual(of("s1:S"), "as in Dosh")
+        // An ending vowel is the plain one plus the space thumb.
+        XCTAssertTrue(of("s3:ue")?.hasPrefix("e + Bk") ?? false)
+        // And ea is e plus a.
+        XCTAssertTrue(of("s3:ea")?.hasPrefix("e + a") ?? false)
+        // A rule has no mnemonic to derive.
+        XCTAssertNil(of("rule:mirrored"))
+    }
+
     /// Typing the target's own division is all correct, with the spacing coming from the
     /// output stage.
     func testTypingTheDivision() throws {

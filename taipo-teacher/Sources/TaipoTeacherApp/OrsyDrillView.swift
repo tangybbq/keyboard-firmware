@@ -110,6 +110,14 @@ struct OrsyDrillView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .frame(width: 44, alignment: .leading)
+                // What the pattern is made of, and what Dosh does there.  The rule is
+                // sayable, which the picture is not.
+                Text(mnemonic(item) ?? "")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(width: 190, alignment: .leading)
                 ZStack(alignment: .leading) {
                     Capsule().fill(.quaternary).frame(width: 54, height: 4)
                     Capsule().fill(Color.accentColor)
@@ -125,6 +133,13 @@ struct OrsyDrillView: View {
                     unit: "% back", met: parts.accuracy >= 1)
             }
         }
+    }
+
+    /// The sayable rule for an item, if there is one.
+    private func mnemonic(_ item: OrsyLadderItem) -> String? {
+        guard let tables = monitor.orsyTheory?.tables, let layouts = monitor.layouts
+        else { return nil }
+        return OrsyMnemonic.of(item.key, tables: tables, layouts: layouts)
     }
 
     private func measure(_ value: String, unit: String, met: Bool) -> some View {
