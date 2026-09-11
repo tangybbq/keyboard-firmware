@@ -36,7 +36,11 @@ public struct OrsyLadderMaker {
     {
         let pool = self.pool(ladder)
         guard !pool.isEmpty else { return "" }
-        let focusKeys = ladder.focus.map { Set($0.keys) }
+        // One word per focus item, for the reading the ladder is waiting on; any reading
+        // of the item only when no word in the pool uses that one.
+        let focusKeys: [Set<String>] = zip(ladder.focus, ladder.focusKeys).map { item, key in
+            pool.contains { $0.patterns.contains(key) } ? [key] : Set(item.keys)
+        }
         let count = max(wordCount, focusKeys.count + 1)
         var tokens = [String]()
         for i in 0..<count {

@@ -79,6 +79,28 @@ final class OrsyDrillTests: XCTestCase {
         }
     }
 
+    /// A line works the reading the ladder is waiting on: with the coda `s` known and the
+    /// onset not, every line has a word with an onset `s`.
+    func testLinesDrillTheWeakReading() throws {
+        let (_, theory, words) = try fixtures()
+        var skills = [String: PatternSkill]()
+        for key in words.lessons[0].items.flatMap({ $0 }) where key != "s1:S" {
+            skills[key] = PatternSkill(name: key, count: 20, medianMs: 400, deleted: 0)
+        }
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let ladder = OrsyLadder(words: words, theory: theory, skill: model)
+        let s = try XCTUnwrap(ladder.focus.firstIndex { $0.keys.contains("s1:S") })
+        XCTAssertEqual(ladder.focusKeys[s], "s1:S")
+        var rng = DrillRandom(seed: 7)
+        for _ in 0..<8 {
+            let line = OrsyLadderMaker(words: words).line(ladder, words: 6, using: &rng)
+            let onsetS = line.split(separator: " ").contains {
+                words.word(String($0))?.patterns.contains("s1:S") ?? false
+            }
+            XCTAssertTrue(onsetS, line)
+        }
+    }
+
     /// Typing the target's own division is all correct, with the spacing coming from the
     /// output stage.
     func testTypingTheDivision() throws {

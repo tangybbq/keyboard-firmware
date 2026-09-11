@@ -51,6 +51,12 @@ public struct OrsyLadder: Sendable {
     public let items: [OrsyLadderItem]
     public let unlockedCount: Int
     public let focus: [OrsyLadderItem]
+    /// For each focus item, the reading the material should work: its weakest key.
+    ///
+    /// A shape is two readings, and a word that uses either would satisfy the item, so
+    /// a line built for "the item" can drill the coda every time and leave the onset --
+    /// the one the ladder is actually waiting on -- never typed.
+    public let focusKeys: [String]
     public let options: Options
     public let lessons: [OrsyWords.Lesson]
 
@@ -103,6 +109,9 @@ public struct OrsyLadder: Sendable {
         }
         if chosen.isEmpty { chosen = Array(ranked.prefix(options.focus)) }
         self.focus = chosen.map { out[$0] }
+        self.focusKeys = self.focus.map { item in
+            item.keys.min { skill.confidence($0) < skill.confidence($1) } ?? item.keys[0]
+        }
     }
 
     public func headline() -> String { "Orsy — \(unlockedCount) of \(items.count)" }
