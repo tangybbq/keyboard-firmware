@@ -146,7 +146,7 @@ struct LiveView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-            if monitor.chords.isEmpty {
+            if monitor.entries.isEmpty {
                 VStack {
                     Spacer()
                     Text(monitor.recording ? "Type something." : "Waiting for the keyboard…")
@@ -201,19 +201,62 @@ struct LiveView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(monitor.chords) { live in
-                        ChordRow(live: live)
+                    ForEach(monitor.entries) { entry in
+                        switch entry {
+                        case .chord(let live): ChordRow(live: live)
+                        case .stroke(let live): StrokeRow(live: live)
+                        }
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
-            .onChange(of: monitor.chords.count) { _, _ in
-                if let last = monitor.chords.last {
+            .onChange(of: monitor.entries.count) { _, _ in
+                if let last = monitor.entries.last {
                     proxy.scrollTo(last.id, anchor: .bottom)
                 }
             }
         }
+    }
+}
+
+/// An Orsy stroke: both hands at once, and what the rules made of them.
+struct StrokeRow: View {
+    let live: DeviceMonitor.LiveStroke
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Both hands, in the colours the chord rows use for each.
+            Text("LR")
+                .font(.system(.body, design: .monospaced).bold())
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+
+            Text(live.label)
+                .font(.system(size: 20, design: .monospaced))
+                .frame(minWidth: 44, alignment: .leading)
+                .foregroundStyle(live.dead ? Color.red : (live.isText ? Color.primary : Color.secondary))
+
+            HStack(spacing: 4) {
+                Text(live.leftKeys.isEmpty ? "·" : live.leftKeys)
+                    .foregroundStyle(Color.blue)
+                Text("-").foregroundStyle(.secondary)
+                Text(live.rightKeys.isEmpty ? "·" : live.rightKeys)
+                    .foregroundStyle(Color.purple)
+            }
+            .font(.system(.caption, design: .monospaced))
+
+            Text("spread \(live.stroke.spreadMs)ms")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+            if live.dead {
+                Text("not a syllable").font(.caption).foregroundStyle(.red)
+            }
+        }
+        .id(live.id)
+        .padding(.vertical, 1)
     }
 }
 

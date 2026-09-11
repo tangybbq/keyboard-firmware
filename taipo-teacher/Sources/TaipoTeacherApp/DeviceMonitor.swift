@@ -13,6 +13,11 @@ import TaipoKit
 public final class DeviceMonitor: ObservableObject {
     @Published public private(set) var status: Status = .disconnected
     @Published public private(set) var chords: [LiveChord] = []
+    /// What the keyboard did, in order: chords in Taipo and Dosh, strokes in Orsy.  This
+    /// is what the Live tab shows; `chords` is the chord subset the drill scores.
+    @Published public private(set) var entries: [LiveEntry] = []
+    /// The mode the keyboard is in, as its own log reports it.
+    @Published public private(set) var mode: KeyboardMode = .taipo
     @Published public private(set) var recording = false
     /// Paused by the user.  Stops the *device* recording, not just this end, so a pause
     /// means the keyboard is not keeping anything either.
@@ -160,6 +165,32 @@ public final class DeviceMonitor: ObservableObject {
         /// -- a backspace, a modifier -- can still show its fault.  There is nowhere in the
         /// target line to mark a backspace.
         public let sameHand: Bool
+    }
+
+    /// An Orsy stroke, for the Live tab.
+    public struct LiveStroke: Identifiable {
+        public let id = UUID()
+        public let stroke: TaipoKit.Stroke
+        /// The keys of each hand, named.
+        public let leftKeys: String
+        public let rightKeys: String
+        /// What the stroke spelled, or what command it was.
+        public let label: String
+        public let dead: Bool
+        /// Whether the stroke spelled text, as against a command.
+        public let isText: Bool
+    }
+
+    public enum LiveEntry: Identifiable {
+        case chord(LiveChord)
+        case stroke(LiveStroke)
+
+        public var id: UUID {
+            switch self {
+            case .chord(let c): return c.id
+            case .stroke(let s): return s.id
+            }
+        }
     }
 
     public enum Status: Equatable {
@@ -615,6 +646,10 @@ public final class DeviceMonitor: ObservableObject {
             fingerprint: hello.layoutFingerprint)
 
         let engine = ChordEngine(layouts: layouts)
+        // Orsy strokes come out of the engine as they complete, straight to the display.
+        engine.onStroke = { [weak self] stroke in
+            self?.publish(stroke, layouts: layouts)
+        }
         // The device's own timeline, rebuilt from the record deltas.  `Clock` also tracks
         // how long ago that was in host time, so the engine's window can expire between
         // keystrokes rather than waiting for the next one.
@@ -746,6 +781,10 @@ public final class DeviceMonitor: ObservableObject {
                         timeMs: UInt32(truncatingIfNeeded: clock.deviceMs))
                 case .marker(let marker, let value, _):
                     engine.marker(marker.name, value: value)
+                    if marker.name == "mode" {
+                        let mode = engine.mode
+                        Task { @MainActor [weak self] in self?.mode = mode }
+                    }
                 case .unknown:
                     break
                 }
@@ -798,8 +837,49 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// Send a finished Orsy stroke to the display.
+    private nonisolated func publish(_ stroke: TaipoKit.Stroke, layouts: Layouts) {
+        func names(_ code: UInt16) -> String {
+            layouts.bits.filter { code & $0.mask != 0 }.map(\.name).joined(separator: "+")
+        }
+        let label: String
+        var dead = false
+        var isText = false
+        switch stroke.outcome {
+        case .text(let t):
+            label = t.text
+            isText = true
+        case .undo: label = "undo"
+        case .space: label = "space"
+        case .capNext: label = "cap next"
+        case .doshToggle: label = "to Dosh"
+        case .dosh(let code):
+            let entry = layouts.chord(code, variant: "dosh")
+            label = "Dosh " + (entry?.action.types.map { $0 == " " ? "␣" : $0 }
+                ?? entry?.action.key ?? String(format: "0x%03x", code))
+        case .dead:
+            label = "—"
+            dead = true
+        }
+        let live = LiveStroke(
+            stroke: stroke, leftKeys: names(stroke.left), rightKeys: names(stroke.right),
+            label: label, dead: dead, isText: isText)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.chordsToday += 1
+            self.entries.append(.stroke(live))
+            if self.entries.count > self.historyLimit {
+                self.entries.removeFirst(self.entries.count - self.historyLimit)
+            }
+        }
+    }
+
     private func append(_ new: [LiveChord]) {
         chordsToday += new.count
+        entries.append(contentsOf: new.map { .chord($0) })
+        if entries.count > historyLimit {
+            entries.removeFirst(entries.count - historyLimit)
+        }
         if let last = new.last?.chord.variant, last != variant {
             variant = last
             // Everything built for the old table is now about a layout the keyboard is not
