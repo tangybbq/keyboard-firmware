@@ -105,18 +105,20 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
-    /// How much the Orsy drill shows of the next stroke.
+    /// How much of the next stroke the Orsy drill draws.
     ///
-    /// The fade is the mechanism meant to move a writer from copying the picture to
-    /// recalling the stroke, and it is driven by confidence, which includes speed against
-    /// a median tuned for one-hand chords.  A stroke of five keys may never get under it
-    /// early on, so the picture may never fade and the drill stays a copying exercise.
-    /// This is the writer's own say: the picture always, fading as the model allows, or
-    /// not at all -- and with it the underline that gives away the division, which is the
-    /// other thing worth practising blind.
+    /// The old behaviour faded the picture out by confidence, which includes speed against
+    /// a median tuned for one-hand chords; a five-key stroke may never get under it, so the
+    /// picture never faded and the drill stayed a copying exercise.  `learn` takes it away
+    /// on exposure instead -- full strength while the stroke's least-typed pattern is new,
+    /// then nothing -- which is scaffolding removed on a schedule the writer can predict.
+    /// A stumble brings it back, which is the moment it is wanted.
     public enum OrsyHint: String, CaseIterable, Identifiable, Sendable {
+        /// Always drawn.
         case always = "Show"
-        case fade = "Fade"
+        /// Drawn while the stroke is new, and after a stumble.
+        case learn = "Learn"
+        /// Never drawn.
         case never = "Hide"
         public var id: String { rawValue }
     }
@@ -128,11 +130,28 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// Whether the hint names the keys, apart from whether it draws them.
+    ///
+    /// Two different amounts of help, and for a writer with no visual imagery the names
+    /// are the half that can be held on to -- `a+o+s` is something to say, the picture is
+    /// something to copy.  So the switch above governs the drawing and this the names.
+    @Published public var orsyHintKeys: Bool = DeviceMonitor.storedOrsyHintKeys() {
+        didSet {
+            guard orsyHintKeys != oldValue else { return }
+            UserDefaults.standard.set(orsyHintKeys, forKey: Self.orsyHintKeysKey)
+        }
+    }
+
     private static let orsyHintKey = "orsyHint"
+    private static let orsyHintKeysKey = "orsyHintKeys"
 
     static func storedOrsyHint() -> OrsyHint {
         UserDefaults.standard.string(forKey: orsyHintKey).flatMap(OrsyHint.init(rawValue:))
-            ?? .fade
+            ?? .learn
+    }
+
+    static func storedOrsyHintKeys() -> Bool {
+        UserDefaults.standard.object(forKey: orsyHintKeysKey) as? Bool ?? true
     }
 
     /// The key the stage switches are kept under.

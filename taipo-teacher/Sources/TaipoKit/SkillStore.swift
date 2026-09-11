@@ -27,7 +27,7 @@ public struct SkillStore {
     struct Contents: Codable {
         /// Bumped when the shape changes, so an old file is discarded rather than
         /// misread.  A wrong cache is worse than no cache.
-        var version: Int = 6
+        var version: Int = 7
         /// The window the samples were gathered with.  A different one means the stored
         /// gaps are the wrong length and have to be gathered again.
         var window: Int
@@ -77,22 +77,29 @@ public struct SkillStore {
         logDirectory: URL, cache: URL, layouts: Layouts, variant: String = "taipo",
         options: SkillModel.Options = SkillModel.Options()
     ) -> SkillModel {
-        collector(logDirectory: logDirectory, cache: cache, layouts: layouts, options: options)
-            .model(variant: variant, options: options)
+        collector(
+            logDirectory: logDirectory, cache: cache, layouts: layouts, options: options,
+            orsyOptions: OrsySkillModel.defaultOptions
+        )
+        .model(variant: variant, options: options)
     }
 
     /// The Orsy model, from the same checkpoint.
     public static func orsyModel(
         logDirectory: URL, cache: URL, layouts: Layouts,
-        options: SkillModel.Options = SkillModel.Options()
+        options: SkillModel.Options = OrsySkillModel.defaultOptions
     ) -> OrsySkillModel {
-        collector(logDirectory: logDirectory, cache: cache, layouts: layouts, options: options)
-            .orsyModel(options: options)
+        collector(
+            logDirectory: logDirectory, cache: cache, layouts: layouts,
+            options: SkillModel.Options(), orsyOptions: options
+        )
+        .orsyModel(options: options)
     }
 
     /// Fold what has not been folded before, and return the whole accumulation.
     static func collector(
-        logDirectory: URL, cache: URL, layouts: Layouts, options: SkillModel.Options
+        logDirectory: URL, cache: URL, layouts: Layouts, options: SkillModel.Options,
+        orsyOptions: SkillModel.Options
     ) -> SkillCollector {
         let files = SkillModel.logFiles(in: logDirectory)
         let fresh = Contents(
@@ -123,7 +130,8 @@ public struct SkillStore {
             guard let text = try? String(contentsOf: file, encoding: .utf8),
                 let stamp = stamp(file)
             else { continue }
-            collector.fold(text: text, layouts: layouts, options: options)
+            collector.fold(
+                text: text, layouts: layouts, options: options, orsyOptions: orsyOptions)
             folded.append(stamp)
         }
 
@@ -136,7 +144,8 @@ public struct SkillStore {
 
         // The newest file on top, every time, and never kept: it is still growing.
         if let live, let text = try? String(contentsOf: live, encoding: .utf8) {
-            collector.fold(text: text, layouts: layouts, options: options)
+            collector.fold(
+                text: text, layouts: layouts, options: options, orsyOptions: orsyOptions)
         }
         return collector
     }

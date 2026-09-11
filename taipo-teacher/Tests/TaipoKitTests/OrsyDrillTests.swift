@@ -38,18 +38,25 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(the.patterns, ["s1:FZ", "s3:ue"])
     }
 
-    /// With nothing typed the first lesson is out, and the focus is its weakest items.
+    /// With nothing typed the first lesson is out, one item per reading, and the focus is
+    /// its weakest items.
     func testLadderStartsAtTheFirstLesson() throws {
         let (_, theory, words) = try fixtures()
         let empty = OrsySkillModel(skills: [:], sessions: 0, strokes: 0)
         let ladder = OrsyLadder(words: words, theory: theory, skill: empty)
-        XCTAssertEqual(ladder.unlockedCount, words.lessons[0].items.count)
+        let keysInLessonOne = words.lessons[0].items.reduce(0) { $0 + $1.count }
+        XCTAssertEqual(ladder.unlockedCount, keysInLessonOne)
+        // A shape is two adjacent items, one per reading.
+        XCTAssertEqual(ladder.items[0].key, "s1:S")
         XCTAssertEqual(ladder.items[0].label, "s")
-        XCTAssertEqual(ladder.items[0].keys, ["s1:S", "s4:S"])
-        XCTAssertEqual(ladder.focus.count, 3)
+        XCTAssertEqual(ladder.items[0].stage, .onset)
+        XCTAssertEqual(ladder.items[1].key, "s4:S")
+        XCTAssertEqual(ladder.items[1].stage, .coda)
+        XCTAssertEqual(ladder.focus.count, 2)
         XCTAssertEqual(ladder.lesson?.name, "transfer")
-        // The h/st shape is labelled by both readings.
-        XCTAssertTrue(ladder.items.contains { $0.label == "h/st" })
+        // The shape whose readings differ is two items, labelled apart.
+        XCTAssertTrue(ladder.items.contains { $0.key == "s1:FC" && $0.label == "h" })
+        XCTAssertTrue(ladder.items.contains { $0.key == "s4:FC" && $0.label == "st" })
         // The pool is the transfer lesson's words.
         let pool = OrsyLadderMaker(words: words).pool(ladder).map(\.text)
         XCTAssertTrue(pool.contains("ten"))
@@ -62,13 +69,14 @@ final class OrsyDrillTests: XCTestCase {
         let (_, theory, words) = try fixtures()
         var skills = [String: PatternSkill]()
         for key in words.lessons[0].items.flatMap({ $0 }) {
-            skills[key] = PatternSkill(name: key, count: 20, medianMs: 400, deleted: 0)
+            skills[key] = PatternSkill(name: key, count: 50, medianMs: 400, deleted: 0)
         }
         let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
         let ladder = OrsyLadder(words: words, theory: theory, skill: model)
-        XCTAssertGreaterThan(ladder.unlockedCount, words.lessons[0].items.count)
+        let keysInLessonOne = words.lessons[0].items.reduce(0) { $0 + $1.count }
+        XCTAssertGreaterThan(ladder.unlockedCount, keysInLessonOne)
         // The focus is the newly unlocked, unreached items.
-        XCTAssertTrue(ladder.focus.allSatisfy { !$0.keys.allSatisfy(model.reached) })
+        XCTAssertTrue(ladder.focus.allSatisfy { !model.reached($0.key) })
         var rng = DrillRandom(seed: 1)
         let line = OrsyLadderMaker(words: words).line(ladder, words: 6, using: &rng)
         XCTAssertFalse(line.isEmpty)
@@ -85,12 +93,11 @@ final class OrsyDrillTests: XCTestCase {
         let (_, theory, words) = try fixtures()
         var skills = [String: PatternSkill]()
         for key in words.lessons[0].items.flatMap({ $0 }) where key != "s1:S" {
-            skills[key] = PatternSkill(name: key, count: 20, medianMs: 400, deleted: 0)
+            skills[key] = PatternSkill(name: key, count: 50, medianMs: 400, deleted: 0)
         }
         let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
         let ladder = OrsyLadder(words: words, theory: theory, skill: model)
-        let s = try XCTUnwrap(ladder.focus.firstIndex { $0.keys.contains("s1:S") })
-        XCTAssertEqual(ladder.focusKeys[s], "s1:S")
+        XCTAssertTrue(ladder.focus.contains { $0.key == "s1:S" })
         var rng = DrillRandom(seed: 7)
         for _ in 0..<8 {
             let line = OrsyLadderMaker(words: words).line(ladder, words: 6, using: &rng)
@@ -101,25 +108,25 @@ final class OrsyDrillTests: XCTestCase {
         }
     }
 
-    /// A reading no word in the pool can exercise is not held against its item: with
+    /// An item no word in the pool can exercise is not held against the ladder: with
     /// everything through the `l` lesson reached but the onset `l`, whose words all need
-    /// later patterns, the ladder moves on and the item's weak key is not the onset.
+    /// later patterns, the ladder moves on and the item takes no focus place.
     func testUnreachableReadingDoesNotStallTheLadder() throws {
         let (_, theory, words) = try fixtures()
         let l = try XCTUnwrap(words.lessons.firstIndex { $0.name == "l" })
         var skills = [String: PatternSkill]()
         for lesson in words.lessons[...l] {
             for key in lesson.items.flatMap({ $0 }) where key != "s1:SCN" {
-                skills[key] = PatternSkill(name: key, count: 20, medianMs: 400, deleted: 0)
+                skills[key] = PatternSkill(name: key, count: 50, medianMs: 400, deleted: 0)
             }
         }
         let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
         let ladder = OrsyLadder(words: words, theory: theory, skill: model)
-        let through = words.lessons[...l].reduce(0) { $0 + $1.items.count }
-        XCTAssertGreaterThan(ladder.unlockedCount, through, "the ladder should move past l")
-        if let i = ladder.focus.firstIndex(where: { $0.keys.contains("s1:SCN") }) {
-            XCTAssertNotEqual(ladder.focusKeys[i], "s1:SCN")
+        let through = words.lessons[...l].reduce(0) { total, lesson in
+            total + lesson.items.reduce(0) { $0 + $1.count }
         }
+        XCTAssertGreaterThan(ladder.unlockedCount, through, "the ladder should move past l")
+        XCTAssertFalse(ladder.focus.contains { $0.key == "s1:SCN" })
         // No line asks for it either.
         let pool = OrsyLadderMaker(words: words).pool(ladder)
         XCTAssertFalse(pool.contains { $0.patterns.contains("s1:SCN") })

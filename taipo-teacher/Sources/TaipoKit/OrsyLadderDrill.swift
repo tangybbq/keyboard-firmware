@@ -7,9 +7,10 @@ import Foundation
 /// words for each focus item, an opener that does not begin with one, and ordinary words
 /// between; no decorations yet, as punctuation is the Dosh escape and not on this ladder.
 ///
-/// Two words per focus item rather than one: with one, and three items in focus, half of
-/// every line was filler from a pool of forty words, and a line read as a tour of `in`,
-/// `it` and `is` with the thing being practised somewhere in the middle of it.
+/// Three words per focus item rather than one: with one, half of every line was filler
+/// from a pool of forty words, and a line read as a tour of `in`, `it` and `is` with the
+/// thing being practised somewhere in the middle of it.  With two items in focus that is
+/// six of a seven-word line spent on what is being learned.
 public struct OrsyLadderMaker {
     private let words: OrsyWords
 
@@ -40,11 +41,7 @@ public struct OrsyLadderMaker {
     {
         let pool = self.pool(ladder)
         guard !pool.isEmpty else { return "" }
-        // One word per focus item, for the reading the ladder is waiting on; any reading
-        // of the item only when no word in the pool uses that one.
-        let focusKeys: [Set<String>] = zip(ladder.focus, ladder.focusKeys).map { item, key in
-            pool.contains { $0.patterns.contains(key) } ? [key] : Set(item.keys)
-        }
+        let focusKeys = ladder.focus.map(\.key)
         let placings = focusKeys.count * Self.perFocus
         let count = max(wordCount, placings + 1)
         var tokens = [String]()
@@ -53,14 +50,14 @@ public struct OrsyLadderMaker {
             // item gets its first word before any gets its second.
             if i > 0, i - 1 < placings,
                 let word = pick(
-                    pool.filter { !$0.patterns.isDisjoint(with: focusKeys[(i - 1) % focusKeys.count]) },
+                    pool.filter { $0.patterns.contains(focusKeys[(i - 1) % focusKeys.count]) },
                     using: &rng)
             {
                 tokens.append(word.text)
             } else if i == 0 {
                 // The first stroke of a line measures nothing, so the opener is not a
                 // focus word.
-                let rest = pool.filter { w in !focusKeys.contains { !w.patterns.isDisjoint(with: $0) } }
+                let rest = pool.filter { w in !focusKeys.contains { w.patterns.contains($0) } }
                 tokens.append((pick(rest, using: &rng) ?? pick(pool, using: &rng))!.text)
             } else {
                 tokens.append(pick(pool, using: &rng)!.text)
@@ -75,7 +72,7 @@ public struct OrsyLadderMaker {
     static let maxCharacters = 90
 
     /// How many words a line carries for each focus item.
-    static let perFocus = 2
+    public static let perFocus = 3
 
     /// A word from the pool, biased toward the frequent end, as `LadderMaker` draws.
     private func pick(_ pool: [OrsyWords.Word], using rng: inout DrillRandom) -> OrsyWords.Word? {

@@ -133,6 +133,7 @@ struct SkillCollector {
     /// tables does not mean folding the history again.
     mutating func fold(
         text: String, layouts: Layouts, options: SkillModel.Options,
+        orsyOptions: SkillModel.Options = OrsySkillModel.defaultOptions,
         history: LayoutHistory = LayoutHistory.bundled()
     ) {
         for session in KeyLogFile.sessions(from: text, layouts: layouts) {
@@ -160,7 +161,7 @@ struct SkillCollector {
 
             if !strokes.isEmpty {
                 if let changedPatterns = history.changedPatterns(since: session.layout, layouts: layouts) {
-                    orsy.fold(strokes, changed: changedPatterns, options: options)
+                    orsy.fold(strokes, changed: changedPatterns, options: orsyOptions)
                 } else {
                     orsy.skipped += 1
                 }

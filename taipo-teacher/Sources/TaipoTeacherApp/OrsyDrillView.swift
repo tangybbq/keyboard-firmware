@@ -51,7 +51,7 @@ struct OrsyDrillView: View {
                 Spacer()
                 hintSwitch
             }
-            ForEach(ladder.focus, id: \.keys) { item in
+            ForEach(ladder.focus, id: \.key) { item in
                 focusRow(item)
             }
         }
@@ -63,8 +63,16 @@ struct OrsyDrillView: View {
     /// weaker one -- which is the one worth practising, but has to be named: a coda `s`
     /// at 50% back sits there unmoved by any number of onset `s`, and read as "s" that
     /// looks like a display that has stopped updating.
-    /// Show the next stroke always, let it fade, or work blind.  Plain buttons rather than
-    /// a segmented picker, for the reason `MainView.tabs` gives.
+    /// How many uses of a stroke's least-typed pattern count as new, and so keep the
+    /// picture up in `learn`.
+    ///
+    /// A few, against the forty it takes to pass the gate: long enough to get the movement
+    /// out of the diagram and into the hand, short enough that most of an item's practice
+    /// is from memory.
+    static let hintUses = 8
+
+    /// Draw the next stroke always, while it is new, or never; and name its keys or not.
+    /// Plain buttons rather than a segmented picker, for the reason `MainView.tabs` gives.
     private var hintSwitch: some View {
         HStack(spacing: 8) {
             Text("hint").font(.caption).foregroundStyle(.secondary)
@@ -78,25 +86,27 @@ struct OrsyDrillView: View {
                 }
                 .buttonStyle(.plain)
             }
+            Toggle("keys", isOn: $monitor.orsyHintKeys)
+                .toggleStyle(.checkbox)
+                .font(.caption)
         }
         .help(
-            "Show keeps the next stroke drawn at full strength.  Fade dims it as its "
-            + "patterns are learned.  Hide draws nothing, and hides the division too, "
-            + "for practising from memory.")
+            "Show keeps the stroke drawn.  Learn draws it while it is new and after a "
+            + "stumble, then takes it away.  Hide never draws it.  Keys names the stroke "
+            + "in writing either way, which is the half you can say to yourself.")
     }
 
     @ViewBuilder
     private func focusRow(_ item: OrsyLadderItem) -> some View {
         if let skill = monitor.orsySkill {
-            let key = item.keys.min { skill.confidence($0) < skill.confidence($1) } ?? item.keys[0]
-            let parts = skill.parts(key)
-            let s = skill.skill(key)
+            let parts = skill.parts(item.key)
+            let s = skill.skill(item.key)
             let options = skill.options
             HStack(spacing: 8) {
                 Text(item.label)
                     .font(.system(size: 12, design: .monospaced))
-                    .frame(width: 60, alignment: .leading)
-                Text(Self.reading(of: key))
+                    .frame(width: 46, alignment: .leading)
+                Text(item.stage.rawValue)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .frame(width: 44, alignment: .leading)
@@ -114,18 +124,6 @@ struct OrsyDrillView: View {
                     s.map { String(format: "%.0f", $0.errorRate * 100) } ?? "0",
                     unit: "% back", met: parts.accuracy >= 1)
             }
-        }
-    }
-
-    /// Which reading a skill key measures.
-    private static func reading(of key: String) -> String {
-        switch key.prefix(while: { $0 != ":" }) {
-        case "s1": return "onset"
-        case "s2": return "second"
-        case "s3": return "vowel"
-        case "s4": return "coda"
-        case "cmd": return "command"
-        default: return "rule"
         }
     }
 
@@ -161,12 +159,14 @@ struct OrsyDrillView: View {
                 } else {
                     state = .pending
                 }
-                // The division is a hint too, and goes with the picture.
-                let showDivision = monitor.orsyHint != .never
+                // The division stays whatever the hint is doing.  Phoenix underlined its
+                // phrases throughout and it was worth having; where a word breaks is a
+                // separate skill from producing the stroke, and hiding the underline would
+                // only make every wrong division look like a wrong stroke, which the
+                // diagnosis cannot yet tell apart.
                 return FlowText.Char(
                     char: ch, state: state,
-                    gram: showDivision && unitOf[i] >= 0 && unitOf[i] % 2 == 1,
-                    sameHand: false)
+                    gram: unitOf[i] >= 0 && unitOf[i] % 2 == 1, sameHand: false)
             }
         )
     }
@@ -175,21 +175,34 @@ struct OrsyDrillView: View {
     /// being learned.
     @ViewBuilder
     private func hint(_ drill: OrsyDrillSession) -> some View {
-        if monitor.orsyHint != .never, let layouts = monitor.layouts,
-            let theory = monitor.orsyTheory, let unit = drill.wantedStroke
+        if let layouts = monitor.layouts, let theory = monitor.orsyTheory,
+            let unit = drill.wantedStroke
         {
-            let t = theory.translate(left: unit.left, right: unit.right)
-            let keys = t?.patterns.keys ?? []
-            let confidence =
-                monitor.orsyHint == .always
-                ? 0 : keys.map { monitor.orsySkill?.confidence($0) ?? 0 }.min() ?? 0
+            // The least-typed pattern decides whether the stroke is still new: a stroke is
+            // only as familiar as the newest thing in it.
             StrokeHint(
                 diagram: ChordDiagram(layouts: layouts),
                 left: unit.left, right: unit.right,
                 text: unit.text.trimmingCharacters(in: .whitespaces),
-                confidence: confidence, stumbled: drill.stumbled)
+                showHands: drawHands(unit, theory: theory, stumbled: drill.stumbled),
+                showKeys: monitor.orsyHintKeys)
         } else {
             Color.clear.frame(width: StrokeHint.width, height: 1)
+        }
+    }
+
+    /// Whether the picture is drawn for this stroke.
+    private func drawHands(
+        _ unit: OrsyDrillUnit, theory: OrsyTheory, stumbled: Bool
+    ) -> Bool {
+        switch monitor.orsyHint {
+        case .always: return true
+        case .never: return false
+        case .learn:
+            guard !stumbled else { return true }
+            let keys = theory.translate(left: unit.left, right: unit.right)?.patterns.keys ?? []
+            let uses = keys.map { monitor.orsySkill?.skill($0)?.count ?? 0 }.min() ?? 0
+            return uses < Self.hintUses
         }
     }
 
@@ -308,13 +321,10 @@ struct StrokeHint: View {
     let left: UInt16
     let right: UInt16
     let text: String
-    let confidence: Double
-    let stumbled: Bool
-
-    private var strength: Double {
-        if stumbled { return 1 }
-        return max(0, min(1, 1 - confidence))
-    }
+    /// Whether the keys are drawn.
+    let showHands: Bool
+    /// Whether the stroke is named in writing.
+    let showKeys: Bool
 
     private static let keySize: CGFloat = 12
     private static let gap: CGFloat = 3
@@ -332,24 +342,26 @@ struct StrokeHint: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: Self.gap * 5) {
-                hand(code: left, isLeft: true)
-                hand(code: right, isLeft: false)
+            if showHands {
+                HStack(alignment: .top, spacing: Self.gap * 5) {
+                    hand(code: left, isLeft: true)
+                    hand(code: right, isLeft: false)
+                }
             }
-            HStack(spacing: 5) {
-                Text(text.isEmpty ? "space" : text)
-                    .font(.system(size: 14, design: .monospaced))
-                Text("\(diagram.spell(left))-\(diagram.spell(right))")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            if showKeys {
+                HStack(spacing: 5) {
+                    Text(text.isEmpty ? "space" : text)
+                        .font(.system(size: 14, design: .monospaced))
+                    Text("\(diagram.spell(left))-\(diagram.spell(right))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
         }
         .frame(width: Self.width, alignment: .leading)
-        .opacity(0.15 + 0.85 * strength)
-        .animation(.easeInOut(duration: 0.25), value: strength)
-        .help("The next stroke, both hands, as the board lays them out.  It fades as its patterns are learned.")
+        .help("The next stroke, both hands.")
     }
 
     private func hand(code: UInt16, isLeft: Bool) -> some View {

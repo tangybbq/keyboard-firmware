@@ -62,7 +62,7 @@ public struct OrsySkillModel: Sendable {
 
     public init(
         skills: [String: PatternSkill], sessions: Int, skipped: Int = 0, strokes: Int,
-        dead: Int = 0, options: SkillModel.Options = SkillModel.Options()
+        dead: Int = 0, options: SkillModel.Options = OrsySkillModel.defaultOptions
     ) {
         self.skills = skills
         self.sessions = sessions
@@ -101,16 +101,33 @@ public struct OrsySkillModel: Sendable {
 
     public func confidence(_ name: String) -> Double { parts(name).confidence }
 
+    /// The thresholds an Orsy pattern is held to.
+    ///
+    /// The chord model's twelve uses is a sensible gate for one chord that types one
+    /// letter.  An Orsy pattern is bigger -- a shape is a movement with two readings, a
+    /// rule is a conditional behaviour -- and most of them have a Dosh habit to overwrite,
+    /// so twelve uses is recognition and not production: with a focus item worked six
+    /// times a line, it passed in half a block.  Forty is about a block of deliberate
+    /// practice, which is the unit this ladder moves in.
+    ///
+    /// The speed and error thresholds are the chord model's until there are Orsy medians
+    /// to set them from; nothing has been typed long enough to say what a five-key stroke
+    /// should cost.
+    public static let defaultOptions = SkillModel.Options(minSamples: 40)
+
     /// Replay every log in a directory and measure each pattern.  The whole history,
     /// every time; `SkillStore.orsyModel` is the incremental one.
     public static func build(
-        logDirectory: URL, layouts: Layouts, options: SkillModel.Options = SkillModel.Options(),
+        logDirectory: URL, layouts: Layouts,
+        options: SkillModel.Options = OrsySkillModel.defaultOptions,
         history: LayoutHistory = LayoutHistory.bundled()
     ) -> OrsySkillModel {
         var collector = SkillCollector()
         for file in SkillModel.logFiles(in: logDirectory) {
             guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
-            collector.fold(text: text, layouts: layouts, options: options, history: history)
+            collector.fold(
+                text: text, layouts: layouts, options: SkillModel.Options(),
+                orsyOptions: options, history: history)
         }
         return collector.orsyModel(options: options)
     }
