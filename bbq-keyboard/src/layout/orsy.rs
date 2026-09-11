@@ -26,13 +26,36 @@
 
 use bbq_orsy::chord::HAND_MASK;
 use bbq_orsy::tables::commands;
-use bbq_orsy::{translate, Chord, Op, Ops, Output};
+use bbq_orsy::{translate, Chord, Op, Ops, Output, Translation};
 
 use crate::usb_typer::key_for_char;
 use crate::{KeyAction, KeyEvent, Keyboard, Mods, Side};
 
 use super::taipo::SCAN_MAP;
 use super::LayoutActions;
+
+/// What a committed stroke turned out to be.
+///
+/// Reported through [`LayoutActions::orsy_stroke`] for every stroke, so that
+/// a host replay learns what was written from the engine rather than from
+/// the keys it typed.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum StrokeOutcome {
+    /// A syllable, spelled by the rules.
+    Text(Translation),
+    /// The undo command.
+    Undo,
+    /// The space command.
+    Space,
+    /// The capitalise-next command.
+    CapNext,
+    /// The toggle: the keyboard is switching to Dosh.
+    ToggleDosh,
+    /// The one-shot: this right-hand chord is played through the Dosh table.
+    Dosh(u16),
+    /// Not a syllable and not a command.  Nothing is typed.
+    Dead,
+}
 
 /// A stroke the layout manager has to act on.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -128,21 +151,37 @@ impl OrsyManager {
         self.pressing = true;
     }
 
+    /// What a completed stroke is.
+    pub fn outcome(chord: Chord) -> StrokeOutcome {
+        match (chord.left, chord.right) {
+            (commands::DOSH_TOGGLE, 0) => StrokeOutcome::ToggleDosh,
+            (commands::DOSH_ONESHOT, right) if right != 0 => StrokeOutcome::Dosh(right),
+            (commands::UNDO, 0) => StrokeOutcome::Undo,
+            (0, commands::SPACE) => StrokeOutcome::Space,
+            (0, commands::CAP_NEXT) => StrokeOutcome::CapNext,
+            _ => match translate(chord) {
+                Some(t) => StrokeOutcome::Text(t),
+                None => StrokeOutcome::Dead,
+            },
+        }
+    }
+
     /// Act on a completed stroke.
     async fn stroke<ACT: LayoutActions>(&mut self, chord: Chord, actions: &ACT) -> Option<Escape> {
+        let outcome = Self::outcome(chord);
+        actions.orsy_stroke(chord, outcome).await;
+
         let mut ops = Ops::new();
-        match (chord.left, chord.right) {
-            (commands::DOSH_TOGGLE, 0) => return Some(Escape::ToggleDosh),
-            (commands::DOSH_ONESHOT, right) if right != 0 => return Some(Escape::Dosh(right)),
-            (commands::UNDO, 0) => self.output.undo(&mut ops),
-            (0, commands::SPACE) => self.output.space(&mut ops),
-            (0, commands::CAP_NEXT) => self.output.cap_next(),
-            _ => match translate(chord) {
-                Some(t) => self.output.stroke(&t, &mut ops),
-                // Not a syllable.  Nothing is typed, which is the error
-                // signal there is.
-                None => (),
-            },
+        match outcome {
+            StrokeOutcome::ToggleDosh => return Some(Escape::ToggleDosh),
+            StrokeOutcome::Dosh(right) => return Some(Escape::Dosh(right)),
+            StrokeOutcome::Undo => self.output.undo(&mut ops),
+            StrokeOutcome::Space => self.output.space(&mut ops),
+            StrokeOutcome::CapNext => self.output.cap_next(),
+            StrokeOutcome::Text(t) => self.output.stroke(&t, &mut ops),
+            // Not a syllable.  Nothing is typed, which is the error signal
+            // there is.
+            StrokeOutcome::Dead => (),
         }
 
         for op in ops.as_slice() {

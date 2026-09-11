@@ -295,6 +295,19 @@ mod async_traits {
             let _ = (side, code, end);
         }
 
+        /// Report an Orsy stroke being committed.
+        ///
+        /// `chord` is the keys of both hands and `outcome` what the layout
+        /// made of them.  Called for every stroke, the commands and chords
+        /// that are not syllables included, before anything is typed; the
+        /// counterpart of `taipo_chord`, and for the same reason: a host
+        /// replay derives what was written from the engine itself.  The
+        /// firmware has nothing to do here.
+        #[cfg(feature = "orsy")]
+        async fn orsy_stroke(&self, chord: bbq_orsy::Chord, outcome: super::orsy::StrokeOutcome) {
+            let _ = (chord, outcome);
+        }
+
         /// Report the 2-row layouts moving between the top two rows of a
         /// 3-row board and the bottom two.
         ///

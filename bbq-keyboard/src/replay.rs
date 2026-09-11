@@ -52,6 +52,8 @@ use usbd_human_interface_device::page::Keyboard;
 use crate::layout::export::{bit_for_name, name_for_code, BIT_NAMES};
 use crate::layout::dosh::DOSH_ACTIONS;
 use crate::layout::taipo::{Action, ChordEnd, TaipoVariant, SCAN_MAP, TAIPO_ACTIONS};
+#[cfg(feature = "orsy")]
+use crate::layout::orsy::StrokeOutcome;
 use crate::layout::{LayoutActions, LayoutManager, TAIPO_CHORD_TIME};
 use crate::{KeyAction, KeyEvent, LayoutMode, MinorMode, Mods, Side};
 
@@ -239,6 +241,12 @@ pub struct LogSession {
     /// `None` means the log never said, and the reader is left with the engine's own
     /// default -- which is a fact about the firmware that wrote it, and has changed once.
     pub variant: Option<TaipoVariant>,
+    /// The mode the session opened in, when a `mode` marker said so before any typing.
+    ///
+    /// The same reasoning as `variant`: the state the collector was told when it joined.
+    /// Later mode changes are key events the engine replays for itself.  `None` when the
+    /// log never said, or named a mode this build does not have.
+    pub mode: Option<LayoutMode>,
 }
 
 /// Whether a comment line ends the timeline that precedes it.
@@ -294,6 +302,7 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
         layout: None,
         events: Vec::new(),
         variant: None,
+        mode: None,
     };
     for (num, line) in text.lines().enumerate() {
         if breaks_timeline(line) {
@@ -305,6 +314,7 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
                 layout: layout_from_line(line),
                 events: Vec::new(),
                 variant: None,
+                mode: None,
             };
             continue;
         }
@@ -314,8 +324,12 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
         }
         if let Some((_, name, value)) = marker_from_line(line) {
             // Only while nothing has been typed yet: see `LogSession::variant`.
-            if name == "variant" && current.events.is_empty() {
-                current.variant = Some(TaipoVariant::from_marker(value));
+            if current.events.is_empty() {
+                match name {
+                    "variant" => current.variant = Some(TaipoVariant::from_marker(value)),
+                    "mode" => current.mode = LayoutMode::from_marker(value),
+                    _ => (),
+                }
             }
             continue;
         }
@@ -335,6 +349,7 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
                     // shape of a day rollover, and a morning of typing has already been
                     // folded into the wrong table by a reader that started over here.
                     let variant = current.variant;
+                    let mode = current.mode;
                     out.push(core::mem::replace(
                         &mut current,
                         LogSession {
@@ -342,6 +357,7 @@ pub fn sessions_from_text(text: &str) -> Result<Vec<LogSession>, String> {
                             layout,
                             events: Vec::new(),
                             variant,
+                            mode,
                         },
                     ));
                 }
@@ -477,11 +493,48 @@ impl Chord {
     }
 }
 
+/// An Orsy stroke the engine committed.
+#[cfg(feature = "orsy")]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Stroke {
+    /// When the engine committed it.
+    pub time_ms: u32,
+    /// The keys of both hands.
+    pub chord: bbq_orsy::Chord,
+    /// When the first key of the stroke went down.
+    pub first_key_ms: u32,
+    /// When the last key of the stroke went down.
+    pub last_key_ms: u32,
+    /// What the layout made of it.
+    pub outcome: StrokeOutcome,
+}
+
+#[cfg(feature = "orsy")]
+impl Stroke {
+    /// How long the stroke took to assemble.
+    pub fn spread_ms(&self) -> u32 {
+        self.last_key_ms - self.first_key_ms
+    }
+
+    /// The stroke's keys, left hand then right, as `a+t-e+Bk`.
+    pub fn key_names(&self) -> String {
+        format!("{}-{}", name_for_code(self.chord.left), name_for_code(self.chord.right))
+    }
+
+    /// Whether the stroke was neither a syllable nor a command.
+    pub fn is_dead(&self) -> bool {
+        self.outcome == StrokeOutcome::Dead
+    }
+}
+
 /// Everything the replay derives, in the order it happened.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Derived {
     /// A chord was committed.
     Chord(Chord),
+    /// An Orsy stroke was committed.
+    #[cfg(feature = "orsy")]
+    Stroke(Stroke),
     /// A HID report the layout asked for.
     Key { time_ms: u32, action: KeyAction },
     /// The held modifiers changed.  `sticky` is the subset of `oneshot` that
@@ -507,6 +560,8 @@ impl Derived {
     pub fn time_ms(&self) -> u32 {
         match self {
             Derived::Chord(chord) => chord.time_ms,
+            #[cfg(feature = "orsy")]
+            Derived::Stroke(stroke) => stroke.time_ms,
             Derived::Key { time_ms, .. }
             | Derived::Mods { time_ms, .. }
             | Derived::Mode { time_ms, .. }
@@ -522,6 +577,21 @@ impl Derived {
             _ => None,
         }
     }
+
+    /// The Orsy stroke, if this is one.
+    #[cfg(feature = "orsy")]
+    pub fn as_stroke(&self) -> Option<&Stroke> {
+        match self {
+            Derived::Stroke(stroke) => Some(stroke),
+            _ => None,
+        }
+    }
+}
+
+/// Just the Orsy strokes out of a derived stream.
+#[cfg(feature = "orsy")]
+pub fn strokes(derived: &[Derived]) -> Vec<&Stroke> {
+    derived.iter().filter_map(Derived::as_stroke).collect()
 }
 
 /// Just the chords out of a derived stream.
@@ -588,7 +658,13 @@ impl Replay {
     /// that goes quietly wrong: the chords all resolve, they just resolve to
     /// something nobody typed.  This is how a caller passes on what it read.
     pub fn new_in_variant(two_row: bool, variant: TaipoVariant) -> Replay {
-        let mut replay = Replay::new(two_row);
+        Replay::new_in(two_row, LayoutMode::Taipo, variant)
+    }
+
+    /// A replay starting in a particular mode and chord table: what a log's
+    /// opening `mode` and `variant` markers say.
+    pub fn new_in(two_row: bool, mode: LayoutMode, variant: TaipoVariant) -> Replay {
+        let mut replay = Replay::new_in_mode(two_row, mode);
         replay.layout.set_taipo_variant(variant);
         replay.recorder.variant.replace(variant);
         replay
@@ -686,7 +762,17 @@ pub fn replay(two_row: bool, events: &[KeyLogEvent]) -> Vec<Derived> {
 /// For a caller that knows which table the typing was in -- from a `variant` marker, or
 /// because it generated the log itself -- rather than one relying on the default.
 pub fn replay_in(two_row: bool, variant: TaipoVariant, events: &[KeyLogEvent]) -> Vec<Derived> {
-    let mut replay = Replay::new_in_variant(two_row, variant);
+    replay_in_mode(two_row, LayoutMode::Taipo, variant, events)
+}
+
+/// Replay a whole log in one call, in a given mode and chord table.
+pub fn replay_in_mode(
+    two_row: bool,
+    mode: LayoutMode,
+    variant: TaipoVariant,
+    events: &[KeyLogEvent],
+) -> Vec<Derived> {
+    let mut replay = Replay::new_in(two_row, mode, variant);
     for event in events {
         replay.feed(*event);
     }
@@ -703,8 +789,9 @@ pub fn replay_sessions(two_row: bool, sessions: &[LogSession]) -> Vec<Vec<Derive
     sessions
         .iter()
         .map(|session| {
-            replay_in(
+            replay_in_mode(
                 two_row,
+                session.mode.unwrap_or(LayoutMode::Taipo),
                 session.variant.unwrap_or(TaipoVariant::DEFAULT),
                 &session.events,
             )
@@ -853,6 +940,28 @@ impl LayoutActions for Recorder {
             lower,
         });
     }
+
+    #[cfg(feature = "orsy")]
+    async fn orsy_stroke(&self, chord: bbq_orsy::Chord, outcome: StrokeOutcome) {
+        let time_ms = *self.now.borrow();
+        let pressed = *self.pressed_ms.borrow();
+        let (mut first, mut last) = (u32::MAX, 0);
+        for (side, code) in [(Side::Left, chord.left), (Side::Right, chord.right)] {
+            for bit in 0..10 {
+                if code & (1 << bit) != 0 {
+                    first = first.min(pressed[side.index()][bit]);
+                    last = last.max(pressed[side.index()][bit]);
+                }
+            }
+        }
+        self.push(Derived::Stroke(Stroke {
+            time_ms,
+            chord,
+            first_key_ms: if first == u32::MAX { time_ms } else { first },
+            last_key_ms: if first == u32::MAX { time_ms } else { last },
+            outcome,
+        }));
+    }
 }
 
 impl Recorder {
@@ -937,11 +1046,40 @@ impl Chord {
     }
 }
 
+#[cfg(feature = "orsy")]
+impl Stroke {
+    /// A one-line description, for a golden file or a test failure.
+    pub fn to_line(&self) -> String {
+        format!(
+            "{} [{}] spread={} {}",
+            self.time_ms,
+            self.key_names(),
+            self.spread_ms(),
+            match &self.outcome {
+                StrokeOutcome::Text(t) => format!(
+                    "text {:?} before={} after={}",
+                    t.text(),
+                    t.space_before as u8,
+                    t.space_after as u8
+                ),
+                StrokeOutcome::Undo => "undo".to_string(),
+                StrokeOutcome::Space => "space".to_string(),
+                StrokeOutcome::CapNext => "cap-next".to_string(),
+                StrokeOutcome::ToggleDosh => "dosh-toggle".to_string(),
+                StrokeOutcome::Dosh(code) => format!("dosh {code:#05x}"),
+                StrokeOutcome::Dead => "dead".to_string(),
+            },
+        )
+    }
+}
+
 impl Derived {
     /// A one-line description, for a golden file or a test failure.
     pub fn to_line(&self) -> String {
         match self {
             Derived::Chord(chord) => format!("chord {}", chord.to_line()),
+            #[cfg(feature = "orsy")]
+            Derived::Stroke(stroke) => format!("stroke {}", stroke.to_line()),
             Derived::Key { time_ms, action } => format!("key {time_ms} {action:?}"),
             Derived::Mods {
                 time_ms,

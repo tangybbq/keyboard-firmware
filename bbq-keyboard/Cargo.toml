@@ -35,7 +35,7 @@ futures = { version = "0.3", features = ["executor"] }
 
 [features]
 default = ["std", "proto3", "log", "qwerty", "steno", "orsy"]
-std = ["dep:clap"]
+std = ["dep:clap", "bbq-orsy?/std"]
 proto2 = []
 proto3 = []
 

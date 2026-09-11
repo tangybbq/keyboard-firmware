@@ -15,6 +15,13 @@ use bbq_keyboard::replay::{
 };
 use bbq_keyboard::{Keyboard, LayoutMode, Mods, Side};
 
+#[cfg(feature = "orsy")]
+use bbq_keyboard::layout::orsy::StrokeOutcome;
+#[cfg(feature = "orsy")]
+use bbq_keyboard::KeyAction;
+#[cfg(feature = "orsy")]
+use bbq_keyboard::replay::{replay_in_mode, strokes, Replay};
+
 /// A log under construction, so that a test reads as a sequence of things the
 /// writer did rather than as a list of timestamps.
 #[derive(Default)]
@@ -591,4 +598,126 @@ fn test_split_chord() {
     log.tap('L', "e", 20).wait(500).tap('L', "i", 20);
     let derived = log.run_two_row();
     assert!(split_chords(&chords(&derived), 50).is_empty());
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Orsy
+//////////////////////////////////////////////////////////////////////////////
+
+/// An Orsy stroke is derived with its keys, its timing and what it spelled.
+#[cfg(feature = "orsy")]
+#[test]
+fn test_orsy_stroke() {
+    let mut log = Log::new();
+    // `ten`, closing the word: t on the left, e+Bk and n on the right, rolled
+    // together over a few milliseconds.
+    log.press("L.t").wait(4).press("R.e").wait(3).press("R.n").press("R.Bk");
+    log.wait(30).release("L.t").release("R.e").release("R.n").release("R.Bk");
+    let derived = replay_in_mode(true, LayoutMode::Orsy, TaipoVariant::Dosh, &log.events);
+    let strokes = strokes(&derived);
+    assert_eq!(strokes.len(), 1);
+    let stroke = strokes[0];
+    assert_eq!(stroke.chord, bbq_orsy::Chord::new(0x004, 0x248));
+    assert_eq!(stroke.key_names(), "t-e+n+Bk");
+    assert_eq!(stroke.first_key_ms, 0);
+    assert_eq!(stroke.last_key_ms, 7);
+    assert_eq!(stroke.time_ms, 37);
+    let StrokeOutcome::Text(t) = stroke.outcome else {
+        panic!("not text: {:?}", stroke.outcome);
+    };
+    assert_eq!(t.text(), "ten");
+    assert!(t.space_before && t.space_after);
+    // The keys it typed follow in the derived stream.
+    assert_eq!(key_actions(&derived).len(), 6);
+    assert_eq!(
+        stroke.to_line(),
+        "37 [t-e+n+Bk] spread=7 text \"ten\" before=1 after=1"
+    );
+}
+
+/// The commands and a chord that is not a syllable are derived too, and
+/// nothing else is typed for them.
+#[cfg(feature = "orsy")]
+#[test]
+fn test_orsy_commands_and_dead() {
+    let mut log = Log::new();
+    log.tap('R', "Bk", 20).wait(50);
+    log.tap('L', "a+o+s+t+n", 20).wait(50);
+    log.tap('R', "e+i+Sp", 20).wait(50);
+    // The one-shot shape with nothing on the right is not a syllable.
+    log.tap('L', "i+Sp+Bk", 20).wait(50);
+    let derived = replay_in_mode(true, LayoutMode::Orsy, TaipoVariant::Dosh, &log.events);
+    let outcomes: Vec<StrokeOutcome> = strokes(&derived).iter().map(|s| s.outcome).collect();
+    assert_eq!(
+        outcomes,
+        [
+            StrokeOutcome::Space,
+            StrokeOutcome::Undo,
+            StrokeOutcome::CapNext,
+            StrokeOutcome::Dead,
+        ]
+    );
+    // The space typed, the undo took it back, and nothing else was sent.
+    assert_eq!(key_actions(&derived).len(), 4);
+}
+
+/// The Dosh escapes come out as strokes, and the one-shot's chord is typed
+/// through the Dosh table.
+#[cfg(feature = "orsy")]
+#[test]
+fn test_orsy_escapes() {
+    let mut log = Log::new();
+    // One-shot: the left shape held, `e` on the right.
+    log.press("L.i").press("L.Sp").press("L.Bk").press("R.e").wait(20);
+    log.release("L.i").release("L.Sp").release("L.Bk").release("R.e").wait(50);
+    // The toggle.
+    log.tap('L', "e+i+Sp+Bk", 20).wait(50);
+    let derived = replay_in_mode(true, LayoutMode::Orsy, TaipoVariant::Dosh, &log.events);
+    let outcomes: Vec<StrokeOutcome> = strokes(&derived).iter().map(|s| s.outcome).collect();
+    assert_eq!(outcomes, [StrokeOutcome::Dosh(0x008), StrokeOutcome::ToggleDosh]);
+    // The one-shot's chord is typed through the Dosh table -- as a key, not
+    // as a chord the taipo engine assembled -- and the toggle is a mode
+    // change.
+    assert!(chords(&derived).is_empty());
+    assert!(derived.iter().any(|d| matches!(
+        d,
+        Derived::Key { action: KeyAction::KeyPress(Keyboard::E, _), .. }
+    )));
+    assert!(derived
+        .iter()
+        .any(|d| matches!(d, Derived::Mode { mode: LayoutMode::Taipo, .. })));
+}
+
+/// A session that opens with a `mode` marker is replayed in that mode.
+#[cfg(feature = "orsy")]
+#[test]
+fn test_session_mode_marker() {
+    let text = format!(
+        "0 = mode {}\n10 + L.t\n10 + R.e\n10 + R.n\n10 + R.Bk\n40 - L.t\n40 - R.e\n40 - R.n\n40 - R.Bk\n",
+        LayoutMode::Orsy.marker()
+    );
+    let sessions = sessions_from_text(&text).unwrap();
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].mode, Some(LayoutMode::Orsy));
+    let derived = replay_sessions(true, &sessions);
+    assert_eq!(strokes(&derived[0]).len(), 1);
+    // A marker naming a mode this build has no idea of reads as unknown.
+    let sessions = sessions_from_text("0 = mode 200\n10 + L.t\n40 - L.t\n").unwrap();
+    assert_eq!(sessions[0].mode, None);
+}
+
+/// The two marker directions agree.
+#[test]
+fn test_mode_marker_round_trip() {
+    for mode in [LayoutMode::Taipo, LayoutMode::Steno, LayoutMode::Qwerty] {
+        assert_eq!(LayoutMode::from_marker(mode.marker()), Some(mode));
+    }
+    #[cfg(feature = "orsy")]
+    assert_eq!(LayoutMode::from_marker(LayoutMode::Orsy.marker()), Some(LayoutMode::Orsy));
+    // The replay can start there directly, too.
+    #[cfg(feature = "orsy")]
+    {
+        let derived = Replay::new_in(false, LayoutMode::Orsy, TaipoVariant::Dosh).finish();
+        assert!(derived.is_empty());
+    }
 }
