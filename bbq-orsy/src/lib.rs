@@ -21,8 +21,12 @@ pub mod chord;
 pub mod compose;
 pub mod output;
 pub mod tables;
+#[cfg(feature = "std")]
+pub mod write;
 
 pub use chord::Chord;
 pub use compose::{rules, translate, Translation};
 pub use output::{Op, Ops, Output};
 pub use tables::Patterns;
+#[cfg(feature = "std")]
+pub use write::Writer;
