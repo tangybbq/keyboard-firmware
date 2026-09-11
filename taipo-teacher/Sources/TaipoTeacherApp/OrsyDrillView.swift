@@ -55,6 +55,12 @@ struct OrsyDrillView: View {
         }
     }
 
+    /// One item being worked on.
+    ///
+    /// A shape is two readings, onset and coda, measured apart, and the row reports the
+    /// weaker one -- which is the one worth practising, but has to be named: a coda `s`
+    /// at 50% back sits there unmoved by any number of onset `s`, and read as "s" that
+    /// looks like a display that has stopped updating.
     @ViewBuilder
     private func focusRow(_ item: OrsyLadderItem) -> some View {
         if let skill = monitor.orsySkill {
@@ -66,7 +72,7 @@ struct OrsyDrillView: View {
                 Text(item.label)
                     .font(.system(size: 12, design: .monospaced))
                     .frame(width: 60, alignment: .leading)
-                Text(item.stage.rawValue)
+                Text(Self.reading(of: key))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .frame(width: 44, alignment: .leading)
@@ -84,6 +90,18 @@ struct OrsyDrillView: View {
                     s.map { String(format: "%.0f", $0.errorRate * 100) } ?? "0",
                     unit: "% back", met: parts.accuracy >= 1)
             }
+        }
+    }
+
+    /// Which reading a skill key measures.
+    private static func reading(of key: String) -> String {
+        switch key.prefix(while: { $0 != ":" }) {
+        case "s1": return "onset"
+        case "s2": return "second"
+        case "s3": return "vowel"
+        case "s4": return "coda"
+        case "cmd": return "command"
+        default: return "rule"
         }
     }
 
