@@ -105,6 +105,36 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// How much the Orsy drill shows of the next stroke.
+    ///
+    /// The fade is the mechanism meant to move a writer from copying the picture to
+    /// recalling the stroke, and it is driven by confidence, which includes speed against
+    /// a median tuned for one-hand chords.  A stroke of five keys may never get under it
+    /// early on, so the picture may never fade and the drill stays a copying exercise.
+    /// This is the writer's own say: the picture always, fading as the model allows, or
+    /// not at all -- and with it the underline that gives away the division, which is the
+    /// other thing worth practising blind.
+    public enum OrsyHint: String, CaseIterable, Identifiable, Sendable {
+        case always = "Show"
+        case fade = "Fade"
+        case never = "Hide"
+        public var id: String { rawValue }
+    }
+
+    @Published public var orsyHint: OrsyHint = DeviceMonitor.storedOrsyHint() {
+        didSet {
+            guard orsyHint != oldValue else { return }
+            UserDefaults.standard.set(orsyHint.rawValue, forKey: Self.orsyHintKey)
+        }
+    }
+
+    private static let orsyHintKey = "orsyHint"
+
+    static func storedOrsyHint() -> OrsyHint {
+        UserDefaults.standard.string(forKey: orsyHintKey).flatMap(OrsyHint.init(rawValue:))
+            ?? .fade
+    }
+
     /// The key the stage switches are kept under.
     private static let stagesKey = "ladderStages"
 

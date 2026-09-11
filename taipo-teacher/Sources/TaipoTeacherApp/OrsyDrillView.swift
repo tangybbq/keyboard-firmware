@@ -48,6 +48,8 @@ struct OrsyDrillView: View {
                 if let lesson = ladder.lesson {
                     Text(lesson.title).font(.caption).foregroundStyle(.secondary)
                 }
+                Spacer()
+                hintSwitch
             }
             ForEach(ladder.focus, id: \.keys) { item in
                 focusRow(item)
@@ -61,6 +63,28 @@ struct OrsyDrillView: View {
     /// weaker one -- which is the one worth practising, but has to be named: a coda `s`
     /// at 50% back sits there unmoved by any number of onset `s`, and read as "s" that
     /// looks like a display that has stopped updating.
+    /// Show the next stroke always, let it fade, or work blind.  Plain buttons rather than
+    /// a segmented picker, for the reason `MainView.tabs` gives.
+    private var hintSwitch: some View {
+        HStack(spacing: 8) {
+            Text("hint").font(.caption).foregroundStyle(.secondary)
+            ForEach(DeviceMonitor.OrsyHint.allCases) { choice in
+                Button { monitor.orsyHint = choice } label: {
+                    Text(choice.rawValue)
+                        .font(.caption.weight(monitor.orsyHint == choice ? .semibold : .regular))
+                        .foregroundStyle(
+                            monitor.orsyHint == choice ? Color.accentColor : Color.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .help(
+            "Show keeps the next stroke drawn at full strength.  Fade dims it as its "
+            + "patterns are learned.  Hide draws nothing, and hides the division too, "
+            + "for practising from memory.")
+    }
+
     @ViewBuilder
     private func focusRow(_ item: OrsyLadderItem) -> some View {
         if let skill = monitor.orsySkill {
@@ -137,8 +161,11 @@ struct OrsyDrillView: View {
                 } else {
                     state = .pending
                 }
+                // The division is a hint too, and goes with the picture.
+                let showDivision = monitor.orsyHint != .never
                 return FlowText.Char(
-                    char: ch, state: state, gram: unitOf[i] >= 0 && unitOf[i] % 2 == 1,
+                    char: ch, state: state,
+                    gram: showDivision && unitOf[i] >= 0 && unitOf[i] % 2 == 1,
                     sameHand: false)
             }
         )
@@ -148,12 +175,14 @@ struct OrsyDrillView: View {
     /// being learned.
     @ViewBuilder
     private func hint(_ drill: OrsyDrillSession) -> some View {
-        if let layouts = monitor.layouts, let theory = monitor.orsyTheory,
-            let unit = drill.wantedStroke
+        if monitor.orsyHint != .never, let layouts = monitor.layouts,
+            let theory = monitor.orsyTheory, let unit = drill.wantedStroke
         {
             let t = theory.translate(left: unit.left, right: unit.right)
             let keys = t?.patterns.keys ?? []
-            let confidence = keys.map { monitor.orsySkill?.confidence($0) ?? 0 }.min() ?? 0
+            let confidence =
+                monitor.orsyHint == .always
+                ? 0 : keys.map { monitor.orsySkill?.confidence($0) ?? 0 }.min() ?? 0
             StrokeHint(
                 diagram: ChordDiagram(layouts: layouts),
                 left: unit.left, right: unit.right,
