@@ -27,6 +27,13 @@
 use crate::chord::Chord;
 use crate::tables::{Outer, Patterns, Second, Vowel};
 
+/// The version of the composition rules, for a fingerprint of the layout.
+///
+/// Bump it when a change here alters what some stroke spells or how it
+/// binds; a host that has learned strokes under the old rules has to know.
+/// Table changes are fingerprinted on their own and need no bump.
+pub const RULES_VERSION: u32 = 1;
+
 /// The composition rules a stroke used, as flags in [`Translation::rules`].
 ///
 /// A rule is something to learn beyond the patterns themselves, so a

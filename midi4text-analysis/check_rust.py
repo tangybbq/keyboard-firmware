@@ -10,6 +10,9 @@ space is only 262,144 strokes, so the comparison is exhaustive.
 With --corpus, the stroke counts from the mapping work are re-run against
 the Rust output, by building a dictionary from it and writing the 20,000
 commonest words with writer.py.
+
+The `orsy` section of bbq-keyboard/layouts.json, which the host tools read
+the tables from, is checked against the mapping as well.
 """
 
 import argparse
@@ -24,6 +27,7 @@ from m4t import layout as L, theory, writer
 HERE = os.path.dirname(os.path.abspath(__file__))
 MAPPING = os.path.join(HERE, "..", "docs", "orsy", "orsy-mapping.json")
 CRATE = os.path.join(HERE, "..", "bbq-orsy", "Cargo.toml")
+EXPORT = os.path.join(HERE, "..", "bbq-keyboard", "layouts.json")
 WORDS = os.path.join(HERE, "..", "words", "count_1w.txt")
 
 OUTER_MASK = 0x067
@@ -162,6 +166,48 @@ def corpus(got):
     print(f"  strokes of 7+ keys {big[True] / (big[True] + big[False]):.1%}")
 
 
+def check_export():
+    """The exported tables agree with the mapping, pattern by pattern."""
+    with open(MAPPING) as fp:
+        m = json.load(fp)
+    with open(EXPORT) as fp:
+        e = json.load(fp).get("orsy")
+    if e is None:
+        print("layouts.json has no orsy section")
+        return False
+    bad = []
+    for group, mine, theirs, fields in (
+        ("outer", m["outer"], e["outer"], ("onset", "coda")),
+        ("second", m["inner_left"], e["second"], ("spells",)),
+        ("vowel", m["inner_right"], e["vowel"], ("vowel", "ends_word")),
+    ):
+        want = {x["michela"]: x for x in mine}
+        got = {x["michela"]: x for x in theirs}
+        if set(want) != set(got):
+            bad.append(f"{group}: patterns differ: {sorted(set(want) ^ set(got))}")
+            continue
+        for name, w in want.items():
+            g = got[name]
+            if w["bits"] != g["bits"]:
+                bad.append(f"{group} {name}: bits {w['bits']} vs {g['bits']}")
+            for field in fields:
+                theirs_field = {"vowel": "text"}.get(field, field)
+                if w[field] != g[theirs_field]:
+                    bad.append(f"{group} {name}: {field} {w[field]!r} vs {g[theirs_field]!r}")
+        if group == "second":
+            for name, w in want.items():
+                if w["is_vowel_too"] != got[name]["mirrored_vowel"]:
+                    bad.append(f"second {name}: mirrored vowel differs")
+    want = {c["name"]: c["bits"] for c in m["commands"]}
+    got = {c["name"]: c["bits"] for c in e["commands"]}
+    if want != got:
+        bad.append(f"commands differ: {want} vs {got}")
+    for line in bad:
+        print("  export:", line)
+    print(f"layouts.json orsy section {'agrees with' if not bad else 'DIFFERS from'} the mapping")
+    return not bad
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dump", help="a saved dump, instead of running cargo")
@@ -172,6 +218,7 @@ def main():
     got = rust_dump(args.dump)
     want = expected(load_mapping())
     ok = compare(want, got, args.show)
+    ok = check_export() and ok
     if args.corpus:
         corpus(got)
     return 0 if ok else 1

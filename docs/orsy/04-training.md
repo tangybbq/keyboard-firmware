@@ -141,6 +141,12 @@ the key presses it types.
 
 Small: a few hundred lines, mostly tests.
 
+Done. `LayoutActions::orsy_stroke` and `Derived::Stroke`; a session's opening `mode`
+marker picks the replay's mode; `synth::orsy` with `orsy-clean` and `orsy-sloppy` under
+`bbq-keyboard/tests/golden/`; the `orsy` section of `layouts.json` with its own
+fingerprint, recorded by `sync-layouts.py` and checked by `check_rust.py`. Along the way
+the output stage learned about escaped backspaces, which it had been ignoring.
+
 ## Phase B: the Swift model
 
 - **Reading the log.** `ChordEngine.marker` ignores the `mode` marker, so today the app

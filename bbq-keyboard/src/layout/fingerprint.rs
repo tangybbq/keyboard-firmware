@@ -107,6 +107,51 @@ pub fn layout_fingerprint() -> u64 {
     h.0
 }
 
+/// A fingerprint of the Orsy tables: every pattern with its keys and what it
+/// spells, the commands, and the version of the composition rules.
+///
+/// Separate from [`layout_fingerprint`], which covers the Taipo and Dosh
+/// tables the device reports, so that a change to one does not invalidate
+/// what a host has learned about the other.  The rules are covered by a
+/// version number rather than a hash of code: `check_rust.py` is what keeps
+/// the rules themselves honest, and the number is bumped by hand when they
+/// change what a stroke spells.
+#[cfg(feature = "orsy")]
+pub fn orsy_fingerprint() -> u64 {
+    use bbq_orsy::tables::{commands, Outer, Second, Vowel};
+
+    let mut h = Fnv::new();
+    h.u16(bbq_orsy::compose::RULES_VERSION as u16);
+    for o in Outer::ALL {
+        h.u16(o.bits());
+        h.run(o.michela().as_bytes());
+        h.run(o.onset().unwrap_or("-").as_bytes());
+        h.run(o.coda().as_bytes());
+    }
+    for s in Second::ALL {
+        h.u16(s.bits());
+        h.run(s.michela().as_bytes());
+        h.run(s.spells().as_bytes());
+        h.run(s.mirrored_vowel().unwrap_or("-").as_bytes());
+    }
+    for v in Vowel::ALL {
+        h.u16(v.bits());
+        h.run(v.michela().as_bytes());
+        h.run(v.text().as_bytes());
+        h.byte(v.ends_word() as u8);
+    }
+    for c in [
+        commands::DOSH_ONESHOT,
+        commands::DOSH_TOGGLE,
+        commands::CAP_NEXT,
+        commands::SPACE,
+        commands::UNDO,
+    ] {
+        h.u16(c);
+    }
+    h.0
+}
+
 fn entry_hash(h: &mut Fnv, entry: &Entry) {
     h.u16(entry.code);
     match &entry.action {

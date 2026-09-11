@@ -33,14 +33,49 @@ def signature(action):
     return f"{kind}:{detail}" if detail else kind
 
 
+def orsy_patterns(orsy):
+    """Every Orsy pattern with what it spells, keyed by Series and Michela name.
+
+    An outer shape is two patterns, its onset reading and its coda reading, since a
+    trainer learns them separately.  The rules are keyed by name with their version,
+    as a change to them is a change to every stroke that uses them.
+    """
+    out = {}
+    for o in orsy["outer"]:
+        if o["onset"] is not None:
+            out[f"s1:{o['michela']}"] = o["onset"]
+        out[f"s4:{o['michela']}"] = o["coda"]
+    for s in orsy["second"]:
+        spells = s["spells"]
+        if s["mirrored_vowel"] is not None:
+            spells += f"|{s['mirrored_vowel']}"
+        out[f"s2:{s['michela']}"] = spells
+    for v in orsy["vowel"]:
+        out[f"s3:{v['michela']}"] = v["text"] + ("+" if v["ends_word"] else "")
+    for c in orsy["commands"]:
+        out[f"cmd:{c['name']}"] = f"{c['hand']}:{c['bits']}"
+    for r in orsy["rules"]:
+        out[f"rule:{r['name']}"] = str(orsy["rules_version"])
+    return out
+
+
 def revision(layouts):
-    return {
+    out = {
         "fingerprint": layouts["fingerprint"],
         "variants": {
             name: {str(c["code"]): signature(c["action"]) for c in variant["chords"]}
             for name, variant in layouts["variants"].items()
         },
     }
+    # Orsy is fingerprinted on its own, so its revisions are kept alongside
+    # rather than under the variants: a change to one layout must not cost
+    # the other its history.
+    if "orsy" in layouts:
+        out["orsy"] = {
+            "fingerprint": layouts["orsy"]["fingerprint"],
+            "patterns": orsy_patterns(layouts["orsy"]),
+        }
+    return out
 
 
 def main():
@@ -52,13 +87,18 @@ def main():
         history = json.loads(HISTORY.read_text())
 
     fingerprint = layouts["fingerprint"]
-    if any(r["fingerprint"] == fingerprint for r in history["revisions"]):
-        print(f"layout {fingerprint} already recorded; {len(history['revisions'])} known")
+    orsy = layouts.get("orsy", {}).get("fingerprint")
+    # A revision is the pair: the same Taipo/Dosh tables with different Orsy
+    # tables is a new revision, and is what an Orsy-only change looks like.
+    if any(r["fingerprint"] == fingerprint and r.get("orsy", {}).get("fingerprint") == orsy
+           for r in history["revisions"]):
+        print(f"layout {fingerprint} (orsy {orsy}) already recorded; "
+              f"{len(history['revisions'])} known")
         return 0
 
     history["revisions"].append(revision(layouts))
     HISTORY.write_text(json.dumps(history, indent=1, sort_keys=True) + "\n")
-    print(f"recorded layout {fingerprint}; {len(history['revisions'])} known")
+    print(f"recorded layout {fingerprint} (orsy {orsy}); {len(history['revisions'])} known")
     return 0
 
 

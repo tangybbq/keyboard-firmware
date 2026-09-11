@@ -124,6 +124,8 @@ pub fn layouts_json() -> String {
     out.push_str(&format!("  \"special_keys\": {},\n", special_keys_json()));
     out.push_str(&format!("  \"scan_map\": {},\n", scan_map_json()));
     out.push_str(&format!("  \"boards\": {},\n", boards_json()));
+    #[cfg(feature = "orsy")]
+    out.push_str(&format!("  \"orsy\": {},\n", orsy_json()));
     out.push_str("  \"variants\": {\n");
     out.push_str(&format!(
         "    \"taipo\": {},\n",
@@ -239,6 +241,131 @@ fn boards_json() -> String {
         out.push_str(&format!("    {}: [{}]", quote(board), codes));
     }
     out.push('\n');
+    out.push_str("  }");
+    out
+}
+
+/// The Orsy tables: the three groups of patterns, the commands and the
+/// rules, with their own fingerprint.
+///
+/// Not a variant: a variant is a table of one-hand chord codes, and every
+/// consumer of `variants` would misread a syllabic layout as one.  A host
+/// keying skill by pattern reads this instead; the patterns are named by
+/// Series and Michela pattern, as `s1:FC`, which is what the fingerprint
+/// history records.
+#[cfg(feature = "orsy")]
+fn orsy_json() -> String {
+    use bbq_orsy::chord::{INNER_MASK, OUTER_MASK};
+    use bbq_orsy::compose::{rules, RULES_VERSION};
+    use bbq_orsy::tables::{commands, Outer, Second, Vowel};
+
+    let mut out = String::new();
+    out.push_str("{\n");
+    out.push_str(&format!(
+        "    \"fingerprint\": \"{:#018x}\",\n",
+        crate::layout::fingerprint::orsy_fingerprint()
+    ));
+    out.push_str(&format!("    \"rules_version\": {},\n", RULES_VERSION));
+    out.push_str(&format!("    \"outer_mask\": {},\n", OUTER_MASK));
+    out.push_str(&format!("    \"inner_mask\": {},\n", INNER_MASK));
+
+    out.push_str("    \"outer\": [\n");
+    for (num, o) in Outer::ALL.iter().enumerate() {
+        if num != 0 {
+            out.push_str(",\n");
+        }
+        out.push_str(&format!(
+            "      {{ \"michela\": {}, \"bits\": {}, \"keys\": [{}], \"onset\": {}, \"coda\": {} }}",
+            quote(o.michela()),
+            o.bits(),
+            key_names(o.bits()),
+            match o.onset() {
+                Some(text) => quote(text),
+                None => "null".to_string(),
+            },
+            quote(o.coda()),
+        ));
+    }
+    out.push_str("\n    ],\n");
+
+    out.push_str("    \"second\": [\n");
+    for (num, s) in Second::ALL.iter().enumerate() {
+        if num != 0 {
+            out.push_str(",\n");
+        }
+        out.push_str(&format!(
+            "      {{ \"michela\": {}, \"bits\": {}, \"keys\": [{}], \"spells\": {}, \"mirrored_vowel\": {} }}",
+            quote(s.michela()),
+            s.bits(),
+            key_names(s.bits()),
+            quote(s.spells()),
+            match s.mirrored_vowel() {
+                Some(text) => quote(text),
+                None => "null".to_string(),
+            },
+        ));
+    }
+    out.push_str("\n    ],\n");
+
+    out.push_str("    \"vowel\": [\n");
+    for (num, v) in Vowel::ALL.iter().enumerate() {
+        if num != 0 {
+            out.push_str(",\n");
+        }
+        out.push_str(&format!(
+            "      {{ \"michela\": {}, \"bits\": {}, \"keys\": [{}], \"text\": {}, \"ends_word\": {} }}",
+            quote(v.michela()),
+            v.bits(),
+            key_names(v.bits()),
+            quote(v.text()),
+            v.ends_word(),
+        ));
+    }
+    out.push_str("\n    ],\n");
+
+    out.push_str("    \"commands\": [\n");
+    for (num, (name, hand, bits)) in [
+        ("dosh_oneshot", "left", commands::DOSH_ONESHOT),
+        ("dosh_toggle", "left", commands::DOSH_TOGGLE),
+        ("capitalise_next", "right", commands::CAP_NEXT),
+        ("space", "right", commands::SPACE),
+        ("undo", "left", commands::UNDO),
+    ]
+    .iter()
+    .enumerate()
+    {
+        if num != 0 {
+            out.push_str(",\n");
+        }
+        out.push_str(&format!(
+            "      {{ \"name\": {}, \"hand\": {}, \"bits\": {}, \"keys\": [{}] }}",
+            quote(name),
+            quote(hand),
+            bits,
+            key_names(*bits),
+        ));
+    }
+    out.push_str("\n    ],\n");
+
+    out.push_str("    \"rules\": [\n");
+    for (num, (name, flag)) in [
+        ("mirrored", rules::MIRRORED),
+        ("cluster", rules::CLUSTER),
+        ("xi_h", rules::XI_H),
+        ("diphthong", rules::DIPHTHONG),
+        ("free", rules::FREE),
+        ("bare_y", rules::BARE_Y),
+        ("capitalise", rules::CAPITALISE),
+    ]
+    .iter()
+    .enumerate()
+    {
+        if num != 0 {
+            out.push_str(",\n");
+        }
+        out.push_str(&format!("      {{ \"name\": {}, \"flag\": {} }}", quote(name), flag));
+    }
+    out.push_str("\n    ]\n");
     out.push_str("  }");
     out
 }
