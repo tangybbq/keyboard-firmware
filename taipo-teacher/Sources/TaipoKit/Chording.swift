@@ -129,6 +129,19 @@ public final class ChordEngine {
     /// Whether the two-row layout sits on the lower rows of a three-row board.
     public private(set) var lowerRow = false
 
+    /// The mode the keyboard is in, following the log's `mode` markers.
+    ///
+    /// Orsy is the one that matters: in it the keys are not Taipo chords at all but
+    /// whole-board strokes, which go to `strokes` instead.  A reader that ignored the
+    /// marker would fold a morning of Orsy into Dosh's measurements, chord by plausible
+    /// chord.  A mode this reader has no idea of reads as taipo, which is what an older
+    /// firmware's log meant by every mode it did not name.
+    public private(set) var mode: KeyboardMode = .taipo
+    /// The stroke engine, present when the tables carry Orsy.
+    public let strokes: StrokeEngine?
+    /// Called with each Orsy stroke as it completes.
+    public var onStroke: ((Stroke) -> Void)?
+
     /// Virtual time, advanced by `tick` so that the window can expire between events.
     private var nowMs: UInt32 = 0
 
@@ -137,6 +150,7 @@ public final class ChordEngine {
         self.variant = layouts.defaultVariant
         self.chordTimeMs = layouts.chordTimeMs
         self.sides = [SideManager(side: .left), SideManager(side: .right)]
+        self.strokes = layouts.orsy.map { StrokeEngine(layouts: layouts, theory: OrsyTheory($0)) }
     }
 
     /// Advance to a moment in time, committing any chord whose window has expired.
@@ -164,6 +178,13 @@ public final class ChordEngine {
         var out = [Chord]()
         advance(to: timeMs, into: &out)
 
+        if mode == .orsy, let strokes {
+            if let stroke = strokes.feed(key: key, press: press, timeMs: timeMs, lowerRow: lowerRow) {
+                onStroke?(stroke)
+            }
+            return out
+        }
+
         guard let (side, mask) = layouts.scan(key, lowerRow: lowerRow) else {
             // A key the layout ignores: the mode key, the toggles, or a dead position.
             return out
@@ -185,6 +206,14 @@ public final class ChordEngine {
         switch name {
         case "variant": variant = value == 1 ? "dosh" : "taipo"
         case "row": lowerRow = value == 1
+        case "mode":
+            let next = KeyboardMode(rawValue: value) ?? .taipo
+            if next != mode {
+                // The rest of the toggle chord's releases land in the new mode, where
+                // nothing is down; the stroke engine starts clean either way.
+                strokes?.reset()
+                mode = next
+            }
         default: break
         }
     }

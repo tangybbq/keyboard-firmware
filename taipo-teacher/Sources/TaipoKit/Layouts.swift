@@ -23,6 +23,10 @@ public struct Layouts: Decodable {
     public let bits: [Bit]
     public let scanMap: ScanMap
     public let variants: [String: Variant]
+    /// The Orsy tables, when the export carries them.  Not a variant: a variant is a table
+    /// of one-hand chord codes, and Orsy is a syllabic layout whose strokes are spelled by
+    /// rule from a few dozen patterns.  See `OrsyTheory`.
+    public let orsy: Orsy?
 
     public struct Bit: Decodable {
         public let bit: Int
@@ -65,12 +69,89 @@ public struct Layouts: Decodable {
         public let chords: [Chord]
     }
 
+    /// The Orsy tables: three groups of patterns, the commands and the rule flags, with a
+    /// fingerprint of their own so that a change to them costs nothing Taipo or Dosh has
+    /// learned, and the other way round.
+    public struct Orsy: Decodable {
+        public let fingerprint: String
+        public let rulesVersion: Int
+        public let outerMask: UInt16
+        public let innerMask: UInt16
+        public let outer: [Outer]
+        public let second: [Second]
+        public let vowel: [Vowel]
+        public let commands: [Command]
+        public let rules: [Rule]
+
+        /// A shape on the outer five keys: an onset on the left hand, a coda on the right.
+        public struct Outer: Decodable {
+            public let michela: String
+            public let bits: UInt16
+            public let keys: [String]
+            /// Nil for the three coda-only shapes.
+            public let onset: String?
+            public let coda: String
+        }
+
+        /// A second-character pattern, on the left hand's inner four.
+        public struct Second: Decodable {
+            public let michela: String
+            public let bits: UInt16
+            public let keys: [String]
+            public let spells: String
+            public let mirroredVowel: String?
+            enum CodingKeys: String, CodingKey {
+                case michela, bits, keys, spells
+                case mirroredVowel = "mirrored_vowel"
+            }
+        }
+
+        /// A vowel pattern, on the right hand's inner four.
+        public struct Vowel: Decodable {
+            public let michela: String
+            public let bits: UInt16
+            public let keys: [String]
+            public let text: String
+            public let endsWord: Bool
+            enum CodingKeys: String, CodingKey {
+                case michela, bits, keys, text
+                case endsWord = "ends_word"
+            }
+        }
+
+        public struct Command: Decodable {
+            public let name: String
+            public let hand: String
+            public let bits: UInt16
+            public let keys: [String]
+        }
+
+        public struct Rule: Decodable {
+            public let name: String
+            public let flag: UInt8
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case fingerprint, outer, second, vowel, commands, rules
+            case rulesVersion = "rules_version"
+            case outerMask = "outer_mask"
+            case innerMask = "inner_mask"
+        }
+
+        /// The fingerprint as an integer.
+        public var fingerprintValue: UInt64? { UInt64(fingerprint.dropFirst(2), radix: 16) }
+
+        public func command(_ name: String) -> UInt16? {
+            commands.first { $0.name == name }?.bits
+        }
+    }
+
     enum CodingKeys: String, CodingKey {
         case formatVersion = "format_version"
         case scancodeSet = "scancode_set"
         case chordTimeMs = "chord_time_ms"
         case defaultVariant = "default_variant"
-        case fingerprint, bits, variants
+        case fingerprint, bits, variants, orsy
         case scanMap = "scan_map"
     }
 

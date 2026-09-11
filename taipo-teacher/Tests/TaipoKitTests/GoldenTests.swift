@@ -25,10 +25,19 @@ final class GoldenTests: XCTestCase {
         return try String(contentsOf: url, encoding: .utf8)
     }
 
-    /// Replay one golden log and return the chord lines this engine produces.
+    /// Replay one golden log and return the chord lines this engine produces, and the
+    /// stroke lines for an Orsy log.
     private func chordLines(_ name: String) throws -> [String] {
+        try lines(name).chords
+    }
+
+    private func lines(_ name: String) throws -> (chords: [String], strokes: [String]) {
         let engine = ChordEngine(layouts: try layouts())
         var out = [String]()
+        var strokes = [String]()
+        engine.onStroke = { stroke in
+            strokes.append(engine.strokes!.describe(stroke))
+        }
 
         for line in try golden(name, "log").split(separator: "\n") {
             let text = line.trimmingCharacters(in: .whitespaces)
@@ -55,7 +64,7 @@ final class GoldenTests: XCTestCase {
         for chord in engine.finish() {
             out.append(engine.describe(chord))
         }
-        return out
+        return (out, strokes)
     }
 
     /// `L.t` and `R.Sp` back to a key code, by searching the scan map the same way
@@ -73,10 +82,26 @@ final class GoldenTests: XCTestCase {
 
     /// The chord lines from the checked-in derived file.
     private func expectedChords(_ name: String) throws -> [String] {
+        try expected(name, "chord ")
+    }
+
+    private func expected(_ name: String, _ prefix: String) throws -> [String] {
         try golden(name, "derived")
             .split(separator: "\n")
-            .filter { $0.hasPrefix("chord ") }
-            .map { String($0.dropFirst("chord ".count)) }
+            .filter { $0.hasPrefix(prefix) }
+            .map { String($0.dropFirst(prefix.count)) }
+    }
+
+    /// An Orsy log: the stroke lines have to match, and no chord may be assembled from
+    /// keys that were strokes.
+    private func compareStrokes(_ name: String) throws {
+        let got = try lines(name)
+        let want = try expected(name, "stroke ")
+        XCTAssertTrue(got.chords.isEmpty, "\(name): Orsy keys assembled as chords")
+        XCTAssertEqual(got.strokes.count, want.count, "\(name): stroke count differs")
+        for (i, (g, w)) in zip(got.strokes, want).enumerated() {
+            XCTAssertEqual(g, w, "\(name): stroke \(i) differs")
+        }
     }
 
     private func compare(_ name: String) throws {
@@ -102,6 +127,17 @@ final class GoldenTests: XCTestCase {
     /// A writer whose fingers land on the wrong row and on the wrong finger.
     func testSlipsLogMatchesRust() throws {
         try compare("slips")
+    }
+
+    /// A tidy Orsy writer: one stroke per syllable, both hands at once.
+    func testOrsyCleanLogMatchesRust() throws {
+        try compareStrokes("orsy-clean")
+    }
+
+    /// Orsy strokes assembled finger by finger, with a wrong stroke undone, a wrong Series
+    /// backspaced through the Dosh escape, and a dead chord.
+    func testOrsySloppyLogMatchesRust() throws {
+        try compareStrokes("orsy-sloppy")
     }
 
     /// The tables the app resolves chords with must be the ones the keyboard is running,
