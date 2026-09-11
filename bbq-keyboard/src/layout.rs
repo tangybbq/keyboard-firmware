@@ -625,6 +625,51 @@ pub enum LayoutMode {
     Orsy,
 }
 
+impl LayoutMode {
+    /// The key log's own number for this mode.
+    ///
+    /// `LayoutMode`'s discriminants shift with the cargo features, so a log
+    /// written by a taipo-only firmware would otherwise disagree with one
+    /// written by a full build about what "1" means.  The numbering is
+    /// `minder::keylog::mode_code`, shared with the host.
+    pub const fn marker(self) -> u8 {
+        use minder::keylog::mode_code;
+        match self {
+            LayoutMode::Taipo => mode_code::TAIPO,
+            #[cfg(feature = "steno")]
+            LayoutMode::Steno => mode_code::STENO,
+            #[cfg(feature = "steno")]
+            LayoutMode::StenoDirect => mode_code::STENO_DIRECT,
+            #[cfg(feature = "qwerty")]
+            LayoutMode::Qwerty => mode_code::QWERTY,
+            #[cfg(feature = "qwerty")]
+            LayoutMode::NKRO => mode_code::NKRO,
+            #[cfg(feature = "orsy")]
+            LayoutMode::Orsy => mode_code::ORSY,
+        }
+    }
+
+    /// The mode a key log marker names, or `None` for a mode this build does
+    /// not have -- or a newer firmware's mode this build has never heard of.
+    pub const fn from_marker(value: u8) -> Option<LayoutMode> {
+        use minder::keylog::mode_code;
+        match value {
+            mode_code::TAIPO => Some(LayoutMode::Taipo),
+            #[cfg(feature = "steno")]
+            mode_code::STENO => Some(LayoutMode::Steno),
+            #[cfg(feature = "steno")]
+            mode_code::STENO_DIRECT => Some(LayoutMode::StenoDirect),
+            #[cfg(feature = "qwerty")]
+            mode_code::QWERTY => Some(LayoutMode::Qwerty),
+            #[cfg(feature = "qwerty")]
+            mode_code::NKRO => Some(LayoutMode::NKRO),
+            #[cfg(feature = "orsy")]
+            mode_code::ORSY => Some(LayoutMode::Orsy),
+            _ => None,
+        }
+    }
+}
+
 impl Default for LayoutMode {
     /// The initial mode we're starting in.
     fn default() -> Self {

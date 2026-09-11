@@ -28,7 +28,7 @@ use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Ticker};
 #[cfg(feature = "steno")]
 use embassy_time::{Instant, Timer};
-use minder::keylog::{mode_code, Marker};
+use minder::keylog::Marker;
 use static_cell::StaticCell;
 
 use crate::board::{Inter, KeyChannel, UsbHandler};
@@ -266,30 +266,9 @@ impl MatrixAction for Dispatch {
     }
 }
 
-/// The log's own numbering for a mode.
-///
-/// `LayoutMode`'s discriminants shift with the `qwerty` and `steno` cargo features, so a
-/// log written by a taipo-only firmware would otherwise disagree with one written by a full
-/// build about what "1" means.
-fn mode_marker(mode: LayoutMode) -> u8 {
-    match mode {
-        LayoutMode::Taipo => mode_code::TAIPO,
-        #[cfg(feature = "steno")]
-        LayoutMode::Steno => mode_code::STENO,
-        #[cfg(feature = "steno")]
-        LayoutMode::StenoDirect => mode_code::STENO_DIRECT,
-        #[cfg(feature = "qwerty")]
-        LayoutMode::Qwerty => mode_code::QWERTY,
-        #[cfg(feature = "qwerty")]
-        LayoutMode::NKRO => mode_code::NKRO,
-        #[cfg(feature = "orsy")]
-        LayoutMode::Orsy => mode_code::ORSY,
-    }
-}
-
 impl LayoutActions for Dispatch {
     async fn set_mode(&self, mode: LayoutMode) {
-        keylog::log_marker(Marker::Mode, mode_marker(mode));
+        keylog::log_marker(Marker::Mode, mode.marker());
 
         // Steno output is buffered briefly before being typed.  Leaving steno mode, get it out
         // now, rather than having it appear in the middle of what is typed next.  Signalling with
