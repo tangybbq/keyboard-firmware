@@ -177,6 +177,14 @@ the output stage learned about escaped backspaces, which it had been ignoring.
 With this much the **Live tab shows Orsy strokes and their text**, and the skill model
 fills from every log, before there is a drill.
 
+Done. `Layouts.orsy`, `OrsyTheory` (checked against `golden/orsy-theory.sample`),
+`StrokeEngine` behind the `mode` marker in `ChordEngine` (checked against the `orsy-*`
+goldens), `OrsySkillModel` with per-pattern samples and blame by Series, kept in the skill
+cache under the Orsy fingerprint, and the Live tab's stroke rows. Two limits to know
+about: a session header carries only the chord tables' fingerprint, so the Orsy tables a
+session was typed under are inferred from the layout history rather than reported by the
+device; and the practice tab scores nothing in Orsy mode until Phase C.
+
 ## Phase C: the drill
 
 - **`OrsyLadder`.** Items are patterns and rules, staged as in Step 0: transfer, conflicts,
