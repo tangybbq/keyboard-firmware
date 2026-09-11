@@ -213,6 +213,16 @@ public final class OrsyDrillSession {
         return chars[cursor] == " " && !output.pendingSpace
     }
 
+    /// The mirror of `wordOpen`: the typing is in the middle of a target word, and the
+    /// last stroke closed it -- an ending form where a plain vowel was wanted.  The text
+    /// still matches; the space it owes lands on the next stroke, which is then wrong for
+    /// no reason the eye can see.
+    public var wordClosedEarly: Bool {
+        guard onTrack, !finished, !typed.isEmpty else { return false }
+        let chars = Array(target.text)
+        return chars[cursor] != " " && output.pendingSpace
+    }
+
     /// The stroke the table wants next, if the typing is at the start of one.
     public var wantedStroke: OrsyDrillUnit? {
         let at = divergedAt ?? cursor
@@ -305,7 +315,18 @@ public final class OrsyDrillSession {
             let chars = Array(target.text)
             let expected = offset < chars.count
                 ? String(chars[offset..<min(offset + max(1, text.count), chars.count)]) : ""
-            let series = diagnose(stroke, translation: translation, wanted: wanted)
+            var series = diagnose(stroke, translation: translation, wanted: wanted)
+            // A space nobody asked for came from the stroke before, which closed the
+            // word; the stroke itself may have been right.
+            if text.hasPrefix(" "), !expected.hasPrefix(" ") {
+                series.insert("space", at: 0)
+                let rest = String(text.dropFirst())
+                let fine = offset < chars.count && String(chars[offset...]).hasPrefix(rest)
+                diagnosis =
+                    "space: the stroke before closed the word early (ending form); "
+                    + (fine ? "this stroke was right -- undo both and retype it with the plain vowel"
+                        : "undo both and use the plain vowel")
+            }
             events.append(.wrong(expected: expected, got: text, series: series))
             if divergedAt == nil { divergedAt = offset }
             stumbled = true

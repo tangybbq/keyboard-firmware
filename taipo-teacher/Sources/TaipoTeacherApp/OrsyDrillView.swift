@@ -197,6 +197,13 @@ struct OrsyDrillView: View {
                     systemImage: "space")
                     .font(.callout)
                     .foregroundStyle(.orange)
+            } else if drill.wordClosedEarly {
+                Label(
+                    "Word closed early: that stroke used the ending form, so the next "
+                        + "one will get a space.  Undo and use the plain vowel.",
+                    systemImage: "space")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
             }
             HStack(spacing: 14) {
                 Label(

@@ -177,6 +177,37 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(session.stats.wrong, 1)
     }
 
+    /// The ending form in the middle of a word closes it early: flagged at once, and the
+    /// space it puts on the next stroke is explained.
+    func testWordClosedEarly() throws {
+        let (layouts, theory, words) = try fixtures()
+        let target = OrsyDrillTarget(text: "tennis", words: words, theory: theory)
+        let session = OrsyDrillSession(target: target, theory: theory, layouts: layouts)
+        // ten with the ending form.
+        session.feed(stroke(theory, 0x004, 0x248, at: 1000))
+        XCTAssertTrue(session.onTrack)
+        XCTAssertTrue(session.wordClosedEarly)
+        XCTAssertFalse(session.wordOpen)
+        // nis, correct in itself, arrives with a space.
+        session.feed(stroke(theory, 0x040, 0x2a0, at: 1500))
+        XCTAssertEqual(session.typed, "ten nis")
+        XCTAssertFalse(session.onTrack)
+        guard case .wrong(_, let got, let series) = session.events.last else {
+            return XCTFail("not a wrong event")
+        }
+        XCTAssertEqual(got, " nis")
+        XCTAssertEqual(series.first, "space")
+        XCTAssertTrue(session.diagnosis?.hasPrefix("space: the stroke before closed the word early") ?? false)
+        XCTAssertTrue(session.diagnosis?.contains("this stroke was right") ?? false)
+        // Undo both, plain ten, then nis: right.
+        session.feed(stroke(theory, 0x067, 0, at: 2000))
+        session.feed(stroke(theory, 0x067, 0, at: 2500))
+        session.feed(stroke(theory, 0x004, 0x048, at: 3000))
+        XCTAssertFalse(session.wordClosedEarly)
+        session.feed(stroke(theory, 0x040, 0x2a0, at: 3500))
+        XCTAssertTrue(session.finished)
+    }
+
     /// A dead stroke counts, and the escapes control the line.
     func testDeadAndControls() throws {
         let (layouts, theory, words) = try fixtures()
