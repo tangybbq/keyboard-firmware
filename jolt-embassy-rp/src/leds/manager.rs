@@ -1,8 +1,8 @@
 //! The modifier indicator.
 //!
-//! Every LED on the board is one Taipo modifier: dark while that modifier is not held, lit in
-//! that modifier's color while it is one-shot, and lit with white mixed in while it is latched.
-//! Nothing else is shown.  A keyboard that is only ever in Taipo, on one chord table, spends its
+//! Every LED on the board is one Taipo modifier: showing the mode's background while that
+//! modifier is not held, lit in that modifier's color while it is one-shot, and lit with white
+//! mixed in while it is latched.  A keyboard that is only ever in Taipo, on one chord table, spends its
 //! whole life in one mode and one variant, so the indicators for those said the same thing every
 //! day; what actually changes minute to minute is the modifier state, and it was the one thing
 //! being squeezed -- 31 states into a single LED, as a color that had to be learned.
@@ -29,8 +29,16 @@
 //! A board with fewer LEDs than modifiers shows the leading ones and drops the rest.  That is not
 //! really supported -- the boards in use all have four -- but it is what falls out, rather than a
 //! panic.
+//!
+//! The one thing besides the modifiers is the layout mode, and it is shown underneath them rather
+//! than on an LED of its own, as the color an LED falls back to when its modifier is not held.
+//! Taipo, whichever chord table it is on, keeps the dark board it has always had; Orsy lights all
+//! four white.  Orsy and Dosh are the same nine keys and produce the same kind of output, so
+//! there is otherwise nothing on the board or on the screen to say which one a chord is about to
+//! be read as, and that is worth a whole board's worth of light.  Modifiers still paint over it,
+//! so a modifier held in Orsy reads as its own color against the three white ones.
 
-use bbq_keyboard::Mods;
+use bbq_keyboard::{LayoutMode, Mods};
 use heapless::Vec;
 use smart_leds::RGB8;
 
@@ -81,11 +89,37 @@ static MOD_LEDS: [ModLed; 4] = [
 /// on.
 const LATCH: RGB8 = RGB8::new(4, 4, 4);
 
+/// The background for Orsy: every LED that has no modifier to show, white.
+///
+/// Equal channels, like [`LATCH`], because that is what actually looks white on these parts.
+/// Summing the three balanced primaries is the version of this that reasons from their numbers,
+/// and on the board it came out both glaring and distinctly purple -- the balance is eye-tuned
+/// against a real ws2812's green, which is hotter than sRGB says, so it buys green's lightness
+/// with far more red and blue than a white wants.  Equal channels give that back.
+///
+/// One, the bottom step of the part, and it is enough: the whole board is lit for as long as
+/// Orsy is, and a light that is simply on needs far less of itself to be noticed than the
+/// modifier colors do.  The 3 that the palette above treats as green's floor does not bind here
+/// -- that floor is about holding a *ratio* between channels, and at the bottom step all three
+/// are equally untrustworthy, so the worst this can do is tint a little.
+///
+/// It sits well below the held modifiers, which leaves a modifier in Orsy the brightest thing on
+/// the board rather than a dim patch in a white field.
+#[cfg(feature = "orsy")]
+const MODE_ORSY: RGB8 = RGB8::new(1, 1, 1);
+
 pub struct LedManager {
     leds: LedSet,
 
     /// What is currently displayed, kept so [`Self::tick`] can rewrite it.
     colors: Vec<RGB8, MAX_LEDS>,
+
+    /// What the mode wants an LED with nothing else to show to be.
+    base: RGB8,
+
+    /// The modifier state, kept because a mode change has to redraw it.
+    oneshot: Mods,
+    sticky: Mods,
 }
 
 impl LedManager {
@@ -95,7 +129,26 @@ impl LedManager {
         let colors: Vec<RGB8, MAX_LEDS> = core::iter::repeat(OFF).take(leds.len()).collect();
         leds.update(&colors);
 
-        LedManager { leds, colors }
+        LedManager {
+            leds,
+            colors,
+            base: OFF,
+            oneshot: Mods::empty(),
+            sticky: Mods::empty(),
+        }
+    }
+
+    /// Show the layout mode.
+    ///
+    /// The layout tells us the mode on its first tick as well as on every change, so this is not
+    /// waiting on the user to do something before the board is honest about which mode it is in.
+    pub fn set_mode(&mut self, mode: LayoutMode) {
+        self.base = match mode {
+            #[cfg(feature = "orsy")]
+            LayoutMode::Orsy => MODE_ORSY,
+            _ => OFF,
+        };
+        self.render();
     }
 
     /// Show the modifier state.
@@ -103,10 +156,17 @@ impl LedManager {
     /// `oneshot` is every modifier held and `sticky` the subset of those that survives a
     /// keypress; `sticky` is always a subset, so a latched modifier is tested for first.
     pub fn set_mods(&mut self, oneshot: Mods, sticky: Mods) {
+        self.oneshot = oneshot;
+        self.sticky = sticky;
+        self.render();
+    }
+
+    /// Redraw from the mode and modifier state.
+    fn render(&mut self) {
         for (color, led) in self.colors.iter_mut().zip(&MOD_LEDS) {
-            *color = if !oneshot.contains(led.modifier) {
-                OFF
-            } else if sticky.contains(led.modifier) {
+            *color = if !self.oneshot.contains(led.modifier) {
+                self.base
+            } else if self.sticky.contains(led.modifier) {
                 add(led.color, LATCH)
             } else {
                 led.color

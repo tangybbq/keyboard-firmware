@@ -270,6 +270,8 @@ impl LayoutActions for Dispatch {
     async fn set_mode(&self, mode: LayoutMode) {
         keylog::log_marker(Marker::Mode, mode.marker());
 
+        self.leds.lock().await.set_mode(mode);
+
         // Steno output is buffered briefly before being typed.  Leaving steno mode, get it out
         // now, rather than having it appear in the middle of what is typed next.  Signalling with
         // nothing buffered is harmless.
