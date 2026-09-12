@@ -80,7 +80,7 @@ public struct LayoutHistory {
             out["cmd:\(c.name)"] = "\(c.hand):\(c.bits)"
         }
         for p in orsy.punctuation {
-            out["punct:\(p.text)"] = "\(p.bits):\(p.capitalises ? 1 : 0)"
+            out["punct:\(p.text)"] = "\(p.bits):\(p.spaceAfter ? 1 : 0)\(p.capitalises ? 1 : 0)"
         }
         for r in orsy.rules {
             out["rule:\(r.name)"] = String(orsy.rulesVersion)

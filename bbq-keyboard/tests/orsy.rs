@@ -301,8 +301,11 @@ fn test_space_and_cap() {
 fn test_punctuation() {
     use bbq_orsy::tables::punctuation;
     let mut t = Tester::new();
-    let full_stop = punctuation::lookup(0x204).expect("a full stop").bits;
-    let comma = punctuation::lookup(0x240).expect("a comma").bits;
+    let mark = |text: &str| {
+        punctuation::ALL.iter().find(|m| m.text == text).expect("a mark").bits
+    };
+    let full_stop = mark(".");
+    let comma = mark(",");
 
     t.stroke(ten());
     assert_eq!(t.typed(), "ten");
@@ -325,6 +328,17 @@ fn test_punctuation() {
     assert_eq!(t.typed(), "\u{8}\u{8}\u{8}\u{8}");
     t.stroke((commands::UNDO, 0));
     assert_eq!(t.typed(), "\u{8}");
+
+    // The apostrophe binds forward, so the coda that follows joins the same word.
+    let mut t = Tester::new();
+    t.stroke(ten_());
+    assert_eq!(t.typed(), "ten");
+    t.stroke((0, mark("'")));
+    assert_eq!(t.typed(), "'");
+    t.stroke((0, 0x020));
+    assert_eq!(t.typed(), "s");
+    t.stroke(ten());
+    assert_eq!(t.typed(), " ten");
 }
 
 /// The one-shot escape plays the right hand's chord through the Dosh table,

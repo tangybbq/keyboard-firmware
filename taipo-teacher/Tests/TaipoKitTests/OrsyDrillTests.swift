@@ -140,28 +140,47 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(marks.first?.text, ".")
         for mark in marks {
             // Nothing else claims the chord, on either reading.
-            XCTAssertEqual(
-                theory.outcome(left: 0, right: mark.bits),
-                .punct(mark.text, capitalises: mark.capitalises), mark.text)
+            XCTAssertEqual(theory.outcome(left: 0, right: mark.bits), .punct(mark), mark.text)
             XCTAssertNil(theory.translate(left: 0, right: mark.bits), mark.text)
             XCTAssertEqual(mark.keys.last, "Bk", mark.text)
         }
 
+        func find(_ text: String) throws -> Layouts.Orsy.Punctuation {
+            try XCTUnwrap(marks.first { $0.text == text })
+        }
         var output = OrsyOutput()
         let ten = try XCTUnwrap(theory.translate(left: 0x004, right: 0x248))
         let tenOpen = try XCTUnwrap(theory.translate(left: 0x004, right: 0x048))
         XCTAssertEqual(output.stroke(ten), "ten")
-        XCTAssertEqual(output.mark(".", capitalises: true), ".")
+        XCTAssertEqual(output.mark(try find(".")), ".")
         // The next word gets its space back, and its capital.
         XCTAssertEqual(output.stroke(ten), " Ten")
         // A mark after a word left open attaches and still owes the space.
         XCTAssertEqual(output.stroke(tenOpen), " ten")
-        XCTAssertEqual(output.mark(",", capitalises: false), ",")
+        XCTAssertEqual(output.mark(try find(",")), ",")
         XCTAssertEqual(output.stroke(ten), " ten")
         // And it is on the record, so undo takes it back.
         XCTAssertEqual(output.undo(), 4)
         XCTAssertEqual(output.undo(), 1)
         XCTAssertEqual(String(output.recent), "ten. Ten ten")
+    }
+
+    /// The apostrophe and the hyphen bind forward: what follows joins the same word.
+    func testBindingMarks() throws {
+        let (_, theory, _) = try fixtures()
+        let marks = theory.tables.punctuation
+        let apostrophe = try XCTUnwrap(marks.first { $0.text == "'" })
+        XCTAssertFalse(apostrophe.spaceAfter)
+        var output = OrsyOutput()
+        // `ten` with a plain vowel, an apostrophe, then a coda-only s.
+        let open = try XCTUnwrap(theory.translate(left: 0x004, right: 0x048))
+        let codaS = try XCTUnwrap(theory.translate(left: 0, right: 0x020))
+        _ = output.stroke(open)
+        _ = output.mark(apostrophe)
+        _ = output.stroke(codaS)
+        XCTAssertEqual(String(output.recent), "ten's")
+        // And the coda closed the word, so the next one gets its space.
+        XCTAssertEqual(output.stroke(open), " ten")
     }
 
     /// A stroke's skill key names the mark, so the model can measure it.

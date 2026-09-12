@@ -546,23 +546,39 @@ pub mod commands {
 /// on its own, so no syllable can produce any of them, and the whole family is two keys on
 /// the hand that already ends words.
 pub mod punctuation {
-    /// One mark: what it types, and whether the next word is capitalised.
+    /// One mark: what it types, and how it joins to what is around it.
+    ///
+    /// Every mark attaches to whatever came before, closed or not, since that is what
+    /// makes it punctuation rather than a word.  What they differ in is the far side: most
+    /// owe a space to the next word, while the apostrophe and the hyphen bind straight on
+    /// to it, so `don` `'` `t` comes out as one word.
     #[derive(PartialEq, Eq, Debug)]
     pub struct Mark {
         /// The right-hand keys.  The left hand is empty.
         pub bits: u16,
         pub text: &'static str,
+        /// Whether the next word gets a space.  False for the marks that bind forward.
+        pub space_after: bool,
         /// Whether the next letter is capitalised, which the sentence-enders do.
         pub capitalises: bool,
     }
 
     /// Every mark, in the order the lessons teach them.
+    ///
+    /// One outer key each for the five commonest, which is all the one-key shapes there
+    /// are; the rest take two.  Ranked by how often English prose wants them rather than
+    /// by any tidiness of the shapes: the apostrophe and the hyphen are wanted far more
+    /// than the exclamation mark and the colon, and neither of them can be had from the
+    /// escape without breaking the word it belongs to.
     pub static ALL: &[Mark] = &[
-        Mark { bits: 0x204, text: ".", capitalises: true },   // Bk + t
-        Mark { bits: 0x240, text: ",", capitalises: false },  // Bk + n
-        Mark { bits: 0x220, text: "?", capitalises: true },   // Bk + s
-        Mark { bits: 0x202, text: "!", capitalises: true },   // Bk + o
-        Mark { bits: 0x201, text: ":", capitalises: false },  // Bk + a
+        Mark { bits: 0x204, text: ".", space_after: true, capitalises: true },   // Bk+t
+        Mark { bits: 0x240, text: ",", space_after: true, capitalises: false },  // Bk+n
+        Mark { bits: 0x220, text: "'", space_after: false, capitalises: false }, // Bk+s
+        Mark { bits: 0x202, text: "?", space_after: true, capitalises: true },   // Bk+o
+        Mark { bits: 0x201, text: "-", space_after: false, capitalises: false }, // Bk+a
+        Mark { bits: 0x206, text: "!", space_after: true, capitalises: true },   // Bk+o+t
+        Mark { bits: 0x260, text: ":", space_after: true, capitalises: false },  // Bk+s+n
+        Mark { bits: 0x244, text: ";", space_after: true, capitalises: false },  // Bk+t+n
     ];
 
     /// The mark a right hand strikes, if it is one.  The caller checks the left hand is

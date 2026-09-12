@@ -353,10 +353,12 @@ fn orsy_json() -> String {
             out.push_str(",\n");
         }
         out.push_str(&format!(
-            "      {{ \"text\": {}, \"bits\": {}, \"keys\": [{}], \"capitalises\": {} }}",
+            "      {{ \"text\": {}, \"bits\": {}, \"keys\": [{}], \"space_after\": {}, \
+             \"capitalises\": {} }}",
             quote(mark.text),
             mark.bits,
             key_names(mark.bits),
+            mark.space_after,
             mark.capitalises,
         ));
     }

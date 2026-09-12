@@ -19,6 +19,7 @@
 //! the characters and backspaces to send, so that the caller decides how.
 
 use crate::compose::Translation;
+use crate::tables::punctuation;
 
 /// One thing for the keyboard to send.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -148,19 +149,20 @@ impl Output {
     /// Type a punctuation mark.
     ///
     /// It attaches to whatever came before, with no space, whether or not that word was
-    /// closed; it owes a space to the next word; and the sentence-enders capitalise it.
-    /// Recorded like any other stroke, so undo takes it back with the characters it typed.
-    pub fn mark(&mut self, text: &str, capitalises: bool, ops: &mut Ops) {
+    /// closed.  Most owe a space to the next word; the apostrophe and the hyphen do not,
+    /// so what follows binds straight on.  Recorded like any other stroke, so undo takes
+    /// it back with the characters it typed.
+    pub fn mark(&mut self, mark: &punctuation::Mark, ops: &mut Ops) {
         let record = Stroke { chars: 0, pending_space: self.pending_space };
         let mut count = 0u8;
-        for ch in text.chars() {
+        for ch in mark.text.chars() {
             self.emit(ch, ops);
             count = count.saturating_add(1);
         }
-        self.pending_space = true;
+        self.pending_space = mark.space_after;
         // Never cleared here: a mark that does not capitalise should not cancel a capital
         // the writer has already asked for.
-        self.pending_cap |= capitalises;
+        self.pending_cap |= mark.capitalises;
         self.record(Stroke { chars: count, ..record });
     }
 
@@ -305,6 +307,8 @@ mod tests {
     const TE_: (Outer, Second, Vowel, Outer) = (Outer::FP, Second::Empty, Vowel::E, Outer::N);
     const NT: (Outer, Second, Vowel, Outer) = (Outer::Empty, Second::Empty, Vowel::Empty, Outer::FZN);
     const S: (Outer, Second, Vowel, Outer) = (Outer::S, Second::Empty, Vowel::Empty, Outer::Empty);
+    /// A coda-only `s`, which leans back onto the syllable before it and closes the word.
+    const S_CODA: (Outer, Second, Vowel, Outer) = (Outer::Empty, Second::Empty, Vowel::Empty, Outer::S);
 
     fn c(p: (Outer, Second, Vowel, Outer)) -> Chord {
         chord(p.0, p.1, p.2, p.3)
@@ -352,17 +356,20 @@ mod tests {
     /// space back; a sentence-ender capitalises what follows.
     #[test]
     fn marks() {
+        fn find(text: &str) -> &'static punctuation::Mark {
+            punctuation::ALL.iter().find(|m| m.text == text).expect("a mark")
+        }
         let mut out = Output::new();
         let mut ops = Ops::new();
         // After a closed word.
         stroke(&mut out, c(TEN));
-        out.mark(".", true, &mut ops);
+        out.mark(find("."), &mut ops);
         assert_eq!(ops.text(), ".");
         assert_eq!(stroke(&mut out, c(TEN)), " Ten");
         // And after one left open, where the escape used to run the next word on.
         stroke(&mut out, c(TE_));
         let mut ops = Ops::new();
-        out.mark(",", false, &mut ops);
+        out.mark(find(","), &mut ops);
         assert_eq!(ops.text(), ",");
         assert_eq!(out.recent(), "ten. Ten ten,");
         assert_eq!(stroke(&mut out, c(TEN)), " ten");
@@ -373,6 +380,29 @@ mod tests {
         out.undo(&mut ops);
         assert_eq!(ops.text(), "\u{8}\u{8}\u{8}\u{8}\u{8}");
         assert_eq!(out.recent(), "ten. Ten ten");
+    }
+
+    /// The apostrophe and the hyphen bind forward, so what follows joins the same word.
+    #[test]
+    fn binding_marks() {
+        fn find(text: &str) -> &'static punctuation::Mark {
+            punctuation::ALL.iter().find(|m| m.text == text).expect("a mark")
+        }
+        let mut out = Output::new();
+        let mut ops = Ops::new();
+        // A word, an apostrophe, and a coda fragment: one word, and then a space.
+        stroke(&mut out, c(TE_));
+        out.mark(find("'"), &mut ops);
+        assert_eq!(stroke(&mut out, c(S_CODA)), "s");
+        assert_eq!(out.recent(), "ten's");
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        // The hyphen joins two whole words.
+        let mut out = Output::new();
+        let mut ops = Ops::new();
+        stroke(&mut out, c(TEN));
+        out.mark(find("-"), &mut ops);
+        assert_eq!(stroke(&mut out, c(TEN)), "ten");
+        assert_eq!(out.recent(), "ten-ten");
     }
 
     /// Cap next capitalises the first letter of the next stroke, once.

@@ -135,7 +135,7 @@
     "jolt3": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 19, 15, 255, 255, 255, 24, 25, 26, 28, 29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 39, 43, 47, 255, 255, 255]
   },
   "orsy": {
-    "fingerprint": "0x431d669800c0ee50",
+    "fingerprint": "0xe106c1f7aff88220",
     "rules_version": 1,
     "outer_mask": 103,
     "inner_mask": 904,
@@ -209,11 +209,14 @@
       { "name": "undo", "hand": "left", "bits": 103, "keys": ["a", "o", "t", "s", "n"] }
     ],
     "punctuation": [
-      { "text": ".", "bits": 516, "keys": ["t", "Bk"], "capitalises": true },
-      { "text": ",", "bits": 576, "keys": ["n", "Bk"], "capitalises": false },
-      { "text": "?", "bits": 544, "keys": ["s", "Bk"], "capitalises": true },
-      { "text": "!", "bits": 514, "keys": ["o", "Bk"], "capitalises": true },
-      { "text": ":", "bits": 513, "keys": ["a", "Bk"], "capitalises": false }
+      { "text": ".", "bits": 516, "keys": ["t", "Bk"], "space_after": true, "capitalises": true },
+      { "text": ",", "bits": 576, "keys": ["n", "Bk"], "space_after": true, "capitalises": false },
+      { "text": "'", "bits": 544, "keys": ["s", "Bk"], "space_after": false, "capitalises": false },
+      { "text": "?", "bits": 514, "keys": ["o", "Bk"], "space_after": true, "capitalises": true },
+      { "text": "-", "bits": 513, "keys": ["a", "Bk"], "space_after": false, "capitalises": false },
+      { "text": "!", "bits": 518, "keys": ["o", "t", "Bk"], "space_after": true, "capitalises": true },
+      { "text": ":", "bits": 608, "keys": ["s", "n", "Bk"], "space_after": true, "capitalises": false },
+      { "text": ";", "bits": 580, "keys": ["t", "n", "Bk"], "space_after": true, "capitalises": false }
     ],
     "rules": [
       { "name": "mirrored", "flag": 1 },

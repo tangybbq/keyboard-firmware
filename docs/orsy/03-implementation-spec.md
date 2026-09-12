@@ -62,16 +62,29 @@ originally said it need not be. The chords extend the space command: `Bk` alone 
 and `Bk` plus one outer key is a mark. `Bk` is not a vowel form on its own, so no syllable
 can reach any of them, and the family is two keys on the hand that already ends words.
 
+Every mark attaches to what came before it, closed or not. They differ on the far side:
+most owe the next word a space, while the apostrophe and the hyphen bind straight on to it,
+so `don` `'` `t` is one word. The five commonest take the five one-key shapes, which is all
+there are; the rest take two.
+
 | stroke | mark | |
 |---|---|---|
-| `Bk` + `t` | `.` | attaches, owes a space, capitalises |
-| `Bk` + `n` | `,` | attaches, owes a space |
-| `Bk` + `s` | `?` | attaches, owes a space, capitalises |
-| `Bk` + `o` | `!` | attaches, owes a space, capitalises |
-| `Bk` + `a` | `:` | attaches, owes a space |
+| `Bk` + `t` | `.` | owes a space, capitalises |
+| `Bk` + `n` | `,` | owes a space |
+| `Bk` + `s` | `'` | binds forward |
+| `Bk` + `o` | `?` | owes a space, capitalises |
+| `Bk` + `a` | `-` | binds forward |
+| `Bk` + `o` + `t` | `!` | owes a space, capitalises |
+| `Bk` + `s` + `n` | `:` | owes a space |
+| `Bk` + `t` + `n` | `;` | owes a space |
 
 They go through the output stage, so they are recorded, undoable, and visible to
-retro-capitalisation. Everything else is still the Dosh escape.
+retro-capitalisation. Everything else is still the Dosh escape, and 23 of the family's 31
+shapes are still free.
+
+Quotes and brackets are deliberately left out. They are asymmetric — the opener binds
+forward and the closer back — so they need either two chords each or a notion of which one
+is due, and getting that wrong is worse than reaching for the escape.
 
 `dosh_oneshot` is held on the left while the right hand plays a literal Dosh chord — one
 stroke, and every Dosh chord including the thumb layers is reachable. A mirrored form, so

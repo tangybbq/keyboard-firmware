@@ -1037,8 +1037,8 @@ public final class DeviceMonitor: ObservableObject {
         case .text(let t):
             label = t.text
             isText = true
-        case .punct(let text, _):
-            label = text
+        case .punct(let mark):
+            label = mark.text
             isText = true
         case .undo: label = "undo"
         case .space: label = "space"

@@ -133,11 +133,21 @@ public struct Layouts: Decodable {
         }
 
         /// A mark that takes part in the spacing: a right-handed stroke on its own.
-        public struct Punctuation: Decodable {
+        ///
+        /// Every mark attaches to what came before it.  `spaceAfter` is the far side: most
+        /// owe the next word a space, while the apostrophe and the hyphen bind straight on
+        /// to it.
+        public struct Punctuation: Decodable, Equatable, Sendable {
             public let text: String
             public let bits: UInt16
             public let keys: [String]
+            public let spaceAfter: Bool
             public let capitalises: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case text, bits, keys, capitalises
+                case spaceAfter = "space_after"
+            }
         }
 
         enum CodingKeys: String, CodingKey {

@@ -143,6 +143,7 @@ pub fn orsy_fingerprint() -> u64 {
     for mark in bbq_orsy::tables::punctuation::ALL {
         h.u16(mark.bits);
         h.run(mark.text.as_bytes());
+        h.byte(mark.space_after as u8);
         h.byte(mark.capitalises as u8);
     }
     for c in [

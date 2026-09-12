@@ -193,9 +193,7 @@ impl OrsyManager {
             StrokeOutcome::Undo => self.output.undo(&mut ops),
             StrokeOutcome::Space => self.output.space(&mut ops),
             StrokeOutcome::CapNext => self.output.cap_next(),
-            StrokeOutcome::Punct(mark) => {
-                self.output.mark(mark.text, mark.capitalises, &mut ops)
-            }
+            StrokeOutcome::Punct(mark) => self.output.mark(mark, &mut ops),
             StrokeOutcome::Text(t) => self.output.stroke(&t, &mut ops),
             // Not a syllable.  Nothing is typed, which is the error signal
             // there is.
