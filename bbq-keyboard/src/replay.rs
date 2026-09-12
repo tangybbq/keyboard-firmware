@@ -1065,6 +1065,7 @@ impl Stroke {
                 StrokeOutcome::Undo => "undo".to_string(),
                 StrokeOutcome::Space => "space".to_string(),
                 StrokeOutcome::CapNext => "cap-next".to_string(),
+                StrokeOutcome::Punct(mark) => format!("punct {:?}", mark.text),
                 StrokeOutcome::ToggleDosh => "dosh-toggle".to_string(),
                 StrokeOutcome::Dosh(code) => format!("dosh {code:#05x}"),
                 StrokeOutcome::Dead => "dead".to_string(),

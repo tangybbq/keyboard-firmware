@@ -25,7 +25,7 @@
 //! there switches back; that end is in the Dosh table.
 
 use bbq_orsy::chord::HAND_MASK;
-use bbq_orsy::tables::commands;
+use bbq_orsy::tables::{commands, punctuation};
 use bbq_orsy::{translate, Chord, Op, Ops, Output, Translation};
 
 use crate::usb_typer::key_for_char;
@@ -49,6 +49,8 @@ pub enum StrokeOutcome {
     Space,
     /// The capitalise-next command.
     CapNext,
+    /// A punctuation mark that takes part in the spacing.
+    Punct(&'static punctuation::Mark),
     /// The toggle: the keyboard is switching to Dosh.
     ToggleDosh,
     /// The one-shot: this right-hand chord is played through the Dosh table.
@@ -159,6 +161,13 @@ impl OrsyManager {
 
     /// What a completed stroke is.
     pub fn outcome(chord: Chord) -> StrokeOutcome {
+        // A mark is a right-handed stroke on its own: the word-end marker plus outer
+        // keys, which no vowel form and no command uses.
+        if chord.left == 0 {
+            if let Some(mark) = punctuation::lookup(chord.right) {
+                return StrokeOutcome::Punct(mark);
+            }
+        }
         match (chord.left, chord.right) {
             (commands::DOSH_TOGGLE, 0) => StrokeOutcome::ToggleDosh,
             (commands::DOSH_ONESHOT, right) if right != 0 => StrokeOutcome::Dosh(right),
@@ -184,6 +193,9 @@ impl OrsyManager {
             StrokeOutcome::Undo => self.output.undo(&mut ops),
             StrokeOutcome::Space => self.output.space(&mut ops),
             StrokeOutcome::CapNext => self.output.cap_next(),
+            StrokeOutcome::Punct(mark) => {
+                self.output.mark(mark.text, mark.capitalises, &mut ops)
+            }
             StrokeOutcome::Text(t) => self.output.stroke(&t, &mut ops),
             // Not a syllable.  Nothing is typed, which is the error signal
             // there is.

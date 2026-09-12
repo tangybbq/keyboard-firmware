@@ -295,6 +295,38 @@ fn test_space_and_cap() {
     assert_eq!(t.typed(), " ten");
 }
 
+/// The spacing punctuation is native: it attaches to the word before it, closed or
+/// not, gives the next word its space, and the sentence-enders capitalise.
+#[test]
+fn test_punctuation() {
+    use bbq_orsy::tables::punctuation;
+    let mut t = Tester::new();
+    let full_stop = punctuation::lookup(0x204).expect("a full stop").bits;
+    let comma = punctuation::lookup(0x240).expect("a comma").bits;
+
+    t.stroke(ten());
+    assert_eq!(t.typed(), "ten");
+    t.stroke((0, full_stop));
+    assert_eq!(t.typed(), ".");
+    // The next word gets its space, and its capital.
+    t.stroke(ten());
+    assert_eq!(t.typed(), " Ten");
+
+    // After a word left open, where an escaped mark used to let the next word run on.
+    t.stroke(ten_());
+    assert_eq!(t.typed(), " ten");
+    t.stroke((0, comma));
+    assert_eq!(t.typed(), ",");
+    t.stroke(ten());
+    assert_eq!(t.typed(), " ten");
+
+    // And undo takes the mark back rather than stranding it.
+    t.stroke((commands::UNDO, 0));
+    assert_eq!(t.typed(), "\u{8}\u{8}\u{8}\u{8}");
+    t.stroke((commands::UNDO, 0));
+    assert_eq!(t.typed(), "\u{8}");
+}
+
 /// The one-shot escape plays the right hand's chord through the Dosh table,
 /// on the next tick, and the layout stays in Orsy.
 #[test]

@@ -55,6 +55,8 @@ public enum OrsyOutcome: Equatable, Sendable {
     case doshToggle
     /// The one-shot: this right-hand chord is played through the Dosh table.
     case dosh(UInt16)
+    /// A mark that takes part in the spacing: what it types, and whether it capitalises.
+    case punct(String, capitalises: Bool)
     /// Neither a syllable nor a command; nothing was typed.
     case dead
 }
@@ -124,8 +126,12 @@ public final class OrsyTheory {
         return OrsyPatterns(onset: s1, second: s2, vowel: s3, coda: s4)
     }
 
-    /// What a stroke is: a syllable, a command, or nothing.
+    /// What a stroke is: a syllable, a command, a mark, or nothing.
     public func outcome(left: UInt16, right: UInt16) -> OrsyOutcome {
+        // A mark is a right-handed stroke on its own, the word-end marker plus outer keys.
+        if left == 0, let mark = tables.punctuation.first(where: { $0.bits == right }) {
+            return .punct(mark.text, capitalises: mark.capitalises)
+        }
         switch (left, right) {
         case (doshToggle, 0): return .doshToggle
         case (doshOneshot, let r) where r != 0: return .dosh(r)

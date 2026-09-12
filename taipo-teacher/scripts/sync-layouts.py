@@ -54,6 +54,8 @@ def orsy_patterns(orsy):
         out[f"s3:{v['michela']}"] = v["text"] + ("+" if v["ends_word"] else "")
     for c in orsy["commands"]:
         out[f"cmd:{c['name']}"] = f"{c['hand']}:{c['bits']}"
+    for p in orsy.get("punctuation", []):
+        out[f"punct:{p['text']}"] = f"{p['bits']}:{int(p['capitalises'])}"
     for r in orsy["rules"]:
         out[f"rule:{r['name']}"] = str(orsy["rules_version"])
     return out

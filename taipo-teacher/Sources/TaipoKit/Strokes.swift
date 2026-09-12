@@ -116,6 +116,7 @@ public final class StrokeEngine {
         case .capNext: outcome = "cap-next"
         case .doshToggle: outcome = "dosh-toggle"
         case .dosh(let code): outcome = String(format: "dosh 0x%03x", code)
+        case .punct(let text, _): outcome = "punct \"\(text)\""
         case .dead: outcome = "dead"
         }
         return "\(stroke.timeMs) [\(names(stroke.left))-\(names(stroke.right))] spread=\(stroke.spreadMs) \(outcome)"

@@ -81,6 +81,7 @@ public struct Layouts: Decodable {
         public let second: [Second]
         public let vowel: [Vowel]
         public let commands: [Command]
+        public let punctuation: [Punctuation]
         public let rules: [Rule]
 
         /// A shape on the outer five keys: an onset on the left hand, a coda on the right.
@@ -131,8 +132,16 @@ public struct Layouts: Decodable {
             public let flag: UInt8
         }
 
+        /// A mark that takes part in the spacing: a right-handed stroke on its own.
+        public struct Punctuation: Decodable {
+            public let text: String
+            public let bits: UInt16
+            public let keys: [String]
+            public let capitalises: Bool
+        }
+
         enum CodingKeys: String, CodingKey {
-            case fingerprint, outer, second, vowel, commands, rules
+            case fingerprint, outer, second, vowel, commands, punctuation, rules
             case rulesVersion = "rules_version"
             case outerMask = "outer_mask"
             case innerMask = "inner_mask"

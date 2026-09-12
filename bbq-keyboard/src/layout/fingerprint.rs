@@ -140,6 +140,11 @@ pub fn orsy_fingerprint() -> u64 {
         h.run(v.text().as_bytes());
         h.byte(v.ends_word() as u8);
     }
+    for mark in bbq_orsy::tables::punctuation::ALL {
+        h.u16(mark.bits);
+        h.run(mark.text.as_bytes());
+        h.byte(mark.capitalises as u8);
+    }
     for c in [
         commands::DOSH_ONESHOT,
         commands::DOSH_TOGGLE,

@@ -145,6 +145,25 @@ impl Output {
         self.record(Stroke { chars: count, ..record });
     }
 
+    /// Type a punctuation mark.
+    ///
+    /// It attaches to whatever came before, with no space, whether or not that word was
+    /// closed; it owes a space to the next word; and the sentence-enders capitalise it.
+    /// Recorded like any other stroke, so undo takes it back with the characters it typed.
+    pub fn mark(&mut self, text: &str, capitalises: bool, ops: &mut Ops) {
+        let record = Stroke { chars: 0, pending_space: self.pending_space };
+        let mut count = 0u8;
+        for ch in text.chars() {
+            self.emit(ch, ops);
+            count = count.saturating_add(1);
+        }
+        self.pending_space = true;
+        // Never cleared here: a mark that does not capitalise should not cancel a capital
+        // the writer has already asked for.
+        self.pending_cap |= capitalises;
+        self.record(Stroke { chars: count, ..record });
+    }
+
     /// The space command: a space on its own.
     pub fn space(&mut self, ops: &mut Ops) {
         let record = Stroke { chars: 1, pending_space: self.pending_space };
@@ -327,6 +346,33 @@ mod tests {
         out.space(&mut ops);
         assert_eq!(stroke(&mut out, c(TEN)), "ten");
         assert_eq!(out.recent(), "ten ten ten");
+    }
+
+    /// A mark attaches to the word before it, closed or not, and the next word gets its
+    /// space back; a sentence-ender capitalises what follows.
+    #[test]
+    fn marks() {
+        let mut out = Output::new();
+        let mut ops = Ops::new();
+        // After a closed word.
+        stroke(&mut out, c(TEN));
+        out.mark(".", true, &mut ops);
+        assert_eq!(ops.text(), ".");
+        assert_eq!(stroke(&mut out, c(TEN)), " Ten");
+        // And after one left open, where the escape used to run the next word on.
+        stroke(&mut out, c(TE_));
+        let mut ops = Ops::new();
+        out.mark(",", false, &mut ops);
+        assert_eq!(ops.text(), ",");
+        assert_eq!(out.recent(), "ten. Ten ten,");
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        // Undo takes the word back, and then the mark, rather than leaving it stranded
+        // the way an escaped mark did.
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        out.undo(&mut ops);
+        assert_eq!(ops.text(), "\u{8}\u{8}\u{8}\u{8}\u{8}");
+        assert_eq!(out.recent(), "ten. Ten ten");
     }
 
     /// Cap next capitalises the first letter of the next stroke, once.

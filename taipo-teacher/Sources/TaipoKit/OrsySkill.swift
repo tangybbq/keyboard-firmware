@@ -192,6 +192,7 @@ struct OrsySamples: Codable, Equatable {
         case .capNext: return ["cmd:capitalise_next"]
         case .doshToggle: return ["cmd:dosh_toggle"]
         case .dosh: return ["cmd:dosh_oneshot"]
+        case .punct(let text, _): return ["punct:\(text)"]
         case .dead: return []
         }
     }

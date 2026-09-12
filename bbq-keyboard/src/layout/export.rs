@@ -347,6 +347,21 @@ fn orsy_json() -> String {
     }
     out.push_str("\n    ],\n");
 
+    out.push_str("    \"punctuation\": [\n");
+    for (num, mark) in bbq_orsy::tables::punctuation::ALL.iter().enumerate() {
+        if num != 0 {
+            out.push_str(",\n");
+        }
+        out.push_str(&format!(
+            "      {{ \"text\": {}, \"bits\": {}, \"keys\": [{}], \"capitalises\": {} }}",
+            quote(mark.text),
+            mark.bits,
+            key_names(mark.bits),
+            mark.capitalises,
+        ));
+    }
+    out.push_str("\n    ],\n");
+
     out.push_str("    \"rules\": [\n");
     for (num, (name, flag)) in [
         ("mirrored", rules::MIRRORED),

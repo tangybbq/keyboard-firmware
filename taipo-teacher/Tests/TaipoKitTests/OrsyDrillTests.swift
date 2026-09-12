@@ -132,6 +132,47 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertFalse(pool.contains { $0.patterns.contains("s1:SCN") })
     }
 
+    /// The marks are right-handed strokes on their own, and the output stage attaches
+    /// them, owes the next word a space, and capitalises after a sentence-ender.
+    func testPunctuation() throws {
+        let (_, theory, _) = try fixtures()
+        let marks = theory.tables.punctuation
+        XCTAssertEqual(marks.first?.text, ".")
+        for mark in marks {
+            // Nothing else claims the chord, on either reading.
+            XCTAssertEqual(
+                theory.outcome(left: 0, right: mark.bits),
+                .punct(mark.text, capitalises: mark.capitalises), mark.text)
+            XCTAssertNil(theory.translate(left: 0, right: mark.bits), mark.text)
+            XCTAssertEqual(mark.keys.last, "Bk", mark.text)
+        }
+
+        var output = OrsyOutput()
+        let ten = try XCTUnwrap(theory.translate(left: 0x004, right: 0x248))
+        let tenOpen = try XCTUnwrap(theory.translate(left: 0x004, right: 0x048))
+        XCTAssertEqual(output.stroke(ten), "ten")
+        XCTAssertEqual(output.mark(".", capitalises: true), ".")
+        // The next word gets its space back, and its capital.
+        XCTAssertEqual(output.stroke(ten), " Ten")
+        // A mark after a word left open attaches and still owes the space.
+        XCTAssertEqual(output.stroke(tenOpen), " ten")
+        XCTAssertEqual(output.mark(",", capitalises: false), ",")
+        XCTAssertEqual(output.stroke(ten), " ten")
+        // And it is on the record, so undo takes it back.
+        XCTAssertEqual(output.undo(), 4)
+        XCTAssertEqual(output.undo(), 1)
+        XCTAssertEqual(String(output.recent), "ten. Ten ten")
+    }
+
+    /// A stroke's skill key names the mark, so the model can measure it.
+    func testPunctuationSkillKeys() throws {
+        let (_, theory, _) = try fixtures()
+        let stroke = Stroke(
+            timeMs: 100, left: 0, right: 0x204, firstKeyMs: 70, lastKeyMs: 80,
+            outcome: theory.outcome(left: 0, right: 0x204))
+        XCTAssertEqual(OrsySamples.keys(stroke), ["punct:."])
+    }
+
     /// The mnemonics come out of the tables: the voicing rule, the ending form, the
     /// two-letter vowels, and what Dosh does with the same keys.
     func testMnemonics() throws {

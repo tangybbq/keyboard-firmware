@@ -61,6 +61,17 @@ struct OrsyOutput {
 
     mutating func capNext() { pendingCap = true }
 
+    /// Type a punctuation mark: attaches to what came before, closes the word, and the
+    /// sentence-enders capitalise the next.
+    mutating func mark(_ text: String, capitalises: Bool) -> String {
+        let before = pendingSpace
+        recent.append(contentsOf: text)
+        strokes.append((text.count, before))
+        pendingSpace = true
+        pendingCap = pendingCap || capitalises
+        return text
+    }
+
     /// Take back the last stroke, returning how many characters go, and put the spacing
     /// state back as it was before it.
     mutating func undo() -> Int {
@@ -259,6 +270,11 @@ public final class OrsyDrillSession {
             append(output.stroke(t), stroke: stroke, translation: t, wanted: wanted)
         case .space:
             append(output.space(), stroke: stroke, translation: nil, wanted: wantedStroke)
+        case .punct(let text, let capitalises):
+            stats.textStrokes += 1
+            append(
+                output.mark(text, capitalises: capitalises), stroke: stroke,
+                translation: nil, wanted: wantedStroke)
         case .capNext:
             output.capNext()
             events.append(.ignored)

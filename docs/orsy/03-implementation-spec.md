@@ -57,6 +57,22 @@ them. Shapes that are merely unattested in the corpus were rejected as not safe 
 | `space` | right | Bk | `0x200` | spare Series 3 chord: the word-end marker with no vowel |
 | `undo` | left | a + o + s + t + n | `0x067` | the one spare outer chord; deliberately expensive |
 
+**Punctuation that affects spacing is native**, which `02-caps-numbers-commands.md`
+originally said it need not be. The chords extend the space command: `Bk` alone is a space,
+and `Bk` plus one outer key is a mark. `Bk` is not a vowel form on its own, so no syllable
+can reach any of them, and the family is two keys on the hand that already ends words.
+
+| stroke | mark | |
+|---|---|---|
+| `Bk` + `t` | `.` | attaches, owes a space, capitalises |
+| `Bk` + `n` | `,` | attaches, owes a space |
+| `Bk` + `s` | `?` | attaches, owes a space, capitalises |
+| `Bk` + `o` | `!` | attaches, owes a space, capitalises |
+| `Bk` + `a` | `:` | attaches, owes a space |
+
+They go through the output stage, so they are recorded, undoable, and visible to
+retro-capitalisation. Everything else is still the Dosh escape.
+
 `dosh_oneshot` is held on the left while the right hand plays a literal Dosh chord — one
 stroke, and every Dosh chord including the thumb layers is reachable. A mirrored form, so
 the Dosh chord could be played left-handed, is **deliberately deferred**; it can be added
@@ -165,8 +181,9 @@ The Dosh escape needs the layout manager, not the crate:
 
 ## Not in v1
 
-Briefs; punctuation beyond the Dosh escape; numbers beyond the Dosh escape; the three rare
-coda-only shapes; a trainer mode; a mirrored (right-hand-marker) form of the Dosh one-shot.
+Briefs; punctuation beyond the five spacing marks and the Dosh escape; numbers beyond the
+Dosh escape; the three rare coda-only shapes; a trainer mode; a mirrored
+(right-hand-marker) form of the Dosh one-shot.
 
 ## Nothing here has been tried by hand
 

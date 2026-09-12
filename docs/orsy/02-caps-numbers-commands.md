@@ -102,9 +102,17 @@ while the right hand plays a literal Dosh chord**, and the whole thing is a sing
       .  .  .  .  .  .  #  #  #   <------ any Dosh chord ------>
 
 That is the important consequence: **a punctuation mark costs one stroke — exactly what a
-purpose-designed native stroke would cost.** So there is no reason to design native
-punctuation at all. Every symbol Dosh can reach becomes available at the same price, with
-nothing new to learn.
+purpose-designed native stroke would cost.** Every symbol Dosh can reach becomes available
+at the same price, with nothing new to learn.
+
+**Corrected: the marks that affect spacing do need native strokes.** The argument above is
+about keystrokes, and it is right about those; what it missed is that the escape types
+*outside the output stage*. A mark that attaches to the word before it, owes a space to the
+word after it, or capitalises what follows is doing the output stage's job, and an escaped
+one cannot: it is not on the record, so undo strands it and retro-capitalisation miscounts
+the word boundaries, and it cannot supply the space when the word before it was left open.
+So `.` `,` `?` `!` `:` are native strokes — see `03-implementation-spec.md` — and the
+escape keeps everything else, which is most of it.
 
 The right hand has all nine keys, so every Dosh chord is reachable, thumb layers included,
 and the hands are identical so nothing is lost by the Dosh chord always being right-handed.

@@ -531,6 +531,47 @@ pub mod commands {
     pub const UNDO: u16 = 0x067;
 }
 
+/// The punctuation that takes part in spacing.
+///
+/// Everything else reaches the keyboard through the Dosh escape, which is a whole
+/// keyboard's worth of symbols for nothing new to learn.  These few cannot: a mark that
+/// attaches to the word before it, owes a space to the word after it, or capitalises what
+/// follows is doing the output stage's job, and the escape types outside the output stage
+/// -- so an escaped full stop could not be undone with the word it ended, did not appear
+/// in the text retro-capitalisation walks back over, and left the next word to run on when
+/// the word before it had not been closed.
+///
+/// The chords extend the space command rather than carving anything out of the alphabets:
+/// `Bk` alone is a space, and `Bk` plus one outer key is a mark.  `Bk` is not a vowel form
+/// on its own, so no syllable can produce any of them, and the whole family is two keys on
+/// the hand that already ends words.
+pub mod punctuation {
+    /// One mark: what it types, and whether the next word is capitalised.
+    #[derive(PartialEq, Eq, Debug)]
+    pub struct Mark {
+        /// The right-hand keys.  The left hand is empty.
+        pub bits: u16,
+        pub text: &'static str,
+        /// Whether the next letter is capitalised, which the sentence-enders do.
+        pub capitalises: bool,
+    }
+
+    /// Every mark, in the order the lessons teach them.
+    pub static ALL: &[Mark] = &[
+        Mark { bits: 0x204, text: ".", capitalises: true },   // Bk + t
+        Mark { bits: 0x240, text: ",", capitalises: false },  // Bk + n
+        Mark { bits: 0x220, text: "?", capitalises: true },   // Bk + s
+        Mark { bits: 0x202, text: "!", capitalises: true },   // Bk + o
+        Mark { bits: 0x201, text: ":", capitalises: false },  // Bk + a
+    ];
+
+    /// The mark a right hand strikes, if it is one.  The caller checks the left hand is
+    /// empty; a mark is a right-handed stroke on its own.
+    pub fn lookup(right: u16) -> Option<&'static Mark> {
+        ALL.iter().find(|m| m.bits == right)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -571,6 +612,26 @@ mod tests {
         for v in Vowel::ALL {
             assert_eq!(v.bits() & !INNER_MASK, 0, "{v:?}");
         }
+    }
+
+    /// No punctuation mark is a syllable, a command, or another mark, and every one of
+    /// them is the word-end marker plus outer keys.
+    #[test]
+    fn punctuation_is_free() {
+        use crate::chord::{Chord, INNER_MASK, OUTER_MASK};
+        for (i, mark) in punctuation::ALL.iter().enumerate() {
+            assert_eq!(mark.bits & INNER_MASK, commands::SPACE, "{mark:?}");
+            assert_ne!(mark.bits & OUTER_MASK, 0, "{mark:?}");
+            assert_ne!(mark.bits, commands::SPACE);
+            assert_ne!(mark.bits, commands::CAP_NEXT);
+            // Not a syllable, whatever the left hand is doing.
+            assert_eq!(crate::compose::translate(Chord::new(0, mark.bits)), None, "{mark:?}");
+            for other in &punctuation::ALL[..i] {
+                assert_ne!(mark.bits, other.bits, "{mark:?}");
+            }
+            assert_eq!(punctuation::lookup(mark.bits), Some(mark));
+        }
+        assert_eq!(punctuation::lookup(commands::SPACE), None);
     }
 
     /// The commands are free within their own group, so no syllable can

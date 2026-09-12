@@ -79,6 +79,9 @@ public struct LayoutHistory {
         for c in orsy.commands {
             out["cmd:\(c.name)"] = "\(c.hand):\(c.bits)"
         }
+        for p in orsy.punctuation {
+            out["punct:\(p.text)"] = "\(p.bits):\(p.capitalises ? 1 : 0)"
+        }
         for r in orsy.rules {
             out["rule:\(r.name)"] = String(orsy.rulesVersion)
         }
