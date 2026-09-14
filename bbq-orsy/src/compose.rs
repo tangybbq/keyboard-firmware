@@ -97,6 +97,25 @@ impl Translation {
         self.parts.iter().all(|p| p.is_empty())
     }
 
+    /// Whether the syllable's first character is a consonant that came from
+    /// Series 2 rather than Series 1.
+    ///
+    /// The manual's general rule is that the initial character is always
+    /// written in Series 1, "which is intended to represent it"; a syllable
+    /// beginning with a vowel goes in Series 3 instead.  The shipped
+    /// dictionary carries the Series 2 spelling as well -- `RIuicf` and
+    /// `SCNuicf` both give `list` -- so the rules here translate it, but
+    /// [`Writer`](crate::Writer) will not choose it.  A vowel from Series 2
+    /// is not this: the `au` and `ai` diphthongs are allowed to open a
+    /// syllable there.
+    pub fn inner_onset(&self) -> bool {
+        self.parts[0].is_empty()
+            && self.parts[1]
+                .chars()
+                .next()
+                .is_some_and(|c| !matches!(c, 'a' | 'e' | 'i' | 'o' | 'u'))
+    }
+
     /// The text as a string, for the host.
     #[cfg(feature = "std")]
     pub fn text(&self) -> String {

@@ -14,11 +14,20 @@
 //! fragment that leans back onto the syllable before it can end a word but
 //! never start one.
 //!
-//! Many words divide equally well in more than one way (`ten|s` and `te|ns`
-//! are both two strokes of four keys).  Ties are broken towards fewer inner
-//! keys, so a consonant that could be an onset or a second character is the
-//! onset -- `set` is `s` on the outer keys, not the second-character `s` on
-//! the index finger -- and then towards longer earlier strokes, so a word
+//! A syllable's initial consonant comes from Series 1, which is the manual's
+//! general rule and not a preference: the shipped dictionary spells `list`
+//! both as `SCNuicf` and as `RIuicf`, and only the first is the method.  It
+//! has to be ranked above the key count rather than left to the tie-break,
+//! because `l` and `m` are cheaper on the inner keys than on the outer ones
+//! -- `RI` is one key where `SCN` is two -- so a tie-break never reaches
+//! them.  Fewest strokes still comes first; no syllable is added to keep an
+//! onset out of Series 2.
+//!
+//! Many words then divide equally well in more than one way (`ten|s` and
+//! `te|ns` are both two strokes of four keys).  Ties are broken towards fewer
+//! inner keys, so a consonant that could be an onset or a second character is
+//! the onset -- `set` is `s` on the outer keys, not the second-character `s`
+//! on the index finger -- and then towards longer earlier strokes, so a word
 //! reads as a syllable and a suffix rather than a stub and a lump.
 //!
 //! The index is built by translating every chord once, which takes a moment,
@@ -43,6 +52,8 @@ struct Entry {
     keys: u32,
     /// How many of the keys are on the inner four of either hand.
     inner: u32,
+    /// 1 when the syllable's initial consonant comes from Series 2.
+    inner_onset: u32,
     rules: u8,
 }
 
@@ -80,12 +91,14 @@ impl Writer {
                     keys: chord.keys(),
                     inner: ((left | right) & INNER_MASK).count_ones()
                         + (left & right & INNER_MASK).count_ones(),
+                    inner_onset: t.inner_onset() as u32,
                     rules: t.rules,
                 });
             }
         }
         for entries in chunks.values_mut() {
-            entries.sort_by_key(|e| (e.keys, e.inner, e.chord.left, e.chord.right));
+            entries
+                .sort_by_key(|e| (e.inner_onset, e.keys, e.inner, e.chord.left, e.chord.right));
         }
         Writer { chunks }
     }
@@ -110,12 +123,14 @@ impl Writer {
         }
         let n = word.len();
         // best[i]: the cheapest way to spell the first i letters, as
-        // (strokes, keys, inner keys, length of the last stroke's chunk,
-        // path).  The inner count and the chunk length only decide ties.
-        let mut best: Vec<Option<(usize, u32, u32, usize, Vec<Chord>)>> = vec![None; n + 1];
-        best[0] = Some((0, 0, 0, 0, Vec::new()));
+        // (strokes, Series 2 onsets, keys, inner keys, length of the last
+        // stroke's chunk, path).  The Series 2 onsets rank above the key
+        // count for the reason the module header gives; the inner count and
+        // the chunk length only decide ties.
+        let mut best: Vec<Option<(usize, u32, u32, u32, usize, Vec<Chord>)>> = vec![None; n + 1];
+        best[0] = Some((0, 0, 0, 0, 0, Vec::new()));
         for i in 0..n {
-            let Some((strokes, keys, inner, _, path)) = best[i].clone() else { continue };
+            let Some((strokes, onsets, keys, inner, _, path)) = best[i].clone() else { continue };
             for j in (i + 1)..=n.min(i + MAX_CHUNK) {
                 let Some(entries) = self.chunks.get(&word[i..j]) else { continue };
                 let last = j == n;
@@ -127,19 +142,27 @@ impl Writer {
                         && allowed(e.chord, e.rules)
                 });
                 let Some(entry) = entry else { continue };
-                let candidate = (strokes + 1, keys + entry.keys, inner + entry.inner, j - i);
+                let candidate = (
+                    strokes + 1,
+                    onsets + entry.inner_onset,
+                    keys + entry.keys,
+                    inner + entry.inner,
+                    j - i,
+                );
                 let better = match &best[j] {
                     None => true,
-                    Some((s, k, n, l, _)) => candidate < (*s, *k, *n, *l),
+                    Some((s, o, k, n, l, _)) => candidate < (*s, *o, *k, *n, *l),
                 };
                 if better {
                     let mut path = path.clone();
                     path.push(entry.chord);
-                    best[j] = Some((candidate.0, candidate.1, candidate.2, candidate.3, path));
+                    best[j] = Some((
+                        candidate.0, candidate.1, candidate.2, candidate.3, candidate.4, path,
+                    ));
                 }
             }
         }
-        best[n].take().map(|(_, _, _, _, path)| path)
+        best[n].take().map(|(_, _, _, _, _, path)| path)
     }
 }
 
@@ -183,6 +206,30 @@ mod tests {
         assert_eq!(set.len(), 1);
         assert_eq!(Patterns::of(set[0]).unwrap().onset, Outer::S);
         assert_eq!(Patterns::of(set[0]).unwrap().second, Second::Empty);
+    }
+
+    /// A syllable's initial consonant comes from Series 1, even where Series 2
+    /// would spell it with fewer keys.
+    #[test]
+    fn initial_consonant_is_series_1() {
+        let w = Writer::new();
+        // `l` is two keys on the outer row and one on the inner, so the key
+        // count alone would put it on the index finger.
+        for word in ["let", "list", "last", "law"] {
+            let strokes = w.write(word).unwrap();
+            let p = Patterns::of(strokes[0]).unwrap();
+            assert_eq!(p.onset, Outer::SCN, "{word}");
+            assert_eq!(p.second, Second::Empty, "{word}");
+        }
+        // The same for `m`, which is three keys against two.
+        let me = w.write("me").unwrap();
+        assert_eq!(Patterns::of(me[0]).unwrap().onset, Outer::SZP);
+        // Series 2 still carries the second character of a cluster.
+        let plan = w.write("plan").unwrap();
+        assert_eq!(Patterns::of(plan[0]).unwrap().onset, Outer::P);
+        assert_eq!(Patterns::of(plan[0]).unwrap().second, Second::RI);
+        // A vowel from Series 2 may open a syllable: `ai` is the diphthong.
+        assert_eq!(texts(&w, "aid"), ["aid"]);
     }
 
     /// A fragment that leans back cannot start a word, and nothing unspellable

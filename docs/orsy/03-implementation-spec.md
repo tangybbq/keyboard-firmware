@@ -188,7 +188,13 @@ The Dosh escape needs the layout manager, not the crate:
    output against `theory.py` through the mesa3 mapping. This is the real test and it is
    exhaustive — the whole chord space is only 262,144.
 2. **Corpus.** Re-run `writer.py`'s stroke counts against the Rust implementation; strokes
-   per word must come out at 1.83, and keys per word at 7.69.
+   per word must come out at 1.83, and keys per word at 7.69. The check divides with
+   `writer.py` over the Rust translations, so these figures do not measure `bbq_orsy::Writer`
+   and are unaffected by what it chooses. Where the two differ: `writer.py` takes the
+   cheapest stroke for each chunk, which opens a syllable with the Series 2 `l` or `m` where
+   those are cheaper than the outer shape, and `Writer` follows the manual's rule that the
+   initial character is written in Series 1. That costs it about 2% in keys per word, and
+   nothing in strokes.
 3. **Output stage.** Unit tests for spacing across stroke boundaries, capitals, retro-cap
    and undo.
 

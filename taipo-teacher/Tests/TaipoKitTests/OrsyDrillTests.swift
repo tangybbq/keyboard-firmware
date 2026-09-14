@@ -109,14 +109,14 @@ final class OrsyDrillTests: XCTestCase {
     }
 
     /// An item no word in the pool can exercise is not held against the ladder: with
-    /// everything through the `l` lesson reached but the onset `l`, whose words all need
-    /// later patterns, the ladder moves on and the item takes no focus place.
+    /// everything through the `x` lesson reached but the onset `x`, whose one word needs
+    /// the last lesson's rule, the ladder moves on and the item takes no focus place.
     func testUnreachableReadingDoesNotStallTheLadder() throws {
         let (_, theory, words) = try fixtures()
-        let l = try XCTUnwrap(words.lessons.firstIndex { $0.name == "l" })
+        let l = try XCTUnwrap(words.lessons.firstIndex { $0.name == "x" })
         var skills = [String: PatternSkill]()
         for lesson in words.lessons[...l] {
-            for key in lesson.items.flatMap({ $0 }) where key != "s1:SCN" {
+            for key in lesson.items.flatMap({ $0 }) where key != "s1:SZN" {
                 skills[key] = PatternSkill(name: key, count: 50, medianMs: 400, deleted: 0)
             }
         }
@@ -125,11 +125,11 @@ final class OrsyDrillTests: XCTestCase {
         let through = words.lessons[...l].reduce(0) { total, lesson in
             total + lesson.items.reduce(0) { $0 + $1.count }
         }
-        XCTAssertGreaterThan(ladder.unlockedCount, through, "the ladder should move past l")
-        XCTAssertFalse(ladder.focus.contains { $0.key == "s1:SCN" })
+        XCTAssertGreaterThan(ladder.unlockedCount, through, "the ladder should move past x")
+        XCTAssertFalse(ladder.focus.contains { $0.key == "s1:SZN" })
         // No line asks for it either.
         let pool = OrsyLadderMaker(words: words).pool(ladder)
-        XCTAssertFalse(pool.contains { $0.patterns.contains("s1:SCN") })
+        XCTAssertFalse(pool.contains { $0.patterns.contains("s1:SZN") })
     }
 
     /// The marks are right-handed strokes on their own, and the output stage attaches

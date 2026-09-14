@@ -76,7 +76,7 @@ key 840 KeyPress(H, Mods(0x0))
 key 840 KeyRelease
 key 840 KeyPress(E, Mods(0x0))
 key 840 KeyRelease
-stroke 930 [Sp-a+s+Sp] spread=0 text "laz" before=1 after=0
+stroke 930 [t+s-a+s+Sp] spread=0 text "laz" before=1 after=0
 key 930 KeyPress(Space, Mods(0x0))
 key 930 KeyRelease
 key 930 KeyPress(L, Mods(0x0))

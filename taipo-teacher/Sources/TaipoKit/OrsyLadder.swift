@@ -16,12 +16,12 @@ import Foundation
 /// word that exercises one cannot be counted as practice for the other, which is what was
 /// quietly happening.
 ///
-/// **An item the material cannot reach is not held against the ladder.**  The onset `l` has
-/// a hundred and fifty words in the table and not one of them is writable until the
-/// mirrored vowel and the vowel `o` are out, while the coda `l` has words from the first
-/// lesson.  Such an item counts as reached, so it neither stalls the unlock nor takes a
-/// focus place, and it comes back into the reckoning -- unreached, at the front of the
-/// focus ranking -- as soon as the pool grows to include a word that uses it.
+/// **An item the material cannot reach is not held against the ladder.**  The onset `x` has
+/// exactly one word in the whole table, `anxiety`, which also needs the last lesson's rule,
+/// while the coda `x` has words from halfway up; the onset `ck` has no word at all, ever.
+/// Such an item counts as reached, so it neither stalls the unlock nor takes a focus place,
+/// and it comes back into the reckoning -- unreached, at the front of the focus ranking --
+/// as soon as the pool grows to include a word that uses it.
 ///
 /// Nothing is stored: the unlocked set is a pure function of `OrsySkillModel`.
 
