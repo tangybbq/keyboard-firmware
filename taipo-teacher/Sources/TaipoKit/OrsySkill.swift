@@ -110,10 +110,33 @@ public struct OrsySkillModel: Sendable {
     /// times a line, it passed in half a block.  Forty is about a block of deliberate
     /// practice, which is the unit this ladder moves in.
     ///
-    /// The speed and error thresholds are the chord model's until there are Orsy medians
-    /// to set them from; nothing has been typed long enough to say what a five-key stroke
-    /// should cost.
-    public static let defaultOptions = SkillModel.Options(minSamples: 40)
+    /// **The pause is four seconds, not the chord model's two.**  Two seconds is eight
+    /// times what a Dosh chord costs, which leaves the cut-off far outside the skill and
+    /// catching only real interruptions -- reading the next line, being spoken to.  An
+    /// Orsy stroke costs about 1.8 seconds while it is being learned, so the same two
+    /// seconds sits *inside* the distribution and throws away most of the right-hand half
+    /// of it.  Measured over 4,733 strokes, moving the cut-off from 2000ms to 3000ms took
+    /// the median of the medians from 1288ms to 1744ms: a third of the measurement was
+    /// being discarded as thinking time.  Worse, it was being discarded unevenly -- what
+    /// survived the cut was the fast tail of every pattern, so the thirty-three measured
+    /// items came out inside a 1223-1428ms band, and a confidence ranking taken over a
+    /// band that narrow is ranking noise.  Past four seconds the curve flattens (1827ms,
+    /// then 1923 at six and 2030 at ten), which is the knee: the distribution is under
+    /// it, and what is above is interruption.  A trainer must not mistake stopping to
+    /// think for being slow, but it must not mistake being slow for stopping to think
+    /// either, and at this stage of Orsy nearly every stroke is thought about.
+    ///
+    /// **The speed target is 700ms, which is now derived rather than inherited.**  It
+    /// arrived as the chord model's number with a note saying nothing had been typed long
+    /// enough to set it from; there is now, and it lands in the same place.  An Orsy
+    /// stroke writes 2.74 characters, draw-weighted over the word table, and a Dosh chord
+    /// measures at a 245ms use-weighted median over 214,000 of them, so the letters one
+    /// stroke replaces cost about 671ms to write the other way.  That is what `learned`
+    /// should mean here: not that a stroke is fast in the abstract, but that it is worth
+    /// more than the chords it stands in for.
+    ///
+    /// The error threshold is still the chord model's.
+    public static let defaultOptions = SkillModel.Options(minSamples: 40, pauseMs: 4000)
 
     /// Replay every log in a directory and measure each pattern.  The whole history,
     /// every time; `SkillStore.orsyModel` is the incremental one.

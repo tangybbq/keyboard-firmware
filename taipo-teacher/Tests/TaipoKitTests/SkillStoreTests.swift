@@ -153,6 +153,26 @@ final class SkillStoreTests: XCTestCase {
         XCTAssertNotNil(model.skill(0x008))
     }
 
+    /// The same for the pause cut-off: it decides which gaps were kept at all, so a
+    /// checkpoint gathered under a different one holds different measurements.
+    func testAChangedPauseStartsAgain() throws {
+        let keys = ["L.e", "R.t"]
+        for day in 1...3 {
+            try self.day(
+                String(format: "2026-09-%02d.txt", day), keys: keys, count: 200, gapMs: 2500)
+        }
+        // At the chord model's two seconds every one of those gaps is a pause, so nothing
+        // is timed at all.
+        let tight = try cached()
+        XCTAssertEqual(tight.skill(0x008)?.medianMs, .max)
+
+        let loose = SkillStore.model(
+            logDirectory: dir, cache: cache, layouts: try layouts(),
+            options: SkillModel.Options(pauseMs: 4000))
+        XCTAssertEqual(try XCTUnwrap(SkillStore.load(cache)).pauseMs, 4000)
+        XCTAssertEqual(loose.skill(0x008)?.medianMs, 2500, "the cache was read back stale")
+    }
+
     /// New tables mean the checkpoint is about a keyboard that no longer exists: which
     /// sessions count depends on the fingerprint, and so does what every chord in them
     /// typed.  So it is discarded rather than added to.

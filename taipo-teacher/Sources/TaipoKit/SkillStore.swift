@@ -31,6 +31,14 @@ public struct SkillStore {
         /// The window the samples were gathered with.  A different one means the stored
         /// gaps are the wrong length and have to be gathered again.
         var window: Int
+        /// The pause cut-offs the gaps were gathered under, chords and Orsy.
+        ///
+        /// The same argument as the window: the cut-off decides which gaps were kept at
+        /// all, so a checkpoint gathered under a different one holds a different set of
+        /// measurements and cannot be added to.  A file written before these were
+        /// recorded fails to decode and is discarded, which is the right answer for it.
+        var pauseMs: UInt32
+        var orsyPauseMs: UInt32
         /// The layout fingerprint the samples were folded under.
         ///
         /// Which sessions count depends on it, and so does what every chord in them
@@ -103,10 +111,13 @@ public struct SkillStore {
     ) -> SkillCollector {
         let files = SkillModel.logFiles(in: logDirectory)
         let fresh = Contents(
-            window: options.window, fingerprint: layouts.fingerprint,
+            window: options.window, pauseMs: options.pauseMs,
+            orsyPauseMs: orsyOptions.pauseMs, fingerprint: layouts.fingerprint,
             defaultVariant: layouts.defaultVariant, orsyFingerprint: layouts.orsy?.fingerprint)
         var contents = load(cache) ?? fresh
         if contents.version != fresh.version || contents.window != fresh.window
+            || contents.pauseMs != fresh.pauseMs
+            || contents.orsyPauseMs != fresh.orsyPauseMs
             || contents.fingerprint != fresh.fingerprint
             || contents.defaultVariant != fresh.defaultVariant
             || contents.orsyFingerprint != fresh.orsyFingerprint
