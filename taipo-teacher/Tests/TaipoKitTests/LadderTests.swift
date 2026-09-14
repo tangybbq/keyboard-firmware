@@ -408,6 +408,55 @@ final class LadderTests: XCTestCase {
         }
     }
 
+    /// The letter rotation holds the letters English neglects, and a block gives each of
+    /// them a word.
+    func testNeglectedLettersGetAWordEachBlock() throws {
+        let maker = LadderMaker(layouts: try layouts(), variant: "dosh")
+        let ladder = try self.ladder(learning: 64)
+        let rotation = maker.rotation(ladder)
+        XCTAssertFalse(rotation.isEmpty)
+        XCTAssertLessThanOrEqual(rotation.count, LadderMaker.rotationSize)
+        // The neglected end of the alphabet, and none of the workhorses.
+        XCTAssertTrue(rotation.contains("z"), String(rotation))
+        XCTAssertTrue(rotation.contains("j"), String(rotation))
+        XCTAssertFalse(rotation.contains("e"), String(rotation))
+        XCTAssertFalse(rotation.contains("t"), String(rotation))
+        // Nothing in focus: those are worked every line already.
+        for item in ladder.focus where item.stage == .letter {
+            XCTAssertFalse(rotation.contains(item.label.first!), item.label)
+        }
+        // Most neglected first.
+        let expected = LadderMaker.expectation(DrillMaker.bundledWords())
+        XCTAssertEqual(
+            rotation, rotation.sorted { (expected[$0] ?? 0) < (expected[$1] ?? 0) })
+
+        // A block long enough to go round asks for every one of them.
+        var missing = Set(rotation)
+        for line in maker.drill(ladder, lines: rotation.count, seed: 99).lines {
+            missing.subtract(line)
+        }
+        XCTAssertTrue(missing.isEmpty, "\(missing) went unasked for in a block")
+    }
+
+    /// The rotation is drilling, so the stage switch governs it, and it costs the line
+    /// nothing -- the word it takes was filler either way.
+    func testTheLetterRotationIsAStageAndCostsNothing() throws {
+        let maker = LadderMaker(layouts: try layouts(), variant: "dosh")
+        let items = Ladder.order(
+            layouts: try layouts(), variant: "dosh", options: Ladder.Options())
+        let off = Ladder(
+            layouts: try layouts(), variant: "dosh", skill: model(learning: 64, of: items),
+            options: Ladder.Options(stages: [.digit, .punctuation]))
+        XCTAssertTrue(maker.rotation(off).isEmpty)
+
+        let ladder = try self.ladder(learning: 64)
+        var a = DrillRandom(seed: 5), b = DrillRandom(seed: 5)
+        let with = maker.line(ladder, words: 7, using: &a)
+        let without = maker.line(ladder, words: 7, rotation: [], turn: 0, using: &b)
+        XCTAssertEqual(
+            with.split(separator: " ").count, without.split(separator: " ").count)
+    }
+
     /// Every focus item is worked on every line, which is what stops the drill from
     /// wandering off the thing it is meant to be teaching.
     func testEveryFocusItemAppearsInEveryLine() throws {

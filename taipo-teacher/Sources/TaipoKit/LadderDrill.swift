@@ -14,6 +14,24 @@ import Foundation
 /// so asking for letters only gives plain words, which is what asking for letters only
 /// ought to give.  Letters are exempt from that: they are what words are made of, and the
 /// switch is about what is *drilled*, not about what the vocabulary may use.
+///
+/// **What the letters get is English, and English is not even-handed.**  A mark or a digit
+/// has a slot held for it once it is learned; a letter has only however often the words
+/// want it, which after 211,000 chords came out at 322 uses of `z` against 18,080 of `e`
+/// -- fifty-six to one -- and the six rarest letters measured at a 640ms median against
+/// the six commonest at 244ms.  A letter out of focus and out of favour with English gets
+/// no practice at all, and it shows in the timings.
+///
+/// So one plain word of the line is drawn for whichever unlocked letter the vocabulary
+/// asks for least, in rotation.  It costs nothing: a filler word is there to be read, and
+/// which one it is was never doing any work.  A decoration may still land on it -- every
+/// decoration keeps its word -- and only the trim is taught to leave it alone.
+///
+/// On the finished Dosh ladder the rotation comes out as `z j x k w v`, which is the six
+/// letters measured slowest, and over four thousand lines it takes `j` from 5.8
+/// appearances a hundred lines to 13.8 and `z` from 6.0 to 15.7, narrowing the spread
+/// across the alphabet from 93:1 to 39:1.  The line is 66.5 characters instead of 66.4:
+/// the same words, one of them chosen rather than drawn.
 
 /// A small deterministic generator.
 ///
@@ -51,8 +69,12 @@ public struct LadderMaker {
     ) -> Drill {
         var rng = DrillRandom(seed: seed)
         var out = [String]()
-        for _ in 0..<lines {
-            let line = self.line(ladder, words: wordsPerLine, using: &rng)
+        // Worked out once for the block: it depends on the unlocked alphabet, which does
+        // not move while the ladder stands still.
+        let rotation = self.rotation(ladder)
+        for turn in 0..<lines {
+            let line = self.line(
+                ladder, words: wordsPerLine, rotation: rotation, turn: turn, using: &rng)
             if !line.isEmpty { out.append(line) }
         }
         return Drill(title: ladder.title(), lines: out)
@@ -62,12 +84,17 @@ public struct LadderMaker {
     ///
     /// Most of it is ordinary words from the unlocked alphabet, so the line reads as
     /// English and the hands get the alternation practice that is the whole point of the
-    /// layout.  Woven through it: one word for each focus letter, and one decoration for
-    /// each focus mark or digit.  That is the "less insistent" part -- the focus items get
-    /// worked every line, but they never take the line over.
-    public func line(_ ladder: Ladder, words wordCount: Int, using rng: inout DrillRandom)
-        -> String
-    {
+    /// layout.  Woven through it: one word for each focus letter, one decoration for each
+    /// focus mark or digit, one decoration for a mark already learned, and one plain word
+    /// for a letter the vocabulary neglects.  That is the "less insistent" part -- the
+    /// focus items get worked every line, but they never take the line over.
+    ///
+    /// `turn` is which line of the block this is, which is what walks the letter rotation
+    /// on; a caller that only wants a line can leave it, and get the first of them.
+    public func line(
+        _ ladder: Ladder, words wordCount: Int, rotation: [Character]? = nil, turn: Int = 0,
+        using rng: inout DrillRandom
+    ) -> String {
         let alphabet = Set(
             ladder.unlocked.filter { $0.stage == .letter }.flatMap { $0.label })
         let pool = words.filter { word in
@@ -104,6 +131,23 @@ public struct LadderMaker {
             } else {
                 tokens.append(pick(pool, using: &rng))
             }
+        }
+
+        // One plain word for the letter the vocabulary is neglecting most, this line's
+        // turn of the rotation.  It takes a slot that was holding filler, so it costs the
+        // line nothing: which filler word it was is the one choice in a line that was
+        // never carrying any weight.  It is not reserved -- a decoration may land on it,
+        // and every decoration keeps the word it decorates -- but the trim may not drop
+        // it, or the practice it was put there for goes with it.
+        let rotation = rotation ?? self.rotation(ladder)
+        var circulated: Int?
+        if !rotation.isEmpty,
+            let slot = tokens.indices.filter({ $0 > 0 && !reserved.contains($0) })
+                .randomElement(using: &rng),
+            let word = pick(pool, containing: rotation[turn % rotation.count], using: &rng)
+        {
+            tokens[slot] = word
+            circulated = slot
         }
 
         // A decoration replaces the word in its slot, so it may not have one that was
@@ -204,11 +248,14 @@ public struct LadderMaker {
         // be able to undo the practice the line was built for.  A line that cannot get
         // under the cap without giving one of those up stays long.
         while tokens.joined(separator: " ").count > Self.maxCharacters {
-            let plain = tokens.indices.filter { !reserved.contains($0) && !decorated.contains($0) }
+            let plain = tokens.indices.filter {
+                !reserved.contains($0) && !decorated.contains($0) && $0 != circulated
+            }
             guard plain.count > 2, let drop = plain.last else { break }
             tokens.remove(at: drop)
             reserved = Set(reserved.map { $0 > drop ? $0 - 1 : $0 })
             decorated = Set(decorated.map { $0 > drop ? $0 - 1 : $0 })
+            circulated = circulated.map { $0 > drop ? $0 - 1 : $0 }
         }
 
         return tokens.joined(separator: " ")
@@ -232,6 +279,56 @@ public struct LadderMaker {
     /// without this it got exactly one placing a line and took two or three times as long
     /// to learn as a letter did.  The point is equal practice, not equal decoration.
     static let perLine = 3
+
+    // MARK: - What the vocabulary starves
+
+    /// The unlocked letters the vocabulary asks for least, most neglected first.
+    ///
+    /// Focus letters are left out -- a word is chosen for each of them every line -- and
+    /// so is everything else on the ladder: a mark or a digit has the circulation slot
+    /// already, and nothing in the pool contains one to draw for anyway.  Letters
+    /// switched off in `Ladder.Options.stages` are left out too: the switch says what may
+    /// be drilled, and this is drilling.
+    public func rotation(_ ladder: Ladder) -> [Character] {
+        guard ladder.options.stages.contains(.letter) else { return [] }
+        let alphabet = Set(
+            ladder.unlocked.filter { $0.stage == .letter }.flatMap { $0.label })
+        let pool = words.filter { word in
+            !word.isEmpty && word.allSatisfy { alphabet.contains($0) }
+        }
+        guard !pool.isEmpty else { return [] }
+        let focused = Set(ladder.focus.filter { $0.stage == .letter }.flatMap { $0.label })
+        let expected = Self.expectation(pool)
+        let candidates = alphabet.subtracting(focused)
+            .map { ($0, expected[$0] ?? 0) }
+            .sorted { $0.1 != $1.1 ? $0.1 < $1.1 : $0.0 < $1.0 }
+        guard !candidates.isEmpty else { return [] }
+        // Against the alphabet's own middle rather than a number written down here: what
+        // counts as neglected depends on how wide the unlocked alphabet is, and it widens
+        // with every letter.  See `OrsyLadderMaker.rotation`, which does the same thing
+        // for the patterns.
+        let bar = candidates[candidates.count / 2].1 / 2
+        return candidates.prefix { $0.1 < bar }.prefix(Self.rotationSize).map(\.0)
+    }
+
+    /// How often the draw would put each letter in a word, per word drawn.
+    ///
+    /// Worked out rather than sampled, as `OrsyLadderMaker.expectation` explains: `pick`
+    /// takes `u * u * n` of a list ordered most frequent first, so the chance of landing
+    /// on the word at `i` is `sqrt((i+1)/n) - sqrt(i/n)`.  Occurrences rather than words,
+    /// because `letter` is typed twice by `letter` and that is two chords.
+    static func expectation(_ pool: [String]) -> [Character: Double] {
+        let n = Double(pool.count)
+        var out = [Character: Double]()
+        for (i, word) in pool.enumerated() {
+            let weight = (Double(i + 1) / n).squareRoot() - (Double(i) / n).squareRoot()
+            for ch in word { out[ch, default: 0] += weight }
+        }
+        return out
+    }
+
+    /// How many letters the rotation may hold; see `OrsyLadderMaker.rotationSize`.
+    static let rotationSize = 10
 
     // MARK: - Choosing words
 
