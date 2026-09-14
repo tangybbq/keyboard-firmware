@@ -108,6 +108,70 @@ final class OrsyDrillTests: XCTestCase {
         }
     }
 
+    /// The rotation holds what the pool starves, and a block gives every one of them a
+    /// word.
+    ///
+    /// Built at the `y` lesson, where the onset `y` has four words in the pool against
+    /// `e␣`'s hundred and forty-four, so there is something to rescue.
+    func testStarvedItemsGetAWordEachBlock() throws {
+        let (_, theory, words) = try fixtures()
+        let l = try XCTUnwrap(words.lessons.firstIndex { $0.name == "y" })
+        var skills = [String: PatternSkill]()
+        for lesson in words.lessons[...l] {
+            for key in lesson.items.flatMap({ $0 }) {
+                skills[key] = PatternSkill(name: key, count: 50, medianMs: 900, deleted: 0)
+            }
+        }
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let ladder = OrsyLadder(words: words, theory: theory, skill: model)
+        let maker = OrsyLadderMaker(words: words)
+        let rotation = maker.rotation(ladder)
+        XCTAssertFalse(rotation.isEmpty)
+        XCTAssertLessThanOrEqual(rotation.count, OrsyLadderMaker.rotationSize)
+
+        // What it holds is the starved end: nothing in focus, and nothing the draw
+        // already reaches as often as the middling item.
+        let expected = OrsyLadderMaker.expectation(maker.pool(ladder))
+        for key in rotation {
+            XCTAssertFalse(ladder.focus.contains { $0.key == key }, key)
+        }
+        let middling = expected.values.sorted()[expected.count / 2]
+        XCTAssertTrue(rotation.allSatisfy { (expected[$0] ?? 0) < middling }, "\(rotation)")
+        // And it is ordered, most starved first.
+        XCTAssertEqual(rotation, rotation.sorted { (expected[$0] ?? 0) < (expected[$1] ?? 0) })
+
+        // A block long enough to go round gives each of them at least one word.
+        var rng = DrillRandom(seed: 3)
+        var seen = [String: Int]()
+        for turn in 0..<rotation.count {
+            let line = maker.line(
+                ladder, words: 6, rotation: rotation, turn: turn, using: &rng)
+            for text in line.split(separator: " ") {
+                guard let word = words.word(String(text)) else { continue }
+                for key in word.patterns where rotation.contains(key) {
+                    seen[key, default: 0] += 1
+                }
+            }
+        }
+        for key in rotation {
+            XCTAssertGreaterThan(seen[key] ?? 0, 0, "\(key) went unasked for in a block")
+        }
+    }
+
+    /// A pool that spreads itself evenly starves nothing, and the line is as it was.
+    func testTheFirstLessonNeedsNoRotation() throws {
+        let (_, theory, words) = try fixtures()
+        let empty = OrsySkillModel(skills: [:], sessions: 0, strokes: 0)
+        let ladder = OrsyLadder(words: words, theory: theory, skill: empty)
+        let maker = OrsyLadderMaker(words: words)
+        var a = DrillRandom(seed: 11)
+        var b = DrillRandom(seed: 11)
+        let with = maker.line(ladder, words: 6, using: &a)
+        let without = maker.line(ladder, words: 6, rotation: [], turn: 0, using: &b)
+        if maker.rotation(ladder).isEmpty { XCTAssertEqual(with, without) }
+        XCTAssertFalse(with.isEmpty)
+    }
+
     /// An item no word in the pool can exercise is not held against the ladder: with
     /// everything through the `x` lesson reached but the onset `x`, whose one word needs
     /// the last lesson's rule, the ladder moves on and the item takes no focus place.
