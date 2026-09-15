@@ -14,7 +14,9 @@
 /// The firmware only ever asks for the one name in its board info block; this
 /// is here so that host tools can walk every board without hardcoding the
 /// list.
-pub const BOARDS: &[&str] = &["proto3", "proto4", "mesa1", "mesa2", "jolt1", "jolt2", "jolt3"];
+pub const BOARDS: &[&str] = &[
+    "proto3", "proto4", "mesa1", "mesa2", "mesa2b", "mesa3", "jolt1", "jolt2", "jolt3",
+];
 
 pub fn get_translation(board: &str) -> fn(u8) -> u8 {
     match board {
@@ -22,6 +24,8 @@ pub fn get_translation(board: &str) -> fn(u8) -> u8 {
         "proto4" => proto4,
         "mesa1" => mesa1,
         "mesa2" => mesa2,
+        "mesa2b" => mesa2b,
+        "mesa3" => mesa3,
         "jolt1" => id,
         "jolt2" => jolt2,
         "jolt3" => jolt3,
@@ -177,6 +181,96 @@ fn mesa2(code: u8) -> u8 {
     *MESA2.get(code as usize).unwrap_or(&255)
 }
 
+/// The Mesa3 is the Mesa2 Rev B matrix split across two halves: a Tiny 2040 on the left, a passive
+/// right half, and seven of the RJ-45's eight conductors carrying the five columns and the right
+/// half's two rows.  One MCU still scans the whole thing, so the split is invisible here -- the
+/// scan codes are the same shape as the mesa2's.
+///
+/// Two things changed from the mesa2, and both are in this table rather than in the pin order:
+///
+/// - **The outer pinky `R` keys are gone.**  The pinky column carries one key per hand instead of
+///   two, leaving `COL_1` empty on the right's far row.
+/// - **The columns pair by finger on both hands.**  The mesa2 numbers its right-hand columns
+///   backwards, so `COL_1` is the left's pinky and the right's index; here `COL_1` is the pinky on
+///   both sides, `COL_2` the ring, `COL_3` the middle and `COL_4` the index.  `COL_5` is still the
+///   thumbs.
+///
+/// The left half then puts a mode key in the slot its pinky `R` vacated (`SW_LFN1`, `COL_1` on
+/// `ROW_A`), which is what distinguishes this table from [`MESA2B`].  It is the general mode key,
+/// [`crate::layout::MODE_KEY`]; the mesa2 has no key to spare for one and picks its taipo variant
+/// with a chord instead.  No fabricated board has this key yet.
+///
+/// The column nets also moved from `GP4`..`GP7` to `GP7`..`GP4`, but that is the board's business:
+/// the `mesa3` module in `board.rs` names the pins in column order, so the scan codes still run
+/// `ROW_x * 5 + COL_n`.
+static MESA3: [u8; 20] = [
+    // ROW_A, the left hand's far row
+    2,  // L-Fn, the mode key, where the pinky R used to be
+    8,  // L-s
+    12, // L-n
+    16, // L-i
+    19, // L-Sp
+    // ROW_B, the left hand's near row
+    5,  // L-a
+    9,  // L-o
+    13, // L-t
+    17, // L-e
+    23, // L-Bk
+    // ROW_C, the right hand's far row
+    255, // no key: the right half has no mirror for the mode key
+    32,  // R-s
+    36,  // R-n
+    40,  // R-i
+    47,  // R-Bk
+    // ROW_D, the right hand's near row
+    29, // R-a
+    33, // R-o
+    37, // R-t
+    41, // R-e
+    43, // R-Sp
+];
+
+fn mesa3(code: u8) -> u8 {
+    *MESA3.get(code as usize).unwrap_or(&255)
+}
+
+/// The Mesa2 Rev B is the unibody the [`MESA3`] was cut from, and presents the same matrix minus
+/// the mode key: 18 keys in 20 slots, with `COL_1` empty on both hands' far rows.
+///
+/// It is a separate table rather than a name sharing the mesa3's only because of that one slot.
+/// If the Rev B ever gets its own `SW_LFN1` the two boards become indistinguishable here, and this
+/// should collapse into [`MESA3`] rather than being kept in step by hand.
+static MESA2B: [u8; 20] = [
+    // ROW_A, the left hand's far row
+    255, // no key: Rev B has no mode key, and the pinky R is gone
+    8,   // L-s
+    12,  // L-n
+    16,  // L-i
+    19,  // L-Sp
+    // ROW_B, the left hand's near row
+    5,  // L-a
+    9,  // L-o
+    13, // L-t
+    17, // L-e
+    23, // L-Bk
+    // ROW_C, the right hand's far row
+    255, // no key
+    32,  // R-s
+    36,  // R-n
+    40,  // R-i
+    47,  // R-Bk
+    // ROW_D, the right hand's near row
+    29, // R-a
+    33, // R-o
+    37, // R-t
+    41, // R-e
+    43, // R-Sp
+];
+
+fn mesa2b(code: u8) -> u8 {
+    *MESA2B.get(code as usize).unwrap_or(&255)
+}
+
 /// The Jolt4 has a different scan order that puts the keys allnicely in order.
 static JOLT4: [u8; 21] = [
     // The main part is just a span of 3 instead of 4.
@@ -278,5 +372,49 @@ mod tests {
 
         // And nothing past the matrix.
         assert_eq!(xlate(20), 255);
+    }
+
+    /// The mesa3 and the mesa2 Rev B carry the Dosh key set: every taipo key
+    /// except the two outer pinky `R`s, which neither board has.
+    ///
+    /// Same reasoning as the mesa2 test above -- a mistranscribed code would
+    /// still be a valid key and would simply type the wrong letter -- with the
+    /// two empty matrix slots checked as well, since these are the first tables
+    /// here with holes in them.
+    #[test]
+    #[cfg(feature = "proto3")]
+    fn test_mesa3_is_the_dosh_keys() {
+        use crate::layout::taipo::SCAN_MAP;
+        use crate::layout::MODE_KEY;
+
+        let mut want: Vec<u8> = (0..SCAN_MAP.len() as u8)
+            .filter(|k| SCAN_MAP[*k as usize].is_some())
+            // The pinky R keys, deleted from both boards.
+            .filter(|k| *k != 4 && *k != 28)
+            .collect();
+        want.sort();
+
+        for board in ["mesa3", "mesa2b"] {
+            let xlate = get_translation(board);
+            let mut seen: Vec<u8> = (0..20u8).map(xlate).filter(|k| *k != 255).collect();
+
+            // The mesa3 alone has the mode key, which is not a taipo key, so it
+            // has to come out before the rest can be compared.
+            if board == "mesa3" {
+                assert!(seen.contains(&MODE_KEY), "mesa3 has no mode key");
+                seen.retain(|k| *k != MODE_KEY);
+            }
+
+            seen.sort();
+            assert_eq!(seen, want, "board {board}");
+
+            // The empty matrix slots, and nothing past the matrix.
+            assert_eq!(xlate(10), 255, "board {board}");
+            assert_eq!(xlate(20), 255, "board {board}");
+        }
+
+        // The one slot the two boards disagree on.
+        assert_eq!(get_translation("mesa3")(0), MODE_KEY);
+        assert_eq!(get_translation("mesa2b")(0), 255);
     }
 }
