@@ -3,9 +3,9 @@
 //! Prints `docs/orsy/drills.md`, a lesson-by-lesson list of words with their
 //! strokes, and `docs/orsy/drills/NN-name.txt`, one line of words per lesson
 //! for pasting into MonkeyType.  The lessons follow the order in
-//! `docs/orsy/04-training.md`: what transfers from Dosh, then the shapes that
-//! conflict with Dosh one at a time, then the vowels and second characters,
-//! the free shapes, and the composition rules.
+//! `docs/orsy/04-training.md`: what transfers from Dosh, then the vowels,
+//! then the shapes that conflict with Dosh one at a time, then the second
+//! characters, the free shapes, and the composition rules.
 //!
 //! A word belongs to the first lesson that lets it be written **the way
 //! [`Writer::write`] writes it**, not merely in as few strokes.  Matching the
@@ -67,6 +67,19 @@ const LESSONS: &[Lesson] = &[
             Vowel(Vowel::E), Vowel(Vowel::Ue), Vowel(Vowel::I), Vowel(Vowel::Ui),
         ],
     },
+    Lesson {
+        name: "vowels", title: "the vowels a, o and u",
+        note: "The three vowels Dosh does not give away, and the three sharpest \
+               conflicts on the board: `a` is the `Sp` thumb alone, which is Backspace \
+               in Dosh; `o` is `e+i`, Dosh's one-shot shift; `u` is `i+Sp`, Dosh's full \
+               stop.  Plus `Bk` to end the word.  They come second because almost no \
+               English word can be spelled without them, so every consonant lesson \
+               after this one drills its shape on ordinary words.",
+        items: &[
+            Vowel(Vowel::A), Vowel(Vowel::Ua), Vowel(Vowel::Ie), Vowel(Vowel::Uie),
+            Vowel(Vowel::U), Vowel(Vowel::Uia),
+        ],
+    },
     Lesson { name: "r", title: "r on the pinky", note: "Dosh types `a` here.", items: &[Outer(Outer::FCN)] },
     Lesson { name: "c", title: "c on the lower ring", note: "Dosh types `o` here.", items: &[Outer(Outer::CP)] },
     Lesson { name: "d", title: "d is t plus the pinky", note: "Dosh types `q` here.", items: &[Outer(Outer::SCP)] },
@@ -84,17 +97,6 @@ const LESSONS: &[Lesson] = &[
         items: &[Outer(Outer::FC)],
     },
     Lesson { name: "x", title: "x on the middle pair and lower ring", note: "Dosh has PrintScreen here.", items: &[Outer(Outer::SZN)] },
-    Lesson {
-        name: "a-o", title: "the vowels a and o",
-        note: "`a` is the `Sp` thumb alone, which is Backspace in Dosh; `o` is `e+i`, \
-               which is Dosh's one-shot shift.  Plus `Bk` to end the word.",
-        items: &[Vowel(Vowel::A), Vowel(Vowel::Ua), Vowel(Vowel::Ie), Vowel(Vowel::Uie)],
-    },
-    Lesson {
-        name: "u", title: "the vowel u",
-        note: "`i+Sp`, which is Dosh's full stop.",
-        items: &[Vowel(Vowel::U), Vowel(Vowel::Uia)],
-    },
     Lesson {
         name: "second-r-l", title: "the second character: r and l",
         note: "The left hand's inner four are the second character of the syllable, \

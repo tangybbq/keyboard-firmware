@@ -9,35 +9,34 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | lesson | new | words |
 |---|---|---|
 | 1 | what transfers from Dosh | 22 |
-| 2 | r on the pinky | 9 |
-| 3 | c on the lower ring | 10 |
-| 4 | d is t plus the pinky | 38 |
-| 5 | p on the ring pair | 24 |
-| 6 | f on lower ring and middle | 33 |
-| 7 | y on pinky and upper middle | 10 |
-| 8 | th on lower ring and upper middle | 17 |
-| 9 | l on upper ring and lower middle | 48 |
-| 10 | b is p plus the pinky | 32 |
-| 11 | w on the upper ring and middle | 31 |
-| 12 | g is c plus the pinky | 48 |
-| 13 | h as an onset, st as a coda | 65 |
-| 14 | x on the middle pair and lower ring | 36 |
-| 15 | the vowels a and o | 942 |
-| 16 | the vowel u | 259 |
-| 17 | the second character: r and l | 673 |
-| 18 | the second character: i, t and m | 820 |
-| 19 | the second character: o, s and e | 505 |
-| 20 | the second character: w, c, u, p and n | 194 |
-| 21 | ea and ou | 68 |
-| 22 | v, m and k | 1528 |
-| 23 | ind/nd, inc/ng and int/nt | 1219 |
-| 24 | ch, sh, gh, z and ck | 684 |
-| 25 | the coda-only shapes: h and e | 41 |
-| 26 | the mirrored vowel and the silent e | 1201 |
-| 27 | the onset clusters | 356 |
-| 28 | w reads as h after p, w and r | 59 |
-| 29 | au and ai | 256 |
-| 30 | a bare final y | 711 |
+| 2 | the vowels a, o and u | 34 |
+| 3 | r on the pinky | 51 |
+| 4 | c on the lower ring | 81 |
+| 5 | d is t plus the pinky | 140 |
+| 6 | p on the ring pair | 153 |
+| 7 | f on lower ring and middle | 99 |
+| 8 | y on pinky and upper middle | 37 |
+| 9 | th on lower ring and upper middle | 37 |
+| 10 | l on upper ring and lower middle | 214 |
+| 11 | b is p plus the pinky | 150 |
+| 12 | w on the upper ring and middle | 116 |
+| 13 | g is c plus the pinky | 180 |
+| 14 | h as an onset, st as a coda | 241 |
+| 15 | x on the middle pair and lower ring | 69 |
+| 16 | the second character: r and l | 673 |
+| 17 | the second character: i, t and m | 820 |
+| 18 | the second character: o, s and e | 505 |
+| 19 | the second character: w, c, u, p and n | 194 |
+| 20 | ea and ou | 68 |
+| 21 | v, m and k | 1528 |
+| 22 | ind/nd, inc/ng and int/nt | 1219 |
+| 23 | ch, sh, gh, z and ck | 684 |
+| 24 | the coda-only shapes: h and e | 41 |
+| 25 | the mirrored vowel and the silent e | 1201 |
+| 26 | the onset clusters | 356 |
+| 27 | w reads as h after p, w and r | 59 |
+| 28 | au and ai | 256 |
+| 29 | a bare final y | 711 |
 
 ## Lesson 1 — what transfers from Dosh
 
@@ -70,586 +69,685 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | sins | `s-ni -s` | sin·s |
 | tents | `t-ne t-s` | ten·ts |
 
-## Lesson 2 — r on the pinky
+## Lesson 2 — the vowels a, o and u
+
+The three vowels Dosh does not give away, and the three sharpest conflicts on the board: `a` is the `Sp` thumb alone, which is Backspace in Dosh; `o` is `e+i`, Dosh's one-shot shift; `u` is `i+Sp`, Dosh's full stop.  Plus `Bk` to end the word.  They come second because almost no English word can be spelled without them, so every consonant lesson after this one drills its shape on ordinary words.
+
+34 words qualify, 34 here, most common first.  `drills/02-vowels.txt`.
+
+| word | strokes | division |
+|---|---|---|
+| a | `-SpBk` | a |
+| on | `-neiBk` | on |
+| not | `n-teiBk` | not |
+| at | `-tSpBk` | at |
+| as | `-sSpBk` | as |
+| an | `-nSpBk` | an |
+| no | `n-eiBk` | no |
+| so | `s-eiBk` | so |
+| sun | `s-niSpBk` | sun |
+| unit | `-niSp -tiBk` | un·it |
+| notes | `n-tei -seBk` | not·es |
+| sat | `s-tSpBk` | sat |
+| son | `s-neiBk` | son |
+| units | `-niSp -ti -s` | un·it·s |
+| uses | `-siSp -seBk` | us·es |
+| santa | `s-nSp t-SpBk` | san·ta |
+| ones | `-nei -seBk` | on·es |
+| assets | `-sSp s-te -s` | as·set·s |
+| asset | `-sSp s-teBk` | as·set |
+| tones | `t-nei -seBk` | ton·es |
+| sons | `s-nei -s` | son·s |
+| assess | `-sSp s-se -s` | as·ses·s |
+| titans | `t-ti -nSp -s` | tit·an·s |
+| antenna | `-nSp t-ne n-SpBk` | an·ten·na |
+| sunset | `s-niSp s-teBk` | sun·set |
+| tons | `t-nei -s` | ton·s |
+| tan | `t-nSpBk` | tan |
+| nuts | `n-tiSp -s` | nut·s |
+| ton | `t-neiBk` | ton |
+| satin | `s-tSp -niBk` | sat·in |
+| tunes | `t-niSp -seBk` | tun·es |
+| nut | `n-tiSpBk` | nut |
+| titan | `t-ti -nSpBk` | tit·an |
+| nonsense | `n-nei s-ne s-eBk` | non·sen·se |
+
+## Lesson 3 — r on the pinky
 
 Dosh types `a` here.
 
-9 words qualify, 9 here, most common first.  `drills/02-r.txt`.
+51 words qualify, 40 here, most common first.  `drills/03-r.txt`.
 
 | word | strokes | division |
 |---|---|---|
+| or | `-aeiBk` | or |
+| user | `-siSp -aeBk` | us·er |
+| art | `-aSp -t` | ar·t |
+| return | `a-te -aiSp -n` | ret·ur·n |
+| users | `-siSp -ae -s` | us·er·s |
+| rates | `a-tSp -seBk` | rat·es |
 | enter | `-ne t-aeBk` | en·ter |
+| run | `a-niSpBk` | run |
+| arts | `-aSp t-s` | ar·ts |
+| sort | `s-aei -t` | sor·t |
+| turn | `t-aiSp -n` | tur·n |
+| returns | `a-te -aiSp n-s` | ret·ur·ns |
+| resort | `a-se -aei -t` | res·or·t |
+| nor | `n-aeiBk` | nor |
+| errors | `-ae a-aei -s` | er·ror·s |
+| runs | `a-niSp -s` | run·s |
+| iran | `-ai -nSpBk` | ir·an |
 | sir | `s-aiBk` | sir |
+| resorts | `a-se -aei t-s` | res·or·ts |
 | insert | `-ni s-ae -t` | in·ser·t |
 | inner | `-ni n-aeBk` | in·ner |
+| turns | `t-aiSp n-s` | tur·ns |
+| era | `-ae -SpBk` | er·a |
+| nurse | `n-aiSp s-eBk` | nur·se |
+| ran | `a-nSpBk` | ran |
+| arena | `-aSp -ne -SpBk` | ar·en·a |
+| roses | `a-sei -seBk` | ros·es |
+| nurses | `n-aiSp s-seBk` | nur·ses |
+| rat | `a-tSpBk` | rat |
+| toner | `t-nei -aeBk` | ton·er |
+| turner | `t-aiSp n-aeBk` | tur·ner |
 | reset | `a-se -teBk` | res·et |
+| rats | `a-tSp -s` | rat·s |
+| sensors | `s-ne s-aei -s` | sen·sor·s |
 | tires | `t-ai -seBk` | tir·es |
-| enters | `-ne t-ae -s` | en·ter·s |
-| rises | `a-si -seBk` | ris·es |
-| inserts | `-ni s-ae t-s` | in·ser·ts |
+| runner | `a-niSp n-aeBk` | run·ner |
+| tar | `t-aSpBk` | tar |
+| ensures | `-ne s-aiSp -seBk` | en·sur·es |
+| saturn | `s-tSp -aiSp -n` | sat·ur·n |
+| tuner | `t-niSp -aeBk` | tun·er |
 
-## Lesson 3 — c on the lower ring
+## Lesson 4 — c on the lower ring
 
 Dosh types `o` here.
 
-10 words qualify, 10 here, most common first.  `drills/03-c.txt`.
+81 words qualify, 40 here, most common first.  `drills/04-c.txt`.
 
 | word | strokes | division |
 |---|---|---|
+| can | `o-nSpBk` | can |
+| contact | `o-nei t-oSp -t` | con·tac·t |
 | center | `o-ne t-aeBk` | cen·ter |
+| car | `o-aSpBk` | car |
+| access | `-oSp o-se -s` | ac·ces·s |
+| insurance | `-ni s-aiSp -nSp o-eBk` | in·sur·an·ce |
+| cart | `o-aSp -t` | car·t |
+| act | `-oSp -t` | ac·t |
+| once | `-nei o-eBk` | on·ce |
+| cars | `o-aSp -s` | car·s |
+| cases | `o-sSp -seBk` | cas·es |
+| contents | `o-nei t-ne t-s` | con·ten·ts |
+| across | `-oSp a-sei -s` | ac·ros·s |
+| cancer | `o-nSp o-aeBk` | can·cer |
+| cut | `o-tiSpBk` | cut |
+| success | `s-oiSp o-se -s` | suc·ces·s |
+| cat | `o-tSpBk` | cat |
+| connect | `o-nei n-oe -t` | con·nec·t |
+| correct | `o-aei a-oe -t` | cor·rec·t |
+| corner | `o-aei n-aeBk` | cor·ner |
 | centers | `o-ne t-ae -s` | cen·ter·s |
+| contacts | `o-nei t-oSp t-s` | con·tac·ts |
+| con | `o-neiBk` | con |
 | secret | `s-oe a-teBk` | sec·ret |
+| concerns | `o-nei o-ae n-s` | con·cer·ns |
+| soccer | `s-oei o-aeBk` | soc·cer |
+| census | `o-ne s-siSpBk` | cen·sus |
+| occur | `-oei o-aiSpBk` | oc·cur |
+| concern | `o-nei o-ae -n` | con·cer·n |
+| connecticut | `o-nei n-oe t-oi -tiSpBk` | con·nec·tic·ut |
+| acts | `-oSp t-s` | ac·ts |
+| concert | `o-nei o-ae -t` | con·cer·t |
+| notices | `n-tei -oi -seBk` | not·ic·es |
+| erotic | `-ae -tei -oiBk` | er·ot·ic |
+| occurs | `-oei o-aiSp -s` | oc·cur·s |
+| cats | `o-tSp -s` | cat·s |
 | sentence | `s-ne t-ne o-eBk` | sen·ten·ce |
+| acres | `-oSp a-seBk` | ac·res |
 | secrets | `s-oe a-te -s` | sec·ret·s |
-| cents | `o-ne t-s` | cen·ts |
-| essence | `-se s-ne o-eBk` | es·sen·ce |
-| sentences | `s-ne t-ne o-seBk` | sen·ten·ces |
-| insects | `-ni s-oe t-s` | in·sec·ts |
-| insect | `-ni s-oe -t` | in·sec·t |
+| icons | `-oi -nei -s` | ic·on·s |
 
-## Lesson 4 — d is t plus the pinky
+## Lesson 5 — d is t plus the pinky
 
 Dosh types `q` here.
 
-38 words qualify, 38 here, most common first.  `drills/04-d.txt`.
+140 words qualify, 40 here, most common first.  `drills/05-d.txt`.
 
 | word | strokes | division |
 |---|---|---|
+| do | `at-eiBk` | do |
+| used | `-siSp -ateBk` | us·ed |
+| data | `at-tSp -SpBk` | dat·a |
+| add | `-atSp -at` | ad·d |
+| order | `-aei at-aeBk` | or·der |
+| united | `-niSp -ti -ateBk` | un·it·ed |
 | did | `at-atiBk` | did |
+| card | `o-aSp -at` | car·d |
+| canada | `o-nSp -atSp -SpBk` | can·ad·a |
 | red | `a-ateBk` | red |
+| cards | `o-aSp at-s` | car·ds |
+| added | `-atSp at-ateBk` | ad·ded |
+| record | `a-oe -aei -at` | rec·or·d |
 | direct | `at-ai -oe -t` | dir·ec·t |
+| records | `a-oe -aei at-s` | rec·or·ds |
 | edit | `-ate -tiBk` | ed·it |
+| orders | `-aei at-ae -s` | or·der·s |
+| ad | `-atSpBk` | ad |
+| rated | `a-tSp -ateBk` | rat·ed |
+| considered | `o-nei s-ati -ae -ateBk` | con·sid·er·ed |
+| ads | `-atSp -s` | ad·s |
+| consider | `o-nei s-ati -aeBk` | con·sid·er |
+| dance | `at-nSp o-eBk` | dan·ce |
+| discuss | `at-si o-siSp -s` | dis·cus·s |
+| dates | `at-tSp -seBk` | dat·es |
+| sorted | `s-aei t-ateBk` | sor·ted |
+| codes | `o-atei -seBk` | cod·es |
+| turned | `t-aiSp n-ateBk` | tur·ned |
 | disc | `at-si -o` | dis·c |
+| returned | `a-te -aiSp n-ateBk` | ret·ur·ned |
+| dedicated | `at-ate -oi -tSp -ateBk` | ded·ic·at·ed |
 | decided | `at-oe -ati -ateBk` | dec·id·ed |
+| acid | `-oSp -atiBk` | ac·id |
 | residents | `a-se -ati -ne t-s` | res·id·en·ts |
-| dinner | `at-ni n-aeBk` | din·ner |
-| directed | `at-ai -oe t-ateBk` | dir·ec·ted |
-| entered | `-ne t-ae -ateBk` | en·ter·ed |
-| edited | `-ate -ti -ateBk` | ed·it·ed |
-| residence | `a-se -ati -ne o-eBk` | res·id·en·ce |
-| sides | `s-ati -seBk` | sid·es |
-| desert | `at-se -ae -t` | des·er·t |
-| desired | `at-se -ai -ateBk` | des·ir·ed |
-| den | `at-neBk` | den |
-| insider | `-ni s-ati -aeBk` | in·sid·er |
-| cited | `o-ti -ateBk` | cit·ed |
-| tired | `t-ai -ateBk` | tir·ed |
-| retired | `a-te -ai -ateBk` | ret·ir·ed |
-| detected | `at-te -oe t-ateBk` | det·ec·ted |
-| discs | `at-si o-s` | dis·cs |
-| rider | `a-ati -aeBk` | rid·er |
-| detect | `at-te -oe -t` | det·ec·t |
-| dirt | `at-ai -t` | dir·t |
-| rid | `a-atiBk` | rid |
-| rides | `a-ati -seBk` | rid·es |
-| riders | `a-ati -ae -s` | rid·er·s |
-| centered | `o-ne t-ae -ateBk` | cen·ter·ed |
-| inserted | `-ni s-ae t-ateBk` | in·ser·ted |
-| dense | `at-ne s-eBk` | den·se |
-| edits | `-ate -ti -s` | ed·it·s |
-| decides | `at-oe -ati -seBk` | dec·id·es |
-| dessert | `at-se s-ae -t` | des·ser·t |
-| desires | `at-se -ai -seBk` | des·ir·es |
-| desserts | `at-se s-ae t-s` | des·ser·ts |
-| redirect | `a-ate -ai -oe -t` | red·ir·ec·t |
-| sentenced | `s-ne t-ne o-ateBk` | sen·ten·ced |
+| noted | `n-tei -ateBk` | not·ed |
+| reduced | `a-ate -oiSp -ateBk` | red·uc·ed |
+| connected | `o-nei n-oe t-ateBk` | con·nec·ted |
+| directors | `at-ai -oe t-aei -s` | dir·ec·tor·s |
+| dot | `at-teiBk` | dot |
+| recorded | `a-oe -aei at-ateBk` | rec·or·ded |
 
-## Lesson 5 — p on the ring pair
+## Lesson 6 — p on the ring pair
 
 Dosh has one-shot alt here.
 
-24 words qualify, 24 here, most common first.  `drills/05-p.txt`.
+153 words qualify, 40 here, most common first.  `drills/06-p.txt`.
 
 | word | strokes | division |
 |---|---|---|
+| up | `-osiSpBk` | up |
+| top | `t-oseiBk` | top |
+| support | `s-osiSp os-aei -t` | sup·por·t |
+| part | `os-aSp -t` | par·t |
+| report | `a-ose -aei -t` | rep·or·t |
+| open | `-osei -neBk` | op·en |
 | per | `os-aeBk` | per |
+| pictures | `os-oi t-aiSp -seBk` | pic·tur·es |
+| topic | `t-osei -oiBk` | top·ic |
+| paper | `os-osSp -aeBk` | pap·er |
+| put | `os-tiSpBk` | put |
+| reports | `a-ose -aei t-s` | rep·or·ts |
+| updated | `-osiSp at-tSp -ateBk` | up·dat·ed |
+| parts | `os-aSp t-s` | par·ts |
+| topics | `t-osei -oi -s` | top·ic·s |
 | tips | `t-osi -s` | tip·s |
+| response | `a-se os-nei s-eBk` | res·pon·se |
 | pics | `os-oi -s` | pic·s |
+| port | `os-aei -t` | por·t |
+| super | `s-osiSp -aeBk` | sup·er |
+| parents | `os-aSp -ne t-s` | par·en·ts |
+| input | `-ni os-tiSpBk` | in·put |
+| pass | `os-sSp -s` | pas·s |
+| pop | `os-oseiBk` | pop |
+| reported | `a-ose -aei t-ateBk` | rep·or·ted |
+| purposes | `os-aiSp os-sei -seBk` | pur·pos·es |
+| papers | `os-osSp -ae -s` | pap·er·s |
+| updates | `-osiSp at-tSp -seBk` | up·dat·es |
+| paris | `os-aSp -siBk` | par·is |
 | respect | `a-se os-oe -t` | res·pec·t |
+| accepted | `-oSp o-ose t-ateBk` | ac·cep·ted |
 | pet | `os-teBk` | pet |
+| cup | `o-osiSpBk` | cup |
+| accept | `-oSp o-ose -t` | ac·cep·t |
+| persons | `os-ae s-nei -s` | per·son·s |
+| supported | `s-osiSp os-aei t-ateBk` | sup·por·ted |
+| upper | `-osiSp os-aeBk` | up·per |
+| acceptance | `-oSp o-ose t-nSp o-eBk` | ac·cep·tan·ce |
 | recipes | `a-oe -osi -seBk` | rec·ip·es |
-| pets | `os-te -s` | pet·s |
-| pin | `os-niBk` | pin |
-| represents | `a-ose a-se -ne t-s` | rep·res·en·ts |
-| represented | `a-ose a-se -ne t-ateBk` | rep·res·en·ted |
-| pen | `os-neBk` | pen |
-| pepper | `os-ose os-aeBk` | pep·per |
-| pit | `os-tiBk` | pit |
-| pins | `os-ni -s` | pin·s |
-| epic | `-ose -oiBk` | ep·ic |
-| pipes | `os-osi -seBk` | pip·es |
-| dip | `at-osiBk` | dip |
-| pens | `os-ne -s` | pen·s |
-| respected | `a-se os-oe t-ateBk` | res·pec·ted |
-| sip | `s-osiBk` | sip |
-| picnic | `os-oi n-oiBk` | pic·nic |
-| respects | `a-se os-oe t-s` | res·pec·ts |
-| peppers | `os-ose os-ae -s` | pep·per·s |
-| depressed | `at-ose a-se s-ateBk` | dep·res·sed |
+| pattern | `os-tSp t-ae -n` | pat·ter·n |
 
-## Lesson 6 — f on lower ring and middle
+## Lesson 7 — f on lower ring and middle
 
 Dosh types `u` here.
 
-33 words qualify, 33 here, most common first.  `drills/06-f.txt`.
+99 words qualify, 40 here, most common first.  `drills/07-f.txt`.
 
 | word | strokes | division |
 |---|---|---|
+| of | `-oteiBk` | of |
+| for | `ot-aeiBk` | for |
 | if | `-otiBk` | if |
+| after | `-otSp t-aeBk` | af·ter |
+| off | `-otei -ot` | of·f |
+| offers | `-otei ot-ae -s` | of·fer·s |
+| offer | `-otei ot-aeBk` | of·fer |
 | reference | `a-ote -ae -ne o-eBk` | ref·er·en·ce |
+| fun | `ot-niSpBk` | fun |
+| conference | `o-nei ot-ae -ne o-eBk` | con·fer·en·ce |
+| finance | `ot-ni -nSp o-eBk` | fin·an·ce |
+| fact | `ot-oSp -t` | fac·t |
+| far | `ot-aSpBk` | far |
+| often | `-otei t-neBk` | of·ten |
 | effects | `-ote ot-oe t-s` | ef·fec·ts |
+| africa | `-otSp a-oi -SpBk` | af·ric·a |
+| force | `ot-aei o-eBk` | for·ce |
 | effect | `-ote ot-oe -t` | ef·fec·t |
+| focus | `ot-oei -siSpBk` | foc·us |
 | perfect | `os-ae ot-oe -t` | per·fec·t |
 | fitness | `ot-ti n-se -s` | fit·nes·s |
+| pacific | `os-oSp -oti -oiBk` | pac·if·ic |
 | defined | `at-ote -ni -ateBk` | def·in·ed |
+| offered | `-otei ot-ae -ateBk` | of·fer·ed |
+| fat | `ot-tSpBk` | fat |
+| officer | `-otei ot-oi -aeBk` | of·fic·er |
+| fan | `ot-nSpBk` | fan |
 | references | `a-ote -ae -ne o-seBk` | ref·er·en·ces |
+| african | `-otSp a-oi -nSpBk` | af·ric·an |
 | difference | `at-oti ot-ae -ne o-eBk` | dif·fer·en·ce |
 | fit | `ot-tiBk` | fit |
+| factors | `ot-oSp t-aei -s` | fac·tor·s |
+| ford | `ot-aei -at` | for·d |
+| effort | `-ote ot-aei -t` | ef·for·t |
+| soft | `s-otei -t` | sof·t |
+| efforts | `-ote ot-aei t-s` | ef·for·ts |
 | defense | `at-ote -ne s-eBk` | def·en·se |
-| referred | `a-ote -ae a-ateBk` | ref·er·red |
-| refer | `a-ote -aeBk` | ref·er |
-| differences | `at-oti ot-ae -ne o-seBk` | dif·fer·en·ces |
-| def | `at-oteBk` | def |
-| fits | `ot-ti -s` | fit·s |
-| refers | `a-ote -ae -s` | ref·er·s |
-| differ | `at-oti ot-aeBk` | dif·fer |
-| defines | `at-ote -ni -seBk` | def·in·es |
-| infected | `-ni ot-oe t-ateBk` | in·fec·ted |
-| fired | `ot-ai -ateBk` | fir·ed |
-| fitted | `ot-ti t-ateBk` | fit·ted |
-| defects | `at-ote -oe t-s` | def·ec·ts |
-| fence | `ot-ne o-eBk` | fen·ce |
-| deficit | `at-ote -oi -tiBk` | def·ic·it |
-| fires | `ot-ai -seBk` | fir·es |
-| refined | `a-ote -ni -ateBk` | ref·in·ed |
-| referenced | `a-ote -ae -ne o-ateBk` | ref·er·en·ced |
-| fin | `ot-niBk` | fin |
-| deferred | `at-ote -ae a-ateBk` | def·er·red |
-| defect | `at-ote -oe -t` | def·ec·t |
-| terrific | `t-ae a-oti -oiBk` | ter·rif·ic |
-| fines | `ot-ni -seBk` | fin·es |
+| facts | `ot-oSp t-s` | fac·ts |
+| fort | `ot-aei -t` | for·t |
+| forces | `ot-aei o-seBk` | for·ces |
 
-## Lesson 7 — y on pinky and upper middle
+## Lesson 8 — y on pinky and upper middle
 
 Dosh types `j` here.
 
-10 words qualify, 10 here, most common first.  `drills/07-y.txt`.
+37 words qualify, 37 here, most common first.  `drills/08-y.txt`.
 
 | word | strokes | division |
 |---|---|---|
+| day | `at-anSpBk` | day |
+| days | `at-anSp -s` | day·s |
 | type | `t-an os-eBk` | ty·pe |
+| today | `t-atei -anSpBk` | tod·ay |
 | yes | `an-seBk` | yes |
+| say | `s-anSpBk` | say |
+| pay | `os-anSpBk` | pay |
 | yet | `an-teBk` | yet |
+| says | `s-anSp -s` | say·s |
+| toys | `t-anei -s` | toy·s |
 | types | `t-an os-seBk` | ty·pes |
+| saturday | `s-tSp -aiSp at-anSpBk` | sat·ur·day |
 | eyes | `-ane -seBk` | ey·es |
+| attorney | `-tSp t-aei n-aneBk` | at·tor·ney |
+| ray | `a-anSpBk` | ray |
+| toy | `t-aneiBk` | toy |
+| array | `-aSp a-anSpBk` | ar·ray |
+| attorneys | `-tSp t-aei n-ane -s` | at·tor·ney·s |
+| yard | `an-aSp -at` | yar·d |
+| yards | `an-aSp at-s` | yar·ds |
+| essays | `-se s-anSp -s` | es·say·s |
+| payday | `os-anSp at-anSpBk` | pay·day |
+| essay | `-se s-anSpBk` | es·say |
+| pays | `os-anSp -s` | pay·s |
+| synopsis | `s-an n-osei s-siBk` | sy·nop·sis |
 | eyed | `-ane -ateBk` | ey·ed |
+| surrey | `s-aiSp a-aneBk` | sur·rey |
+| rays | `a-anSp -s` | ray·s |
 | yen | `an-neBk` | yen |
 | dryer | `at- a-an -aeBk` | d·ry·er |
+| yarn | `an-aSp -n` | yar·n |
+| decay | `at-oe -anSpBk` | dec·ay |
+| soy | `s-aneiBk` | soy |
 | dye | `at-an -eBk` | dy·e |
+| arrays | `-aSp a-anSp -s` | ar·ray·s |
+| assay | `-sSp s-anSpBk` | as·say |
 | typed | `t-an os-ateBk` | ty·ped |
 
-## Lesson 8 — th on lower ring and upper middle
+## Lesson 9 — th on lower ring and upper middle
 
 Dosh types `g` here.
 
-17 words qualify, 17 here, most common first.  `drills/08-th.txt`.
+37 words qualify, 37 here, most common first.  `drills/09-th.txt`.
 
 | word | strokes | division |
 |---|---|---|
 | the | `on-eBk` | the |
+| that | `on-tSpBk` | that |
 | this | `on-siBk` | this |
+| other | `-onei -aeBk` | oth·er |
 | they | `on-aneBk` | they |
+| than | `on-nSpBk` | than |
 | then | `on-neBk` | then |
+| north | `n-aei -on` | nor·th |
+| another | `-nSp -onei -aeBk` | an·oth·er |
+| others | `-onei -ae -s` | oth·er·s |
+| further | `ot-aiSp on-aeBk` | fur·ther |
 | third | `on-ai -at` | thir·d |
+| rather | `a-onSp -aeBk` | rath·er |
+| thursday | `on-aiSp s- at-anSpBk` | thur·s·day |
+| thus | `on-siSpBk` | thus |
+| northern | `n-aei on-ae -n` | nor·ther·n |
+| father | `ot-onSp -aeBk` | fath·er |
+| path | `os-onSpBk` | path |
 | depth | `at-ose -on` | dep·th |
+| forth | `ot-aei -on` | for·th |
 | ethics | `-one -oi -s` | eth·ic·s |
 | ethnic | `-one n-oiBk` | eth·nic |
 | fifth | `ot-oti -on` | fif·th |
 | thin | `on-niBk` | thin |
 | ethernet | `-one -ae n-teBk` | eth·er·net |
 | theft | `on-ote -t` | thef·t |
+| athens | `-onSp -ne -s` | ath·en·s |
 | thesis | `on-se -siBk` | thes·is |
 | synthesis | `s-an n- on-se -siBk` | sy·n·thes·is |
+| paths | `os-onSp -s` | path·s |
+| ruth | `a-oniSpBk` | ruth |
 | synthetic | `s-an n- on-te -oiBk` | sy·n·thet·ic |
+| fathers | `ot-onSp -ae -s` | fath·er·s |
 | ninth | `n-ni -on` | nin·th |
+| panthers | `os-nSp on-ae -s` | pan·ther·s |
+| panther | `os-nSp on-aeBk` | pan·ther |
 | tenth | `t-ne -on` | ten·th |
 
-## Lesson 9 — l on upper ring and lower middle
+## Lesson 10 — l on upper ring and lower middle
 
 Dosh types `?` here.
 
-48 words qualify, 40 here, most common first.  `drills/09-l.txt`.
+214 words qualify, 40 here, most common first.  `drills/10-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
+| local | `st-oei -stSpBk` | loc·al |
+| results | `a-se -stiSp t-s` | res·ul·ts |
+| related | `a-ste -tSp -ateBk` | rel·at·ed |
+| total | `t-tei -stSpBk` | tot·al |
+| personal | `os-ae s-nei -stSpBk` | per·son·al |
+| old | `-stei -at` | ol·d |
+| sales | `s-stSp -seBk` | sal·es |
 | left | `st-ote -t` | lef·t |
 | select | `s-ste -oe -t` | sel·ec·t |
+| april | `-osSp a-stiBk` | ap·ril |
 | less | `st-se -s` | les·s |
 | let | `st-teBk` | let |
+| result | `a-se -stiSp -t` | res·ul·t |
 | files | `ot-sti -seBk` | fil·es |
+| popular | `os-osei -stiSp -aSpBk` | pop·ul·ar |
+| until | `-niSp t-stiBk` | un·til |
 | self | `s-ste -ot` | sel·f |
+| lot | `st-teiBk` | lot |
+| natural | `n-tSp -aiSp -stSpBk` | nat·ur·al |
+| federal | `ot-ate -ae -stSpBk` | fed·er·al |
+| rules | `a-stiSp -seBk` | rul·es |
+| final | `ot-ni -stSpBk` | fin·al |
+| adult | `-atSp -stiSp -t` | ad·ul·t |
 | else | `-ste s-eBk` | el·se |
 | lyrics | `st-an a-oi -s` | ly·ric·s |
 | license | `st-oi -ne s-eBk` | lic·en·se |
+| later | `st-tSp -aeBk` | lat·er |
+| loss | `st-sei -s` | los·s |
+| political | `os-stei -ti -oi -stSpBk` | pol·it·ic·al |
 | lines | `st-ni -seBk` | lin·es |
+| particular | `os-aSp t-oi -stiSp -aSpBk` | par·tic·ul·ar |
+| rental | `a-ne t-stSpBk` | ren·tal |
+| capital | `o-osSp -ti -stSpBk` | cap·it·al |
 | letter | `st-te t-aeBk` | let·ter |
+| located | `st-oei -tSp -ateBk` | loc·at·ed |
+| rentals | `a-ne t-stSp -s` | ren·tal·s |
 | selected | `s-ste -oe t-ateBk` | sel·ec·ted |
+| useful | `-siSp -ote -stiSpBk` | us·ef·ul |
+| told | `t-stei -at` | tol·d |
 | filter | `ot-sti t-aeBk` | fil·ter |
-| itself | `-ti s-ste -ot` | it·sel·f |
-| led | `st-ateBk` | led |
-| letters | `st-te t-ae -s` | let·ter·s |
-| felt | `ot-ste -t` | fel·t |
-| filed | `ot-sti -ateBk` | fil·ed |
-| licensed | `st-oi -ne s-ateBk` | lic·en·sed |
-| lens | `st-ne -s` | len·s |
-| filters | `ot-sti t-ae -s` | fil·ter·s |
-| elected | `-ste -oe t-ateBk` | el·ec·ted |
-| lets | `st-te -s` | let·s |
-| lift | `st-oti -t` | lif·t |
-| lenses | `st-ne s-seBk` | len·ses |
-| deleted | `at-ste -te -ateBk` | del·et·ed |
-| licenses | `st-oi -ne s-seBk` | lic·en·ses |
-| lips | `st-osi -s` | lip·s |
-| silence | `s-sti -ne o-eBk` | sil·en·ce |
-| celtic | `o-ste t-oiBk` | cel·tic |
-| lip | `st-osiBk` | lip |
-| elder | `-ste at-aeBk` | el·der |
-| lit | `st-tiBk` | lit |
-| lyric | `st-an a-oiBk` | ly·ric |
-| lesser | `st-se s-aeBk` | les·ser |
-| lined | `st-ni -ateBk` | lin·ed |
-| lid | `st-atiBk` | lid |
-| elect | `-ste -oe -t` | el·ec·t |
-| yields | `an-i -ste at-s` | yi·el·ds |
-| nil | `n-stiBk` | nil |
 
-## Lesson 10 — b is p plus the pinky
+## Lesson 11 — b is p plus the pinky
 
 Dosh has one-shot gui here.
 
-32 words qualify, 32 here, most common first.  `drills/10-b.txt`.
+150 words qualify, 40 here, most common first.  `drills/11-b.txt`.
 
 | word | strokes | division |
 |---|---|---|
 | be | `aos-eBk` | be |
+| but | `aos-tiSpBk` | but |
+| business | `aos-siSp -ni -se -s` | bus·in·es·s |
+| buy | `aos-aniSpBk` | buy |
+| based | `aos-sSp -ateBk` | bas·ed |
+| both | `aos-oneiBk` | both |
+| october | `-oei t-aosei -aeBk` | oc·tob·er |
 | better | `aos-te t-aeBk` | bet·ter |
+| bad | `aos-atSpBk` | bad |
+| basic | `aos-sSp -oiBk` | bas·ic |
 | bit | `aos-tiBk` | bit |
+| bay | `aos-anSpBk` | bay |
+| bar | `aos-aSpBk` | bar |
 | benefits | `aos-ne -ote -ti -s` | ben·ef·it·s |
 | bid | `aos-atiBk` | bid |
 | bed | `aos-ateBk` | bed |
+| basis | `aos-sSp -siBk` | bas·is |
+| boy | `aos-aneiBk` | boy |
 | bin | `aos-niBk` | bin |
+| boys | `aos-anei -s` | boy·s |
+| born | `aos-aei -n` | bor·n |
 | debt | `at-aose -t` | deb·t |
+| businesses | `aos-siSp -ni -se s-seBk` | bus·in·es·ses |
 | benefit | `aos-ne -ote -tiBk` | ben·ef·it |
+| buyer | `aos-aniSp -aeBk` | buy·er |
+| balance | `aos-stSp -nSp o-eBk` | bal·an·ce |
+| label | `st-aosSp -steBk` | lab·el |
+| bus | `aos-siSpBk` | bus |
+| urban | `-aiSp aos-nSpBk` | ur·ban |
 | birth | `aos-ai -on` | bir·th |
 | bytes | `aos-an t-seBk` | by·tes |
+| bath | `aos-onSpBk` | bath |
+| birthday | `aos-ai on- at-anSpBk` | bir·th·day |
+| beta | `aos-te -SpBk` | bet·a |
+| bars | `aos-aSp -s` | bar·s |
 | bird | `aos-ai -at` | bir·d |
 | bids | `aos-ati -s` | bid·s |
-| bits | `aos-ti -s` | bit·s |
-| birds | `aos-ai at-s` | bir·ds |
-| beds | `aos-ate -s` | bed·s |
-| belt | `aos-ste -t` | bel·t |
-| bet | `aos-teBk` | bet |
-| fiber | `ot-aosi -aeBk` | fib·er |
-| besides | `aos-se -ati -seBk` | bes·id·es |
-| bidder | `aos-ati at-aeBk` | bid·der |
-| byte | `aos-an t-eBk` | by·te |
-| bye | `aos-an -eBk` | by·e |
-| belts | `aos-ste t-s` | bel·ts |
-| bitter | `aos-ti t-aeBk` | bit·ter |
-| debit | `at-aose -tiBk` | deb·it |
-| bidders | `aos-ati at-ae -s` | bid·der·s |
-| debts | `at-aose t-s` | deb·ts |
-| births | `aos-ai on-s` | bir·ths |
-| bets | `aos-te -s` | bet·s |
-| rebels | `a-aose -ste -s` | reb·el·s |
-| bins | `aos-ni -s` | bin·s |
+| bonus | `aos-nei -siSpBk` | bon·us |
+| babes | `aos-aosSp -seBk` | bab·es |
+| bass | `aos-sSp -s` | bas·s |
 
-## Lesson 11 — w on the upper ring and middle
+## Lesson 12 — w on the upper ring and middle
 
 Dosh types `p` here.
 
-31 words qualify, 31 here, most common first.  `drills/11-w.txt`.
+116 words qualify, 40 here, most common first.  `drills/12-w.txt`.
 
 | word | strokes | division |
 |---|---|---|
 | with | `sn-oniBk` | with |
 | new | `n-sneBk` | new |
+| was | `sn-sSpBk` | was |
 | we | `sn-eBk` | we |
 | news | `n-sne -s` | new·s |
 | web | `sn-aoseBk` | web |
+| now | `n-sneiBk` | now |
+| way | `sn-anSpBk` | way |
 | within | `sn-oni -niBk` | with·in |
+| own | `-snei -n` | ow·n |
+| power | `os-snei -aeBk` | pow·er |
+| down | `at-snei -n` | dow·n |
+| law | `st-snSpBk` | law |
+| water | `sn-tSp -aeBk` | wat·er |
+| low | `st-sneiBk` | low |
 | few | `ot-sneBk` | few |
+| always | `-stSp sn-anSp -s` | al·way·s |
+| away | `-snSp -anSpBk` | aw·ay |
+| powered | `os-snei -ae -ateBk` | pow·er·ed |
+| word | `sn-aei -at` | wor·d |
+| words | `sn-aei at-s` | wor·ds |
+| town | `t-snei -n` | tow·n |
 | wireless | `sn-ai -ste -se -s` | wir·el·es·s |
+| lower | `st-snei -aeBk` | low·er |
+| wednesday | `sn-ate n-se at-anSpBk` | wed·nes·day |
 | wed | `sn-ateBk` | wed |
 | win | `sn-niBk` | win |
+| wanted | `sn-nSp t-ateBk` | wan·ted |
+| owners | `-snei n-ae -s` | ow·ner·s |
+| award | `-snSp -aSp -at` | aw·ar·d |
+| forward | `ot-aei sn-aSp -at` | for·war·d |
+| owner | `-snei n-aeBk` | ow·ner |
+| ways | `sn-anSp -s` | way·s |
+| awards | `-snSp -aSp at-s` | aw·ar·ds |
+| saw | `s-snSpBk` | saw |
+| worth | `sn-aei -on` | wor·th |
+| laws | `st-snSp -s` | law·s |
 | websites | `sn-aose s-ti -seBk` | web·sit·es |
 | wild | `sn-sti -at` | wil·d |
-| width | `sn-ati -on` | wid·th |
-| wet | `sn-teBk` | wet |
-| winner | `sn-ni n-aeBk` | win·ner |
-| winners | `sn-ni n-ae -s` | win·ner·s |
-| wins | `sn-ni -s` | win·s |
-| witness | `sn-ti n-se -s` | wit·nes·s |
-| fewer | `ot-sne -aeBk` | few·er |
-| wines | `sn-ni -seBk` | win·es |
-| wired | `sn-ai -ateBk` | wir·ed |
-| wider | `sn-ati -aeBk` | wid·er |
-| witnesses | `sn-ti n-se s-seBk` | wit·nes·ses |
-| wilderness | `sn-sti at-ae n-se -s` | wil·der·nes·s |
-| newer | `n-sne -aeBk` | new·er |
-| renew | `a-ne -sneBk` | ren·ew |
-| wires | `sn-ai -seBk` | wir·es |
-| wit | `sn-tiBk` | wit |
-| sewer | `s-sne -aeBk` | sew·er |
-| renewed | `a-ne -sne -ateBk` | ren·ew·ed |
-| webs | `sn-aose -s` | web·s |
+| towards | `t-snei -aSp at-s` | tow·ar·ds |
 
-## Lesson 12 — g is c plus the pinky
+## Lesson 13 — g is c plus the pinky
 
 Dosh types `l` here.
 
-48 words qualify, 40 here, most common first.  `drills/12-g.txt`.
+180 words qualify, 40 here, most common first.  `drills/13-g.txt`.
 
 | word | strokes | division |
 |---|---|---|
 | get | `ao-teBk` | get |
+| go | `ao-eiBk` | go |
+| general | `ao-ne -ae -stSpBk` | gen·er·al |
 | design | `at-se -aoi -n` | des·ig·n |
 | sign | `s-aoi -n` | sig·n |
+| pages | `os-aoSp -seBk` | pag·es |
 | big | `aos-aoiBk` | big |
+| digital | `at-aoi -ti -stSpBk` | dig·it·al |
+| gay | `ao-anSpBk` | gay |
+| large | `st-aSp ao-eBk` | lar·ge |
+| got | `ao-teiBk` | got |
+| login | `st-aoei -niBk` | log·in |
+| legal | `st-aoe -stSpBk` | leg·al |
 | gift | `ao-oti -t` | gif·t |
+| garden | `ao-aSp at-neBk` | gar·den |
+| god | `ao-ateiBk` | god |
+| original | `-aei -aoi -ni -stSpBk` | or·ig·in·al |
+| log | `st-aoeiBk` | log |
+| gold | `ao-stei -at` | gol·d |
 | gifts | `ao-oti t-s` | gif·ts |
+| together | `t-aoei -one -aeBk` | tog·eth·er |
+| golf | `ao-stei -ot` | gol·f |
 | designed | `at-se -aoi n-ateBk` | des·ig·ned |
+| dog | `at-aoeiBk` | dog |
+| gas | `ao-sSpBk` | gas |
+| regular | `a-aoe -stiSp -aSpBk` | reg·ul·ar |
+| larger | `st-aSp ao-aeBk` | lar·ger |
+| budget | `aos-atiSp ao-teBk` | bud·get |
+| target | `t-aSp ao-teBk` | tar·get |
+| agents | `-aoSp -ne t-s` | ag·en·ts |
 | gets | `ao-te -s` | get·s |
 | begin | `aos-aoe -niBk` | beg·in |
+| guy | `ao-aniSpBk` | guy |
 | edge | `-ate ao-eBk` | ed·ge |
+| bag | `aos-aoSpBk` | bag |
+| bug | `aos-aoiSpBk` | bug |
+| generated | `ao-ne -ae -tSp -ateBk` | gen·er·at·ed |
 | signed | `s-aoi n-ateBk` | sig·ned |
-| designs | `at-se -aoi n-s` | des·ig·ns |
-| signs | `s-aoi n-s` | sig·ns |
-| designer | `at-se -aoi n-aeBk` | des·ig·ner |
-| generic | `ao-ne -ae -oiBk` | gen·er·ic |
-| begins | `aos-aoe -ni -s` | beg·in·s |
-| legs | `st-aoe -s` | leg·s |
-| genre | `ao-ne a-eBk` | gen·re |
-| fig | `ot-aoiBk` | fig |
-| leg | `st-aoeBk` | leg |
-| designers | `at-se -aoi n-ae -s` | des·ig·ner·s |
-| genetic | `ao-ne -te -oiBk` | gen·et·ic |
-| ridge | `a-ati ao-eBk` | rid·ge |
-| tiger | `t-aoi -aeBk` | tig·er |
-| bigger | `aos-aoi ao-aeBk` | big·ger |
-| egg | `-aoe -ao` | eg·g |
-| genes | `ao-ne -seBk` | gen·es |
-| genetics | `ao-ne -te -oi -s` | gen·et·ic·s |
-| eggs | `-aoe ao-s` | eg·gs |
-| gen | `ao-neBk` | gen |
-| gel | `ao-steBk` | gel |
-| genres | `ao-ne a-seBk` | gen·res |
-| genesis | `ao-ne -se -siBk` | gen·es·is |
-| edges | `-ate ao-seBk` | ed·ges |
-| dig | `at-aoiBk` | dig |
-| pig | `os-aoiBk` | pig |
-| tigers | `t-aoi -ae -s` | tig·er·s |
-| digit | `at-aoi -tiBk` | dig·it |
-| gig | `ao-aoiBk` | gig |
-| beginners | `aos-aoe -ni n-ae -s` | beg·in·ner·s |
+| began | `aos-aoe -nSpBk` | beg·an |
+| designated | `at-se -aoi n-tSp -ateBk` | des·ig·nat·ed |
 
-## Lesson 13 — h as an onset, st as a coda
+## Lesson 14 — h as an onset, st as a coda
 
 The one shape that reads differently on the two hands.  Dosh has one-shot control here.
 
-65 words qualify, 40 here, most common first.  `drills/13-h-st.txt`.
+241 words qualify, 40 here, most common first.  `drills/14-h-st.txt`.
 
 | word | strokes | division |
 |---|---|---|
+| has | `tn-sSpBk` | has |
 | he | `tn-eBk` | he |
 | his | `tn-siBk` | his |
 | help | `tn-ste -os` | hel·p |
 | first | `ot-ai -tn` | fir·st |
+| how | `tn-sneiBk` | how |
+| had | `tn-atSpBk` | had |
 | list | `st-tniBk` | list |
+| last | `st-tnSpBk` | last |
+| post | `os-tneiBk` | post |
 | her | `tn-aeBk` | her |
 | best | `aos-tneBk` | best |
+| hotel | `tn-tei -steBk` | hot·el |
+| hotels | `tn-tei -ste -s` | hot·el·s |
+| posted | `os-tnei -ateBk` | post·ed |
+| posts | `os-tnei -s` | post·s |
 | west | `sn-tneBk` | west |
 | register | `a-aoe -tni -aeBk` | reg·ist·er |
+| hot | `tn-teiBk` | hot |
+| cost | `o-tneiBk` | cost |
 | test | `t-tneBk` | test |
+| latest | `st-tSp -tneBk` | lat·est |
+| hard | `tn-aSp -at` | har·d |
 | listed | `st-tni -ateBk` | list·ed |
+| past | `os-tnSpBk` | past |
 | district | `at-tni a-oi -t` | dist·ric·t |
+| costs | `o-tnei -s` | cost·s |
+| fast | `ot-tnSpBk` | fast |
 | registered | `a-aoe -tni -ae -ateBk` | reg·ist·er·ed |
+| half | `tn-stSp -ot` | hal·f |
+| holiday | `tn-stei -ati -anSpBk` | hol·id·ay |
 | western | `sn-tne -ae -n` | west·er·n |
 | held | `tn-ste -at` | hel·d |
+| lost | `st-tneiBk` | lost |
 | hi | `tn-iBk` | hi |
-| lists | `st-tni -s` | list·s |
-| rest | `a-tneBk` | rest |
-| hit | `tn-tiBk` | hit |
-| hits | `tn-ti -s` | hit·s |
-| listen | `st-tni -neBk` | list·en |
-| tests | `t-tne -s` | test·s |
-| physics | `os- tn-an s-oi -s` | p·hy·sic·s |
-| helps | `tn-ste os-s` | hel·ps |
-| hey | `tn-aneBk` | hey |
-| hip | `tn-osiBk` | hip |
-| hidden | `tn-ati at-neBk` | hid·den |
-| finished | `ot-ni -si tn-ateBk` | fin·is·hed |
-| sister | `s-tni -aeBk` | sist·er |
-| newest | `n-sne -tneBk` | new·est |
-| tested | `t-tne -ateBk` | test·ed |
-| helped | `tn-ste os-ateBk` | hel·ped |
-| biggest | `aos-aoi ao-tneBk` | big·gest |
-| digest | `at-aoi -tneBk` | dig·est |
-| hence | `tn-ne o-eBk` | hen·ce |
-| restricted | `a-tne a-oi t-ateBk` | rest·ric·ted |
-| herself | `tn-ae s-ste -ot` | her·sel·f |
-| districts | `at-tni a-oi t-s` | dist·ric·ts |
-| fisher | `ot-si tn-aeBk` | fis·her |
-| wishes | `sn-si tn-seBk` | wis·hes |
+| artist | `-aSp t-tniBk` | ar·tist |
+| physical | `os- tn-an s-oi -stSpBk` | p·hy·sic·al |
+| hold | `tn-stei -at` | hol·d |
+| hospital | `tn-sei os-ti -stSpBk` | hos·pit·al |
+| distance | `at-tni -nSp o-eBk` | dist·an·ce |
 
-## Lesson 14 — x on the middle pair and lower ring
+## Lesson 15 — x on the middle pair and lower ring
 
 Dosh has PrintScreen here.
 
-36 words qualify, 36 here, most common first.  `drills/14-x.txt`.
+69 words qualify, 40 here, most common first.  `drills/15-x.txt`.
 
 | word | strokes | division |
 |---|---|---|
 | next | `n-otne -t` | nex·t |
 | text | `t-otne -t` | tex·t |
+| box | `aos-otneiBk` | box |
+| tax | `t-otnSpBk` | tax |
+| texas | `t-otne -sSpBk` | tex·as |
+| fax | `ot-otnSpBk` | fax |
 | six | `s-otniBk` | six |
 | expected | `-otne os-oe t-ateBk` | ex·pec·ted |
 | except | `-otne o-ose -t` | ex·cep·t |
+| external | `-otne t-ae n-stSpBk` | ex·ter·nal |
 | fixed | `ot-otni -ateBk` | fix·ed |
+| context | `o-nei t-otne -t` | con·tex·t |
 | expert | `-otne os-ae -t` | ex·per·t |
 | expect | `-otne os-oe -t` | ex·pec·t |
+| taxes | `t-otnSp -seBk` | tax·es |
 | fix | `ot-otniBk` | fix |
 | experts | `-otne os-ae t-s` | ex·per·ts |
+| boxes | `aos-otnei -seBk` | box·es |
 | exist | `-otne -tniBk` | ex·ist |
+| export | `-otne os-aei -t` | ex·por·t |
 | expenses | `-otne os-ne s-seBk` | ex·pen·ses |
+| fox | `ot-otneiBk` | fox |
 | exit | `-otne -tiBk` | ex·it |
+| exact | `-otne -oSp -t` | ex·ac·t |
+| oxford | `-otnei ot-aei -at` | ox·for·d |
 | exists | `-otne -tni -s` | ex·ist·s |
 | excess | `-otne o-se -s` | ex·ces·s |
 | existence | `-otne -tni -ne o-eBk` | ex·ist·en·ce |
 | exhibit | `-otne tn-aosi -tiBk` | ex·hib·it |
 | expense | `-otne os-ne s-eBk` | ex·pen·se |
 | excel | `-otne o-steBk` | ex·cel |
+| exposed | `-otne os-sei -ateBk` | ex·pos·ed |
+| axis | `-otnSp -siBk` | ax·is |
 | texts | `t-otne t-s` | tex·ts |
+| oxygen | `-otnei -an ao-neBk` | ox·y·gen |
 | excerpt | `-otne o-ae os-t` | ex·cer·pt |
 | pixels | `os-otni -ste -s` | pix·el·s |
 | exercises | `-otne -ae o-si -seBk` | ex·er·cis·es |
 | sixth | `s-otni -on` | six·th |
-| excited | `-otne o-ti -ateBk` | ex·cit·ed |
-| pixel | `os-otni -steBk` | pix·el |
-| essex | `-se s-otneBk` | es·sex |
-| exhibits | `-otne tn-aosi -ti -s` | ex·hib·it·s |
-| fixes | `ot-otni -seBk` | fix·es |
-| tex | `t-otneBk` | tex |
-| expires | `-otne os-ai -seBk` | ex·pir·es |
-| expired | `-otne os-ai -ateBk` | ex·pir·ed |
-| textiles | `t-otne t-sti -seBk` | tex·til·es |
-| existed | `-otne -tni -ateBk` | ex·ist·ed |
-| expects | `-otne os-oe t-s` | ex·pec·ts |
-| lynx | `st-an n-otn` | ly·nx |
+| exotic | `-otne -tei -oiBk` | ex·ot·ic |
 
-## Lesson 15 — the vowels a and o
-
-`a` is the `Sp` thumb alone, which is Backspace in Dosh; `o` is `e+i`, which is Dosh's one-shot shift.  Plus `Bk` to end the word.
-
-942 words qualify, 40 here, most common first.  `drills/15-a-o.txt`.
-
-| word | strokes | division |
-|---|---|---|
-| of | `-oteiBk` | of |
-| a | `-SpBk` | a |
-| for | `ot-aeiBk` | for |
-| on | `-neiBk` | on |
-| that | `on-tSpBk` | that |
-| not | `n-teiBk` | not |
-| or | `-aeiBk` | or |
-| at | `-tSpBk` | at |
-| as | `-sSpBk` | as |
-| an | `-nSpBk` | an |
-| was | `sn-sSpBk` | was |
-| can | `o-nSpBk` | can |
-| has | `tn-sSpBk` | has |
-| other | `-onei -aeBk` | oth·er |
-| do | `at-eiBk` | do |
-| no | `n-eiBk` | no |
-| so | `s-eiBk` | so |
-| contact | `o-nei t-oSp -t` | con·tac·t |
-| now | `n-sneiBk` | now |
-| how | `tn-sneiBk` | how |
-| than | `on-nSpBk` | than |
-| top | `t-oseiBk` | top |
-| had | `tn-atSpBk` | had |
-| day | `at-anSpBk` | day |
-| go | `ao-eiBk` | go |
-| last | `st-tnSpBk` | last |
-| data | `at-tSp -SpBk` | dat·a |
-| post | `os-tneiBk` | post |
-| add | `-atSp -at` | ad·d |
-| after | `-otSp t-aeBk` | af·ter |
-| order | `-aei at-aeBk` | or·der |
-| general | `ao-ne -ae -stSpBk` | gen·er·al |
-| way | `sn-anSpBk` | way |
-| days | `at-anSp -s` | day·s |
-| part | `os-aSp -t` | par·t |
-| hotel | `tn-tei -steBk` | hot·el |
-| report | `a-ose -aei -t` | rep·or·t |
-| off | `-otei -ot` | of·f |
-| hotels | `tn-tei -ste -s` | hot·el·s |
-| local | `st-oei -stSpBk` | loc·al |
-
-## Lesson 16 — the vowel u
-
-`i+Sp`, which is Dosh's full stop.
-
-259 words qualify, 40 here, most common first.  `drills/16-u.txt`.
-
-| word | strokes | division |
-|---|---|---|
-| but | `aos-tiSpBk` | but |
-| up | `-osiSpBk` | up |
-| business | `aos-siSp -ni -se -s` | bus·in·es·s |
-| used | `-siSp -ateBk` | us·ed |
-| buy | `aos-aniSpBk` | buy |
-| support | `s-osiSp os-aei -t` | sup·por·t |
-| user | `-siSp -aeBk` | us·er |
-| united | `-niSp -ti -ateBk` | un·it·ed |
-| results | `a-se -stiSp t-s` | res·ul·ts |
-| pictures | `os-oi t-aiSp -seBk` | pic·tur·es |
-| return | `a-te -aiSp -n` | ret·ur·n |
-| insurance | `-ni s-aiSp -nSp o-eBk` | in·sur·an·ce |
-| users | `-siSp -ae -s` | us·er·s |
-| result | `a-se -stiSp -t` | res·ul·t |
-| sun | `s-niSpBk` | sun |
-| run | `a-niSpBk` | run |
-| popular | `os-osei -stiSp -aSpBk` | pop·ul·ar |
-| put | `os-tiSpBk` | put |
-| until | `-niSp t-stiBk` | un·til |
-| further | `ot-aiSp on-aeBk` | fur·ther |
-| updated | `-osiSp at-tSp -ateBk` | up·dat·ed |
-| fun | `ot-niSpBk` | fun |
-| natural | `n-tSp -aiSp -stSpBk` | nat·ur·al |
-| rules | `a-stiSp -seBk` | rul·es |
-| adult | `-atSp -stiSp -t` | ad·ul·t |
-| unit | `-niSp -tiBk` | un·it |
-| turn | `t-aiSp -n` | tur·n |
-| particular | `os-aSp t-oi -stiSp -aSpBk` | par·tic·ul·ar |
-| returns | `a-te -aiSp n-s` | ret·ur·ns |
-| saturday | `s-tSp -aiSp at-anSpBk` | sat·ur·day |
-| thursday | `on-aiSp s- at-anSpBk` | thur·s·day |
-| super | `s-osiSp -aeBk` | sup·er |
-| focus | `ot-oei -siSpBk` | foc·us |
-| regular | `a-aoe -stiSp -aSpBk` | reg·ul·ar |
-| cut | `o-tiSpBk` | cut |
-| thus | `on-siSpBk` | thus |
-| budget | `aos-atiSp ao-teBk` | bud·get |
-| success | `s-oiSp o-se -s` | suc·ces·s |
-| useful | `-siSp -ote -stiSpBk` | us·ef·ul |
-| input | `-ni os-tiSpBk` | in·put |
-
-## Lesson 17 — the second character: r and l
+## Lesson 16 — the second character: r and l
 
 The left hand's inner four are the second character of the syllable, mostly consonants.  `r` is `Bk` alone and `l` is `Sp` alone.
 
-673 words qualify, 40 here, most common first.  `drills/17-second-r-l.txt`.
+673 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -694,11 +792,11 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | france | `otBk-nSp o-eBk` | fran·ce |
 | pro | `osBk-eiBk` | pro |
 
-## Lesson 18 — the second character: i, t and m
+## Lesson 17 — the second character: i, t and m
 
 `i` is the same key as the vowel; `t` is `e+Sp`, `m` is `e+Bk`.
 
-820 words qualify, 40 here, most common first.  `drills/18-second-i-t-m.txt`.
+820 words qualify, 40 here, most common first.  `drills/17-second-i-t-m.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -743,11 +841,11 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | association | `-sSp s-oei i-tSp i-neiBk` | as·soc·iat·ion |
 | studies | `seSp-atiSp i-seBk` | stud·ies |
 
-## Lesson 19 — the second character: o, s and e
+## Lesson 18 — the second character: o, s and e
 
 `o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `i+Bk`.
 
-505 words qualify, 40 here, most common first.  `drills/19-second-o-s-e.txt`.
+505 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -792,11 +890,11 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | groups | `ao- aei-osiSp -s` | g·roup·s |
 | analysis | `-nSp -stSp ane-siBk` | an·al·ysis |
 
-## Lesson 20 — the second character: w, c, u, p and n
+## Lesson 19 — the second character: w, c, u, p and n
 
 `w` is `Sp+Bk`, `c` is `e+i+Sp`, `u` is `i+Sp` as for the vowel, `p` is `e+i+Bk`, `n` is `e+Sp+Bk`.
 
-194 words qualify, 40 here, most common first.  `drills/20-second-rest.txt`.
+194 words qualify, 40 here, most common first.  `drills/19-second-rest.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -841,11 +939,11 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | dual | `atiSp-stSpBk` | dual |
 | guess | `aoiSp-se -s` | gues·s |
 
-## Lesson 21 — ea and ou
+## Lesson 20 — ea and ou
 
 `ea` is `e+Sp` (e plus a); `ou` is `e+i+Sp+Bk` (o plus u), and only ever ends a word.  These are the free combinations: they spell the digraph only with a second character, which is why they come after those; `ea` alone is a placeholder glyph.
 
-68 words qualify, 40 here, most common first.  `drills/21-ea-ou.txt`.
+68 words qualify, 40 here, most common first.  `drills/20-ea-ou.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -890,11 +988,11 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | treasurer | `tBk-seSp -aiSp -aeBk` | treas·ur·er |
 | cleaners | `oSp-neSp -ae -s` | clean·er·s |
 
-## Lesson 22 — v, m and k
+## Lesson 21 — v, m and k
 
 Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
-1528 words qualify, 40 here, most common first.  `drills/22-v-m-k.txt`.
+1528 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -939,11 +1037,11 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 | computer | `o-aonei os-tiSp -aeBk` | com·put·er |
 | systems | `s-an seSp-aone -s` | sy·stem·s |
 
-## Lesson 23 — ind/nd, inc/ng and int/nt
+## Lesson 22 — ind/nd, inc/ng and int/nt
 
 Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `nd`, `ng` and `nt` as codas.
 
-1219 words qualify, 40 here, most common first.  `drills/23-nd-ng-nt.txt`.
+1219 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -988,11 +1086,11 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | working | `sn-aei atn-asniBk` | wor·king |
 | standard | `seSp-astSp -aSp -at` | stand·ar·d |
 
-## Lesson 24 — ch, sh, gh, z and ck
+## Lesson 23 — ch, sh, gh, z and ck
 
 `sh` is ch plus the pinky; `z` is s plus the pinky.
 
-684 words qualify, 40 here, most common first.  `drills/24-ch-sh-gh-z-ck.txt`.
+684 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1037,11 +1135,11 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | tickets | `t-aosni -te -s` | tick·et·s |
 | cheap | `ostiBk-osSpBk` | cheap |
 
-## Lesson 25 — the coda-only shapes: h and e
+## Lesson 24 — the coda-only shapes: h and e
 
 Two four-key right-hand shapes with no onset reading: a final `h` and a final `e`.
 
-41 words qualify, 40 here, most common first.  `drills/25-coda-h-e.txt`.
+41 words qualify, 40 here, most common first.  `drills/24-coda-h-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1086,11 +1184,11 @@ Two four-key right-hand shapes with no onset reading: a final `h` and a final `e
 | greenwich | `aoBk-ostne nSpBk-ostiBk` | gree·nwich |
 | freezing | `otBk-ostne as-asniBk` | free·zing |
 
-## Lesson 26 — the mirrored vowel and the silent e
+## Lesson 25 — the mirrored vowel and the silent e
 
 With no vowel on the right hand and a real coda, a second character that is also a vowel supplies the nucleus, and the stroke appends a silent `e` and ends the word: `time`, `tone`, `tame`.
 
-1201 words qualify, 40 here, most common first.  `drills/26-silent-e.txt`.
+1201 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1135,11 +1233,11 @@ With no vowel on the right hand and a real coda, a second character that is also
 | code | `oSpBk-at` | code |
 | website | `sn-aose si-t` | web·site |
 
-## Lesson 27 — the onset clusters
+## Lesson 26 — the onset clusters
 
 An onset and a second character that spell a cluster together: `h+r` is `str`, `h+l` is `spl`, `h+p` is `spr`, `h+c` is `scr`, `sh+c` is `sch`, `z+c` is `sk`, `s+s` is `sci`, `y+i` is `j`, `c+c` is `qu`.
 
-356 words qualify, 40 here, most common first.  `drills/27-clusters.txt`.
+356 words qualify, 40 here, most common first.  `drills/26-clusters.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1184,11 +1282,11 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | japanese | `ani-osSp -nSp e-s` | jap·an·ese |
 | instructions | `-ni tnBk-oiSp ti-nei -s` | in·struc·tion·s |
 
-## Lesson 28 — w reads as h after p, w and r
+## Lesson 27 — w reads as h after p, w and r
 
 The second character `w` (`Sp+Bk`) spells `h` after an onset ending in `p`, `w` or `r`: `ph`, `wh`, `rh`.
 
-59 words qualify, 40 here, most common first.  `drills/28-h-after-p-w-r.txt`.
+59 words qualify, 40 here, most common first.  `drills/27-h-after-p-w-r.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1233,11 +1331,11 @@ The second character `w` (`Sp+Bk`) spells `h` after an onset ending in `p`, `w` 
 | wherever | `snSpBk-ae -aote -aeBk` | wher·ev·er |
 | atmospheric | `-Sp teBk-sei osSpBk-ae -oiBk` | a·tmos·pher·ic |
 
-## Lesson 29 — au and ai
+## Lesson 28 — au and ai
 
 A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spells `ai`.
 
-256 words qualify, 40 here, most common first.  `drills/29-diphthongs.txt`.
+256 words qualify, 40 here, most common first.  `drills/28-diphthongs.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1282,11 +1380,11 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | pain | `osi-niBk` | pain |
 | chair | `osti-aiBk` | chair |
 
-## Lesson 30 — a bare final y
+## Lesson 29 — a bare final y
 
 `y` as a coda with the `i`-ending vowel keys spells just `y` and ends the word: the `ui` keys give the space and nothing else.
 
-711 words qualify, 40 here, most common first.  `drills/30-final-y.txt`.
+711 words qualify, 40 here, most common first.  `drills/29-final-y.txt`.
 
 | word | strokes | division |
 |---|---|---|

@@ -103,11 +103,19 @@ Lesson order, for a Dosh hand:
 1. **Transfer.** `s` `t` `n`, vowels `e` `i` plain and ending, the space and undo commands.
    Words: ten, sit, net, tin, its, tent, nest. This is where syllable division is met
    first, on words whose patterns are all known.
-2. **The conflicts, one pair at a time**, commonest first: `a` (r, not a), `o` (c),
+2. **Vowels** `a` `o` `u`, in one lesson. These are conflicts too, and the worst of
+   them — `a` is Dosh's Backspace, `o` its one-shot shift, `u` its full stop — so a
+   misfire eats text rather than mistyping a letter. They come before the consonant
+   shapes rather than after because almost nothing can be spelled without them: with
+   only `e` and `i` the thirteen conflict lessons below share 401 words between them,
+   and with `a` `o` `u` in hand they share 1568. That is the difference between drilling
+   `l` on *dell*, *perl* and *lyrics* — what is left when three vowels are missing — and
+   drilling it on 214 ordinary words. It also fills the drill sheets: 11 of the lessons
+   could not reach the 40-word sheet before, and 4 cannot now.
+3. **The conflicts, one pair at a time**, commonest first: `a` (r, not a), `o` (c),
    `a+t` (d), `o+s` (p), `o+t` (f), and the rest of the thirteen.
-3. **Vowels** `a` `o` `u`; **Series 2** by frequency, `r` `l` first; then `ea` and
-   `ou`, which spell their digraph only with a second character.
-4. **The free shapes** by frequency.
+4. **Series 2** by frequency, `r` `l` first; then `ea` and `ou`, which spell their
+   digraph only with a second character; then **the free shapes** by frequency.
 5. **The rules**, each with words that need it: mirrored vowels (tame, hide, tone), onset
    clusters (strap, quit, jam), `h`/`w` (when, phase), diphthongs (paul, pail), `y`.
 6. **The escapes**: the one-shot for punctuation with the Dosh chords already known; the

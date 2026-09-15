@@ -23,8 +23,9 @@ final class OrsyDrillTests: XCTestCase {
     func testWordTable() throws {
         let (_, theory, words) = try fixtures()
         XCTAssertGreaterThan(words.words.count, 9000)
-        XCTAssertEqual(words.lessons.count, 30)
+        XCTAssertEqual(words.lessons.count, 29)
         XCTAssertEqual(words.lessons[0].name, "transfer")
+        XCTAssertEqual(words.lessons[1].name, "vowels")
         for word in words.words.prefix(500) {
             var output = OrsyOutput()
             var text = ""
