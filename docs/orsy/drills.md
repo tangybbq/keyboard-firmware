@@ -6,6 +6,8 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 
 **One shape per Series.**  A stroke holds at most one onset, one second character, one vowel and one coda, and the keys of a group pressed together are one shape, not several letters: `s`+`t` on the right is the coda `l`, so `i`+`t`+`s` spells `il`.  A word that needs two consonants where one shape goes takes another stroke, and the extra consonant leans back onto the syllable before it -- `its` is `it`, then `s` alone.  The only two-consonant codas that fit one stroke are the shapes the mapping has for them: `st`, `nd`, `ng`, `nt`, `ch`, `sh`, `th`, `ck`, `gh`.  For a Dosh hand this is the thing to unlearn first: adding a key changes the consonant rather than adding one.
 
+**73 compounds are held out**, pending a decision the mapping has not made.  The layout writes `life` in one stroke, but as a mirrored vowel, and the mirrored form closes the word by construction, so it cannot open a longer one: `lifestyle` comes out `lif|est|yle`, which is neither the syllables nor anything a learner could predict.  Either a joiner command or giving the mirrored form the `Bk` space marker every other ending form has would settle it, so until one of them is chosen these words are not drilled: something, wireless, homepage, sometimes, coverage, generally, generated, covered, baseball, headlines, chairman, bookmark, thailand, printable, notebook, lifestyle, gateway, generate, carefully, notebooks, pipeline, somewhat, covering, shareware, somewhere, lifetime, firewall, moderate, moreover, somebody, hopefully, spotlight, filename, footwear, baseline, heather, homework, generating, widescreen, playlist, mainland, bookmarks, literally, homeland, livestock, timeline, widespread, homeless, mileage, likewise, changelog, fireplace, hometown, mailman, thereafter, generates, homeowners, booklet, sometime, woodland, cheerleader, homemade, fireworks, freestyle, deadlines, homeowner, timetable, vineyard, lifestyles, swimwear, lifelong, firewalls, feather.
+
 | lesson | new | words |
 |---|---|---|
 | 1 | what transfers from Dosh | 22 |
@@ -18,25 +20,25 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 8 | y on pinky and upper middle | 37 |
 | 9 | th on lower ring and upper middle | 37 |
 | 10 | l on upper ring and lower middle | 278 |
-| 11 | b is p plus the pinky | 164 |
-| 12 | w on the upper ring and middle | 131 |
-| 13 | g is c plus the pinky | 183 |
+| 11 | b is p plus the pinky | 163 |
+| 12 | w on the upper ring and middle | 128 |
+| 13 | g is c plus the pinky | 180 |
 | 14 | h as an onset, st as a coda | 239 |
 | 15 | x on the middle pair and lower ring | 70 |
-| 16 | the second character: r and l | 543 |
+| 16 | the second character: r and l | 537 |
 | 17 | the second character: i, t and m | 815 |
-| 18 | the second character: o, s and e | 503 |
+| 18 | the second character: o, s and e | 498 |
 | 19 | the second character: w, c, u, p and n | 195 |
-| 20 | ea and ou | 66 |
-| 21 | v, m and k | 1527 |
-| 22 | ind/nd, inc/ng and int/nt | 1223 |
-| 23 | ch, sh, gh, z and ck | 732 |
+| 20 | ea and ou | 64 |
+| 21 | v, m and k | 1509 |
+| 22 | ind/nd, inc/ng and int/nt | 1218 |
+| 23 | ch, sh, gh, z and ck | 730 |
 | 24 | the coda-only shapes: h and e | 41 |
-| 25 | the mirrored vowel and the silent e | 1196 |
+| 25 | the mirrored vowel and the silent e | 1177 |
 | 26 | the onset clusters | 356 |
 | 27 | w reads as h after p, w and r | 59 |
-| 28 | au and ai | 253 |
-| 29 | a bare final y | 711 |
+| 28 | au and ai | 249 |
+| 29 | a bare final y | 706 |
 
 ## Lesson 1 — what transfers from Dosh
 
@@ -502,7 +504,7 @@ Dosh types `?` here.
 
 Dosh has one-shot gui here.
 
-164 words qualify, 40 here, most common first.  `drills/11-b.txt`.
+163 words qualify, 40 here, most common first.  `drills/11-b.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -538,7 +540,6 @@ Dosh has one-shot gui here.
 | bus | `aos-siSpBk` | bus |
 | urban | `-aiSp aos-nSpBk` | ur·ban |
 | birth | `aos-ai -on` | bir·th |
-| baseball | `aos-sSp -aose -stSp -st` | bas·eb·al·l |
 | bytes | `aos-an t-seBk` | by·tes |
 | bath | `aos-onSpBk` | bath |
 | birthday | `aos-ai on- at-anSpBk` | bir·th·day |
@@ -546,12 +547,13 @@ Dosh has one-shot gui here.
 | bars | `aos-aSp -s` | bar·s |
 | bird | `aos-ai -at` | bir·d |
 | bids | `aos-ati -s` | bid·s |
+| bonus | `aos-nei -siSpBk` | bon·us |
 
 ## Lesson 12 — w on the upper ring and middle
 
 Dosh types `p` here.
 
-131 words qualify, 40 here, most common first.  `drills/12-w.txt`.
+128 words qualify, 40 here, most common first.  `drills/12-w.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -579,7 +581,6 @@ Dosh types `p` here.
 | word | `sn-aei -at` | wor·d |
 | words | `sn-aei at-s` | wor·ds |
 | town | `t-snei -n` | tow·n |
-| wireless | `sn-ai -ste -se -s` | wir·el·es·s |
 | lower | `st-snei -aeBk` | low·er |
 | wednesday | `sn-ate n-se at-anSpBk` | wed·nes·day |
 | wed | `sn-ateBk` | wed |
@@ -595,12 +596,13 @@ Dosh types `p` here.
 | awards | `-snSp -aSp at-s` | aw·ar·ds |
 | saw | `s-snSpBk` | saw |
 | worth | `sn-aei -on` | wor·th |
+| laws | `st-snSp -s` | law·s |
 
 ## Lesson 13 — g is c plus the pinky
 
 Dosh types `l` here.
 
-183 words qualify, 40 here, most common first.  `drills/13-g.txt`.
+180 words qualify, 40 here, most common first.  `drills/13-g.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -640,10 +642,10 @@ Dosh types `l` here.
 | edge | `-ate ao-eBk` | ed·ge |
 | bag | `aos-aoSpBk` | bag |
 | bug | `aos-aoiSpBk` | bug |
-| generated | `ao-ne -ae -tSp -ateBk` | gen·er·at·ed |
 | signed | `s-aoi n-ateBk` | sig·ned |
 | began | `aos-aoe -nSpBk` | beg·an |
 | designated | `at-se -aoi n-tSp -ateBk` | des·ig·nat·ed |
+| tags | `t-aoSp -s` | tag·s |
 
 ## Lesson 14 — h as an onset, st as a coda
 
@@ -747,7 +749,7 @@ Dosh has PrintScreen here.
 
 The left hand's inner four are the second character of the syllable, mostly consonants.  `r` is `Bk` alone and `l` is `Sp` alone.
 
-543 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
+537 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -845,7 +847,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 `o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `i+Bk`.
 
-503 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
+498 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -943,7 +945,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 `ea` is `e+Sp` (e plus a); `ou` is `e+i+Sp+Bk` (o plus u), and only ever ends a word.  These are the free combinations: they spell the digraph only with a second character, which is why they come after those; `ea` alone is a placeholder glyph.
 
-66 words qualify, 40 here, most common first.  `drills/20-ea-ou.txt`.
+64 words qualify, 40 here, most common first.  `drills/20-ea-ou.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -978,7 +980,6 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | breath | `aosBk-oneSpBk` | breath |
 | precious | `osBk-oe i-seiSpBk` | prec·ious |
 | threaded | `onBk-ateSp -ateBk` | thread·ed |
-| footwear | `otei-ei tSpBk-aeSpBk` | foo·twear |
 | recreational | `a-e oBk-teSp i-nei -stSpBk` | re·creat·ion·al |
 | curious | `o-aiSp i-seiSpBk` | cur·ious |
 | gorgeous | `ao-aei aoiBk-seiSpBk` | gor·geous |
@@ -987,12 +988,13 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | treasurer | `tBk-seSp -aiSp -aeBk` | treas·ur·er |
 | cleaners | `oSp-neSp -ae -s` | clean·er·s |
 | enormous | `-ne -ei aeBk-seiSpBk` | en·o·rmous |
+| retreat | `a-e tBk-teSpBk` | re·treat |
 
 ## Lesson 21 — v, m and k
 
 Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
-1527 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
+1509 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1041,7 +1043,7 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
 Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `nd`, `ng` and `nt` as codas.
 
-1223 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
+1218 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1090,7 +1092,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 
 `sh` is ch plus the pinky; `z` is s plus the pinky.
 
-732 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
+730 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1188,7 +1190,7 @@ Two four-key right-hand shapes with no onset reading: a final `h` and a final `e
 
 With no vowel on the right hand and a real coda, a second character that is also a vowel supplies the nucleus, and the stroke appends a silent `e` and ends the word: `time`, `tone`, `tame`.
 
-1196 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
+1177 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1335,7 +1337,7 @@ The second character `w` (`Sp+Bk`) spells `h` after an onset ending in `p`, `w` 
 
 A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spells `ai`.
 
-253 words qualify, 40 here, most common first.  `drills/28-diphthongs.txt`.
+249 words qualify, 40 here, most common first.  `drills/28-diphthongs.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1384,7 +1386,7 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 
 `y` as a coda with the `i`-ending vowel keys spells just `y` and ends the word: the `ui` keys give the space and nothing else.
 
-711 words qualify, 40 here, most common first.  `drills/29-final-y.txt`.
+706 words qualify, 40 here, most common first.  `drills/29-final-y.txt`.
 
 | word | strokes | division |
 |---|---|---|
