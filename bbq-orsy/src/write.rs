@@ -23,6 +23,15 @@
 //! them.  Fewest strokes still comes first; no syllable is added to keep an
 //! onset out of Series 2.
 //!
+//! Series 2 also must not repeat the onset's own letter.  English has no
+//! `ll` or `mm` onset, and the manual divides `attempts` as `at-tem-pts`:
+//! a doubled consonant straddles the boundary, its first copy the coda of
+//! the syllable before.  Left to the key count this loses, because the coda
+//! spelling costs a key more -- `co|llab` is fifteen keys against
+//! `col|lab`'s sixteen -- so it too is ranked above the count.  It buys
+//! back nothing in strokes: over `words/english_10k.json` it changes 3.6%
+//! of divisions for 0.3% more keys and not one extra stroke.
+//!
 //! Many words then divide equally well in more than one way (`ten|s` and
 //! `te|ns` are both two strokes of four keys).  Ties are broken towards fewer
 //! inner keys, so a consonant that could be an onset or a second character is
@@ -54,6 +63,8 @@ struct Entry {
     inner: u32,
     /// 1 when the syllable's initial consonant comes from Series 2.
     inner_onset: u32,
+    /// 1 when Series 2 repeats the onset, spelling a doubled consonant.
+    doubled: u32,
     rules: u8,
 }
 
@@ -92,13 +103,16 @@ impl Writer {
                     inner: ((left | right) & INNER_MASK).count_ones()
                         + (left & right & INNER_MASK).count_ones(),
                     inner_onset: t.inner_onset() as u32,
+                    doubled: t.doubled_onset() as u32,
                     rules: t.rules,
                 });
             }
         }
         for entries in chunks.values_mut() {
             entries
-                .sort_by_key(|e| (e.inner_onset, e.keys, e.inner, e.chord.left, e.chord.right));
+                .sort_by_key(|e| {
+                    (e.inner_onset, e.doubled, e.keys, e.inner, e.chord.left, e.chord.right)
+                });
         }
         Writer { chunks }
     }
@@ -123,14 +137,18 @@ impl Writer {
         }
         let n = word.len();
         // best[i]: the cheapest way to spell the first i letters, as
-        // (strokes, Series 2 onsets, keys, inner keys, length of the last
-        // stroke's chunk, path).  The Series 2 onsets rank above the key
-        // count for the reason the module header gives; the inner count and
-        // the chunk length only decide ties.
-        let mut best: Vec<Option<(usize, u32, u32, u32, usize, Vec<Chord>)>> = vec![None; n + 1];
-        best[0] = Some((0, 0, 0, 0, 0, Vec::new()));
+        // (strokes, Series 2 onsets, doubled consonants, keys, inner keys,
+        // length of the last stroke's chunk, path).  The Series 2 onsets and
+        // the doubled consonants both rank above the key count for the
+        // reasons the module header gives; the inner count and the chunk
+        // length only decide ties.
+        let mut best: Vec<Option<(usize, u32, u32, u32, u32, usize, Vec<Chord>)>> =
+            vec![None; n + 1];
+        best[0] = Some((0, 0, 0, 0, 0, 0, Vec::new()));
         for i in 0..n {
-            let Some((strokes, onsets, keys, inner, _, path)) = best[i].clone() else { continue };
+            let Some((strokes, onsets, doubled, keys, inner, _, path)) = best[i].clone() else {
+                continue;
+            };
             for j in (i + 1)..=n.min(i + MAX_CHUNK) {
                 let Some(entries) = self.chunks.get(&word[i..j]) else { continue };
                 let last = j == n;
@@ -145,24 +163,31 @@ impl Writer {
                 let candidate = (
                     strokes + 1,
                     onsets + entry.inner_onset,
+                    doubled + entry.doubled,
                     keys + entry.keys,
                     inner + entry.inner,
                     j - i,
                 );
                 let better = match &best[j] {
                     None => true,
-                    Some((s, o, k, n, l, _)) => candidate < (*s, *o, *k, *n, *l),
+                    Some((s, o, d, k, n, l, _)) => candidate < (*s, *o, *d, *k, *n, *l),
                 };
                 if better {
                     let mut path = path.clone();
                     path.push(entry.chord);
                     best[j] = Some((
-                        candidate.0, candidate.1, candidate.2, candidate.3, candidate.4, path,
+                        candidate.0,
+                        candidate.1,
+                        candidate.2,
+                        candidate.3,
+                        candidate.4,
+                        candidate.5,
+                        path,
                     ));
                 }
             }
         }
-        best[n].take().map(|(_, _, _, _, _, path)| path)
+        best[n].take().map(|(.., path)| path)
     }
 }
 
@@ -230,6 +255,24 @@ mod tests {
         assert_eq!(Patterns::of(plan[0]).unwrap().second, Second::RI);
         // A vowel from Series 2 may open a syllable: `ai` is the diphthong.
         assert_eq!(texts(&w, "aid"), ["aid"]);
+    }
+
+    /// A doubled consonant straddles the stroke boundary rather than being
+    /// spelled as an onset cluster, even though the coda costs a key more.
+    #[test]
+    fn doubled_consonants_straddle() {
+        let w = Writer::new();
+        assert_eq!(texts(&w, "collaborate"), ["col", "lab", "or", "ate"]);
+        assert_eq!(texts(&w, "comment"), ["com", "ment"]);
+        assert_eq!(texts(&w, "ally"), ["al", "ly"]);
+        // And no stroke of any of them spells the doubling itself.
+        for word in ["collaborate", "comment", "ally", "illusion", "bestseller"] {
+            for stroke in w.write(word).unwrap() {
+                assert!(!translate(stroke).unwrap().doubled_onset(), "{word}");
+            }
+        }
+        // A cluster that is not a doubling is untouched.
+        assert_eq!(texts(&w, "please"), ["ple", "ase"]);
     }
 
     /// A fragment that leans back cannot start a word, and nothing unspellable

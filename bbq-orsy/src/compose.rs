@@ -116,6 +116,19 @@ impl Translation {
                 .is_some_and(|c| !matches!(c, 'a' | 'e' | 'i' | 'o' | 'u'))
     }
 
+    /// Whether Series 2 repeats the onset's own letter, so that the stroke
+    /// spells a doubled consonant as an onset cluster: `llab`, `mmen`.
+    ///
+    /// English has no such onsets.  A doubled consonant straddles the
+    /// syllable boundary, the first copy being the coda of the syllable
+    /// before -- the manual writes `attempts` as `at-tem-pts`, not
+    /// `a-ttem-pts` -- so [`Writer`](crate::Writer) will not choose one.
+    /// The cluster and mirrored-vowel rules leave Series 2 spelling nothing,
+    /// so neither can be mistaken for this.
+    pub fn doubled_onset(&self) -> bool {
+        !self.parts[0].is_empty() && self.parts[0] == self.parts[1]
+    }
+
     /// The text as a string, for the host.
     #[cfg(feature = "std")]
     pub fn text(&self) -> String {
