@@ -129,6 +129,25 @@ impl Translation {
         !self.parts[0].is_empty() && self.parts[0] == self.parts[1]
     }
 
+    /// Whether a multi-letter onset carries a Series 2 consonant on top:
+    /// `ckl`, `shm`, `ghl`.
+    ///
+    /// A two-letter onset is a digraph, one sound, and English adds only a
+    /// liquid to it -- `thr`, `chr`, `shr`.  Anything else is two syllables'
+    /// worth of consonant crammed into one onset, and the first part belongs
+    /// in the coda before it: `tack|le`, not `ta|ckle`.  The three-letter
+    /// onset clusters (`str`, `spl`) consume Series 2, so they are not this.
+    ///
+    /// [`Writer`](crate::Writer) ranks it down rather than out, because a
+    /// word like `through` or `christmas` has no other way to be written.
+    pub fn wide_onset(&self) -> bool {
+        self.parts[0].len() > 1
+            && self.parts[1]
+                .chars()
+                .next()
+                .is_some_and(|c| !matches!(c, 'a' | 'e' | 'i' | 'o' | 'u'))
+    }
+
     /// The text as a string, for the host.
     #[cfg(feature = "std")]
     pub fn text(&self) -> String {
