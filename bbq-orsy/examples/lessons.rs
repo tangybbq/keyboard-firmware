@@ -332,6 +332,43 @@ fn main() {
 
     let writer = Writer::new();
 
+    // Compounds whose head the layout writes in one stroke on its own, but
+    // whose division pulls it apart: `lifestyle` is `lif|est|yle`, not
+    // `life|style`.  These are held out of the drills.
+    //
+    // The head is nearly always a word whose single stroke is a mirrored
+    // vowel -- `life`, `home`, `time`, `fire`, `free` -- and the mirrored
+    // form closes the word by construction, so that stroke cannot be the
+    // first of a longer one.  Whether it should is an open question: either
+    // a joiner command, or giving the mirrored form the same `Bk` space
+    // marker every other ending form has.  Until that is settled these
+    // words teach a division the answer may well overturn, and one that
+    // bears no relation to the syllables a learner hears.  See
+    // `docs/orsy/01-mapping.md`.
+    let listed: HashSet<&str> = words.iter().map(|w| w.as_str()).collect();
+    let torn = |word: &str| -> bool {
+        if word.len() < 7 {
+            return false;
+        }
+        let Some(seam) = (4..=word.len() - 3)
+            .find(|&k| listed.contains(&word[..k]) && listed.contains(&word[k..]))
+        else {
+            return false;
+        };
+        if writer.write(&word[..seam]).map(|s| s.len()) != Some(1) {
+            return false;
+        }
+        let Some(strokes) = writer.write(word) else { return false };
+        let mut at = 0usize;
+        !strokes.iter().any(|c| {
+            at += translate(*c).unwrap().text().len();
+            at == seam
+        })
+    };
+    let held_out: Vec<String> = words.iter().filter(|w| torn(w)).cloned().collect();
+    let words: Vec<String> = words.iter().filter(|w| !torn(w)).cloned().collect();
+    eprintln!("{} compounds held out of the drills", held_out.len());
+
     // The cumulative set after each lesson.
     let mut allowed = Vec::new();
     let mut so_far = Allowed::default();
@@ -424,6 +461,19 @@ fn main() {
          shapes the mapping has for them: `st`, `nd`, `ng`, `nt`, `ch`, `sh`, `th`, `ck`, \
          `gh`.  For a Dosh hand this is the thing to unlearn first: adding a key changes \
          the consonant rather than adding one.\n"
+    )
+    .unwrap();
+    writeln!(
+        md,
+        "**{} compounds are held out**, pending a decision the mapping has not made.  \
+         The layout writes `life` in one stroke, but as a mirrored vowel, and the \
+         mirrored form closes the word by construction, so it cannot open a longer one: \
+         `lifestyle` comes out `lif|est|yle`, which is neither the syllables nor \
+         anything a learner could predict.  Either a joiner command or giving the \
+         mirrored form the `Bk` space marker every other ending form has would settle \
+         it, so until one of them is chosen these words are not drilled: {}.\n",
+        held_out.len(),
+        held_out.join(", ")
     )
     .unwrap();
     writeln!(md, "| lesson | new | words |").unwrap();
