@@ -6,7 +6,7 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 
 **One shape per Series.**  A stroke holds at most one onset, one second character, one vowel and one coda, and the keys of a group pressed together are one shape, not several letters: `s`+`t` on the right is the coda `l`, so `i`+`t`+`s` spells `il`.  A word that needs two consonants where one shape goes takes another stroke, and the extra consonant leans back onto the syllable before it -- `its` is `it`, then `s` alone.  The only two-consonant codas that fit one stroke are the shapes the mapping has for them: `st`, `nd`, `ng`, `nt`, `ch`, `sh`, `th`, `ck`, `gh`.  For a Dosh hand this is the thing to unlearn first: adding a key changes the consonant rather than adding one.
 
-**73 compounds are held out**, pending a decision the mapping has not made.  The layout writes `life` in one stroke, but as a mirrored vowel, and the mirrored form closes the word by construction, so it cannot open a longer one: `lifestyle` comes out `lif|est|yle`, which is neither the syllables nor anything a learner could predict.  Either a joiner command or giving the mirrored form the `Bk` space marker every other ending form has would settle it, so until one of them is chosen these words are not drilled: something, wireless, homepage, sometimes, coverage, generally, generated, covered, baseball, headlines, chairman, bookmark, thailand, printable, notebook, lifestyle, gateway, generate, carefully, notebooks, pipeline, somewhat, covering, shareware, somewhere, lifetime, firewall, moderate, moreover, somebody, hopefully, spotlight, filename, footwear, baseline, heather, homework, generating, widescreen, playlist, mainland, bookmarks, literally, homeland, livestock, timeline, widespread, homeless, mileage, likewise, changelog, fireplace, hometown, mailman, thereafter, generates, homeowners, booklet, sometime, woodland, cheerleader, homemade, fireworks, freestyle, deadlines, homeowner, timetable, vineyard, lifestyles, swimwear, lifelong, firewalls, feather.
+**59 compounds are held out**, pending a decision the mapping has not made.  The layout writes `life` in one stroke, but as a mirrored vowel, and the mirrored form closes the word by construction, so it cannot open a longer one: `lifestyle` comes out `lif|est|yle`, which is neither the syllables nor anything a learner could predict.  Either a joiner command or giving the mirrored form the `Bk` space marker every other ending form has would settle it, so until one of them is chosen these words are not drilled: something, wireless, homepage, sometimes, coverage, generally, generated, covered, baseball, thailand, printable, notebook, lifestyle, gateway, generate, carefully, notebooks, pipeline, somewhat, covering, shareware, somewhere, lifetime, firewall, moderate, moreover, somebody, hopefully, filename, footwear, baseline, heather, homework, generating, widescreen, literally, homeland, livestock, timeline, widespread, homeless, mileage, likewise, changelog, fireplace, hometown, thereafter, generates, homeowners, sometime, homemade, fireworks, homeowner, timetable, vineyard, lifestyles, lifelong, firewalls, feather.
 
 | lesson | new | words |
 |---|---|---|
@@ -19,25 +19,25 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 7 | f on lower ring and middle | 99 |
 | 8 | y on pinky and upper middle | 37 |
 | 9 | th on lower ring and upper middle | 37 |
-| 10 | l on upper ring and lower middle | 278 |
-| 11 | b is p plus the pinky | 163 |
-| 12 | w on the upper ring and middle | 128 |
-| 13 | g is c plus the pinky | 180 |
+| 10 | l on upper ring and lower middle | 291 |
+| 11 | b is p plus the pinky | 165 |
+| 12 | w on the upper ring and middle | 132 |
+| 13 | g is c plus the pinky | 185 |
 | 14 | h as an onset, st as a coda | 239 |
 | 15 | x on the middle pair and lower ring | 70 |
-| 16 | the second character: r and l | 537 |
-| 17 | the second character: i, t and m | 815 |
-| 18 | the second character: o, s and e | 498 |
+| 16 | the second character: r and l | 509 |
+| 17 | the second character: i, t and m | 709 |
+| 18 | the second character: o, s and e | 502 |
 | 19 | the second character: w, c, u, p and n | 195 |
-| 20 | ea and ou | 64 |
-| 21 | v, m and k | 1509 |
-| 22 | ind/nd, inc/ng and int/nt | 1218 |
-| 23 | ch, sh, gh, z and ck | 730 |
-| 24 | the coda-only shapes: h and e | 41 |
-| 25 | the mirrored vowel and the silent e | 1177 |
+| 20 | ea and ou | 61 |
+| 21 | v, m and k | 1622 |
+| 22 | ind/nd, inc/ng and int/nt | 1223 |
+| 23 | ch, sh, gh, z and ck | 732 |
+| 24 | the coda-only shapes: h and e | 42 |
+| 25 | the mirrored vowel and the silent e | 1176 |
 | 26 | the onset clusters | 356 |
 | 27 | w reads as h after p, w and r | 59 |
-| 28 | au and ai | 249 |
+| 28 | au and ai | 252 |
 | 29 | a bare final y | 706 |
 
 ## Lesson 1 — what transfers from Dosh
@@ -455,7 +455,7 @@ Dosh types `g` here.
 
 Dosh types `?` here.
 
-278 words qualify, 40 here, most common first.  `drills/10-l.txt`.
+291 words qualify, 40 here, most common first.  `drills/10-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -468,6 +468,7 @@ Dosh types `?` here.
 | personal | `os-ae s-nei -stSpBk` | per·son·al |
 | old | `-stei -at` | ol·d |
 | call | `o-stSp -st` | cal·l |
+| title | `t-ti st-eBk` | tit·le |
 | sales | `s-stSp -seBk` | sal·es |
 | left | `st-ote -t` | lef·t |
 | select | `s-ste -oe -t` | sel·ec·t |
@@ -498,13 +499,12 @@ Dosh types `?` here.
 | political | `os-stei -ti -oi -stSpBk` | pol·it·ic·al |
 | lines | `st-ni -seBk` | lin·es |
 | particular | `os-aSp t-oi -stiSp -aSpBk` | par·tic·ul·ar |
-| rental | `a-ne t-stSpBk` | ren·tal |
 
 ## Lesson 11 — b is p plus the pinky
 
 Dosh has one-shot gui here.
 
-163 words qualify, 40 here, most common first.  `drills/11-b.txt`.
+165 words qualify, 40 here, most common first.  `drills/11-b.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -553,7 +553,7 @@ Dosh has one-shot gui here.
 
 Dosh types `p` here.
 
-128 words qualify, 40 here, most common first.  `drills/12-w.txt`.
+132 words qualify, 40 here, most common first.  `drills/12-w.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -565,6 +565,7 @@ Dosh types `p` here.
 | news | `n-sne -s` | new·s |
 | web | `sn-aoseBk` | web |
 | now | `n-sneiBk` | now |
+| world | `sn-aei st-at` | wor·ld |
 | well | `sn-ste -st` | wel·l |
 | way | `sn-anSpBk` | way |
 | within | `sn-oni -niBk` | with·in |
@@ -596,13 +597,12 @@ Dosh types `p` here.
 | awards | `-snSp -aSp at-s` | aw·ar·ds |
 | saw | `s-snSpBk` | saw |
 | worth | `sn-aei -on` | wor·th |
-| laws | `st-snSp -s` | law·s |
 
 ## Lesson 13 — g is c plus the pinky
 
 Dosh types `l` here.
 
-180 words qualify, 40 here, most common first.  `drills/13-g.txt`.
+185 words qualify, 40 here, most common first.  `drills/13-g.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -619,6 +619,7 @@ Dosh types `l` here.
 | got | `ao-teiBk` | got |
 | login | `st-aoei -niBk` | log·in |
 | legal | `st-aoe -stSpBk` | leg·al |
+| girls | `ao-ai st-s` | gir·ls |
 | gift | `ao-oti -t` | gif·t |
 | garden | `ao-aSp at-neBk` | gar·den |
 | god | `ao-ateiBk` | god |
@@ -627,6 +628,7 @@ Dosh types `l` here.
 | gold | `ao-stei -at` | gol·d |
 | gifts | `ao-oti t-s` | gif·ts |
 | together | `t-aoei -one -aeBk` | tog·eth·er |
+| girl | `ao-ai -st` | gir·l |
 | golf | `ao-stei -ot` | gol·f |
 | designed | `at-se -aoi n-ateBk` | des·ig·ned |
 | dog | `at-aoeiBk` | dog |
@@ -644,8 +646,6 @@ Dosh types `l` here.
 | bug | `aos-aoiSpBk` | bug |
 | signed | `s-aoi n-ateBk` | sig·ned |
 | began | `aos-aoe -nSpBk` | beg·an |
-| designated | `at-se -aoi n-tSp -ateBk` | des·ig·nat·ed |
-| tags | `t-aoSp -s` | tag·s |
 
 ## Lesson 14 — h as an onset, st as a coda
 
@@ -749,18 +749,15 @@ Dosh has PrintScreen here.
 
 The left hand's inner four are the second character of the syllable, mostly consonants.  `r` is `Bk` alone and `l` is `Sp` alone.
 
-537 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
+509 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
-| world | `sn-ei aSp-at` | wo·rld |
 | products | `osBk-atei -oiSp t-s` | prod·uc·ts |
 | product | `osBk-atei -oiSp -t` | prod·uc·t |
 | public | `os-iSp aosSp-oiBk` | pu·blic |
 | address | `-atSp atBk-se -s` | ad·dres·s |
 | prices | `osBk-oi -seBk` | pric·es |
-| download | `at-snei nSp-ei -atSpBk` | dow·nlo·ad |
-| title | `t-i tSp-eBk` | ti·tle |
 | class | `oSp-sSp -s` | clas·s |
 | little | `st-ti tSp-eBk` | lit·tle |
 | article | `-aSp t-i oSp-eBk` | ar·ti·cle |
@@ -773,7 +770,6 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | play | `osSp-anSpBk` | play |
 | blog | `aosSp-aoeiBk` | blog |
 | club | `oSp-aosiSpBk` | club |
-| girls | `ao-i aSp-s` | gi·rls |
 | browse | `aosBk-snei s-eBk` | brow·se |
 | possible | `os-sei s-i aosSp-eBk` | pos·si·ble |
 | central | `o-ne tBk-stSpBk` | cen·tral |
@@ -782,30 +778,32 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | electronics | `-ste -oe tBk-nei -oi -s` | el·ec·tron·ic·s |
 | france | `otBk-nSp o-eBk` | fran·ce |
 | pro | `osBk-eiBk` | pro |
-| downloads | `at-snei nSp-ei -atSp -s` | dow·nlo·ad·s |
 | written | `snBk-ti t-neBk` | writ·ten |
 | plus | `osSp-siSpBk` | plus |
 | global | `aoSp-aosei -stSpBk` | glob·al |
 | player | `osSp-anSp -aeBk` | play·er |
 | newsletter | `n-sne sSp-te t-aeBk` | new·slet·ter |
-| girl | `ao-i aSp-` | gi·rl |
 | florida | `otSp-aei -ati -SpBk` | flor·id·a |
 | friday | `otBk-ati -anSpBk` | frid·ay |
 | growth | `aoBk-snei -on` | grow·th |
 | drug | `atBk-aoiSpBk` | drug |
+| players | `osSp-anSp -ae -s` | play·er·s |
+| supplies | `s-osiSp osSp-i -seBk` | sup·pli·es |
+| plans | `osSp-nSp -s` | plan·s |
+| electronic | `-ste -oe tBk-nei -oiBk` | el·ec·tron·ic |
+| printer | `osBk-ni t-aeBk` | prin·ter |
+| cross | `oBk-sei -s` | cros·s |
 
 ## Lesson 17 — the second character: i, t and m
 
 `i` is the same key as the vowel; `t` is `e+Sp`, `m` is `e+Bk`.
 
-815 words qualify, 40 here, most common first.  `drills/17-second-i-t-m.txt`.
+709 words qualify, 40 here, most common first.  `drills/17-second-i-t-m.txt`.
 
 | word | strokes | division |
 |---|---|---|
-| information | `-ni ot-ei aeBk-tSp i-neiBk` | in·fo·rmat·ion |
 | state | `seSp-tSp -eBk` | stat·e |
 | store | `seSp-aei -eBk` | stor·e |
-| terms | `t-e aeBk-s` | te·rms |
 | education | `-ate -oiSp -tSp i-neiBk` | ed·uc·at·ion |
 | national | `n-tSp i-nei -stSpBk` | nat·ion·al |
 | states | `seSp-tSp -seBk` | stat·es |
@@ -813,7 +811,6 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | location | `st-oei -tSp i-neiBk` | loc·at·ion |
 | small | `seBk-stSp -st` | smal·l |
 | students | `seSp-atiSp -ne t-s` | stud·en·ts |
-| form | `ot-ei aeBk-` | fo·rm |
 | description | `at-se oBk-osi ti-neiBk` | des·crip·tion |
 | still | `seSp-sti -st` | stil·l |
 | categories | `o-tSp -aoe -aei i-seBk` | cat·eg·or·ies |
@@ -825,7 +822,6 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | staff | `seSp-otSp -ot` | staf·f |
 | financial | `ot-ni -nSp oi-stSpBk` | fin·an·cial |
 | stores | `seSp-aei -seBk` | stor·es |
-| performance | `os-ae ot-ei aeBk-nSp o-eBk` | per·fo·rman·ce |
 | social | `s-oei i-stSpBk` | soc·ial |
 | options | `-osei ti-nei -s` | op·tion·s |
 | experience | `-otne os-ae i-ne o-eBk` | ex·per·ien·ce |
@@ -835,19 +831,23 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | professional | `osBk-otei -se si-nei -stSpBk` | prof·es·sion·al |
 | star | `seSp-aSpBk` | star |
 | california | `o-stSp -oti -aei ni-SpBk` | cal·if·or·nia |
-| term | `t-e aeBk-` | te·rm |
-| film | `ot-i steBk-` | fi·lm |
 | stories | `seSp-aei i-seBk` | stor·ies |
 | radio | `a-atSp i-eiBk` | rad·io |
 | discussion | `at-si o-siSp si-neiBk` | dis·cus·sion |
-| format | `ot-ei aeBk-tSpBk` | fo·rmat |
 | edition | `-ate -ti i-neiBk` | ed·it·ion |
+| association | `-sSp s-oei i-tSp i-neiBk` | as·soc·iat·ion |
+| studies | `seSp-atiSp i-seBk` | stud·ies |
+| collection | `o-stei st-oe ti-neiBk` | col·lec·tion |
+| solutions | `s-stei -tiSp i-nei -s` | sol·ut·ion·s |
+| period | `os-ae i-ateiBk` | per·iod |
+| official | `-otei ot-oi i-stSpBk` | of·fic·ial |
+| region | `a-aoe i-neiBk` | reg·ion |
 
 ## Lesson 18 — the second character: o, s and e
 
 `o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `i+Bk`.
 
-498 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
+502 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -873,6 +873,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | area | `-aSp iBk-SpBk` | ar·ea |
 | between | `aos-te sniBk-neBk` | bet·ween |
 | south | `sei-oniSpBk` | south |
+| download | `at-snei n- stei-atSpBk` | dow·n·load |
 | without | `sn-oni ei-tiSpBk` | with·out |
 | resources | `a-se ei-aiSp o-seBk` | res·our·ces |
 | board | `aosei-aSp -at` | boar·d |
@@ -890,7 +891,6 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | four | `otei-aiSpBk` | four |
 | court | `oei-aiSp -t` | cour·t |
 | groups | `ao- aei-osiSp -s` | g·roup·s |
-| analysis | `-nSp -stSp ane-siBk` | an·al·ysis |
 
 ## Lesson 19 — the second character: w, c, u, p and n
 
@@ -945,7 +945,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 `ea` is `e+Sp` (e plus a); `ou` is `e+i+Sp+Bk` (o plus u), and only ever ends a word.  These are the free combinations: they spell the digraph only with a second character, which is why they come after those; `ea` alone is a placeholder glyph.
 
-64 words qualify, 40 here, most common first.  `drills/20-ea-ou.txt`.
+61 words qualify, 40 here, most common first.  `drills/20-ea-ou.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -973,7 +973,6 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | creates | `oBk-teSp -seBk` | creat·es |
 | bread | `aosBk-ateSpBk` | bread |
 | pleased | `osSp-seSp -ateBk` | pleas·ed |
-| treatments | `tBk-eSp teBk-ne t-s` | trea·tmen·ts |
 | cleaner | `oSp-neSp -aeBk` | clean·er |
 | cloud | `oSp-ateiSpBk` | cloud |
 | spears | `seiBk-aeSp -s` | spear·s |
@@ -987,18 +986,20 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | delicious | `at-ste -oi i-seiSpBk` | del·ic·ious |
 | treasurer | `tBk-seSp -aiSp -aeBk` | treas·ur·er |
 | cleaners | `oSp-neSp -ae -s` | clean·er·s |
-| enormous | `-ne -ei aeBk-seiSpBk` | en·o·rmous |
 | retreat | `a-e tBk-teSpBk` | re·treat |
+| steal | `seSp-steSpBk` | steal |
+| scout | `seiSp-teiSpBk` | scout |
 
 ## Lesson 21 — v, m and k
 
 Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
-1509 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
+1622 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
 
 | word | strokes | division |
 |---|---|---|
 | from | `otBk-aoneiBk` | from |
+| information | `-ni ot-aei aon-tSp i-neiBk` | in·for·mat·ion |
 | may | `aon-anSpBk` | may |
 | view | `aoti-sneBk` | view |
 | am | `-aonSpBk` | am |
@@ -1027,6 +1028,7 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 | travel | `tBk-aotSp -steBk` | trav·el |
 | comments | `o-aonei aon-ne t-s` | com·men·ts |
 | member | `aon-aone aos-aeBk` | mem·ber |
+| terms | `t-ae aon-s` | ter·ms |
 | reserved | `a-se -ae aot-ateBk` | res·er·ved |
 | forum | `ot-aei -aoniSpBk` | for·um |
 | even | `-aote -neBk` | ev·en |
@@ -1036,14 +1038,12 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 | american | `-aonSp -ae -oi -nSpBk` | am·er·ic·an |
 | members | `aon-aone aos-ae -s` | mem·ber·s |
 | network | `n-te sn-aei -atn` | net·wor·k |
-| computer | `o-aonei os-tiSp -aeBk` | com·put·er |
-| systems | `s-an seSp-aone -s` | sy·stem·s |
 
 ## Lesson 22 — ind/nd, inc/ng and int/nt
 
 Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `nd`, `ng` and `nt` as codas.
 
-1218 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
+1223 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1053,7 +1053,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | under | `-astiSp -aeBk` | und·er |
 | management | `aon-nSp -aoSp -aone -osneBk` | man·ag·em·ent |
 | international | `osn-ae n-tSp i-nei -stSpBk` | inter·nat·ion·al |
-| development | `at-aote -ste -ei oseBk-osneBk` | dev·el·o·pment |
+| development | `at-aote -ste -osei aon-osneBk` | dev·el·op·ment |
 | send | `s-asteBk` | send |
 | using | `-siSp -asniBk` | us·ing |
 | internet | `osn-ae n-teBk` | inter·net |
@@ -1092,7 +1092,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 
 `sh` is ch plus the pinky; `z` is s plus the pinky.
 
-730 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
+732 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1141,7 +1141,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 
 Two four-key right-hand shapes with no onset reading: a final `h` and a final `e`.
 
-41 words qualify, 40 here, most common first.  `drills/24-coda-h-e.txt`.
+42 words qualify, 40 here, most common first.  `drills/24-coda-h-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1182,15 +1182,15 @@ Two four-key right-hand shapes with no onset reading: a final `h` and a final `e
 | freezer | `otBk-ostne as-aeBk` | free·zer |
 | glue | `aoSp-ostniSpBk` | glue |
 | clue | `oSp-ostniSpBk` | clue |
+| freestyle | `otBk-ostne seSp-an st-eBk` | free·sty·le |
 | sleeves | `sSp-ostne aot-seBk` | slee·ves |
 | greenwich | `aoBk-ostne nSpBk-ostiBk` | gree·nwich |
-| freezing | `otBk-ostne as-asniBk` | free·zing |
 
 ## Lesson 25 — the mirrored vowel and the silent e
 
 With no vowel on the right hand and a real coda, a second character that is also a vowel supplies the nucleus, and the stroke appends a silent `e` and ends the word: `time`, `tone`, `tame`.
 
-1177 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
+1176 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1254,7 +1254,7 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | required | `a-e oeiSp-ai -ateBk` | re·quir·ed |
 | questions | `oeiSp-tne i-nei -s` | quest·ion·s |
 | street | `tnBk-e -teBk` | stre·et |
-| equipment | `-e oeiSp-i oseBk-osneBk` | e·qui·pment |
+| equipment | `-e oeiSp-osi aon-osneBk` | e·quip·ment |
 | quote | `oeiSp-tei -eBk` | quot·e |
 | question | `oeiSp-tne i-neiBk` | quest·ion |
 | request | `a-e oeiSp-tneBk` | re·quest |
@@ -1319,25 +1319,25 @@ The second character `w` (`Sp+Bk`) spells `h` after an onset ending in `p`, `w` 
 | polyphonic | `os-stei -an osSpBk-nei -oiBk` | pol·y·phon·ic |
 | alphabetical | `-stSp osSpBk-aosSp -te -oi -stSpBk` | al·phab·et·ic·al |
 | photographer | `osSpBk-tei -aoei a-osSp tn-aeBk` | phot·og·rap·her |
-| pharmaceutical | `osSpBk-Sp aeBk-oSp iBk-tiSp -oi -stSpBk` | pha·rmac·eut·ic·al |
+| pharmaceutical | `osSpBk-aSp aon-oSp iBk-tiSp -oi -stSpBk` | phar·mac·eut·ic·al |
 | photograph | `osSpBk-tei -aoei a-Sp osSpBk-` | phot·og·ra·ph |
 | photoshop | `osSpBk-tei -aostei ei-os` | phot·osh·op |
 | whilst | `snSpBk-sti -tn` | whil·st |
 | photographic | `osSpBk-tei -aoei a-osSp tn-oiBk` | phot·og·rap·hic |
 | wheat | `snSpBk-teSpBk` | wheat |
 | photographers | `osSpBk-tei -aoei a-osSp tn-ae -s` | phot·og·rap·her·s |
-| pharmacies | `osSpBk-Sp aeBk-oSp i-seBk` | pha·rmac·ies |
+| pharmacies | `osSpBk-aSp aon-oSp i-seBk` | phar·mac·ies |
 | headphones | `tniBk-atSp osSpBk-nei -seBk` | head·phon·es |
-| pharmaceuticals | `osSpBk-Sp aeBk-oSp iBk-tiSp -oi -stSp -s` | pha·rmac·eut·ic·al·s |
+| pharmaceuticals | `osSpBk-aSp aon-oSp iBk-tiSp -oi -stSp -s` | phar·mac·eut·ic·al·s |
 | overhead | `-aotei -e aSpBk-ateSpBk` | ov·e·rhead |
 | wherever | `snSpBk-ae -aote -aeBk` | wher·ev·er |
-| atmospheric | `-Sp teBk-sei osSpBk-ae -oiBk` | a·tmos·pher·ic |
+| atmospheric | `-tSp aon-sei osSpBk-ae -oiBk` | at·mos·pher·ic |
 
 ## Lesson 28 — au and ai
 
 A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spells `ai`.
 
-249 words qualify, 40 here, most common first.  `drills/28-diphthongs.txt`.
+252 words qualify, 40 here, most common first.  `drills/28-diphthongs.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1355,7 +1355,7 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | august | `iSp-aoiSp -tniSpBk` | aug·ust |
 | audio | `iSp-atiSp i-eiBk` | aud·io |
 | australia | `iSp-tniSp a-stSp i-SpBk` | aust·ral·ia |
-| entertainment | `-ne t-ae ti-i neBk-osneBk` | en·ter·tai·nment |
+| entertainment | `-ne t-ae ti-ni aon-osneBk` | en·ter·tain·ment |
 | auto | `iSp-tiSp ei-` | aut·o |
 | domain | `at-aonei i-niBk` | dom·ain |
 | certain | `o-ae ti-niBk` | cer·tain |
@@ -1392,7 +1392,7 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 |---|---|---|
 | by | `aos-aniBk` | by |
 | any | `-nSp -aniBk` | an·y |
-| only | `-ei nSp-aniBk` | o·nly |
+| only | `-nei st-aniBk` | on·ly |
 | city | `o-ti -aniBk` | cit·y |
 | policy | `os-stei -oi -aniBk` | pol·ic·y |
 | very | `aot-ae -aniBk` | ver·y |
