@@ -74,6 +74,27 @@ public struct OrsySkillModel: Sendable {
 
     public func skill(_ name: String) -> PatternSkill? { skills[name] }
 
+    /// The key measuring one whole stroke, as against the patterns in it.
+    ///
+    /// The unit of skill here is the pattern, deliberately: seventy of those and a dozen
+    /// rules can be taught and measured, where the strokes that use them run to six
+    /// figures.  But a stroke is a *combination*, and a combination goes on being new
+    /// long after its parts are old -- `ion` is Series 2 `i`, the closing `o` and a coda
+    /// `n`, each of them familiar from a dozen other words, and the stroke still has to
+    /// be found on the board the first time it comes up.  So each stroke is counted too,
+    /// for the one question the patterns cannot answer: has this been made before.
+    ///
+    /// Nothing gates on these -- the ladder and the drill ranking read the pattern keys,
+    /// which are the ones the lesson plan names.  They exist for the hint.
+    public static func strokeKey(left: UInt16, right: UInt16) -> String {
+        "stroke:\(String(left, radix: 16)),\(String(right, radix: 16))"
+    }
+
+    /// How many times this exact stroke has been made.
+    public func strokeUses(left: UInt16, right: UInt16) -> Int {
+        skills[Self.strokeKey(left: left, right: right)]?.count ?? 0
+    }
+
     /// The ladder's gate: typed often enough, and not often taken back.  See
     /// `SkillModel.reached` for why speed is left out.
     public func reached(_ name: String) -> Bool {
@@ -209,6 +230,7 @@ struct OrsySamples: Codable, Equatable {
             for (name, flag) in OrsyTheory.Rules.byName where t.rules & flag != 0 {
                 keys.append("rule:\(name)")
             }
+            keys.append(OrsySkillModel.strokeKey(left: stroke.left, right: stroke.right))
             return keys
         case .undo: return ["cmd:undo"]
         case .space: return ["cmd:space"]

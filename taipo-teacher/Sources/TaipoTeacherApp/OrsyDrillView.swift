@@ -63,8 +63,7 @@ struct OrsyDrillView: View {
     /// weaker one -- which is the one worth practising, but has to be named: a coda `s`
     /// at 50% back sits there unmoved by any number of onset `s`, and read as "s" that
     /// looks like a display that has stopped updating.
-    /// How many uses of a stroke's least-typed pattern count as new, and so keep the
-    /// picture up in `learn`.
+    /// How many uses of a stroke count as new, and so keep the picture up in `learn`.
     ///
     /// A few, against the forty it takes to pass the gate: long enough to get the movement
     /// out of the diagram and into the hand, short enough that most of an item's practice
@@ -186,20 +185,16 @@ struct OrsyDrillView: View {
         )
     }
 
-    /// The next stroke, drawn on both hands, for as long as its weakest pattern is still
+    /// The next stroke, drawn on both hands, for as long as the stroke itself is still
     /// being learned.
     @ViewBuilder
     private func hint(_ drill: OrsyDrillSession) -> some View {
-        if let layouts = monitor.layouts, let theory = monitor.orsyTheory,
-            let unit = drill.wantedStroke
-        {
-            // The least-typed pattern decides whether the stroke is still new: a stroke is
-            // only as familiar as the newest thing in it.
+        if let layouts = monitor.layouts, let unit = drill.wantedStroke {
             StrokeHint(
                 diagram: ChordDiagram(layouts: layouts),
                 left: unit.left, right: unit.right,
                 text: unit.text.trimmingCharacters(in: .whitespaces),
-                showHands: drawHands(unit, theory: theory, stumbled: drill.stumbled),
+                showHands: drawHands(unit, stumbled: drill.stumbled),
                 showKeys: monitor.orsyHintKeys)
         } else {
             Color.clear.frame(width: StrokeHint.width, height: 1)
@@ -207,16 +202,22 @@ struct OrsyDrillView: View {
     }
 
     /// Whether the picture is drawn for this stroke.
-    private func drawHands(
-        _ unit: OrsyDrillUnit, theory: OrsyTheory, stumbled: Bool
-    ) -> Bool {
+    ///
+    /// The question is whether *this stroke* has been made before, not whether its
+    /// patterns are familiar.  It used to ask the second, taking the least-typed of the
+    /// stroke's four Series, and that answer goes wrong the moment the lessons stop
+    /// introducing patterns: `ion` is Series 2 `i`, the closing `o` and a coda `n`, all
+    /// three of them long since past the count, so a stroke nobody had ever made arrived
+    /// with no picture.  Every pattern in a stroke is used at least as often as the
+    /// stroke itself, so counting the stroke draws the picture everywhere the old test
+    /// did and in the cases it missed.
+    private func drawHands(_ unit: OrsyDrillUnit, stumbled: Bool) -> Bool {
         switch monitor.orsyHint {
         case .always: return true
         case .never: return false
         case .learn:
             guard !stumbled else { return true }
-            let keys = theory.translate(left: unit.left, right: unit.right)?.patterns.keys ?? []
-            let uses = keys.map { monitor.orsySkill?.skill($0)?.count ?? 0 }.min() ?? 0
+            let uses = monitor.orsySkill?.strokeUses(left: unit.left, right: unit.right) ?? 0
             return uses < Self.hintUses
         }
     }

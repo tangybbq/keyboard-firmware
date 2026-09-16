@@ -48,6 +48,22 @@ final class OrsySkillTests: XCTestCase {
         XCTAssertEqual(collector.model(variant: "dosh", options: SkillModel.Options()).chords, 0)
     }
 
+    /// A stroke is counted in its own right, not only as the patterns in it.
+    ///
+    /// The hint asks whether a stroke has been made before, and every pattern in one is
+    /// used at least as often as the stroke itself, so the two counts have to be kept
+    /// apart: `the` is struck twice in the fixture while its closing `e` is struck three
+    /// times, once more in `er`.
+    func testStrokesAreCountedInTheirOwnRight() throws {
+        let dir = try logDirectory(try golden("orsy-clean", "log"))
+        let model = OrsySkillModel.build(logDirectory: dir, layouts: try layouts())
+        // `the` is FZ + ue: left 0x42, right 0x208.
+        XCTAssertEqual(model.strokeUses(left: 0x42, right: 0x208), 2)
+        XCTAssertEqual(model.skill("s3:ue")?.count, 3, "the pattern is used once more")
+        // A stroke never made is new, and asking costs nothing.
+        XCTAssertEqual(model.strokeUses(left: 0x3ff, right: 0x3ff), 0)
+    }
+
     /// The reset marker disowns the Orsy practice before it and nothing else: the same
     /// log twice with a marker between counts as one pass, and the chord models are
     /// untouched.
