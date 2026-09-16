@@ -17,25 +17,25 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 7 | f on lower ring and middle | 99 |
 | 8 | y on pinky and upper middle | 37 |
 | 9 | th on lower ring and upper middle | 37 |
-| 10 | l on upper ring and lower middle | 275 |
+| 10 | l on upper ring and lower middle | 278 |
 | 11 | b is p plus the pinky | 164 |
 | 12 | w on the upper ring and middle | 131 |
 | 13 | g is c plus the pinky | 183 |
-| 14 | h as an onset, st as a coda | 250 |
+| 14 | h as an onset, st as a coda | 239 |
 | 15 | x on the middle pair and lower ring | 70 |
-| 16 | the second character: r and l | 570 |
-| 17 | the second character: i, t and m | 820 |
-| 18 | the second character: o, s and e | 505 |
-| 19 | the second character: w, c, u, p and n | 196 |
+| 16 | the second character: r and l | 543 |
+| 17 | the second character: i, t and m | 815 |
+| 18 | the second character: o, s and e | 503 |
+| 19 | the second character: w, c, u, p and n | 195 |
 | 20 | ea and ou | 66 |
-| 21 | v, m and k | 1528 |
-| 22 | ind/nd, inc/ng and int/nt | 1219 |
-| 23 | ch, sh, gh, z and ck | 684 |
+| 21 | v, m and k | 1527 |
+| 22 | ind/nd, inc/ng and int/nt | 1223 |
+| 23 | ch, sh, gh, z and ck | 732 |
 | 24 | the coda-only shapes: h and e | 41 |
-| 25 | the mirrored vowel and the silent e | 1201 |
+| 25 | the mirrored vowel and the silent e | 1196 |
 | 26 | the onset clusters | 356 |
 | 27 | w reads as h after p, w and r | 59 |
-| 28 | au and ai | 256 |
+| 28 | au and ai | 253 |
 | 29 | a bare final y | 711 |
 
 ## Lesson 1 — what transfers from Dosh
@@ -453,7 +453,7 @@ Dosh types `g` here.
 
 Dosh types `?` here.
 
-275 words qualify, 40 here, most common first.  `drills/10-l.txt`.
+278 words qualify, 40 here, most common first.  `drills/10-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -649,7 +649,7 @@ Dosh types `l` here.
 
 The one shape that reads differently on the two hands.  Dosh has one-shot control here.
 
-250 words qualify, 40 here, most common first.  `drills/14-h-st.txt`.
+239 words qualify, 40 here, most common first.  `drills/14-h-st.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -747,7 +747,7 @@ Dosh has PrintScreen here.
 
 The left hand's inner four are the second character of the syllable, mostly consonants.  `r` is `Bk` alone and `l` is `Sp` alone.
 
-570 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
+543 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -770,7 +770,6 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | articles | `-aSp t-i oSp-seBk` | ar·ti·cles |
 | play | `osSp-anSpBk` | play |
 | blog | `aosSp-aoeiBk` | blog |
-| single | `s-ni aoSp-eBk` | sin·gle |
 | club | `oSp-aosiSpBk` | club |
 | girls | `ao-i aSp-s` | gi·rls |
 | browse | `aosBk-snei s-eBk` | brow·se |
@@ -790,17 +789,20 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | girl | `ao-i aSp-` | gi·rl |
 | florida | `otSp-aei -ati -SpBk` | flor·id·a |
 | friday | `otBk-ati -anSpBk` | frid·ay |
-| published | `os-iSp aosSp-si tn-ateBk` | pu·blis·hed |
+| growth | `aoBk-snei -on` | grow·th |
+| drug | `atBk-aoiSpBk` | drug |
 
 ## Lesson 17 — the second character: i, t and m
 
 `i` is the same key as the vowel; `t` is `e+Sp`, `m` is `e+Bk`.
 
-820 words qualify, 40 here, most common first.  `drills/17-second-i-t-m.txt`.
+815 words qualify, 40 here, most common first.  `drills/17-second-i-t-m.txt`.
 
 | word | strokes | division |
 |---|---|---|
 | information | `-ni ot-ei aeBk-tSp i-neiBk` | in·fo·rmat·ion |
+| state | `seSp-tSp -eBk` | stat·e |
+| store | `seSp-aei -eBk` | stor·e |
 | terms | `t-e aeBk-s` | te·rms |
 | education | `-ate -oiSp -tSp i-neiBk` | ed·uc·at·ion |
 | national | `n-tSp i-nei -stSpBk` | nat·ion·al |
@@ -838,14 +840,12 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | discussion | `at-si o-siSp si-neiBk` | dis·cus·sion |
 | format | `ot-ei aeBk-tSpBk` | fo·rmat |
 | edition | `-ate -ti i-neiBk` | ed·it·ion |
-| association | `-sSp s-oei i-tSp i-neiBk` | as·soc·iat·ion |
-| studies | `seSp-atiSp i-seBk` | stud·ies |
 
 ## Lesson 18 — the second character: o, s and e
 
 `o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `i+Bk`.
 
-505 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
+503 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -894,7 +894,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 `w` is `Sp+Bk`, `c` is `e+i+Sp`, `u` is `i+Sp` as for the vowel, `p` is `e+i+Bk`, `n` is `e+Sp+Bk`.
 
-196 words qualify, 40 here, most common first.  `drills/19-second-rest.txt`.
+195 words qualify, 40 here, most common first.  `drills/19-second-rest.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -992,7 +992,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
-1528 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
+1527 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1041,7 +1041,7 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
 Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `nd`, `ng` and `nt` as codas.
 
-1219 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
+1223 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1090,7 +1090,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 
 `sh` is ch plus the pinky; `z` is s plus the pinky.
 
-684 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
+732 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1118,7 +1118,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | shopping | `aost-osei os-asniBk` | shop·ping |
 | shall | `aost-stSp -st` | shal·l |
 | stock | `seSp-aosneiBk` | stock |
-| english | `-ne aoSp-aostiBk` | en·glish |
+| english | `-asne st-aostiBk` | eng·lish |
 | march | `aon-aSp -ost` | mar·ch |
 | feedback | `otiBk-ate aos-aosnSpBk` | feed·back |
 | changes | `ost-asnSp -seBk` | chang·es |
@@ -1188,7 +1188,7 @@ Two four-key right-hand shapes with no onset reading: a final `h` and a final `e
 
 With no vowel on the right hand and a real coda, a second character that is also a vowel supplies the nucleus, and the stroke appends a silent `e` and ends the word: `time`, `tone`, `tame`.
 
-1201 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
+1196 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1213,7 +1213,6 @@ With no vowel on the right hand and a real coda, a second character that is also
 | price | `os- ai-o` | p·rice |
 | date | `atBk-t` | date |
 | name | `nBk-aon` | name |
-| state | `s- tBk-t` | s·tate |
 | make | `aonBk-atn` | make |
 | please | `osSp-e Bk-s` | ple·ase |
 | message | `aon-se sBk-ao` | mes·sage |
@@ -1221,7 +1220,6 @@ With no vowel on the right hand and a real coda, a second character that is also
 | where | `sn- tne-a` | w·here |
 | info | `-ni otei-` | in·fo |
 | life | `sti-ot` | life |
-| store | `s- tSpBk-a` | s·tore |
 | made | `aonBk-at` | made |
 | line | `sti-n` | line |
 | before | `aos-ote SpBk-a` | bef·ore |
@@ -1232,6 +1230,8 @@ With no vowel on the right hand and a real coda, a second character that is also
 | phone | `os- tnSpBk-n` | p·hone |
 | code | `oSpBk-at` | code |
 | website | `sn-aose si-t` | web·site |
+| file | `oti-st` | file |
+| case | `oBk-s` | case |
 
 ## Lesson 26 — the onset clusters
 
@@ -1319,7 +1319,7 @@ The second character `w` (`Sp+Bk`) spells `h` after an onset ending in `p`, `w` 
 | photographer | `osSpBk-tei -aoei a-osSp tn-aeBk` | phot·og·rap·her |
 | pharmaceutical | `osSpBk-Sp aeBk-oSp iBk-tiSp -oi -stSpBk` | pha·rmac·eut·ic·al |
 | photograph | `osSpBk-tei -aoei a-Sp osSpBk-` | phot·og·ra·ph |
-| photoshop | `osSpBk-tei -sei tnei-os` | phot·os·hop |
+| photoshop | `osSpBk-tei -aostei ei-os` | phot·osh·op |
 | whilst | `snSpBk-sti -tn` | whil·st |
 | photographic | `osSpBk-tei -aoei a-osSp tn-oiBk` | phot·og·rap·hic |
 | wheat | `snSpBk-teSpBk` | wheat |
@@ -1335,7 +1335,7 @@ The second character `w` (`Sp+Bk`) spells `h` after an onset ending in `p`, `w` 
 
 A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spells `ai`.
 
-256 words qualify, 40 here, most common first.  `drills/28-diphthongs.txt`.
+253 words qualify, 40 here, most common first.  `drills/28-diphthongs.txt`.
 
 | word | strokes | division |
 |---|---|---|
