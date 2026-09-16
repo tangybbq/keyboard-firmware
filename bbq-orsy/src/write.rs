@@ -45,6 +45,13 @@
 //! without the `chr` onset.  Together they change 1.3% of divisions for 0.1%
 //! more keys and, again, no extra strokes.
 //!
+//! The same goes for the cluster itself.  Series 2 is the second character of an onset,
+//! and [`ONSETS`] is what English begins a syllable with; a combination outside it is an
+//! `r` or an `l` that belongs to the syllable before, which is how `farms` came out as
+//! `fa|rms`.  Ranked with the others, this changes 3.1% of divisions for 0.3% more keys
+//! and no extra strokes, and takes the non-onset clusters from 455 to the 142 that have
+//! no other spelling.
+//!
 //! Many words then divide equally well in more than one way (`ten|s` and
 //! `te|ns` are both two strokes of four keys).  Ties are broken towards fewer
 //! inner keys, so a consonant that could be an onset or a second character is
@@ -59,6 +66,7 @@ use std::collections::HashMap;
 
 use crate::chord::{Chord, HAND_MASK, INNER_MASK};
 use crate::compose::translate;
+use crate::tables::{Patterns, Second};
 
 /// How many letters a single stroke can spell.  The longest is `str` plus a
 /// second character, a two-letter nucleus, a two-letter coda and the silent
@@ -79,6 +87,55 @@ const MAX_CHUNK: usize = 12;
 /// account for 98 and all of them are.
 const PAIRS: [&[u8; 2]; 8] = [b"th", b"ch", b"sh", b"gh", b"ck", b"ng", b"nd", b"st"];
 
+/// Every consonant cluster English begins a syllable with.
+///
+/// Series 2 is the "second character", and the second character of an onset is a real
+/// thing -- `pr`, `bl`, `str`.  But the tables let it follow *any* onset, and left to the
+/// key count the division reaches for combinations no English syllable starts with, which
+/// is how `farms` came out as `fa|rms`: `rm` is not an onset, it is an `r` that belongs to
+/// the syllable before.  Over `words/english_10k.json` the division spelled 1,932 real
+/// clusters and 434 of these, and Series 2 `m` was the worst of it -- 37 uses as `sm`
+/// against some 190 as `rm`, `tm`, `nm`, `dm`, `lm`, `gm` and `bm`, so the one character
+/// was being taught almost entirely through clusters that do not occur.
+///
+/// A preference, like the rest: `middle` has no other spelling, since there is no `dd`
+/// coda for `midd|le` to use, so it keeps its `dl`.
+const ONSETS: [&str; 37] = [
+    "pr", "br", "tr", "dr", "cr", "gr", "fr", "thr", "shr", "chr", "phr", "pl", "bl", "cl",
+    "gl", "fl", "sl", "sm", "sn", "sp", "st", "sc", "sk", "sw", "tw", "dw", "qu", "kn", "wr",
+    "gn", "spr", "str", "spl", "scr", "sch", "thw", "sq",
+];
+
+/// Whether Series 2 put a consonant after the onset that English never does.
+fn foreign_onset(chord: Chord, text: &str) -> bool {
+    let Some(p) = Patterns::of(chord) else { return false };
+    if p.second == Second::Empty {
+        return false;
+    }
+    let Some(onset) = p.onset.onset() else { return false };
+    let second = p.second.spells();
+    if onset.is_empty() || second.is_empty() {
+        return false;
+    }
+    if second.chars().all(|c| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u')) {
+        return false;
+    }
+    // The mirrored and `XI` readings make the tables' letters a lie about what was
+    // spelled, so the text is what decides whether the cluster is really there.
+    let mut joined = [0u8; 8];
+    let n = onset.len() + second.len();
+    if n > joined.len() || !text.is_char_boundary(n) || text.len() < n {
+        return false;
+    }
+    joined[..onset.len()].copy_from_slice(onset.as_bytes());
+    joined[onset.len()..n].copy_from_slice(second.as_bytes());
+    if text.as_bytes()[..n] != joined[..n] {
+        return false;
+    }
+    let cluster = core::str::from_utf8(&joined[..n]).unwrap_or("");
+    !ONSETS.contains(&cluster)
+}
+
 /// One way of spelling a chunk of letters.
 #[derive(Clone, Copy, Debug)]
 struct Entry {
@@ -94,6 +151,8 @@ struct Entry {
     doubled: u32,
     /// 1 when a multi-letter onset carries a Series 2 consonant.
     wide: u32,
+    /// 1 when the onset and Series 2 spell a cluster English does not begin with.
+    foreign: u32,
     rules: u8,
 }
 
@@ -124,6 +183,7 @@ impl Writer {
                 if text.is_empty() || !text.bytes().all(|b| b.is_ascii_lowercase()) {
                     continue;
                 }
+                let foreign = foreign_onset(chord, &text) as u32;
                 chunks.entry(text).or_default().push(Entry {
                     chord,
                     space_before: t.space_before,
@@ -134,6 +194,7 @@ impl Writer {
                     inner_onset: t.inner_onset() as u32,
                     doubled: t.doubled_onset() as u32,
                     wide: t.wide_onset() as u32,
+                    foreign,
                     rules: t.rules,
                 });
             }
@@ -144,7 +205,7 @@ impl Writer {
                     (
                         e.inner_onset,
                         e.doubled,
-                        e.wide,
+                        e.wide + e.foreign,
                         e.keys,
                         e.inner,
                         e.chord.left,
@@ -208,7 +269,7 @@ impl Writer {
                     strokes + 1,
                     onsets + entry.inner_onset,
                     doubled + entry.doubled,
-                    awkward + split + entry.wide,
+                    awkward + split + entry.wide + entry.foreign,
                     keys + entry.keys,
                     inner + entry.inner,
                     j - i,
@@ -319,6 +380,26 @@ mod tests {
         }
         // A cluster that is not a doubling is untouched.
         assert_eq!(texts(&w, "please"), ["ple", "ase"]);
+    }
+
+    /// Series 2 spells the second character of a real onset, not whatever the key count
+    /// would like.
+    #[test]
+    fn second_character_makes_an_onset() {
+        let w = Writer::new();
+        assert_eq!(texts(&w, "farms"), ["far", "ms"]);
+        assert_eq!(texts(&w, "terms"), ["ter", "ms"]);
+        assert_eq!(texts(&w, "format"), ["for", "mat"]);
+        assert_eq!(texts(&w, "world"), ["wor", "ld"]);
+        assert_eq!(texts(&w, "film"), ["fil", "m"]);
+        assert_eq!(texts(&w, "only"), ["on", "ly"]);
+        // The clusters English does have are untouched.
+        assert_eq!(texts(&w, "small"), ["smal", "l"]);
+        assert_eq!(texts(&w, "please"), ["ple", "ase"]);
+        assert_eq!(texts(&w, "program"), ["prog", "ram"]);
+        // A preference, not a prohibition: there is no `dd` coda, so `middle` has no
+        // other spelling and keeps its `dl`.
+        assert_eq!(texts(&w, "middle"), ["mid", "dle"]);
     }
 
     /// A boundary does not fall inside a pair that Series 4 spells in one
