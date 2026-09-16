@@ -109,6 +109,56 @@ final class OrsyDrillTests: XCTestCase {
         }
     }
 
+    /// A line introduces at most one stroke the learner has never made.
+    ///
+    /// Unlocking one item is not unlocking one stroke: a Series 2 character multiplies
+    /// against every vowel and coda, so the pool gains a hundred strokes at once and the
+    /// draw, left to itself, spreads them over every word of the line.
+    func testALineIntroducesOneNewStrokeAtMost() throws {
+        let (_, theory, words) = try fixtures()
+        let l = try XCTUnwrap(words.lessons.firstIndex { $0.name == "second-i-t-m" })
+        var skills = [String: PatternSkill]()
+        for lesson in words.lessons[..<l] {
+            for key in lesson.items.flatMap({ $0 }) {
+                skills[key] = PatternSkill(name: key, count: 50, medianMs: 900, deleted: 0)
+            }
+        }
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let ladder = OrsyLadder(words: words, theory: theory, skill: model)
+
+        // Everything the pool could reach before this lesson counts as made.
+        let earlier = OrsyLadderMaker(words: words).pool(ladder)
+        var made = Set<UInt32>()
+        for word in earlier where !word.patterns.contains("s2:I") {
+            for (left, right) in word.strokes {
+                made.insert(OrsySkillModel.strokeId(left: left, right: right))
+            }
+        }
+        func newStrokes(_ line: String, _ maker: OrsyLadderMaker) -> Int {
+            line.split(separator: " ").reduce(0) { total, text in
+                total + (words.word(String(text))?.strokes.filter {
+                    !made.contains(OrsySkillModel.strokeId(left: $0.0, right: $0.1))
+                }.count ?? 0)
+            }
+        }
+        let paced = OrsyLadderMaker(words: words, made: made)
+        let blind = OrsyLadderMaker(words: words)
+        let a = paced.drill(ladder, lines: 6)
+        let b = blind.drill(ladder, lines: 6)
+        // One new stroke a line, plus the fallback's allowance: an item just unlocked has
+        // no word that is not new, and one of them has to go first.
+        let allowed = OrsyLadderMaker.newStrokesPerLine + ladder.focus.count
+        for line in a.lines {
+            XCTAssertLessThanOrEqual(newStrokes(line, paced), allowed, line)
+        }
+        // And the pacing is doing something: the blind draw spends more.
+        let spentPaced = a.lines.reduce(0) { $0 + newStrokes($1, paced) }
+        let spentBlind = b.lines.reduce(0) { $0 + newStrokes($1, blind) }
+        XCTAssertLessThan(spentPaced, spentBlind)
+        // Knowing nothing leaves the draw exactly as it was.
+        XCTAssertEqual(blind.drill(ladder, lines: 6).lines, b.lines)
+    }
+
     /// The rotation holds what the pool starves, and a block gives every one of them a
     /// word.
     ///

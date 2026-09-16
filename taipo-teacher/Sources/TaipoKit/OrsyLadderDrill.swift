@@ -30,9 +30,56 @@ import Foundation
 /// between the most and least practised from 227:1 to 33:1.
 public struct OrsyLadderMaker {
     private let words: OrsyWords
+    /// The strokes the learner has made before, as `OrsySkillModel.strokeId`.
+    ///
+    /// Empty means the question cannot be asked -- no logs yet, or a caller that does
+    /// not care -- and every candidate is then equally gentle, which is what the drill
+    /// did before this existed.
+    private let made: Set<UInt32>
 
-    public init(words: OrsyWords) {
+    public init(words: OrsyWords, made: Set<UInt32> = []) {
         self.words = words
+        self.made = made
+    }
+
+    /// How many new strokes a line may introduce.
+    ///
+    /// One.  An unlocked item is one thing to learn, but a *pattern* is not one stroke:
+    /// the outer five combine with what is already known and bring a couple of dozen new
+    /// strokes into the pool, while a Series 2 character multiplies against every vowel
+    /// and coda there is.  Measured against a real ladder at lesson 17, the coda `b`
+    /// brought 57 strokes of which 18 had never been made, and Series 2 `i` brought 112
+    /// of which 110 had never been made.  Unlocking one item then means meeting a new
+    /// stroke almost every word, which is not what learning one thing should feel like.
+    static let newStrokesPerLine = 1
+
+    /// How many of a word's strokes are not in `seen`.
+    func novelty(_ word: OrsyWords.Word, seen: Set<UInt32>) -> Int {
+        guard !made.isEmpty else { return 0 }
+        return word.strokes.reduce(0) {
+            $0 + (seen.contains(OrsySkillModel.strokeId(left: $1.0, right: $1.1)) ? 0 : 1)
+        }
+    }
+
+    /// How many of a word's strokes the learner has never made.
+    public func novelty(_ word: OrsyWords.Word) -> Int { novelty(word, seen: made) }
+
+    /// The candidates that spend no more than `budget` on strokes not yet seen, or, when
+    /// none of them can, the ones that spend the least.  Never empty if the input was not.
+    ///
+    /// The fallback is not a failure: for an item just unlocked, *every* word is new, and
+    /// one of them has to go first.  What matters is that the line then goes on counting
+    /// that stroke as seen, so the item's next word reuses it rather than reaching for
+    /// another -- which is how a line comes to drill `ies` several times over instead of
+    /// touring `ies`, `ion` and `ial` once each.
+    func affordable(
+        _ candidates: [OrsyWords.Word], budget: Int, seen: Set<UInt32>
+    ) -> [OrsyWords.Word] {
+        guard !made.isEmpty, !candidates.isEmpty else { return candidates }
+        let within = candidates.filter { novelty($0, seen: seen) <= budget }
+        if !within.isEmpty { return within }
+        let least = candidates.map { novelty($0, seen: seen) }.min() ?? 0
+        return candidates.filter { novelty($0, seen: seen) == least }
     }
 
     public func drill(
@@ -77,26 +124,46 @@ public struct OrsyLadderMaker {
         let circulating = rotation.isEmpty ? nil : rotation[turn % rotation.count]
         let count = max(wordCount, placings + (circulating == nil ? 1 : 2))
         var tokens = [String]()
+        // What the line has left to spend on strokes never made.  A focus word for a
+        // freshly unlocked item spends it immediately, and the rest of the line is then
+        // drawn from what the learner can already strike.
+        var budget = Self.newStrokesPerLine
+        // What the line has already put in front of the learner.  A stroke introduced by
+        // one word is familiar by the next, so it stops being charged for.
+        var seen = made
+        func take(_ word: OrsyWords.Word) -> String {
+            budget = max(0, budget - novelty(word, seen: seen))
+            for (left, right) in word.strokes {
+                seen.insert(OrsySkillModel.strokeId(left: left, right: right))
+            }
+            return word.text
+        }
         for i in 0..<count {
             // Slot 0 is the opener; the focus words follow, round robin, so that every
             // item gets its first word before any gets its second.
             if i > 0, i - 1 < placings,
                 let word = pick(
-                    pool.filter { $0.patterns.contains(focusKeys[(i - 1) % focusKeys.count]) },
+                    affordable(
+                        pool.filter { $0.patterns.contains(focusKeys[(i - 1) % focusKeys.count]) },
+                        budget: budget, seen: seen),
                     using: &rng)
             {
-                tokens.append(word.text)
+                tokens.append(take(word))
             } else if i == 0 {
                 // The first stroke of a line measures nothing, so the opener is not a
                 // focus word.
                 let rest = pool.filter { w in !focusKeys.contains { w.patterns.contains($0) } }
-                tokens.append((pick(rest, using: &rng) ?? pick(pool, using: &rng))!.text)
+                let word = pick(affordable(rest, budget: budget, seen: seen), using: &rng)
+                    ?? pick(affordable(pool, budget: budget, seen: seen), using: &rng)
+                tokens.append(take(word!))
             } else if i == placings + 1, let key = circulating,
-                let word = pick(pool.filter { $0.patterns.contains(key) }, using: &rng)
+                let word = pick(
+                    affordable(pool.filter { $0.patterns.contains(key) }, budget: budget, seen: seen),
+                    using: &rng)
             {
-                tokens.append(word.text)
+                tokens.append(take(word))
             } else {
-                tokens.append(pick(pool, using: &rng)!.text)
+                tokens.append(take(pick(affordable(pool, budget: budget, seen: seen), using: &rng)!))
             }
         }
         // The trim may not reach the opener, the focus words or the circulating one.

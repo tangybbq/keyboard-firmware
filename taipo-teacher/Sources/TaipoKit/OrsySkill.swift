@@ -95,6 +95,25 @@ public struct OrsySkillModel: Sendable {
         skills[Self.strokeKey(left: left, right: right)]?.count ?? 0
     }
 
+    /// One stroke as a single number, for a set of them.
+    public static func strokeId(left: UInt16, right: UInt16) -> UInt32 {
+        UInt32(left) << 16 | UInt32(right)
+    }
+
+    /// Every stroke the logs have seen made, so a drill can tell a stroke that has been
+    /// found on the board from one that has not.
+    public var madeStrokes: Set<UInt32> {
+        var out = Set<UInt32>()
+        for (name, s) in skills where s.count > 0 && name.hasPrefix("stroke:") {
+            let parts = name.dropFirst("stroke:".count).split(separator: ",")
+            guard parts.count == 2, let l = UInt16(parts[0], radix: 16),
+                let r = UInt16(parts[1], radix: 16)
+            else { continue }
+            out.insert(Self.strokeId(left: l, right: r))
+        }
+        return out
+    }
+
     /// The ladder's gate: typed often enough, and not often taken back.  See
     /// `SkillModel.reached` for why speed is left out.
     public func reached(_ name: String) -> Bool {
