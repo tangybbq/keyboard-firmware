@@ -55,6 +55,38 @@ thumb that types Space in Dosh, the mnemonic is exact: the space thumb adds the 
 exceptionless is that the marker attaches to an orthographic vowel slot that is always
 present, so there is no phonetic irregularity for it to trip over.)
 
+## The mirrored vowel, and the silent `e`
+
+Six of the thirteen Series 2 patterns have a second reading, as a vowel:
+
+| Series 2 spells | also reads as |
+|---|---|
+| `r` (`Bk`) | `a` |
+| `i` (`i`) | `i` |
+| `s` (`e`) | `e` |
+| `e` (`iBk`) | `ea` |
+| `w` (`SpBk`) | `o` |
+| `u` (`iSp`) | `u` |
+
+The second reading switches on when **Series 3 is empty and Series 4 has a real coda**.
+The stroke then spells onset + that vowel + coda + a silent `e`, and the vowel is the same
+chord it would be on the right hand, so there is nothing extra to learn.
+
+    life  =  sti-ot   l (st) + i (index, read as the vowel) + f (ot) + silent e
+    time  =  ti-aon   t + i + m + silent e
+    name  =  nBk-aon  n + a (Bk, read as the vowel) + m + silent e
+
+This is what makes the `CvCe` words one stroke each, and they are among the commonest in
+English: `time`, `name`, `home`, `like`, `date`, `use`, `site`, `price`, `there`. 1,196 of
+the 10k corpus use it.
+
+**It closes the word.** The mirrored form is an ending form, and there is no plain
+counterpart, so a mirrored stroke can only be the last of a word. `life` is one stroke as
+a word and cannot be the first stroke of `lifestyle`.
+
+This is the one place the layout ends a word without pressing `Bk`, and it is the reason
+`lifestyle` divides as `lif|est|yle`. See the gaps below.
+
 ## Design rules
 
 1. **Dosh transfer.** `s`, `t` and `n` are the three commonest Midi4Text consonants *and*
@@ -157,6 +189,28 @@ large strokes.
 - The three rare coda-only shapes (final `h`, the `AE` tail, and the unused onset slot) are
   parked on four- and five-key chords. They are individually under 0.1% of slots, so this
   costs nothing measurable, but they deserve a deliberate home.
+- **The mirrored form does not mark its space.** Every other ending form is the plain one
+  plus `Bk`; the mirrored vowel closes the word with no marker, and has no forward-binding
+  form at all. So a compound whose first half is a `CvCe` word cannot be written as its
+  parts: `lifestyle`, `homepage`, `baseball`, `timeline`, `fireplace` — 73 words in the
+  corpus, held out of the drills until this is settled.
+
+  There is room to fix it. **Series 3 = `Bk` alone is unassigned**: 31 right-hand shapes
+  and 15,872 chords, none of which translate today (`Bk` alone with no coda is the Space
+  command, but `Bk` plus a coda is free). Giving the mirrored form the same marker as
+  everything else — bare binds forward, `Bk` closes the word — costs a key on the 1,228
+  words that end on a mirrored stroke, and buys a one-stroke `life`, `home`, `time` and
+  `state` that can open a longer word. Simulated over `english_10k` against a
+  strokes-then-keys search, that is **2.634 → 2.566 strokes per word and 10.754 → 10.662
+  keys**: 681 words need fewer strokes, and it is cheaper on both counts. It also restores
+  the mnemonic, since `Bk` is the thumb that types Space.
+
+  The alternative is a **joiner command** that eats the preceding space, which needs no
+  chord-space change and works on any compound, at one stroke each.
+
+  Neither has been tried by hand, and the simulation used a simplified ranking, so the
+  figures are indicative rather than settled.
+
 - Capitalisation, the number bar, and the punctuation and command chords have no assignment
   yet. On Michela these live in Series 4's spare patterns; here Series 4's 5-key group has
   one spare chord and the vowel groups have two each, which is not obviously enough.
