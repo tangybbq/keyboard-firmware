@@ -65,10 +65,21 @@ struct OrsyDrillView: View {
     /// looks like a display that has stopped updating.
     /// How many uses of a stroke count as new, and so keep the picture up in `learn`.
     ///
-    /// A few, against the forty it takes to pass the gate: long enough to get the movement
-    /// out of the diagram and into the hand, short enough that most of an item's practice
-    /// is from memory.
-    static let hintUses = 8
+    /// Two: the picture is up the first time a stroke comes round and the second, and
+    /// gone by the third.
+    ///
+    /// Eight was the number while this counted *patterns*, where it was right -- a pattern
+    /// recurs across every stroke that uses it, so eight comes quickly and forty is the
+    /// gate it is measured against.  A stroke is not like that.  There are hundreds of
+    /// them and they are composed by rule rather than memorised one at a time, so the
+    /// picture's job is to get the learner over the first meeting with a combination, not
+    /// to drill each combination to automaticity.  Measured over 670 strokes and 6,168
+    /// uses of them, the median stroke had been made **twice** and only a quarter had ever
+    /// reached eight, so eight left the picture up for 58% of a block -- which is not a
+    /// hint, it is a wall chart.  Two draws it for 16%, about one stroke in six.
+    ///
+    /// Erring low is cheap because a stumble puts the picture straight back up.
+    static let hintUses = 2
 
     /// Draw the next stroke always, while it is new, or never; and name its keys or not.
     /// Plain buttons rather than a segmented picker, for the reason `MainView.tabs` gives.
