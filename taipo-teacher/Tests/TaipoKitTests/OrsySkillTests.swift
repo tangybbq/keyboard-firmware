@@ -93,22 +93,34 @@ final class OrsySkillTests: XCTestCase {
         XCTAssertEqual(collector.orsy.strokes, expected.strokes)
     }
 
-    /// Blame goes to the Series that differ from the retype, or to the whole stroke.
+    /// Blame goes to the pattern that was wanted and missed, not to the one that turned
+    /// up in its place.
     func testBlame() throws {
         let dir = try logDirectory(try golden("orsy-sloppy", "log"))
         let model = OrsySkillModel.build(logDirectory: dir, layouts: try layouts())
         XCTAssertEqual(model.dead, 1)
-        // `mais` for `main`, backspaced away: only the coda was wrong.
-        XCTAssertEqual(model.skill("s4:S")?.deleted, 1)
-        XCTAssertEqual(model.skill("s1:SZP")?.deleted, 0, "the m of mais was right")
+
+        // `mais` for `main`, backspaced away: only the coda was wrong, so the coda that
+        // was wanted answers for it.
+        XCTAssertEqual(model.skill("s4:N")?.deleted, 1, "n was reached for and missed")
+        XCTAssertEqual(model.skill("s4:S")?.deleted, 0, "s was never intended")
+        XCTAssertEqual(model.skill("s4:S")?.count, 1, "and the misfire is not a use of it")
+        // The Series that matched are left alone: the m and the nucleus were struck right.
+        XCTAssertEqual(model.skill("s1:SZP")?.deleted, 0)
+        XCTAssertEqual(model.skill("s1:SZP")?.count, 2)
         XCTAssertEqual(model.skill("s3:i")?.deleted, 0)
-        // `pain` typed where `s` was meant, and undone: nothing in it was right, its
-        // coda included.
-        XCTAssertEqual(model.skill("s1:P")?.deleted, 1)
-        XCTAssertEqual(model.skill("s3:ui")?.deleted, 1)
-        XCTAssertEqual(model.skill("s4:N")?.deleted, 1)
-        XCTAssertEqual(model.skill("s4:N")?.count, 7)
-        // The commands are counted too.
+
+        // `pain` typed where `s` was meant and undone: nothing in it was right, so none
+        // of it counts, and the `s` that was wanted carries the error.
+        XCTAssertEqual(model.skill("s1:S")?.deleted, 1)
+        XCTAssertEqual(model.skill("s1:P")?.deleted, 0, "p was not what was wanted")
+        XCTAssertEqual(model.skill("s3:ui")?.deleted, 0)
+        XCTAssertEqual(model.skill("s4:N")?.count, 6, "pain's n is not a use of it")
+
+        // Nor is a stroke nobody meant evidence that it has ever been made.
+        XCTAssertEqual(model.strokeUses(left: 0x122, right: 0x104), 0, "mais")
+
+        // The commands are counted as ever.
         XCTAssertEqual(model.skill("cmd:undo")?.count, 1)
         XCTAssertEqual(model.skill("cmd:dosh_oneshot")?.count, 5)
     }

@@ -215,7 +215,7 @@ struct OrsySamples: Codable, Equatable {
         strokes += all.count
         dead += all.filter { $0.outcome == .dead }.count
 
-        let undone = Self.undone(all)
+        let corrections = Self.undone(all)
         var previousMs: UInt32?
         for (i, stroke) in all.enumerated() {
             let keys = Self.keys(stroke)
@@ -232,8 +232,9 @@ struct OrsySamples: Codable, Equatable {
                 let d = stroke.timeMs - previous
                 if d <= options.pauseMs { gap = d }
             }
-            let blamed = undone[i] ?? []
-            for key in keys {
+            let skipped = corrections.skip[i] ?? []
+            let blamed = corrections.blame[i] ?? []
+            for key in keys where !skipped.contains(key) {
                 patterns[key, default: ChordSamples()]
                     .note(gap: gap, deleted: blamed.contains(key), options: options)
             }
@@ -269,33 +270,66 @@ struct OrsySamples: Codable, Equatable {
         t.text.count + (t.spaceBefore ? 1 : 0)
     }
 
-    /// Which strokes were taken back, and the pattern keys to blame for each.
+    /// What a correction is evidence about.
+    struct Corrections {
+        /// Keys of the stroke taken back which must not be counted at all.
+        var skip: [Int: Set<String>] = [:]
+        /// Keys of a stroke that needed a second go.
+        var blame: [Int: Set<String>] = [:]
+    }
+
+    /// Which strokes were taken back, and what that says about which patterns.
     ///
     /// The undo command takes back the syllable before it.  A run of escaped backspaces
     /// takes back the syllable before it if the run is at least as long as what the
-    /// syllable typed.  Blame is the Series that differ from the syllable typed in its
-    /// place -- the next syllable after the correction -- or all of them when every
-    /// Series differs or nothing was retyped.
-    static func undone(_ all: [Stroke]) -> [Int: Set<String>] {
-        var out = [Int: Set<String>]()
+    /// syllable typed.
+    ///
+    /// **A wrong stroke is not evidence about the patterns it happened to spell.**  It
+    /// used to be counted as one: every Series of the stroke taken back got a use, and
+    /// the ones differing from the retype got a use taken back, so a pattern collected a
+    /// record out of strokes nobody meant to make.  On a real log, Series 2 `s` reached
+    /// its own lesson carrying sixty-one uses at a 39% error rate, every one of them a
+    /// misfire aimed elsewhere -- a hand reaching for the Series 1 `r` on the pinky,
+    /// striking the index, and spelling `set` where `ret` was wanted.  The item had never
+    /// been taught, and arrived looking half failed.
+    ///
+    /// So the Series that differ are skipped where they lie and counted against the
+    /// *retype* instead: the evidence is about the pattern that was wanted and missed,
+    /// not the one that turned up uninvited.  The Series that match are left alone, since
+    /// they were struck correctly whatever happened around them.  A stroke taken back and
+    /// then made again identically is the one case still blamed where it lies: it was
+    /// meant, and taken back anyway.
+    static func undone(_ all: [Stroke]) -> Corrections {
+        var out = Corrections()
         var lastText: Int?
         var backspaces = 0
         func takeBack(_ i: Int, at correction: Int) {
             guard case .text(let wrong) = all[i].outcome else { return }
-            let retype = all[(correction + 1)...].first { $0.translation != nil }?.translation
-            var blamed = Set(wrong.patterns.keys)
-            if let right = retype?.patterns {
-                let same = Set(
-                    [
-                        wrong.patterns.onset == right.onset ? "s1:\(wrong.patterns.onset)" : nil,
-                        wrong.patterns.second == right.second ? "s2:\(wrong.patterns.second)" : nil,
-                        wrong.patterns.vowel == right.vowel ? "s3:\(wrong.patterns.vowel)" : nil,
-                        wrong.patterns.coda == right.coda ? "s4:\(wrong.patterns.coda)" : nil,
-                    ].compactMap { $0 })
-                let differing = blamed.subtracting(same)
-                if !differing.isEmpty { blamed = differing }
+            let next = all.indices[(correction + 1)...].first { all[$0].translation != nil }
+            let right = next.flatMap { all[$0].translation }?.patterns
+            let w = wrong.patterns
+            let series: [(String, String, String?)] = [
+                ("s1", w.onset, right?.onset), ("s2", w.second, right?.second),
+                ("s3", w.vowel, right?.vowel), ("s4", w.coda, right?.coda),
+            ]
+            var skip = Set<String>()
+            var blame = Set<String>()
+            for (name, mine, theirs) in series where mine != theirs {
+                if !mine.isEmpty { skip.insert("\(name):\(mine)") }
+                if let theirs, !theirs.isEmpty { blame.insert("\(name):\(theirs)") }
             }
-            out[i] = blamed
+            guard !skip.isEmpty || !blame.isEmpty else {
+                out.blame[i] = Set(Self.keys(all[i]))
+                return
+            }
+            // The stroke as a whole was not the one wanted, so neither the rules it used
+            // nor the stroke itself are evidence that it has been made before.
+            for key in Self.keys(all[i])
+            where key.hasPrefix("rule:") || key.hasPrefix("stroke:") {
+                skip.insert(key)
+            }
+            out.skip[i] = skip
+            if let next, !blame.isEmpty { out.blame[next, default: []].formUnion(blame) }
         }
         for (i, stroke) in all.enumerated() {
             switch stroke.outcome {
