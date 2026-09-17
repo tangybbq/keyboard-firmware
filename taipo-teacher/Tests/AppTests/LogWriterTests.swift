@@ -119,6 +119,42 @@ final class LogWriterTests: XCTestCase {
         XCTAssertTrue(engine.lowerRow)
     }
 
+    /// The drill's line is written before the typing it asks for, and does not disturb
+    /// the timeline the way a reset does.
+    func testTheOrsyLineIsRecorded() throws {
+        var clock = Date(timeIntervalSince1970: 1_788_300_000)
+        let writer = LogWriter(directory: directory, now: { clock })
+        let layouts = try Layouts.bundled()
+        let day = Self.day(of: clock)
+
+        writer.beginSession(device: "mesa2", bootID: 0x1234, fingerprint: 0xabcd)
+        writer.noteOrsyLine("far ms ter ms")
+        writer.append([marker(.variant, 1), key(100, 0)], layouts: layouts)
+        writer.noteOrsyLine("small smart")
+        writer.append([key(200, 1)], layouts: layouts)
+        writer.close()
+
+        let lines = try contents(day)
+        let asked = lines.filter { $0.hasPrefix(KeyLogSession.orsyLineMarker) }
+        XCTAssertEqual(asked, [
+            KeyLogSession.orsyLineMarker + "far ms ter ms",
+            KeyLogSession.orsyLineMarker + "small smart",
+        ])
+        // It comes before the typing it asks for, which is the whole point.
+        let first = try XCTUnwrap(lines.firstIndex { $0.hasPrefix(KeyLogSession.orsyLineMarker) })
+        let typing = try XCTUnwrap(lines.firstIndex { $0.contains(" + ") })
+        XCTAssertLessThan(first, typing)
+        // And the session it sits in is untouched: one header, no second timeline.
+        XCTAssertEqual(lines.filter { $0.hasPrefix("# session") }.count, 1)
+
+        // A reader gets both back, in order, among the keys.
+        let entries = KeyLogFile.sessions(from: lines.joined(separator: "\n") + "\n",
+                                          layouts: layouts).flatMap(\.entries)
+        var asKed = [String]()
+        for e in entries { if case .orsyLine(let t) = e { asKed.append(t) } }
+        XCTAssertEqual(asKed, ["far ms ter ms", "small smart"])
+    }
+
     /// A reset ends the timeline the state belonged to.  The device announces its own on
     /// the way back, and repeating what the last boot was doing would be a guess.
     func testAResetDropsTheState() throws {
