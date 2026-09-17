@@ -153,17 +153,22 @@ struct SkillCollector {
             let engine = ChordEngine(layouts: layouts)
             var chords = [Chord]()
             var strokes = [Stroke]()
+            var lines = [(text: String, from: Int)]()
             engine.onStroke = { strokes.append($0) }
             for entry in session.entries {
                 switch entry {
                 case .marker(let m): engine.marker(m.name, value: m.value)
                 case .key(let e):
                     chords += engine.feed(key: e.key, press: e.press, timeMs: e.timeMs)
+                case .orsyLine(let text):
+                    // The strokes from here were trying to be this.
+                    lines.append((text: text, from: strokes.count))
                 case .orsyReset:
                     // Everything Orsy has said so far, in this session and in every file
                     // before it, is disowned.  The chords are not: Taipo and Dosh are a
                     // different skill and this says nothing about them.
                     strokes.removeAll()
+                    lines.removeAll()
                     orsy = OrsySamples()
                 }
             }
@@ -171,7 +176,9 @@ struct SkillCollector {
 
             if !strokes.isEmpty {
                 if let changedPatterns = history.changedPatterns(since: session.layout, layouts: layouts) {
-                    orsy.fold(strokes, changed: changedPatterns, options: orsyOptions)
+                    orsy.fold(
+                        strokes, lines: lines, judge: OrsyJudge.make(layouts),
+                        changed: changedPatterns, options: orsyOptions)
                 } else {
                     orsy.skipped += 1
                 }

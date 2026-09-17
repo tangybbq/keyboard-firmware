@@ -164,6 +164,19 @@ final class LogWriter {
         write("\(KeyLogSession.orsyResetMarker) \(at) (unix seconds)\n")
     }
 
+    /// Note the line the Orsy drill has just put up.
+    ///
+    /// The strokes after it were trying to be this, which is the only way a later replay
+    /// can tell a wrong stroke from a right one without the writer having taken it back.
+    /// Like the reset it is a comment, not a timed marker: it says what the log means
+    /// rather than what the keyboard did, and its place in the file is all the timing it
+    /// needs.
+    func noteOrsyLine(_ text: String) {
+        guard !text.isEmpty, !text.contains("\n") else { return }
+        rollOver()
+        write("\(KeyLogSession.orsyLineMarker)\(text)\n")
+    }
+
     /// Note records the device dropped before they could be fetched.
     func noteGap(dropped: UInt32, beforeSeq: UInt32) {
         rollOver()

@@ -750,6 +750,9 @@ public final class DeviceMonitor: ObservableObject {
     private func startLine(_ text: String, layouts: Layouts) {
         if mode == .orsy, let words = orsyWords, let theory = orsyTheory {
             drill = nil
+            // Record what is being asked for before any of it is typed, so a replay can
+            // tell a wrong stroke from a right one without waiting for a correction.
+            log.noteOrsyLine(text)
             orsyDrill = OrsyDrillSession(
                 target: OrsyDrillTarget(text: text, words: words, theory: theory),
                 theory: theory, layouts: layouts)

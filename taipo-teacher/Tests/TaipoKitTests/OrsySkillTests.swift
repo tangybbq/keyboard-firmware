@@ -48,6 +48,32 @@ final class OrsySkillTests: XCTestCase {
         XCTAssertEqual(collector.model(variant: "dosh", options: SkillModel.Options()).chords, 0)
     }
 
+    /// The drill's line is recorded, so a replay can tell a wrong stroke from a right
+    /// one without waiting for the writer to take it back.
+    func testTheLineTheDrillAskedFor() throws {
+        let clean = try golden("orsy-clean", "log")
+        let asked = KeyLogSession.orsyLineMarker + "the quick brown fox jumps over the lazy dog\n"
+
+        // Typed correctly: recording what was asked for changes nothing.
+        let plain = OrsySkillModel.build(
+            logDirectory: try logDirectory(clean), layouts: try layouts())
+        let judged = OrsySkillModel.build(
+            logDirectory: try logDirectory(asked + clean), layouts: try layouts())
+        XCTAssertEqual(judged.skill("s1:FZ")?.count, plain.skill("s1:FZ")?.count)
+        XCTAssertEqual(judged.skill("s3:ue")?.count, plain.skill("s3:ue")?.count)
+        XCTAssertEqual(judged.strokes, plain.strokes, "every stroke is still seen")
+
+        // Asked for something else entirely: none of it is practice of what it spelled,
+        // though it was never taken back and nothing else could have revealed it.
+        let wrong = KeyLogSession.orsyLineMarker + "set ret res ris\n"
+        let missed = OrsySkillModel.build(
+            logDirectory: try logDirectory(wrong + clean), layouts: try layouts())
+        XCTAssertEqual(missed.strokes, plain.strokes, "the strokes are still counted")
+        XCTAssertNil(missed.skill("s1:FZ"), "but not as uses of the th it happened to spell")
+        XCTAssertNil(missed.skill("s3:ue"))
+        XCTAssertEqual(missed.strokeUses(left: 0x42, right: 0x208), 0, "nor as strokes made")
+    }
+
     /// A stroke is counted in its own right, not only as the patterns in it.
     ///
     /// The hint asks whether a stroke has been made before, and every pattern in one is

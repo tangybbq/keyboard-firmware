@@ -32,7 +32,7 @@ final class DefaultVariantTests: XCTestCase {
         var chords: [Chord] = []
         for entry in sessions.flatMap(\.entries) {
             switch entry {
-            case .orsyReset: break
+            case .orsyReset, .orsyLine: break
             case .marker(let m): engine.marker(m.name, value: m.value)
             case .key(let e): chords += engine.feed(key: e.key, press: e.press, timeMs: e.timeMs)
             }

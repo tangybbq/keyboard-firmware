@@ -35,6 +35,15 @@ public struct KeyLogSession {
     public enum Entry: Equatable {
         case key(KeyLogEvent)
         case marker(KeyLogMarker)
+        /// The line the Orsy drill put on the screen, and so what the strokes after it
+        /// were trying to be.
+        ///
+        /// Without it a replay can only tell a wrong stroke from a right one when the
+        /// writer took it back.  Anything let stand counted as clean practice, whatever
+        /// it spelled, and a pattern could pass its gate on strokes nobody meant: Series
+        /// 2 `s` reached its own lesson on forty uses of which not one was a syllable of
+        /// a real word.
+        case orsyLine(String)
         /// The writer asked for the Orsy practice so far to be discarded.
         ///
         /// A line in the log rather than a setting, because it is a fact about what the
@@ -46,6 +55,9 @@ public struct KeyLogSession {
 
     /// The comment line that discards the Orsy practice before it.
     public static let orsyResetMarker = "# orsy reset"
+
+    /// The comment line that records what the drill asked for next.
+    public static let orsyLineMarker = "# orsy line "
 
     /// Whether this session was recorded against the tables in hand.
     ///
@@ -95,6 +107,11 @@ public enum KeyLogFile {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.isEmpty { continue }
             if line.hasPrefix("#") {
+                if line.hasPrefix(KeyLogSession.orsyLineMarker) {
+                    entries.append(
+                        .orsyLine(String(line.dropFirst(KeyLogSession.orsyLineMarker.count))))
+                    continue
+                }
                 if line.hasPrefix(KeyLogSession.orsyResetMarker) {
                     entries.append(.orsyReset)
                 } else if breaksTimeline(line) {

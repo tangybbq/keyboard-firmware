@@ -196,6 +196,40 @@ public struct OrsySkillModel: Sendable {
     }
 }
 
+/// What a replay needs to judge a line the way the drill did: the word table, the
+/// theory, and the tables under both.
+///
+/// Built once and carried, because `OrsyWords.bundled()` decodes ten thousand entries
+/// and a log holds thousands of lines.
+struct OrsyJudge {
+    let words: OrsyWords
+    let theory: OrsyTheory
+    let layouts: Layouts
+
+    private static var cachedWords: OrsyWords?
+
+    static func make(_ layouts: Layouts) -> OrsyJudge? {
+        guard let tables = layouts.orsy else { return nil }
+        if cachedWords == nil { cachedWords = try? OrsyWords.bundled() }
+        guard let words = cachedWords else { return nil }
+        return OrsyJudge(words: words, theory: OrsyTheory(tables), layouts: layouts)
+    }
+
+    /// Which of `strokes` the drill would have called wrong, given what it asked for.
+    func wrong(_ strokes: ArraySlice<Stroke>, target text: String) -> Set<Int> {
+        let target = OrsyDrillTarget(text: text, words: words, theory: theory)
+        let session = OrsyDrillSession(target: target, theory: theory, layouts: layouts)
+        var out = Set<Int>()
+        var seen = 0
+        for i in strokes.indices {
+            session.feed(strokes[i])
+            if session.stats.wrong > seen { out.insert(i) }
+            seen = session.stats.wrong
+        }
+        return out
+    }
+}
+
 /// The Orsy half of `SkillCollector`: samples by pattern, and the counts.
 struct OrsySamples: Codable, Equatable {
     var patterns: [String: ChordSamples] = [:]
@@ -209,11 +243,28 @@ struct OrsySamples: Codable, Equatable {
     /// `changed` is the set of pattern keys whose meaning has changed since the session
     /// was logged; a stroke using one is not evidence about the pattern that lives there
     /// now, and is passed over the way a changed chord is.
-    mutating func fold(_ all: [Stroke], changed: Set<String>, options: SkillModel.Options) {
+    /// `lines` is where each drill line began, as (what it asked for, first stroke).
+    mutating func fold(
+        _ all: [Stroke], lines: [(text: String, from: Int)] = [], judge: OrsyJudge? = nil,
+        changed: Set<String>, options: SkillModel.Options
+    ) {
         guard !all.isEmpty else { return }
         sessions += 1
         strokes += all.count
         dead += all.filter { $0.outcome == .dead }.count
+
+        // What the drill asked for, where the log says.  A stroke the drill called wrong
+        // is not evidence about the patterns it spelled, whether or not it was taken
+        // back: before the log carried the target, only a correction could reveal one,
+        // and anything let stand counted as clean practice.
+        var missed = Set<Int>()
+        if let judge {
+            for (n, line) in lines.enumerated() {
+                let to = n + 1 < lines.count ? lines[n + 1].from : all.count
+                guard line.from < to else { continue }
+                missed.formUnion(judge.wrong(all[line.from..<to], target: line.text))
+            }
+        }
 
         let corrections = Self.undone(all)
         var previousMs: UInt32?
@@ -231,6 +282,11 @@ struct OrsySamples: Codable, Equatable {
             if let previous = previousMs, stroke.timeMs >= previous {
                 let d = stroke.timeMs - previous
                 if d <= options.pauseMs { gap = d }
+            }
+            // A stroke the drill called wrong says nothing about what it spelled.
+            if missed.contains(i) {
+                previousMs = stroke.timeMs
+                continue
             }
             let skipped = corrections.skip[i] ?? []
             let blamed = corrections.blame[i] ?? []
