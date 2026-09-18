@@ -10,6 +10,10 @@ final class OrsyDrillTests: XCTestCase {
         return (layouts, theory, try OrsyWords.bundled())
     }
 
+    /// The right hand's space thumb: the space chord on its own, and what an ending vowel
+    /// adds to the plain one.
+    private let bk: UInt16 = 0x200
+
     /// A stroke as the engine would report it, at a time.
     private func stroke(_ theory: OrsyTheory, _ left: UInt16, _ right: UInt16, at ms: UInt32)
         -> Stroke
@@ -486,6 +490,64 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertFalse(session.wordClosedEarly)
         session.feed(stroke(theory, 0x040, 0x2a0, at: 3500))
         XCTAssertTrue(session.finished)
+    }
+
+    /// The line's last word has to be closed like any other.
+    ///
+    /// It has no space after it in the target to check the close against, so a word typed
+    /// with the plain vowel where the ending form was wanted used to match the text
+    /// exactly and count the line as finished -- the one mistake the drill is built to
+    /// catch, unmarked.  And since `finished` is what gates `feed`, the writer could not
+    /// take the word back and close it either.
+    func testLastWordMustBeClosed() throws {
+        let (layouts, theory, words) = try fixtures()
+        let target = OrsyDrillTarget(text: "the", words: words, theory: theory)
+        let closing = try XCTUnwrap(target.units.last)
+        let session = OrsyDrillSession(target: target, theory: theory, layouts: layouts)
+        // The table's own stroke with the space thumb let go: the plain vowel, which
+        // spells the same letters and leaves the word open.
+        session.feed(stroke(theory, closing.left, closing.right & ~bk, at: 1000))
+        XCTAssertEqual(session.typed, "the")
+        XCTAssertTrue(session.onTrack)
+        XCTAssertFalse(session.finished, "the word is still open")
+        XCTAssertTrue(session.wordOpen)
+        XCTAssertTrue(session.finalWordOpen)
+        XCTAssertFalse(session.wordClosedEarly)
+        // Undo and use the ending form: now the line is done.
+        session.feed(stroke(theory, 0x067, 0, at: 1500))
+        XCTAssertEqual(session.typed, "")
+        session.feed(stroke(theory, closing.left, closing.right, at: 2000))
+        XCTAssertEqual(session.typed, "the")
+        XCTAssertTrue(session.finished)
+        XCTAssertFalse(session.wordOpen)
+    }
+
+    /// Striking the space closes the last word too, and is not a mistake: it is the same
+    /// choice the writer has at every other word boundary.
+    func testLastWordClosedByStrikingTheSpace() throws {
+        let (layouts, theory, words) = try fixtures()
+        let target = OrsyDrillTarget(text: "the", words: words, theory: theory)
+        let closing = try XCTUnwrap(target.units.last)
+        let session = OrsyDrillSession(target: target, theory: theory, layouts: layouts)
+        session.feed(stroke(theory, closing.left, closing.right & ~bk, at: 1000))
+        session.feed(stroke(theory, 0, bk, at: 1500))
+        XCTAssertEqual(session.typed, "the ")
+        XCTAssertTrue(session.onTrack)
+        XCTAssertTrue(session.finished)
+        XCTAssertEqual(session.stats.wrong, 0)
+    }
+
+    /// A word the table closes itself needs nothing added: a final coda-only stroke leans
+    /// back onto the syllable before it and ends the word.
+    func testLastWordClosedByItsOwnCoda() throws {
+        let (layouts, theory, words) = try fixtures()
+        let target = OrsyDrillTarget(text: "ten its", words: words, theory: theory)
+        let session = OrsyDrillSession(target: target, theory: theory, layouts: layouts)
+        for unit in target.units {
+            session.feed(stroke(theory, unit.left, unit.right, at: 1000))
+        }
+        XCTAssertTrue(session.finished)
+        XCTAssertFalse(session.wordOpen)
     }
 
     /// A dead stroke counts, and the escapes control the line.

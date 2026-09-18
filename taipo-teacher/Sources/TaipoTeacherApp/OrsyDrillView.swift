@@ -297,8 +297,11 @@ struct OrsyDrillView: View {
                     .foregroundStyle(.orange)
             } else if drill.wordOpen {
                 Label(
-                    "Word not closed: the next stroke will run on.  Undo and use the "
-                        + "ending form (add Bk), or strike the space.",
+                    drill.finalWordOpen
+                        ? "Last word not closed: the line is not done until it is.  Undo "
+                            + "and use the ending form (add Bk), or strike the space."
+                        : "Word not closed: the next stroke will run on.  Undo and use the "
+                            + "ending form (add Bk), or strike the space.",
                     systemImage: "space")
                     .font(.callout)
                     .foregroundStyle(.orange)

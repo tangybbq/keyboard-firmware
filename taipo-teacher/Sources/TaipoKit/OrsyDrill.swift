@@ -211,9 +211,32 @@ public final class OrsyDrillSession {
         self.layouts = layouts
     }
 
-    public var onTrack: Bool { target.text.hasPrefix(typed) }
+    /// Whether what has been typed still agrees with the target.
+    ///
+    /// The target carries no space after its last word, but that word still has to be
+    /// closed, and one of the two ways of closing it -- striking the space rather than
+    /// using the ending form -- puts a character on the screen.  It agrees: it is the
+    /// same choice the writer has at every other word boundary, and refusing it here
+    /// would mark right typing wrong.
+    private func agrees(_ text: String) -> Bool {
+        target.text.hasPrefix(text) || text == target.text + " "
+    }
+
+    public var onTrack: Bool { agrees(typed) }
     public var cursor: Int { typed.count }
-    public var finished: Bool { typed == target.text }
+
+    /// The text is all there and its last word is closed.
+    ///
+    /// The close is half of the line.  Every other word's is checked -- against the space
+    /// the target has between words -- but the last word has no space after it to check
+    /// against, so a line typed with the plain vowel where the ending form was wanted used
+    /// to count as finished: the one mistake the drill is built to catch, missed, on one
+    /// word in seven.  Worse, `finished` is also what stops strokes reaching the session,
+    /// so there was no way to take the word back and close it.
+    public var finished: Bool {
+        if typed == target.text + " " { return true }
+        return typed == target.text && output.pendingSpace
+    }
 
     /// The typing is at the end of a target word, and the last stroke did not close it:
     /// the next stroke will run on without the space.  The one mistake the text cannot
@@ -221,8 +244,18 @@ public final class OrsyDrillSession {
     public var wordOpen: Bool {
         guard onTrack, !finished, !typed.isEmpty else { return false }
         let chars = Array(target.text)
+        // Past the last character there is no space in the target to stand for the close,
+        // so the output stage's own flag is the whole of the answer.
+        guard cursor < chars.count else { return !output.pendingSpace }
         return chars[cursor] == " " && !output.pendingSpace
     }
+
+    /// `wordOpen`, with the line's last word the one left open.
+    ///
+    /// Worth telling apart on the screen: mid-line the fault shows itself on the next
+    /// stroke, which runs on; here there is no next stroke, and the line simply is not
+    /// done.
+    public var finalWordOpen: Bool { wordOpen && cursor >= target.text.count }
 
     /// The mirror of `wordOpen`: the typing is in the middle of a target word, and the
     /// last stroke closed it -- an ending form where a plain vowel was wanted.  The text
@@ -231,6 +264,8 @@ public final class OrsyDrillSession {
     public var wordClosedEarly: Bool {
         guard onTrack, !finished, !typed.isEmpty else { return false }
         let chars = Array(target.text)
+        // The end of the line is `wordOpen`'s business either way: closed there is right.
+        guard cursor < chars.count else { return false }
         return chars[cursor] != " " && output.pendingSpace
     }
 
@@ -318,7 +353,7 @@ public final class OrsyDrillSession {
     ) {
         let offset = typed.count
         typed += text
-        if target.text.hasPrefix(typed) {
+        if agrees(typed) {
             stats.correct += 1
             stats.characters += text.count
             events.append(.correct)
