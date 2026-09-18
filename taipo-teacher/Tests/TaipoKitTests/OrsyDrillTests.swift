@@ -88,6 +88,37 @@ final class OrsyDrillTests: XCTestCase {
         }
     }
 
+    /// Reviewing only holds the ladder at what has been reached: the item that would
+    /// have come out next stays locked, and the focus is spent on what is already out.
+    func testReviewOnlyHoldsTheLadder() throws {
+        let (_, theory, words) = try fixtures()
+        var skills = [String: PatternSkill]()
+        for key in words.lessons[0].items.flatMap({ $0 }) {
+            skills[key] = PatternSkill(name: key, count: 50, medianMs: 400, deleted: 0)
+        }
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let advancing = OrsyLadder(words: words, theory: theory, skill: model)
+        let reviewing = OrsyLadder(
+            words: words, theory: theory, skill: model,
+            options: OrsyLadder.Options(introduce: false))
+        // The advancing ladder is out ahead, and everything reviewing has is reached.
+        XCTAssertLessThan(reviewing.unlockedCount, advancing.unlockedCount)
+        let pool = OrsyLadderMaker(words: words).pool(reviewing)
+        let exercisable = Set(pool.flatMap(\.patterns))
+        for item in reviewing.unlocked where exercisable.contains(item.key) {
+            XCTAssertTrue(model.reached(item.key), item.key)
+        }
+        XCTAssertTrue(reviewing.focus.allSatisfy { model.reached($0.key) })
+        // And the material still has something to ask for.
+        var rng = DrillRandom(seed: 3)
+        let line = OrsyLadderMaker(words: words).line(reviewing, words: 6, using: &rng)
+        XCTAssertFalse(line.isEmpty)
+        // Turning it back on puts the ladder exactly where it was.
+        XCTAssertEqual(
+            OrsyLadder(words: words, theory: theory, skill: model).unlockedCount,
+            advancing.unlockedCount)
+    }
+
     /// A line works the reading the ladder is waiting on: with the coda `s` known and the
     /// onset not, every line has a word with an onset `s`.
     func testLinesDrillTheWeakReading() throws {

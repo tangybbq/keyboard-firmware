@@ -142,8 +142,31 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// Whether the Orsy ladder may introduce the next item, or only review what is out.
+    ///
+    /// Off is for the afternoon when the last few items have not settled, or when nothing
+    /// new is wanted; the ladder then holds at the last item reached.  It costs nothing to
+    /// leave off for a while, since where the ladder stands is read from the logs and not
+    /// from this switch, so the item it was about to introduce is waiting unchanged.
+    @Published public var orsyIntroduce: Bool = DeviceMonitor.storedOrsyIntroduce() {
+        didSet {
+            guard orsyIntroduce != oldValue else { return }
+            UserDefaults.standard.set(orsyIntroduce, forKey: Self.orsyIntroduceKey)
+            guard mode == .orsy else { return }
+            rebuildOrsyProgramme()
+        }
+    }
+
+    /// The ladder options the switches above add up to.
+    var orsyOptions: OrsyLadder.Options { OrsyLadder.Options(introduce: orsyIntroduce) }
+
     private static let orsyHintKey = "orsyHint"
     private static let orsyHintKeysKey = "orsyHintKeys"
+    private static let orsyIntroduceKey = "orsyIntroduce"
+
+    static func storedOrsyIntroduce() -> Bool {
+        UserDefaults.standard.object(forKey: orsyIntroduceKey) as? Bool ?? true
+    }
 
     static func storedOrsyHint() -> OrsyHint {
         UserDefaults.standard.string(forKey: orsyHintKey).flatMap(OrsyHint.init(rawValue:))
@@ -548,12 +571,14 @@ public final class DeviceMonitor: ObservableObject {
             return
         }
         let directory = logDirectory
+        let options = self.orsyOptions
         let seed = UInt64(Date().timeIntervalSince1970)
         Task.detached(priority: .userInitiated) {
             let skill = SkillStore.orsyModel(
                 logDirectory: directory, cache: SkillStore.defaultURL(forLogsIn: directory),
                 layouts: layouts)
-            let ladder = OrsyLadder(words: words, theory: theory, skill: skill)
+            let ladder = OrsyLadder(
+                words: words, theory: theory, skill: skill, options: options)
             let drill = OrsyLadderMaker(words: words, made: skill.madeStrokes)
                 .drill(ladder, lines: Self.ladderBlock, seed: seed)
             await MainActor.run { [weak self] in
@@ -575,13 +600,15 @@ public final class DeviceMonitor: ObservableObject {
         else { return }
         refreshing = true
         let directory = logDirectory
+        let options = self.orsyOptions
         let previous = orsyLadder
         let seed = UInt64(Date().timeIntervalSince1970)
         Task.detached(priority: .utility) {
             let skill = SkillStore.orsyModel(
                 logDirectory: directory, cache: SkillStore.defaultURL(forLogsIn: directory),
                 layouts: layouts)
-            let built = OrsyLadder(words: words, theory: theory, skill: skill)
+            let built = OrsyLadder(
+                words: words, theory: theory, skill: skill, options: options)
             var moved = false
             if let previous {
                 moved = built.unlockedCount != previous.unlockedCount || built.focus != previous.focus

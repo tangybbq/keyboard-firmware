@@ -49,6 +49,7 @@ struct OrsyDrillView: View {
                     Text(lesson.title).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
+                newSwitch
                 hintSwitch
             }
             ForEach(ladder.focus, id: \.key) { item in
@@ -80,6 +81,23 @@ struct OrsyDrillView: View {
     ///
     /// Erring low is cheap because a stumble puts the picture straight back up.
     static let hintUses = 2
+
+    /// Whether the ladder may put the next item out, or the block is review only.
+    ///
+    /// The ladder unlocks on reach, not on choice, so the only say the writer has in when
+    /// the next thing arrives is this: turned off, the block is spent on what has already
+    /// been reached, for the days when the last few items have not settled or nothing new
+    /// is wanted.  Nothing is lost by it -- where the ladder stands is read from the logs
+    /// -- so the item waiting comes out unchanged whenever it is turned back on.
+    private var newSwitch: some View {
+        Toggle("new", isOn: $monitor.orsyIntroduce)
+            .toggleStyle(.checkbox)
+            .font(.caption)
+            .help(
+                "Whether the ladder may introduce its next item.  Off, the block reviews "
+                + "what you have already reached; the item waiting is unaffected and "
+                + "comes out when you turn this back on.")
+    }
 
     /// Draw the next stroke always, while it is new, or never; and name its keys or not.
     /// Plain buttons rather than a segmented picker, for the reason `MainView.tabs` gives.

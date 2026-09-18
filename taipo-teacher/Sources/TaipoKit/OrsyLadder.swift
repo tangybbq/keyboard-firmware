@@ -60,9 +60,23 @@ public struct OrsyLadder: Sendable {
         /// the line to itself.
         public var focus: Int
 
-        public init(initial: Int? = nil, focus: Int = 2) {
+        /// Whether the ladder may put new material out.
+        ///
+        /// On, which is the ladder working as it always has: one item beyond what has
+        /// been reached is unlocked, and the focus set is mostly that item.  Off, the
+        /// ladder stops at the last item the writer has reached, and the block is spent
+        /// on what is already out -- for an afternoon when the ones lately acquired are
+        /// not settled yet, or simply when nothing new is wanted.
+        ///
+        /// Nothing is lost by turning it off: the ladder's place is a pure function of
+        /// the logs either way, so the item it was about to introduce is waiting, in the
+        /// same order, whenever it is turned back on.
+        public var introduce: Bool
+
+        public init(initial: Int? = nil, focus: Int = 2, introduce: Bool = true) {
             self.initial = initial
             self.focus = focus
+            self.introduce = introduce
         }
     }
 
@@ -117,8 +131,14 @@ public struct OrsyLadder: Sendable {
         while count < items.count {
             let short = items.prefix(count).filter { !reached($0, reach) }.count
             guard short < allowance else { break }
+            let grown = exercisable(items.prefix(count + 1))
+            // Reviewing only: the item about to come out is new material exactly when the
+            // pool would then ask for it and the writer has not reached it, so that is
+            // where the ladder stops.  One the material cannot reach yet is not new in
+            // any sense the writer would notice, and is stepped over as usual.
+            if !options.introduce, !reached(items[count], grown) { break }
             count += 1
-            reach = exercisable(items.prefix(count))
+            reach = grown
         }
         self.unlockedCount = count
         let exercisableNow = reach
