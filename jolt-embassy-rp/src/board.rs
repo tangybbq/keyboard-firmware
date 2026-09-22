@@ -964,11 +964,12 @@ mod mesa3 {
     //! whole matrix, so there is no inter-board protocol here any more than on the mesa2; the
     //! right half is wire, not a second keyboard.
     //!
-    //! This module also serves the **mesa2 Rev B**, the unibody the mesa3 was cut from.  The two
-    //! boards are electrically identical -- the same Tiny 2040 pins, the same matrix, the same
-    //! four ws2812 LEDs on GP26 -- and differ only in one key, so they differ only in the
-    //! translation table.  `new` takes the board name to pick between them; see `MESA3` and
-    //! `MESA2B` in `bbq_keyboard::translate`.
+    //! This module also serves the **mesa2 Rev B**, the unibody the mesa3 was cut from, and the
+    //! **mesa3b**, the mesa3 Rev B with an Fn key on each hand.  All three are electrically
+    //! identical -- the same Tiny 2040 pins, the same matrix, the same four ws2812 LEDs on GP26 --
+    //! and differ only in which of the matrix's two spare slots carry a key, so they differ only
+    //! in the translation table.  `new` takes the board name to pick between them; see `MESA3`,
+    //! `MESA3B` and `MESA2B` in `bbq_keyboard::translate`.
     //!
     //! The diodes conduct from row to column as on the mesa2, so the scanner drives the board's
     //! *rows* (`ROW_A`/`ROW_B` left, `ROW_C`/`ROW_D` right) and senses its *columns*
@@ -984,7 +985,8 @@ mod mesa3 {
     //! The mesa3 has one key the mesa2 did not: a mode key on the left, in the slot the deleted
     //! pinky `R` vacated.  Nothing here needs to know about it -- it is a matrix position like any
     //! other -- but it does mean the two-row boards finally have a mode key, where the mesa2 picks
-    //! its taipo variant with a chord instead.
+    //! its taipo variant with a chord instead.  The mesa3b fills the right hand's spare slot too,
+    //! and makes both of them Fn keys; that is equally a matter for the translation table alone.
     //!
     //! As on the mesa1 and the mesa2, the Tiny 2040's own PWM RGB LED is not supported, only the 4
     //! ws2812 LEDs on the board.
@@ -1031,7 +1033,7 @@ mod mesa3 {
         usb: Peri<'static, peripherals::USB>,
     }
 
-    /// Bring up a mesa3 or a mesa2 Rev B.  `board` is the name from the board info block, and
+    /// Bring up a mesa3, a mesa3b or a mesa2 Rev B.  `board` is the name from the board info block, and
     /// picks the translation table; everything else about the two is the same.
     pub fn new(p: Peripherals, spawner: SendSpawner, unique: &'static str, board: &str) -> Board {
         let matrix = matrix_init(MatrixResources {
@@ -1232,9 +1234,11 @@ impl Board {
                 ]);
                 this
             }
-            // The mesa3 and the mesa2 Rev B are one board as far as this is concerned; only the
-            // scancode table differs, so the name goes through.
-            BoardInfo { name, side: None } if name == "mesa3" || name == "mesa2b" => {
+            // The mesa3, its Rev B and the mesa2 Rev B are one board as far as this is
+            // concerned; only the scancode table differs, so the name goes through.
+            BoardInfo { name, side: None }
+                if name == "mesa3" || name == "mesa3b" || name == "mesa2b" =>
+            {
                 let mut this = mesa3::new(p, spawner, unique, name);
                 this.leds.update(&[
                     RGB8::new(8, 0, 0),

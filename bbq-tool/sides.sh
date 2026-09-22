@@ -39,6 +39,7 @@ gen_files mesa1 --name mesa1
 gen_files mesa2 --name mesa2
 gen_files mesa2b --name mesa2b
 gen_files mesa3 --name mesa3
+gen_files mesa3b --name mesa3b
 gen_files jolt1-left --name jolt1 --side left
 gen_files jolt1-right --name jolt1 --side right
 gen_files jolt2dir-left --name jolt2dir --side left

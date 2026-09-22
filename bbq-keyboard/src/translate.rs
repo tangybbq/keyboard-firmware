@@ -15,7 +15,8 @@
 /// is here so that host tools can walk every board without hardcoding the
 /// list.
 pub const BOARDS: &[&str] = &[
-    "proto3", "proto4", "mesa1", "mesa2", "mesa2b", "mesa3", "jolt1", "jolt2", "jolt3",
+    "proto3", "proto4", "mesa1", "mesa2", "mesa2b", "mesa3", "mesa3b",
+    "jolt1", "jolt2", "jolt3",
 ];
 
 pub fn get_translation(board: &str) -> fn(u8) -> u8 {
@@ -26,6 +27,7 @@ pub fn get_translation(board: &str) -> fn(u8) -> u8 {
         "mesa2" => mesa2,
         "mesa2b" => mesa2b,
         "mesa3" => mesa3,
+        "mesa3b" => mesa3b,
         "jolt1" => id,
         "jolt2" => jolt2,
         "jolt3" => jolt3,
@@ -234,6 +236,46 @@ fn mesa3(code: u8) -> u8 {
     *MESA3.get(code as usize).unwrap_or(&255)
 }
 
+/// The Mesa3 Rev B, the first to be built with Fn keys: one per hand, each in the slot its hand's
+/// pinky `R` vacated -- `SW_LFN1` on `COL_1` × `ROW_A` and `SW_RFN1` on `COL_1` × `ROW_C`.  Both
+/// sit physically inboard of the near-row index key, and a trace carries each over to the pinky
+/// column, so matrix position and physical position disagree.  Every other key is where it is on
+/// the [`MESA3`].
+///
+/// The Fn keys are [`crate::layout::FN_LEFT`] and [`crate::layout::FN_RIGHT`], not the mode key:
+/// they switch between Dosh and Orsy, and play one hand through Dosh while the other holds Fn, and
+/// neither is what the mode key does.
+static MESA3B: [u8; 20] = [
+    // ROW_A, the left hand's far row
+    48, // L-Fn
+    8,  // L-s
+    12, // L-n
+    16, // L-i
+    19, // L-Sp
+    // ROW_B, the left hand's near row
+    5,  // L-a
+    9,  // L-o
+    13, // L-t
+    17, // L-e
+    23, // L-Bk
+    // ROW_C, the right hand's far row
+    49, // R-Fn
+    32, // R-s
+    36, // R-n
+    40, // R-i
+    47, // R-Bk
+    // ROW_D, the right hand's near row
+    29, // R-a
+    33, // R-o
+    37, // R-t
+    41, // R-e
+    43, // R-Sp
+];
+
+fn mesa3b(code: u8) -> u8 {
+    *MESA3B.get(code as usize).unwrap_or(&255)
+}
+
 /// The Mesa2 Rev B is the unibody the [`MESA3`] was cut from, and presents the same matrix minus
 /// the mode key: 18 keys in 20 slots, with `COL_1` empty on both hands' far rows.
 ///
@@ -324,19 +366,24 @@ mod tests {
     use super::{get_translation, BOARDS};
 
     /// Every name in `BOARDS` is one `get_translation` knows, and every scan
-    /// code a matrix can produce lands in the 0..48 key code space, or on 255
-    /// for a position with no key.
+    /// code a matrix can produce lands in the 0..48 key code space, on one of
+    /// the Fn keys past it, or on 255 for a position with no key.
     ///
     /// The scan codes stop at 48 because that is the largest board: `proto3`
     /// and `jolt1` translate with the identity, which would happily pass a
     /// larger code straight through.
     #[test]
     fn test_boards_translate() {
+        use crate::layout::{FN_LEFT, FN_RIGHT};
+
         for board in BOARDS {
             let xlate = get_translation(board);
             for code in 0..48u8 {
                 let key = xlate(code);
-                assert!(key < 48 || key == 255, "board {board}: {code} -> {key}");
+                assert!(
+                    key < 48 || key == FN_LEFT || key == FN_RIGHT || key == 255,
+                    "board {board}: {code} -> {key}"
+                );
             }
         }
     }
@@ -416,5 +463,26 @@ mod tests {
         // The one slot the two boards disagree on.
         assert_eq!(get_translation("mesa3")(0), MODE_KEY);
         assert_eq!(get_translation("mesa2b")(0), 255);
+    }
+
+    /// The mesa3b is the mesa3 with its mode key swapped for the left Fn key,
+    /// and the right Fn key in the slot the mesa3 leaves empty.
+    ///
+    /// Written against the mesa3 table rather than against `SCAN_MAP`, so
+    /// that the two cannot drift apart in the eighteen keys they share.
+    #[test]
+    fn test_mesa3b_is_the_mesa3_with_fn() {
+        use crate::layout::{FN_LEFT, FN_RIGHT};
+
+        let mesa3 = get_translation("mesa3");
+        let mesa3b = get_translation("mesa3b");
+        for code in 0..=20u8 {
+            let want = match code {
+                0 => FN_LEFT,
+                10 => FN_RIGHT,
+                code => mesa3(code),
+            };
+            assert_eq!(mesa3b(code), want, "scan code {code}");
+        }
     }
 }

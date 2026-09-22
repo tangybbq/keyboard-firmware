@@ -37,6 +37,16 @@ pub use self::taipo::ChordEnd;
 /// The mode key is the general key to switch modes.
 pub const MODE_KEY: u8 = 2;
 
+/// The mesa3b's two Fn keys, one per hand, which switch between Dosh and
+/// Orsy.
+///
+/// These are past the end of the proto3 matrix, the largest board and the one
+/// the other codes are named for, so no other board can produce them and
+/// nothing that indexes a table by key code ever sees them.  The layout manager
+/// consumes them before any layout does.
+pub const FN_LEFT: u8 = 48;
+pub const FN_RIGHT: u8 = 49;
+
 // Define the 'upper middle" keys.  This is the top key of '^' and '+', which are the traditional
 // '*' keys, but we have used the lower key as these other modifiers, and the upper keys are for
 // Taipo escaping.
