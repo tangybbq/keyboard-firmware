@@ -4,7 +4,7 @@
 //! the `LayoutActions` calls type.  The chord rules themselves are tested in
 //! `bbq-orsy`, exhaustively against the Python model; what is tested here is
 //! the keyboard side: accumulation across both hands, the commands, and the
-//! two escapes to Dosh.
+//! two escapes to Dosh, by chord and by the mesa3b's Fn keys.
 
 #![cfg(feature = "orsy")]
 
@@ -13,7 +13,7 @@ use std::{cell::RefCell, collections::VecDeque};
 use bbq_keyboard::layout::dosh::DOSH_ACTIONS;
 use bbq_keyboard::layout::export::char_for_key;
 use bbq_keyboard::layout::taipo::{Action, SCAN_MAP};
-use bbq_keyboard::layout::{LayoutActions, LayoutManager, MODE_KEY};
+use bbq_keyboard::layout::{LayoutActions, LayoutManager, FN_LEFT, FN_RIGHT, MODE_KEY};
 use bbq_keyboard::{KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods, Side};
 use bbq_orsy::tables::{commands, Outer, Second, Vowel};
 use futures::executor::block_on;
@@ -163,6 +163,27 @@ impl Tester {
         self.tick(1);
         self.release(Side::Left, left);
         self.release(Side::Right, right);
+        self.tick(1);
+    }
+
+    /// Strike a two-hand chord with an Fn key in it, pressed and released
+    /// among the other keys, as a chord is struck.
+    fn fn_stroke(&mut self, key: u8, (left, right): (u16, u16)) {
+        self.press(Side::Left, left);
+        self.event(KeyEvent::Press(key));
+        self.press(Side::Right, right);
+        self.tick(1);
+        self.release(Side::Left, left);
+        self.event(KeyEvent::Release(key));
+        self.release(Side::Right, right);
+        self.tick(1);
+    }
+
+    /// Tap a key that is not a chord key, such as an Fn key, and let a tick
+    /// go by.
+    fn tap(&mut self, key: u8) {
+        self.event(KeyEvent::Press(key));
+        self.event(KeyEvent::Release(key));
         self.tick(1);
     }
 
@@ -430,6 +451,133 @@ fn test_toggle_selects_dosh() {
     t2.stroke((commands::DOSH_TOGGLE, 0));
     assert_eq!(
         t2.drain(),
+        vec![
+            Actions::SetMode(LayoutMode::Taipo),
+            Actions::SetSubMode(MinorMode::Dosh),
+        ]
+    );
+}
+
+/// Left Fn struck in a chord with right-hand keys plays those keys through
+/// Dosh, and the layout stays in Orsy, just as the one-shot chord does.
+#[test]
+fn test_fn_left_oneshot() {
+    let mut t = Tester::new();
+    t.stroke(ten());
+    assert_eq!(t.typed(), "ten");
+    t.fn_stroke(FN_LEFT, (0, dosh_chord(',')));
+    assert_eq!(t.typed(), ",");
+    t.stroke(ten());
+    assert_eq!(t.typed(), " ten");
+}
+
+/// Right Fn does the same for the left hand, through the same table.
+#[test]
+fn test_fn_right_oneshot() {
+    let mut t = Tester::new();
+    t.stroke(ten());
+    assert_eq!(t.typed(), "ten");
+    t.fn_stroke(FN_RIGHT, (dosh_chord('.'), 0));
+    assert_eq!(t.typed(), ".");
+    // And it counts as sentence-ending punctuation.
+    t.stroke(ten());
+    assert_eq!(t.typed(), " Ten");
+}
+
+/// Fn is one of the chord's keys, so where it falls in the chord does not
+/// matter: pressed first or last, and released first or last.
+#[test]
+fn test_fn_order_in_chord() {
+    let mut t = Tester::new();
+    let comma = dosh_chord(',');
+
+    // Fn first down and first up: the chord commits on Fn's release.
+    t.event(KeyEvent::Press(FN_LEFT));
+    t.press(Side::Right, comma);
+    t.tick(1);
+    t.event(KeyEvent::Release(FN_LEFT));
+    t.release(Side::Right, comma);
+    t.tick(1);
+    assert_eq!(t.typed(), ",");
+
+    // Fn last down and last up.
+    t.press(Side::Right, comma);
+    t.event(KeyEvent::Press(FN_LEFT));
+    t.tick(1);
+    t.release(Side::Right, comma);
+    t.event(KeyEvent::Release(FN_LEFT));
+    t.tick(1);
+    assert_eq!(t.typed(), ",");
+}
+
+/// Fn in a chord with keys on its own hand, or on both, or with the other
+/// Fn, is dead.
+#[test]
+fn test_fn_dead() {
+    let mut t = Tester::new();
+    t.fn_stroke(FN_LEFT, (dosh_chord(','), 0));
+    t.fn_stroke(FN_LEFT, ten());
+    t.fn_stroke(FN_RIGHT, ten());
+    t.event(KeyEvent::Press(FN_LEFT));
+    t.event(KeyEvent::Press(FN_RIGHT));
+    t.event(KeyEvent::Release(FN_LEFT));
+    t.event(KeyEvent::Release(FN_RIGHT));
+    t.tick(1);
+    assert_eq!(t.typed(), "");
+    // And the layout is still in Orsy.
+    t.stroke(ten());
+    assert_eq!(t.typed(), "ten");
+}
+
+/// A solo tap of either Fn key toggles between Orsy and Dosh, both ways.
+#[test]
+fn test_fn_toggle() {
+    for key in [FN_LEFT, FN_RIGHT] {
+        let mut t = Tester::new();
+        t.tap(key);
+        assert_eq!(t.drain(), vec![Actions::SetMode(LayoutMode::Taipo)]);
+        // Dosh types.
+        t.press(Side::Left, 0x008);
+        t.release(Side::Left, 0x008);
+        t.tick(1);
+        assert_eq!(t.typed(), "e");
+        // And back.
+        t.tap(key);
+        assert_eq!(t.drain(), vec![Actions::SetMode(LayoutMode::Orsy)]);
+        t.stroke(ten());
+        assert_eq!(t.typed(), "ten");
+    }
+}
+
+/// In Dosh, Fn struck in a chord is ignored: the chord types as it would
+/// without it, and the layout does not switch to Orsy.
+#[test]
+fn test_fn_in_dosh_chord() {
+    let mut t = Tester::new();
+    t.tap(FN_LEFT);
+    assert_eq!(t.drain(), vec![Actions::SetMode(LayoutMode::Taipo)]);
+    t.fn_stroke(FN_LEFT, (0, 0x008));
+    assert_eq!(t.typed(), "e");
+}
+
+/// Toggling from the taipo table with Fn lands in Dosh, and says so, like
+/// the chord form of the toggle.
+#[test]
+fn test_fn_toggle_selects_dosh() {
+    let mut t = Tester::new();
+    t.tap(FN_LEFT);
+    assert_eq!(t.drain(), vec![Actions::SetMode(LayoutMode::Taipo)]);
+    // Select the taipo table with its chord, the whole top row.
+    t.press(Side::Left, 0x0f0);
+    t.release(Side::Left, 0x0f0);
+    t.tick(1);
+    assert_eq!(t.drain(), vec![Actions::ClearSubMode(MinorMode::Dosh)]);
+    // Fn still reaches Orsy from the taipo table, where the toggle chord does not.
+    t.tap(FN_LEFT);
+    assert_eq!(t.drain(), vec![Actions::SetMode(LayoutMode::Orsy)]);
+    t.tap(FN_LEFT);
+    assert_eq!(
+        t.drain(),
         vec![
             Actions::SetMode(LayoutMode::Taipo),
             Actions::SetSubMode(MinorMode::Dosh),

@@ -235,6 +235,16 @@ pub fn taipo_map(key: u8) -> Option<u8> {
 // is unmapped in Dosh and a command in Orsy, so the one shape switches both
 // ways. The one-shot escape plays a right-hand Dosh chord through the taipo
 // engine for a single stroke, without leaving Orsy.
+//
+// Fn keys:
+//
+// The mesa3b has an Fn key on each hand (`FN_LEFT` and `FN_RIGHT`) that does
+// both of those without a chord shape. Tapped alone, either one toggles between
+// Dosh and Orsy; struck in Orsy as part of a chord on the other hand, it plays
+// that hand's keys through Dosh. The Orsy end of both is in the `orsy` module,
+// where the Fn keys are chord keys like any other; the Dosh end is `fn_event`
+// here. The chord forms keep working
+// alongside. In any other mode the Fn keys are dead.
 
 mod async_traits {
     // This is generally warned because it makes the API fragile.  This makes the API fragile, as
@@ -372,6 +382,9 @@ pub struct LayoutManager {
     // The same, for the Taipo variant toggle key.
     #[cfg(feature = "proto3")]
     dosh_arm: bool,
+
+    // The same, for an Fn key tapped in taipo mode.
+    fn_arm: bool,
 }
 
 impl LayoutManager {
@@ -393,6 +406,7 @@ impl LayoutManager {
             row_arm: false,
             #[cfg(feature = "proto3")]
             dosh_arm: false,
+            fn_arm: false,
         }
     }
 
@@ -418,9 +432,7 @@ impl LayoutManager {
         // the taipo latch in steno mode it is nothing.
         #[cfg(feature = "orsy")]
         if self.taipo.take_orsy_request() && self.mode.get() == LayoutMode::Taipo {
-            self.mode.mode = LayoutMode::Orsy;
-            self.orsy.reset();
-            actions.set_mode(LayoutMode::Orsy).await;
+            self.enter_orsy(actions).await;
         }
 
         // Inform the upper layer what our initial mode is.
@@ -447,14 +459,18 @@ impl LayoutManager {
 
         let next = self.mode.event(event, actions, self.two_row).await;
 
+        // Like the variant toggle below, after the mode selector, and ahead of
+        // the toggle so that every key reaches it to disarm the tap.
+        let consumed = self.fn_event(event, next, actions).await;
+
         // This runs after the mode selector so that `self.mode.pressed` is up
         // to date, and so that the mode key keeps priority over the toggle.
         #[cfg(feature = "proto3")]
-        if self.dosh_event(event, next, actions).await {
+        if !consumed && self.dosh_event(event, next, actions).await {
             return;
         }
 
-        if !matches!(next, ModeNext::Discard) {
+        if !consumed && !matches!(next, ModeNext::Discard) {
             match self.mode.get() {
                 LayoutMode::Taipo => {
                     self.taipo.handle_event(event, actions).await;
@@ -482,6 +498,59 @@ impl LayoutManager {
         }
 
         self.mode.after_event(actions, next).await;
+    }
+
+    /// Switch to Orsy, from taipo mode.
+    #[cfg(feature = "orsy")]
+    async fn enter_orsy<ACT: LayoutActions>(&mut self, actions: &ACT) {
+        self.mode.mode = LayoutMode::Orsy;
+        self.orsy.reset();
+        actions.set_mode(LayoutMode::Orsy).await;
+    }
+
+    /// Handle the Fn keys, returning true if the event was consumed.
+    ///
+    /// In Orsy the Fn keys are passed on, as they are chord keys there.  In
+    /// taipo mode a solo tap of either one switches to Orsy: pressed with
+    /// nothing else down and released with nothing else down, as with the
+    /// other toggles, so a chord with Fn in it types as it would without it.  Everywhere else they are simply dropped; no other layout
+    /// has a key for them, and their codes are past the end of its tables.
+    async fn fn_event<ACT: LayoutActions>(
+        &mut self,
+        event: KeyEvent,
+        next: ModeNext,
+        actions: &ACT,
+    ) -> bool {
+        let key = event.key();
+        if key != FN_LEFT && key != FN_RIGHT {
+            // Any other key means the Fn key wasn't pressed by itself.
+            self.fn_arm = false;
+            return false;
+        }
+
+        let normal = matches!(next, ModeNext::Normal);
+        #[cfg(feature = "orsy")]
+        if normal && self.mode.get() == LayoutMode::Orsy {
+            return false;
+        }
+
+        if !normal || self.mode.get() != LayoutMode::Taipo {
+            self.fn_arm = false;
+            return true;
+        }
+
+        match event {
+            KeyEvent::Press(_) => self.fn_arm = self.mode.pressed == 1 << key,
+            KeyEvent::Release(_) => {
+                if self.fn_arm && self.mode.pressed == 0 {
+                    #[cfg(feature = "orsy")]
+                    self.enter_orsy(actions).await;
+                }
+                self.fn_arm = false;
+            }
+        }
+        let _ = actions;
+        true
     }
 
     /// Act on an Orsy stroke that escapes to Dosh.

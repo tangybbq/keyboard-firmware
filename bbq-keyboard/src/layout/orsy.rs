@@ -23,6 +23,17 @@
 //! table for that stroke only, and the toggle switches the keyboard to Dosh
 //! outright.  The toggle's shape is unmapped in Dosh too, so the same chord
 //! there switches back; that end is in the Dosh table.
+//!
+//! # The Fn keys
+//!
+//! The mesa3b has an Fn key on each hand, which does both escapes without a
+//! chord shape.  An Fn key is one of the stroke's keys like any other, struck
+//! with the rest and committed on the first release: in a chord with keys on
+//! the *other* hand only, it plays those keys through the Dosh table, and
+//! struck alone it is the toggle.  Fn with anything else is dead.  The chord
+//! forms of both escapes still work, for the boards without Fn keys.  The Dosh
+//! end of the toggle is the layout manager's, as the Fn keys are not Dosh
+//! keys.
 
 use bbq_orsy::chord::HAND_MASK;
 use bbq_orsy::tables::{commands, punctuation};
@@ -32,7 +43,7 @@ use crate::usb_typer::key_for_char;
 use crate::{KeyAction, KeyEvent, Keyboard, Mods, Side};
 
 use super::taipo::SCAN_MAP;
-use super::LayoutActions;
+use super::{LayoutActions, FN_LEFT, FN_RIGHT};
 
 /// What a committed stroke turned out to be.
 ///
@@ -73,6 +84,9 @@ pub enum Escape {
 pub struct OrsyManager {
     /// The keys currently held.
     down: Chord,
+    /// The Fn keys currently held.  They are keys of the stroke, but not
+    /// Orsy chord bits, so they are kept apart from `down`.
+    fns: FnKeys,
     /// Whether keys are being pressed (true) or released (false).  The stroke
     /// is sent on the first release after a press; further releases only
     /// take keys away, and a press starts a new stroke from what is still
@@ -92,6 +106,7 @@ impl OrsyManager {
     pub const fn new() -> Self {
         OrsyManager {
             down: Chord::new(0, 0),
+            fns: FnKeys::NONE,
             pressing: true,
             output: Output::new(),
         }
@@ -104,22 +119,26 @@ impl OrsyManager {
         event: KeyEvent,
         actions: &ACT,
     ) -> Option<Escape> {
-        let Some(Some((side, bit))) = SCAN_MAP.get(event.key() as usize) else {
-            return None;
-        };
-        if bit & HAND_MASK == 0 {
-            // The upper pinky, which is not an Orsy key.
-            return None;
-        }
-        let stroke = self.down;
-        let hand = match side {
-            Side::Left => &mut self.down.left,
-            Side::Right => &mut self.down.right,
-        };
-        if event.is_press() {
-            *hand |= bit;
+        let stroke = (self.down, self.fns);
+        if let Some(fns) = FnKeys::of(event.key()) {
+            self.fns.set(fns, event.is_press());
         } else {
-            *hand &= !bit;
+            let Some(Some((side, bit))) = SCAN_MAP.get(event.key() as usize) else {
+                return None;
+            };
+            if bit & HAND_MASK == 0 {
+                // The upper pinky, which is not an Orsy key.
+                return None;
+            }
+            let hand = match side {
+                Side::Left => &mut self.down.left,
+                Side::Right => &mut self.down.right,
+            };
+            if event.is_press() {
+                *hand |= bit;
+            } else {
+                *hand &= !bit;
+            }
         }
         match (event.is_press(), self.pressing) {
             (true, true) => (),
@@ -128,8 +147,9 @@ impl OrsyManager {
                 self.pressing = false;
                 // A stroke of nothing can only be a release left over from
                 // another mode.
-                if !stroke.is_empty() {
-                    return self.stroke(stroke, actions).await;
+                let (chord, fns) = stroke;
+                if !chord.is_empty() || fns != FnKeys::NONE {
+                    return self.stroke(chord, fns, actions).await;
                 }
             }
             // A press while releasing starts a new stroke from what is
@@ -158,6 +178,7 @@ impl OrsyManager {
     /// begun before a Dosh run gets its space after it.
     pub fn reset(&mut self) {
         self.down = Chord::new(0, 0);
+        self.fns = FnKeys::NONE;
         self.pressing = true;
     }
 
@@ -183,9 +204,29 @@ impl OrsyManager {
         }
     }
 
+    /// What a completed stroke is, with the Fn keys that were struck in it.
+    ///
+    /// An Fn key alone is the toggle, and with keys on the other hand only is
+    /// the one-shot for that hand.  Anything else with an Fn key in it is
+    /// dead, rather than being read as though Fn were not there.
+    pub fn outcome_with_fn(chord: Chord, fns: FnKeys) -> StrokeOutcome {
+        match (fns.left, fns.right) {
+            (false, false) => Self::outcome(chord),
+            _ if chord.is_empty() && fns != FnKeys::BOTH => StrokeOutcome::ToggleDosh,
+            (true, false) if chord.left == 0 => StrokeOutcome::Dosh(Side::Right, chord.right),
+            (false, true) if chord.right == 0 => StrokeOutcome::Dosh(Side::Left, chord.left),
+            _ => StrokeOutcome::Dead,
+        }
+    }
+
     /// Act on a completed stroke.
-    async fn stroke<ACT: LayoutActions>(&mut self, chord: Chord, actions: &ACT) -> Option<Escape> {
-        let outcome = Self::outcome(chord);
+    async fn stroke<ACT: LayoutActions>(
+        &mut self,
+        chord: Chord,
+        fns: FnKeys,
+        actions: &ACT,
+    ) -> Option<Escape> {
+        let outcome = Self::outcome_with_fn(chord, fns);
         actions.orsy_stroke(chord, outcome).await;
 
         let mut ops = Ops::new();
@@ -216,5 +257,38 @@ impl OrsyManager {
             actions.send_key(KeyAction::KeyRelease).await;
         }
         None
+    }
+}
+
+/// Which of the Fn keys are held.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct FnKeys {
+    pub left: bool,
+    pub right: bool,
+}
+
+impl FnKeys {
+    pub const NONE: FnKeys = FnKeys { left: false, right: false };
+    pub const LEFT: FnKeys = FnKeys { left: true, right: false };
+    pub const RIGHT: FnKeys = FnKeys { left: false, right: true };
+    pub const BOTH: FnKeys = FnKeys { left: true, right: true };
+
+    /// The Fn key a key code is, if it is one.
+    fn of(key: u8) -> Option<FnKeys> {
+        match key {
+            FN_LEFT => Some(FnKeys::LEFT),
+            FN_RIGHT => Some(FnKeys::RIGHT),
+            _ => None,
+        }
+    }
+
+    /// Mark the keys in `keys` as held or not.
+    fn set(&mut self, keys: FnKeys, held: bool) {
+        if keys.left {
+            self.left = held;
+        }
+        if keys.right {
+            self.right = held;
+        }
     }
 }
