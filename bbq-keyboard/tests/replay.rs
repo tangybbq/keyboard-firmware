@@ -674,7 +674,7 @@ fn test_orsy_escapes() {
     log.tap('L', "e+i+Sp+Bk", 20).wait(50);
     let derived = replay_in_mode(true, LayoutMode::Orsy, TaipoVariant::Dosh, &log.events);
     let outcomes: Vec<StrokeOutcome> = strokes(&derived).iter().map(|s| s.outcome).collect();
-    assert_eq!(outcomes, [StrokeOutcome::Dosh(0x008), StrokeOutcome::ToggleDosh]);
+    assert_eq!(outcomes, [StrokeOutcome::Dosh(Side::Right, 0x008), StrokeOutcome::ToggleDosh]);
     // The one-shot's chord is typed through the Dosh table -- as a key, not
     // as a chord the taipo engine assembled -- and the toggle is a mode
     // change.

@@ -53,8 +53,9 @@ pub enum StrokeOutcome {
     Punct(&'static punctuation::Mark),
     /// The toggle: the keyboard is switching to Dosh.
     ToggleDosh,
-    /// The one-shot: this right-hand chord is played through the Dosh table.
-    Dosh(u16),
+    /// The one-shot: this chord, on this hand, is played through the Dosh
+    /// table.
+    Dosh(Side, u16),
     /// Not a syllable and not a command.  Nothing is typed.
     Dead,
 }
@@ -64,8 +65,9 @@ pub enum StrokeOutcome {
 pub enum Escape {
     /// The toggle chord: switch to Dosh.
     ToggleDosh,
-    /// The one-shot: play this right-hand chord through the Dosh table.
-    Dosh(u16),
+    /// The one-shot: play this chord, struck on this hand, through the Dosh
+    /// table.
+    Dosh(Side, u16),
 }
 
 pub struct OrsyManager {
@@ -170,7 +172,7 @@ impl OrsyManager {
         }
         match (chord.left, chord.right) {
             (commands::DOSH_TOGGLE, 0) => StrokeOutcome::ToggleDosh,
-            (commands::DOSH_ONESHOT, right) if right != 0 => StrokeOutcome::Dosh(right),
+            (commands::DOSH_ONESHOT, right) if right != 0 => StrokeOutcome::Dosh(Side::Right, right),
             (commands::UNDO, 0) => StrokeOutcome::Undo,
             (0, commands::SPACE) => StrokeOutcome::Space,
             (0, commands::CAP_NEXT) => StrokeOutcome::CapNext,
@@ -189,7 +191,7 @@ impl OrsyManager {
         let mut ops = Ops::new();
         match outcome {
             StrokeOutcome::ToggleDosh => return Some(Escape::ToggleDosh),
-            StrokeOutcome::Dosh(right) => return Some(Escape::Dosh(right)),
+            StrokeOutcome::Dosh(side, code) => return Some(Escape::Dosh(side, code)),
             StrokeOutcome::Undo => self.output.undo(&mut ops),
             StrokeOutcome::Space => self.output.space(&mut ops),
             StrokeOutcome::CapNext => self.output.cap_next(),

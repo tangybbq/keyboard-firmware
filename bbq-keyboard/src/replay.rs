@@ -1067,7 +1067,8 @@ impl Stroke {
                 StrokeOutcome::CapNext => "cap-next".to_string(),
                 StrokeOutcome::Punct(mark) => format!("punct {:?}", mark.text),
                 StrokeOutcome::ToggleDosh => "dosh-toggle".to_string(),
-                StrokeOutcome::Dosh(code) => format!("dosh {code:#05x}"),
+                // The hand is in the key names already.
+                StrokeOutcome::Dosh(_, code) => format!("dosh {code:#05x}"),
                 StrokeOutcome::Dead => "dead".to_string(),
             },
         )

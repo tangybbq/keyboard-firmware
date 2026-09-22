@@ -501,12 +501,11 @@ impl LayoutManager {
                     actions.set_sub_mode(MinorMode::Dosh).await;
                 }
             }
-            orsy::Escape::Dosh(code) => {
+            orsy::Escape::Dosh(side, code) => {
                 // The taipo engine types it on the next tick, with its
-                // modifier handling and all.  The right hand is where the
-                // chord was struck, though the Dosh table is the same on
-                // both.
-                self.taipo.inject_chord(crate::Side::Right, code);
+                // modifier handling and all, on the hand it was struck on,
+                // though the Dosh table is the same on both.
+                self.taipo.inject_chord(side, code);
 
                 // What the Dosh chord does to the text the output stage is
                 // keeping track of: a backspace erases a character of it,
