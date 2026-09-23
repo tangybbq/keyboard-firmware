@@ -96,7 +96,7 @@ const MODE_ORSY: RGB8 = RGB8::new(1, 1, 1);
 pub struct LedManager {
     leds: LedSet,
 
-    /// What is currently displayed, kept so [`Self::tick`] can rewrite it.
+    /// What is currently displayed, kept so [`Self::refresh`] can rewrite it.
     colors: Vec<RGB8, MAX_LEDS>,
 
     /// The mode and modifier state, and what each LED should show for it.
@@ -158,13 +158,16 @@ impl LedManager {
         }
     }
 
-    /// Rewrite the LEDs with what they are already showing.
+    /// Rewrite the LEDs with what they are already showing, if they need it.
     ///
     /// Nothing here animates, so this is only insurance: a ws2812 that has taken a bad bit holds
     /// it until it is written again, and a stuck modifier light is a lie about what the next
-    /// keypress will do.
-    pub fn tick(&mut self) {
-        self.set_state();
+    /// keypress will do.  That only matters while someone is typing, so this is called on each
+    /// key press rather than on a timer, which would wake an idle keyboard for nothing.
+    pub fn refresh(&mut self) {
+        if self.leds.needs_refresh() {
+            self.set_state();
+        }
     }
 
     fn set_state(&mut self) {

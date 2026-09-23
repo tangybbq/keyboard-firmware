@@ -29,6 +29,14 @@ pub trait LedGroup: Send + 'static {
     ///
     /// Sets the leds in this group.  `values.len()` must be equal to what `self.len()` returns.
     fn update(&mut self, values: &[RGB8]);
+
+    /// Whether the LEDs have to be rewritten now and then with what they already show.
+    ///
+    /// A driver whose hardware holds its state (PWM, say) doesn't; a ws2812 that took a bad bit
+    /// holds it until it is written again.
+    fn needs_refresh(&self) -> bool {
+        false
+    }
 }
 
 /// Management of a bunch of leds.
@@ -49,6 +57,11 @@ impl LedSet {
     /// Get the total number of LEDs represented by this set.
     pub fn len(&self) -> usize {
         self.all.iter().map(|e| e.len()).sum()
+    }
+
+    /// Whether any group needs [`LedGroup::needs_refresh`].
+    pub fn needs_refresh(&self) -> bool {
+        self.all.iter().any(|e| e.needs_refresh())
     }
 
     /// Update all of the LEDs.  The length of values must equal the return of Self::len()

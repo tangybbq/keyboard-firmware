@@ -25,7 +25,7 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::{Receiver, Sender};
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
-use embassy_time::{Duration, Instant, Ticker, Timer};
+use embassy_time::{Instant, Timer};
 use minder::keylog::Marker;
 use static_cell::StaticCell;
 
@@ -96,7 +96,6 @@ impl Dispatch {
         });
 
         spawn_high.spawn(unwrap!(matrix_loop(this, board.matrix)));
-        spawn_high.spawn(unwrap!(led_loop(&this.leds)));
         if this.layout.is_some() {
             spawn_high.spawn(unwrap!(layout_loop(this)));
             #[cfg(feature = "steno")]
@@ -112,15 +111,6 @@ impl Dispatch {
         }
 
         this
-    }
-}
-
-#[embassy_executor::task]
-async fn led_loop(leds: &'static Mutex<CriticalSectionRawMutex, LedManager>) -> ! {
-    let mut ticker = Ticker::every(Duration::from_millis(100));
-    loop {
-        ticker.next().await;
-        leds.lock().await.tick();
     }
 }
 
@@ -272,11 +262,20 @@ async fn active_task(dispatch: &'static Dispatch, chan: KeyChannel) -> ! {
         let event = chan.receive().await;
         // The remote half's keys arrive here rather than through `handle_key`.
         keylog::log_key(event.key(), event.is_press());
+        dispatch.refresh_leds(event).await;
         dispatch.layout_event(layout, event).await;
     }
 }
 
 impl Dispatch {
+    /// Rewrite the LEDs on a key press, in case one has taken a bad bit.  See
+    /// `LedManager::refresh`.
+    async fn refresh_leds(&self, event: KeyEvent) {
+        if event.is_press() {
+            self.leds.lock().await.refresh();
+        }
+    }
+
     /// Give a key event to the layout, and let `layout_loop` know that its
     /// deadline may have moved.
     ///
@@ -295,6 +294,7 @@ impl Dispatch {
 impl MatrixAction for Dispatch {
     async fn handle_key(&self, event: KeyEvent) {
         // info!("Matrix Key: {:?}", event);
+        self.refresh_leds(event).await;
         if let Some(layout) = &self.layout {
             // Logged before the layout sees it, and timestamped here rather than in
             // `bbq-keyboard`, which stays time-free and no_std.  This is the local half; the

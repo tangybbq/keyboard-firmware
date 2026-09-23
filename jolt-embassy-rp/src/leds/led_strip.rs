@@ -60,4 +60,8 @@ impl LedGroup for LedStripHandle {
         buf.extend_from_slice(values).unwrap();
         LATEST_LED.signal(buf);
     }
+
+    fn needs_refresh(&self) -> bool {
+        true
+    }
 }
