@@ -137,6 +137,15 @@ pub fn lower_row_remap(key: u8) -> u8 {
     }
 }
 
+/// The sooner of two `next_tick` results, where `None` means never.
+fn min_tick(a: Option<u32>, b: Option<u32>) -> Option<u32> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, None) => a,
+        (None, b) => b,
+    }
+}
+
 /// If this key is one of the taipo keys, return it's bit, otherwise None.
 pub fn taipo_map(key: u8) -> Option<u8> {
     match key {
@@ -434,6 +443,27 @@ impl LayoutManager {
             actions.set_mode(self.mode.get()).await;
             self.first_tick = false;
         }
+    }
+
+    /// How many milliseconds from now the layout next needs a
+    /// [`tick`](Self::tick), or `None` if nothing is pending.
+    ///
+    /// Between ticks, nothing the layout does depends on time: a key event is
+    /// acted on as it is delivered.  So a caller can tick only when this says
+    /// to, and after each key event, as long as each tick passes all the time
+    /// since the last one.  Waking early does no harm; the timers only fire
+    /// once their time is up.  `Some(0)` means a tick is due now.
+    ///
+    /// This is a pure query, and can be asked after either entry point.
+    pub fn next_tick(&self) -> Option<u32> {
+        // The initial mode has not been announced yet.
+        if self.first_tick {
+            return Some(0);
+        }
+        let next = self.taipo.next_tick();
+        #[cfg(feature = "qwerty")]
+        let next = min_tick(next, self.qwerty.next_tick());
+        next
     }
 
     pub fn poll(&mut self) {

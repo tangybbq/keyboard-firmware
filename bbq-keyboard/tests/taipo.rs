@@ -156,6 +156,8 @@ enum ActorStep {
     Idle,
     /// Expect the modifier indicator to show this `(oneshot, sticky)` state.
     ModState(Mods, Mods),
+    /// Expect the layout to next want a tick this many ms from now.
+    NextTick(Option<u32>),
 }
 
 /// Keep track of the state of the test, as well as the state we think the
@@ -497,6 +499,12 @@ impl Script {
         self
     }
 
+    /// Expect the layout to next want a tick `ms` from now, or not at all.
+    fn next_tick(&mut self, ms: Option<usize>) -> &mut Self {
+        self.steps.push(ActorStep::NextTick(ms.map(|ms| ms as u32)));
+        self
+    }
+
     /// Expect the modifier indicator to be showing nothing.
     fn no_mod_state(&mut self) -> &mut Self {
         self.mod_state(Mods::empty(), Mods::empty())
@@ -539,6 +547,9 @@ impl Script {
                             "step {}",
                             num
                         );
+                    }
+                    ActorStep::NextTick(expected) => {
+                        assert_eq!(layout.next_tick(), *expected, "step {}", num);
                     }
                     ActorStep::Idle => {
                         let pending = actor.actions.borrow();
@@ -583,6 +594,57 @@ fn test_qwerty_basic() {
     script.run();
 }
 
+/// A qwerty key that could start a combo waits for its companion, and the
+/// layout asks to be ticked when that wait is over, and not otherwise.
+#[test]
+fn test_qwerty_next_tick() {
+    let mut script = Script::new();
+
+    script.next_tick(None);
+    script.press_scan(4).next_tick(Some(50));
+    script.tick(20).next_tick(Some(30));
+    script.tick(29).idle().next_tick(Some(1));
+    script
+        .tick(1)
+        .expect(Actions::SendKey(KeyAction::KeySet(vec![Keyboard::Q])))
+        .next_tick(None);
+    script
+        .release_scan(4)
+        .expect(Actions::SendKey(KeyAction::KeySet(vec![])))
+        .next_tick(None);
+
+    // A combo completed by its second key needs no tick at all.
+    script
+        .press_scan(4)
+        .press_scan(5)
+        .expect(Actions::SendKey(KeyAction::KeySet(vec![Keyboard::LeftGUI])))
+        .next_tick(None);
+    script
+        .release_scan(4)
+        .release_scan(5)
+        .expect(Actions::SendKey(KeyAction::KeySet(vec![])));
+
+    script.run();
+}
+
+/// The layout wants a tick straight away until it has announced its mode.
+#[test]
+fn test_first_tick_due() {
+    let mut script = Script {
+        steps: Vec::new(),
+        two_row: true,
+        lower: false,
+        dosh: TaipoVariant::DEFAULT == TaipoVariant::Dosh,
+        mode: LayoutMode::Taipo,
+    };
+    script
+        .next_tick(Some(0))
+        .tick(0)
+        .mode(LayoutMode::Taipo)
+        .next_tick(None);
+    script.run();
+}
+
 /// The mode key cycles through the modes.
 #[test]
 fn test_mode_switch() {
@@ -623,8 +685,10 @@ fn test_single_keys() {
 fn test_quick_tap() {
     let mut script = Script::taipo();
 
-    script.press(LEFT, A).tick(5).idle();
-    script.release(LEFT, A).tick(1).types(Keyboard::A);
+    script.next_tick(None);
+    script.press(LEFT, A).next_tick(Some(CHORD_TIME));
+    script.tick(5).idle().next_tick(Some(CHORD_TIME - 5));
+    script.release(LEFT, A).next_tick(None).tick(1).types(Keyboard::A);
 
     // The same, for a multi-key chord.
     script.press(RIGHT, S | N).tick(5).idle();
@@ -1020,6 +1084,7 @@ fn test_cross_hand_rollover() {
     // make room for it.
     script
         .press(RIGHT, I)
+        .next_tick(Some(CHORD_TIME))
         .tick(CHORD_TIME)
         .releases()
         .presses(Keyboard::I, Mods::empty());
@@ -1084,10 +1149,19 @@ fn test_same_side_rollover() {
 fn test_same_side_rollover_tap() {
     let mut script = Script::taipo();
 
-    script.press(LEFT, A).tick(CHORD_TIME).presses(Keyboard::A, Mods::empty());
-    // A quick 'o' while the 'a' is held is sent as soon as it comes up.
+    script
+        .press(LEFT, A)
+        .tick(CHORD_TIME - 1)
+        .idle()
+        .next_tick(Some(1))
+        .tick(1)
+        .presses(Keyboard::A, Mods::empty())
+        .next_tick(None);
+    // A quick 'o' while the 'a' is held is sent as soon as it comes up.  It
+    // starts a window of its own.
     script
         .press(LEFT, O)
+        .next_tick(Some(CHORD_TIME))
         .tick(5)
         .releases()
         .release(LEFT, O)

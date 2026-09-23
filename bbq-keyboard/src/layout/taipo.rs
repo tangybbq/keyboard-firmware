@@ -55,7 +55,7 @@ use usbd_human_interface_device::page::Keyboard;
 use crate::usb_typer::key_for_char;
 use crate::{KeyEvent, MinorMode, Side, Mods, KeyAction};
 
-use super::{taipo_map, LayoutActions};
+use super::{min_tick, taipo_map, LayoutActions};
 
 /// Which chord table the Taipo engine is interpreting chords with.
 ///
@@ -269,6 +269,15 @@ impl TaipoManager {
         self.sides[1].tick(&mut self.keys, ticks);
 
         self.process(actions, is_steno).await;
+    }
+
+    /// How many milliseconds from now the engine next needs a
+    /// [`tick`](Self::tick), or `None` if it has no timer running.
+    ///
+    /// A timer only runs while a chord is being built, so the engine is
+    /// quiet from a chord's commit until the next key goes down.
+    pub fn next_tick(&self) -> Option<u32> {
+        min_tick(self.sides[0].next_tick(), self.sides[1].next_tick())
     }
 
     /// Act on the chord events that have been queued: look each chord up and
@@ -648,6 +657,16 @@ impl SideManager {
         }
     }
 
+    /// How many ticks until the chord being built is committed by its timer,
+    /// or `None` if there is no chord in progress, or it has already been
+    /// sent.
+    fn next_tick(&self) -> Option<u32> {
+        if self.down || self.seen == 0 {
+            return None;
+        }
+        Some(CHORD_TIME.saturating_sub(self.age))
+    }
+
     /// Commit the chord being built, as though its timer had expired.
     ///
     /// The keys stay held; as with the timer, they take no further part in the
@@ -737,6 +756,63 @@ mod test_side_manager {
         /// Check why each chord committed by the last `events` call ended.
         fn ends(&self, ends: &[ChordEnd]) {
             assert_eq!(&self.ends[..], ends);
+        }
+
+        /// Check when the side next wants a tick.
+        fn next_tick(&self, expected: Option<usize>) {
+            assert_eq!(self.manager.next_tick(), expected.map(|t| t as u32));
+        }
+    }
+
+    /// The side asks for a tick while a chord is being built, counting down
+    /// the window from the first key, and not otherwise.
+    #[test]
+    fn test_next_tick() {
+        let mut tester = Tester::new();
+        tester.next_tick(None);
+        tester.press(1);
+        tester.next_tick(Some(CHORD_TIME));
+        tester.spin(30);
+        tester.next_tick(Some(CHORD_TIME - 30));
+        // A second key joins the chord, but doesn't restart the window.
+        tester.press(2);
+        tester.next_tick(Some(CHORD_TIME - 30));
+        // Committed by its release: nothing more to wait for.
+        tester.release(3);
+        tester.events(&[(true, 3), (false, 3)]);
+        tester.next_tick(None);
+
+        // Committed by the timer, with the keys still held.
+        tester.press(1);
+        tester.spin(CHORD_TIME);
+        tester.events(&[(true, 1)]);
+        tester.next_tick(None);
+        // A rolled-over chord starts its own window.
+        tester.press(2);
+        tester.next_tick(Some(CHORD_TIME));
+        tester.other_hand();
+        tester.next_tick(None);
+    }
+
+    /// Ticking just short of what `next_tick` asks for commits nothing, and
+    /// the one more tick commits the chord.  Ticking in one step or many
+    /// gives the same result.
+    #[test]
+    fn test_next_tick_is_exact() {
+        for step in [1, 7, CHORD_TIME] {
+            let mut tester = Tester::new();
+            tester.press(1);
+            tester.spin(12);
+            let due = tester.manager.next_tick().unwrap() as usize;
+            let mut left = due - 1;
+            while left > 0 {
+                let t = step.min(left);
+                tester.spin(t);
+                left -= t;
+            }
+            tester.events(&[]);
+            tester.spin(1);
+            tester.events(&[(true, 1)]);
         }
     }
 

@@ -38,6 +38,10 @@ pub struct QwertyManager {
 
 type Layout = &'static [Mapping];
 
+/// How long, in milliseconds, a key that could start a combo waits for its
+/// companion before it is sent by itself.
+const COMBO_TIME: usize = 50;
+
 struct ComboHandler {
     // Cached bitmap of keys that are parts of combos. Avoids a longer search
     // for keys that will never be part of one.
@@ -198,9 +202,16 @@ impl ComboHandler {
 
         self.pending_age = self.pending_age.saturating_add(ticks);
 
-        if self.pending_age >= 50 {
+        if self.pending_age >= COMBO_TIME {
             self.push_pending();
         }
+    }
+
+    /// How many ticks until a pending key is sent by itself, or `None` if
+    /// there isn't one.
+    pub fn next_tick(&self) -> Option<u32> {
+        self.pending?;
+        Some(COMBO_TIME.saturating_sub(self.pending_age) as u32)
     }
 
     /// Potentially retrieve the next event.
@@ -263,6 +274,12 @@ impl QwertyManager {
     pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
         self.combo.tick(ticks);
         self.process_keys(actions).await;
+    }
+
+    /// How many milliseconds from now this next needs a `tick`, or `None` if
+    /// no key is waiting for a combo.
+    pub fn next_tick(&self) -> Option<u32> {
+        self.combo.next_tick()
     }
 
     async fn process_keys<ACT: LayoutActions>(&mut self, actions: &ACT) {
