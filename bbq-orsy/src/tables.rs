@@ -255,13 +255,13 @@ impl Outer {
 pub enum Second {
     /// No inner key.
     Empty,
-    /// `Bk`: `r`, or the vowel `a`.
+    /// `Sp`: `r`, or the vowel `a`.
     R,
-    /// `Sp`: `l`.
+    /// `Bk`: `l`.
     RI,
     /// `i`: `i`, or the vowel `i`.
     I,
-    /// `e+Sp`: `t`.
+    /// `i+Bk`: `t`.
     RIU,
     /// `e+Bk`: `m`.
     RU,
@@ -269,15 +269,15 @@ pub enum Second {
     RXI,
     /// `e`: `s`, or the vowel `e`.
     X,
-    /// `i+Bk`: `e`, or the vowel `ea`.
+    /// `e+Sp`: `e`, or the vowel `ea`.
     RX,
-    /// `Sp+Bk`: `w`, or the vowel `o`.
+    /// `e+i+Bk`: `w`, or the vowel `o`.
     XI,
     /// `e+i+Sp`: `c`.
     XIU,
     /// `i+Sp`: `u`, or the vowel `u`.
     U,
-    /// `e+i+Bk`: `p`.
+    /// `Sp+Bk`: `p`.
     IU,
     /// `e+Sp+Bk`: `n`.
     XU,
@@ -293,18 +293,18 @@ impl Second {
     pub const fn bits(self) -> u16 {
         match self {
             Second::Empty => 0,
-            Second::R => 0x200,
-            Second::RI => 0x100,
+            Second::R => 0x100,
+            Second::RI => 0x200,
             Second::I => 0x080,
-            Second::RIU => 0x108,
+            Second::RIU => 0x280,
             Second::RU => 0x208,
             Second::RXI => 0x088,
             Second::X => 0x008,
-            Second::RX => 0x280,
-            Second::XI => 0x300,
+            Second::RX => 0x108,
+            Second::XI => 0x288,
             Second::XIU => 0x188,
             Second::U => 0x180,
-            Second::IU => 0x288,
+            Second::IU => 0x300,
             Second::XU => 0x308,
         }
     }

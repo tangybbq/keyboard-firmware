@@ -471,18 +471,18 @@
       "spells": "r",
       "is_vowel_too": "a",
       "keys": [
-        "Bk"
+        "Sp"
       ],
-      "bits": 512
+      "bits": 256
     },
     {
       "michela": "RI",
       "spells": "l",
       "is_vowel_too": null,
       "keys": [
-        "Sp"
+        "Bk"
       ],
-      "bits": 256
+      "bits": 512
     },
     {
       "michela": "I",
@@ -498,10 +498,10 @@
       "spells": "t",
       "is_vowel_too": null,
       "keys": [
-        "e",
-        "Sp"
+        "i",
+        "Bk"
       ],
-      "bits": 264
+      "bits": 640
     },
     {
       "michela": "RU",
@@ -537,20 +537,21 @@
       "spells": "e",
       "is_vowel_too": "ea",
       "keys": [
-        "i",
-        "Bk"
+        "e",
+        "Sp"
       ],
-      "bits": 640
+      "bits": 264
     },
     {
       "michela": "XI",
       "spells": "w",
       "is_vowel_too": "o",
       "keys": [
-        "Sp",
+        "e",
+        "i",
         "Bk"
       ],
-      "bits": 768
+      "bits": 648
     },
     {
       "michela": "XIU",
@@ -578,11 +579,10 @@
       "spells": "p",
       "is_vowel_too": null,
       "keys": [
-        "e",
-        "i",
+        "Sp",
         "Bk"
       ],
-      "bits": 648
+      "bits": 768
     },
     {
       "michela": "XU",

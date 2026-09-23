@@ -138,7 +138,7 @@
     "jolt3": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 19, 15, 255, 255, 255, 24, 25, 26, 28, 29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 39, 43, 47, 255, 255, 255]
   },
   "orsy": {
-    "fingerprint": "0xe106c1f7aff88220",
+    "fingerprint": "0x6212e685dd790b14",
     "rules_version": 1,
     "outer_mask": 103,
     "inner_mask": 904,
@@ -175,18 +175,18 @@
       { "michela": "CZP", "bits": 102, "keys": ["o", "t", "s", "n"], "onset": null, "coda": "e" }
     ],
     "second": [
-      { "michela": "R", "bits": 512, "keys": ["Bk"], "spells": "r", "mirrored_vowel": "a" },
-      { "michela": "RI", "bits": 256, "keys": ["Sp"], "spells": "l", "mirrored_vowel": null },
+      { "michela": "R", "bits": 256, "keys": ["Sp"], "spells": "r", "mirrored_vowel": "a" },
+      { "michela": "RI", "bits": 512, "keys": ["Bk"], "spells": "l", "mirrored_vowel": null },
       { "michela": "I", "bits": 128, "keys": ["i"], "spells": "i", "mirrored_vowel": "i" },
-      { "michela": "RIU", "bits": 264, "keys": ["e", "Sp"], "spells": "t", "mirrored_vowel": null },
+      { "michela": "RIU", "bits": 640, "keys": ["i", "Bk"], "spells": "t", "mirrored_vowel": null },
       { "michela": "RU", "bits": 520, "keys": ["e", "Bk"], "spells": "m", "mirrored_vowel": null },
       { "michela": "RXI", "bits": 136, "keys": ["e", "i"], "spells": "o", "mirrored_vowel": null },
       { "michela": "X", "bits": 8, "keys": ["e"], "spells": "s", "mirrored_vowel": "e" },
-      { "michela": "RX", "bits": 640, "keys": ["i", "Bk"], "spells": "e", "mirrored_vowel": "ea" },
-      { "michela": "XI", "bits": 768, "keys": ["Sp", "Bk"], "spells": "w", "mirrored_vowel": "o" },
+      { "michela": "RX", "bits": 264, "keys": ["e", "Sp"], "spells": "e", "mirrored_vowel": "ea" },
+      { "michela": "XI", "bits": 648, "keys": ["e", "i", "Bk"], "spells": "w", "mirrored_vowel": "o" },
       { "michela": "XIU", "bits": 392, "keys": ["e", "i", "Sp"], "spells": "c", "mirrored_vowel": null },
       { "michela": "U", "bits": 384, "keys": ["i", "Sp"], "spells": "u", "mirrored_vowel": "u" },
-      { "michela": "IU", "bits": 648, "keys": ["e", "i", "Bk"], "spells": "p", "mirrored_vowel": null },
+      { "michela": "IU", "bits": 768, "keys": ["Sp", "Bk"], "spells": "p", "mirrored_vowel": null },
       { "michela": "XU", "bits": 776, "keys": ["e", "Sp", "Bk"], "spells": "n", "mirrored_vowel": null }
     ],
     "vowel": [

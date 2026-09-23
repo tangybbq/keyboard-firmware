@@ -18,7 +18,7 @@ key 120 KeyPress(C, Mods(0x0))
 key 120 KeyRelease
 key 120 KeyPress(K, Mods(0x0))
 key 120 KeyRelease
-stroke 210 [a+o+s+Bk-e+s+n+i] spread=0 text "brow" before=1 after=0
+stroke 210 [a+o+s+Sp-e+s+n+i] spread=0 text "brow" before=1 after=0
 key 210 KeyPress(Space, Mods(0x0))
 key 210 KeyRelease
 key 210 KeyPress(B, Mods(0x0))

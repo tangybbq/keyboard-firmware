@@ -100,23 +100,23 @@ const LESSONS: &[Lesson] = &[
     Lesson {
         name: "second-r-l", title: "the second character: r and l",
         note: "The left hand's inner four are the second character of the syllable, \
-               mostly consonants.  `r` is `Bk` alone and `l` is `Sp` alone.",
+               mostly consonants.  `r` is `Sp` alone and `l` is `Bk` alone.",
         items: &[Second(Second::R), Second(Second::RI)],
     },
     Lesson {
         name: "second-i-t-m", title: "the second character: i, t and m",
-        note: "`i` is the same key as the vowel; `t` is `e+Sp`, `m` is `e+Bk`.",
+        note: "`i` is the same key as the vowel; `t` is `i+Bk`, `m` is `e+Bk`.",
         items: &[Second(Second::I), Second(Second::RIU), Second(Second::RU)],
     },
     Lesson {
         name: "second-o-s-e", title: "the second character: o, s and e",
-        note: "`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `i+Bk`.",
+        note: "`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.",
         items: &[Second(Second::RXI), Second(Second::X), Second(Second::RX)],
     },
     Lesson {
         name: "second-rest", title: "the second character: w, c, u, p and n",
-        note: "`w` is `Sp+Bk`, `c` is `e+i+Sp`, `u` is `i+Sp` as for the vowel, `p` is \
-               `e+i+Bk`, `n` is `e+Sp+Bk`.",
+        note: "`w` is `e+i+Bk`, `c` is `e+i+Sp`, `u` is `i+Sp` as for the vowel, `p` is \
+               `Sp+Bk`, `n` is `e+Sp+Bk`.",
         items: &[Second(Second::XI), Second(Second::XIU), Second(Second::U), Second(Second::IU), Second(Second::XU)],
     },
     Lesson {
@@ -153,7 +153,10 @@ const LESSONS: &[Lesson] = &[
         name: "silent-e", title: "the mirrored vowel and the silent e",
         note: "With no vowel on the right hand and a real coda, a second character that \
                is also a vowel supplies the nucleus, and the stroke appends a silent `e` \
-               and ends the word: `time`, `tone`, `tame`.",
+               and ends the word: `time`, `tone`, `tame`.  Each vowel is its right-hand chord: `a` \
+               is `Sp`, `ea` is `e+Sp`, and so on.  The exception is `o`, which is `e+i+Bk`, \
+               the right hand's ending `o`, because `e+i` on the left is already the plain \
+               second character `o`.",
         items: &[Rule(rules::MIRRORED)],
     },
     Lesson {
@@ -165,7 +168,7 @@ const LESSONS: &[Lesson] = &[
     },
     Lesson {
         name: "h-after-p-w-r", title: "w reads as h after p, w and r",
-        note: "The second character `w` (`Sp+Bk`) spells `h` after an onset ending in \
+        note: "The second character `w` (`e+i+Bk`) spells `h` after an onset ending in \
                `p`, `w` or `r`: `ph`, `wh`, `rh`.",
         items: &[Rule(rules::XI_H)],
     },

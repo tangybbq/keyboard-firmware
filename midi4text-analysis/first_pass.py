@@ -56,10 +56,19 @@ SERIES3 = {
 }
 
 # Series 2 keeps the vowel chords wherever it means the same vowel, so a chord
-# reads the same on either hand; the consonants fill in by frequency.  R and RI
-# are the two commonest and take the remaining single keys.
-SERIES2_FIXED = {"X": "e", "I": "i", "RXI": "ei", "U": "iSp",
-                 "R": "Bk", "RI": "Sp"}
+# reads the same on either hand.  That covers each pattern's mirrored vowel as
+# well as its plain reading: R is r, but also the mirrored a, so it takes a's
+# chord.  Two patterns read as o, the plain RXI and the mirrored XI; RXI is
+# four times as common and takes o's chord, and XI takes the ending o, which
+# fits, since the mirrored form ends the word.
+SERIES2_VOWELS = {"R": "Sp", "X": "e", "I": "i", "RXI": "ei", "U": "iSp",
+                  "RX": "eSp", "XI": "eiBk"}
+
+# The consonants the vowels leave in place keep their chords, and RI, the
+# commonest pure consonant, takes the one single key left.  The rest fill in
+# by frequency.
+SERIES2_FIXED = {**SERIES2_VOWELS,
+                 "RI": "Bk", "RU": "eBk", "XIU": "eiSp", "XU": "eSpBk"}
 
 
 def series2_map(freq):
@@ -131,12 +140,20 @@ def main():
         print(f"  {ident:>6}  {chord:<7} {chord + END_MARKER:<8} {note}")
 
     print("\nINNER FOUR, left hand -- Series 2, the second character")
-    print("  Mostly consonants, not vowels.  Where Series 2 does mean a vowel it")
-    print("  keeps the Series 3 chord, so e, i, o and u read alike on both hands.\n")
+    print("  Mostly consonants, not vowels.  Where Series 2 does mean a vowel,")
+    print("  plainly or mirrored, it keeps the Series 3 chord, so the vowels")
+    print("  read alike on both hands.\n")
     print(f"  {'spells':>6}  {'chord':<7} note")
     for pat, _ in f2.most_common():
-        same = {"X": "e", "I": "i", "RXI": "o", "U": "u"}.get(pat)
-        note = f"same chord as vowel {same}" if same else ""
+        vowel = theory.MIRRORED_VOWEL.get(pat)
+        if pat == "RXI":
+            note = "same chord as vowel o"
+        elif pat == "XI":
+            note = "mirrored o: same chord as ending o"
+        elif vowel:
+            note = f"mirrored {vowel}: same chord as vowel {vowel}"
+        else:
+            note = ""
         print(f"  {theory.SECOND[pat]:>6}  {s2map[pat]:<7} {note}")
 
 

@@ -131,8 +131,8 @@ key 2125 KeyPress(H, Mods(0x0))
 key 2125 KeyRelease
 key 2125 KeyPress(E, Mods(0x0))
 key 2125 KeyRelease
-stroke 2260 [o+s+Sp-e+i+Sp] spread=70 dead
-stroke 2367 [o+s+Sp-Sp] spread=42 text "pla" before=1 after=0
+stroke 2260 [o+s+Bk-e+i+Sp] spread=70 dead
+stroke 2367 [o+s+Bk-Sp] spread=42 text "pla" before=1 after=0
 key 2367 KeyPress(Space, Mods(0x0))
 key 2367 KeyRelease
 key 2367 KeyPress(P, Mods(0x0))

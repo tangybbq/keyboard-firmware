@@ -61,20 +61,27 @@ Six of the thirteen Series 2 patterns have a second reading, as a vowel:
 
 | Series 2 spells | also reads as |
 |---|---|
-| `r` (`Bk`) | `a` |
+| `r` (`Sp`) | `a` |
 | `i` (`i`) | `i` |
 | `s` (`e`) | `e` |
-| `e` (`iBk`) | `ea` |
-| `w` (`SpBk`) | `o` |
+| `e` (`eSp`) | `ea` |
+| `w` (`eiBk`) | `o` |
 | `u` (`iSp`) | `u` |
 
 The second reading switches on when **Series 3 is empty and Series 4 has a real coda**.
 The stroke then spells onset + that vowel + coda + a silent `e`, and the vowel is the same
 chord it would be on the right hand, so there is nothing extra to learn.
 
+The one exception is `o`. Two Series 2 patterns read as `o`: the plain second character
+`o`, which binds like any other (`for`, `go`, `you`, `good`), and the mirrored `o` on the
+pattern that otherwise spells `w`. Only one can have the right hand's `ei`, and the plain
+`o` is four times as common (4.3% of strokes against 1.0%), so it keeps `ei`, and the
+mirrored `o` takes `eiBk`, the right hand's *ending* `o`. That is still a chord the right
+hand already knows, and the `Bk` fits: the mirrored form closes the word.
+
     life  =  sti-ot   l (st) + i (index, read as the vowel) + f (ot) + silent e
     time  =  ti-aon   t + i + m + silent e
-    name  =  nBk-aon  n + a (Bk, read as the vowel) + m + silent e
+    name  =  nSp-aon  n + a (Sp, read as the vowel) + m + silent e
 
 This is what makes the `CvCe` words one stroke each, and they are among the commonest in
 English: `time`, `name`, `home`, `like`, `date`, `use`, `site`, `price`, `there`. 1,196 of
@@ -84,7 +91,8 @@ the 10k corpus use it.
 counterpart, so a mirrored stroke can only be the last of a word. `life` is one stroke as
 a word and cannot be the first stroke of `lifestyle`.
 
-This is the one place the layout ends a word without pressing `Bk`, and it is the reason
+This is the one place the layout ends a word without the right hand's `Bk` (the `Bk` in
+the mirrored `o` is the left hand's, and is part of the vowel), and it is the reason
 `lifestyle` divides as `lif|est|yle`. See the gaps below.
 
 ## Design rules
@@ -96,7 +104,9 @@ This is the one place the layout ends a word without pressing `Bk`, and it is th
    member is the commoner one plus the pinky: d = t + pinky, b = p + pinky, g = c + pinky,
    v = f + pinky, z = s + pinky, sh = ch + pinky.
 3. **One vowel, one chord, either hand.** Series 2 keeps the Series 3 chord wherever it
-   means the same vowel, so `e`, `i`, `o` and `u` read identically on both hands.
+   means the same vowel, plainly or as a mirrored vowel, so `a`, `e`, `i`, `o`, `u` and
+   `ea` read identically on both hands. The mirrored `o` is the one exception, and uses
+   the ending `o`.
 
 The pinky is not avoided — with only the lower pinky key present it is not a weak
 position, so chords are scored purely by frequency times size.
@@ -152,23 +162,24 @@ INNER FOUR, right hand -- Series 3, the vowel
       ou  eiSp    eiSpBk   = o + u
 
 INNER FOUR, left hand -- Series 2, the second character
-  Mostly consonants, not vowels.  Where Series 2 does mean a vowel it
-  keeps the Series 3 chord, so e, i, o and u read alike on both hands.
+  Mostly consonants, not vowels.  Where Series 2 does mean a vowel,
+  plainly or mirrored, it keeps the Series 3 chord, so the vowels
+  read alike on both hands.
 
   spells  chord   note
-       r  Bk      
-       l  Sp      
-       i  i       same chord as vowel i
-       t  eSp     
+       r  Sp      mirrored a: same chord as vowel a
+       l  Bk      
+       i  i       mirrored i: same chord as vowel i
+       t  iBk     
        m  eBk     
        o  ei      same chord as vowel o
-       s  e       same chord as vowel e
-       e  iBk     
-       w  SpBk    
+       s  e       mirrored e: same chord as vowel e
+       e  eSp     mirrored ea: same chord as vowel ea
+       w  eiBk    mirrored o: same chord as ending o
        c  eiSp    
-       u  iSp     same chord as vowel u
-       p  eiBk    
-       n  eSpBk   
+       u  iSp     mirrored u: same chord as vowel u
+       p  SpBk    
+       n  eSpBk
 ```
 
 ## What it costs

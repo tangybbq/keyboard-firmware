@@ -87,7 +87,7 @@ A host-only example in `bbq-orsy`, `lessons`, that prints lesson word lists as m
 a set of patterns; a word belongs to the lesson that completes its cheapest division.
 Every word is printed with its strokes in key names:
 
-    dream    d+r | ea+m      at+Bk  -  eSp+aon
+    dream    d+r | ea+m      at+Sp  -  eSp+aon
 
 This needs one new piece of logic, **`bbq_orsy::write(word)`**: the fewest-stroke division
 of a word, ties broken by fewest keys, a port of `m4t/writer.py`'s DP over
