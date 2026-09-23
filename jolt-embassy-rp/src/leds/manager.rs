@@ -30,6 +30,9 @@
 //! really supported -- the boards in use all have four -- but it is what falls out, rather than a
 //! panic.
 //!
+//! Which LED shows what, when, is `bbq_keyboard::indicator`, shared with any other firmware that
+//! shows the same thing; this module is only the colors.
+//!
 //! The one thing besides the modifiers is the layout mode, and it is shown underneath them rather
 //! than on an LED of its own, as the color an LED falls back to when its modifier is not held.
 //! Taipo, whichever chord table it is on, keeps the dark board it has always had; Orsy lights all
@@ -38,6 +41,7 @@
 //! be read as, and that is worth a whole board's worth of light.  Modifiers still paint over it,
 //! so a modifier held in Orsy reads as its own color against the three white ones.
 
+use bbq_keyboard::indicator::{Indicator, Level};
 use bbq_keyboard::{LayoutMode, Mods};
 use heapless::Vec;
 use smart_leds::RGB8;
@@ -46,35 +50,16 @@ use super::{LedSet, MAX_LEDS};
 
 const OFF: RGB8 = RGB8::new(0, 0, 0);
 
-/// What one LED shows.
-struct ModLed {
-    /// The modifier this LED is about.
-    modifier: Mods,
-    /// Its color while held.  Latched adds [`LATCH`] to this.
-    color: RGB8,
-}
-
-/// The LEDs, in the order they appear on the board.
+/// Each LED's color while its modifier is held, in the order they appear on the board.  Latched
+/// adds [`LATCH`] to this.
 ///
-/// `Mods` bit order, which is also the order to change if the physical arrangement wants a
-/// different one: this table is the whole mapping.
-static MOD_LEDS: [ModLed; 4] = [
-    ModLed {
-        modifier: Mods::CONTROL,
-        color: RGB8::new(0, 3, 0), // green
-    },
-    ModLed {
-        modifier: Mods::SHIFT,
-        color: RGB8::new(8, 0, 0), // red
-    },
-    ModLed {
-        modifier: Mods::ALT,
-        color: RGB8::new(0, 0, 24), // blue
-    },
-    ModLed {
-        modifier: Mods::GUI,
-        color: RGB8::new(3, 3, 0), // yellow
-    },
+/// The LEDs are in `Mods` bit order (control, shift, alt, GUI), which is what
+/// `bbq_keyboard::indicator` assigns them.
+static MOD_LEDS: [RGB8; 4] = [
+    RGB8::new(0, 3, 0),  // green: control
+    RGB8::new(8, 0, 0),  // red: shift
+    RGB8::new(0, 0, 24), // blue: alt
+    RGB8::new(3, 3, 0),  // yellow: GUI
 ];
 
 /// Added to a lit LED while its modifier is latched.
@@ -114,12 +99,8 @@ pub struct LedManager {
     /// What is currently displayed, kept so [`Self::tick`] can rewrite it.
     colors: Vec<RGB8, MAX_LEDS>,
 
-    /// What the mode wants an LED with nothing else to show to be.
-    base: RGB8,
-
-    /// The modifier state, kept because a mode change has to redraw it.
-    oneshot: Mods,
-    sticky: Mods,
+    /// The mode and modifier state, and what each LED should show for it.
+    indicator: Indicator,
 }
 
 impl LedManager {
@@ -132,9 +113,7 @@ impl LedManager {
         LedManager {
             leds,
             colors,
-            base: OFF,
-            oneshot: Mods::empty(),
-            sticky: Mods::empty(),
+            indicator: Indicator::new(),
         }
     }
 
@@ -143,36 +122,40 @@ impl LedManager {
     /// The layout tells us the mode on its first tick as well as on every change, so this is not
     /// waiting on the user to do something before the board is honest about which mode it is in.
     pub fn set_mode(&mut self, mode: LayoutMode) {
-        self.base = match mode {
-            #[cfg(feature = "orsy")]
-            LayoutMode::Orsy => MODE_ORSY,
-            _ => OFF,
-        };
+        self.indicator.set_mode(mode);
         self.render();
     }
 
     /// Show the modifier state.
     ///
     /// `oneshot` is every modifier held and `sticky` the subset of those that survives a
-    /// keypress; `sticky` is always a subset, so a latched modifier is tested for first.
+    /// keypress.
     pub fn set_mods(&mut self, oneshot: Mods, sticky: Mods) {
-        self.oneshot = oneshot;
-        self.sticky = sticky;
+        self.indicator.set_mods(oneshot, sticky);
         self.render();
     }
 
     /// Redraw from the mode and modifier state.
     fn render(&mut self) {
-        for (color, led) in self.colors.iter_mut().zip(&MOD_LEDS) {
-            *color = if !self.oneshot.contains(led.modifier) {
-                self.base
-            } else if self.sticky.contains(led.modifier) {
-                add(led.color, LATCH)
-            } else {
-                led.color
+        let mode = self.mode_color();
+        for (slot, (color, held)) in self.colors.iter_mut().zip(&MOD_LEDS).enumerate() {
+            *color = match self.indicator.level(slot) {
+                Level::Off => OFF,
+                Level::Mode => mode,
+                Level::Held => *held,
+                Level::Latched => add(*held, LATCH),
             };
         }
         self.set_state();
+    }
+
+    /// The color of an LED showing the mode.
+    fn mode_color(&self) -> RGB8 {
+        match self.indicator.mode() {
+            #[cfg(feature = "orsy")]
+            Some(LayoutMode::Orsy) => MODE_ORSY,
+            _ => OFF,
+        }
     }
 
     /// Rewrite the LEDs with what they are already showing.

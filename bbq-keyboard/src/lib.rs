@@ -22,6 +22,7 @@ pub use layout::LayoutMode;
 #[cfg(feature = "steno")]
 pub mod dict;
 pub mod boardinfo;
+pub mod indicator;
 pub mod keys;
 pub mod ser2;
 pub mod serialize;
