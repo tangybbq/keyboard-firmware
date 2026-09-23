@@ -427,13 +427,7 @@ impl LayoutManager {
         self.qwerty.tick(actions, ticks).await;
 
         self.taipo.tick(actions, ticks, self.mode.is_steno()).await;
-
-        // The Orsy chord in the Dosh table.  Only from taipo mode: through
-        // the taipo latch in steno mode it is nothing.
-        #[cfg(feature = "orsy")]
-        if self.taipo.take_orsy_request() && self.mode.get() == LayoutMode::Taipo {
-            self.enter_orsy(actions).await;
-        }
+        self.check_orsy_request(actions).await;
 
         // Inform the upper layer what our initial mode is.
         if self.first_tick {
@@ -498,6 +492,17 @@ impl LayoutManager {
         }
 
         self.mode.after_event(actions, next).await;
+    }
+
+    /// Switch to Orsy if the taipo engine has seen the Orsy chord.
+    async fn check_orsy_request<ACT: LayoutActions>(&mut self, actions: &ACT) {
+        // The Orsy chord in the Dosh table.  Only from taipo mode: through
+        // the taipo latch in steno mode it is nothing.
+        #[cfg(feature = "orsy")]
+        if self.taipo.take_orsy_request() && self.mode.get() == LayoutMode::Taipo {
+            self.enter_orsy(actions).await;
+        }
+        let _ = actions;
     }
 
     /// Switch to Orsy, from taipo mode.

@@ -267,7 +267,14 @@ impl TaipoManager {
         self.sides[0].tick(&mut self.keys, ticks);
         self.sides[1].tick(&mut self.keys, ticks);
 
-        // After polling, handle any events.
+        self.process(actions, is_steno).await;
+    }
+
+    /// Act on the chord events that have been queued: look each chord up and
+    /// type it, then report any change in the modifiers being held.
+    ///
+    /// `is_steno` is as for [`tick`](Self::tick).
+    pub async fn process<ACT: LayoutActions>(&mut self, actions: &ACT, is_steno: bool) {
         while let Some(tevent) = self.keys.pop_front() {
             //info!("ev: p:{}, code:{:x}, sten:{:?}, lat:{}", tevent.is_press, tevent.code, is_steno,
             //      self.taipo_latch);
