@@ -61,13 +61,21 @@ public enum OrsyMnemonic {
             }
             return nil
         case "s2":
-            // Series 2 keeps the vowel's chord wherever it means the same vowel, which is
-            // the one thing about the left hand's inner four that transfers.
+            // Series 2 keeps the vowel's chord wherever it means the same vowel, plainly
+            // or as a mirrored vowel, which is the one thing about the left hand's inner
+            // four that transfers.  The mirrored o is on the ending o, since the plain o
+            // has the plain chord.
             guard let second = tables.second.first(where: { $0.michela == name }),
-                let vowel = tables.vowel.first(where: { $0.bits == second.bits }),
-                vowel.text == second.spells
+                let vowel = tables.vowel.first(where: { $0.bits == second.bits })
             else { return nil }
-            return "same chord as the vowel \(vowel.text)"
+            let form = vowel.endsWord ? "ending" : "vowel"
+            if vowel.text == second.spells {
+                return "same chord as the \(form) \(vowel.text)"
+            }
+            if vowel.text == second.mirroredVowel {
+                return "mirrored \(vowel.text): same chord as the \(form) \(vowel.text)"
+            }
+            return nil
         default:
             return nil
         }

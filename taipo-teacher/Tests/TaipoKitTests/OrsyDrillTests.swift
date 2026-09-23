@@ -359,6 +359,11 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertTrue(of("s3:ue")?.hasPrefix("e + Bk") ?? false)
         // And ea is e plus a.
         XCTAssertTrue(of("s3:ea")?.hasPrefix("e + a") ?? false)
+        // A second character on a vowel's chord says so, whether it spells the vowel or
+        // only reads as it when mirrored.
+        XCTAssertTrue(of("s2:RXI")?.hasPrefix("same chord as the vowel o") ?? false)
+        XCTAssertTrue(of("s2:R")?.hasPrefix("mirrored a: same chord as the vowel a") ?? false)
+        XCTAssertTrue(of("s2:XI")?.hasPrefix("mirrored o: same chord as the ending o") ?? false)
         // A rule has no mnemonic to derive.
         XCTAssertNil(of("rule:mirrored"))
     }
