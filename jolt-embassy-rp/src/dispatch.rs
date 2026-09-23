@@ -66,7 +66,7 @@ impl Dispatch {
     ) -> &'static Dispatch {
         // The LEDs come up dark, and stay that way until Taipo reports a
         // modifier being held.
-        let leds = Mutex::new(LedManager::new(board.leds));
+        let leds = Mutex::new(LedManager::new(board.leds, board.mode_display));
 
         // The layout is present, as long as we aren't the passive side.
         let layout = if board.inter.is_active() {
@@ -127,16 +127,17 @@ async fn active_uart_task(dispatch: &'static Dispatch, act: &'static crate::inte
     }
 }
 
-/// Run the layout's timers.
+/// Run the layout's timers, and the end of the LEDs' mode flash.
 ///
 /// The layout only needs time to pass while a timer is running, which is only
-/// while a chord is being built, so this sleeps until the layout's deadline,
-/// or indefinitely if it has none.  A key event can create, move or remove the
-/// deadline, so every event signals `layout_wake`, and the loop throws away
-/// what it was waiting on and asks again.  The deadline is only ever read under
-/// the lock, never carried across a wait, so the loop can't act on an old one.
-/// A spurious wake does no harm: the layout's timers only fire once their time
-/// is up.
+/// while a chord is being built, and the LEDs only while a mode flash is
+/// showing.  So this sleeps until the sooner of the two deadlines, or
+/// indefinitely if there is none.  A key event can create, move or remove
+/// either one (the flash starts when the layout sets the mode), so every event
+/// signals `layout_wake`, and the loop throws away what it was waiting on and
+/// asks again.  The deadlines are only ever read under their locks, never
+/// carried across a wait, so the loop can't act on an old one.  A spurious
+/// wake does no harm: the timers only fire once their time is up.
 #[embassy_executor::task]
 async fn layout_loop(dispatch: &'static Dispatch) -> ! {
     // The layout should always be set if we're runing.
@@ -146,7 +147,13 @@ async fn layout_loop(dispatch: &'static Dispatch) -> ! {
     layout.lock().await.wake(Instant::now().as_millis(), dispatch).await;
 
     loop {
-        let deadline = layout.lock().await.deadline();
+        let deadline = match (
+            layout.lock().await.deadline(),
+            dispatch.leds.lock().await.flash_deadline(),
+        ) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
         let due = async {
             match deadline {
                 Some(deadline) => Timer::at(Instant::from_millis(deadline)).await,
@@ -156,7 +163,9 @@ async fn layout_loop(dispatch: &'static Dispatch) -> ! {
 
         match select(due, dispatch.layout_wake.wait()).await {
             Either::First(()) => {
-                layout.lock().await.wake(Instant::now().as_millis(), dispatch).await;
+                let now = Instant::now().as_millis();
+                layout.lock().await.wake(now, dispatch).await;
+                dispatch.leds.lock().await.wake(now);
             }
             // An event may have moved the deadline; go round and read it again.
             Either::Second(()) => (),
@@ -315,7 +324,7 @@ impl LayoutActions for Dispatch {
     async fn set_mode(&self, mode: LayoutMode) {
         keylog::log_marker(Marker::Mode, mode.marker());
 
-        self.leds.lock().await.set_mode(mode);
+        self.leds.lock().await.set_mode(mode, Instant::now().as_millis());
 
         // Steno output is buffered briefly before being typed.  Leaving steno mode, get it out
         // now, rather than having it appear in the middle of what is typed next.  Signalling with

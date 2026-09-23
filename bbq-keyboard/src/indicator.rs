@@ -11,8 +11,30 @@
 //! The slot count follows the hardware and is not fixed here.  A slot past
 //! the last modifier only ever shows the mode image, and a board with fewer
 //! slots than modifiers shows the leading ones.
+//!
+//! How long the mode image shows is the [`ModeDisplay`]: always, or only for a
+//! moment after the mode changes.  The second is for a battery-powered board,
+//! where no state may keep an LED lit indefinitely.  The indicator keeps no
+//! time; the caller schedules [`Indicator::end_flash`] for [`MODE_FLASH_MS`]
+//! after [`Indicator::set_mode`] says a flash has started.
 
 use crate::{LayoutMode, Mods};
+
+/// How long a mode flash lasts, in milliseconds.
+pub const MODE_FLASH_MS: u64 = 1000;
+
+/// When the mode's image is shown.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ModeDisplay {
+    /// Always, under the modifiers.  Only Orsy has an image, so Taipo is
+    /// dark.
+    Steady,
+    /// Only for [`MODE_FLASH_MS`] after the mode is set, including the
+    /// initial announcement, and dark the rest of the time, apart from held
+    /// modifiers.  Every mode has an image, as a switch that shows nothing
+    /// looks the same as one that didn't happen.
+    Flash,
+}
 
 /// What one slot shows.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -29,6 +51,9 @@ pub enum Level {
 
 /// The state the indicator shows: the mode and the Taipo modifiers.
 pub struct Indicator {
+    display: ModeDisplay,
+    /// A mode flash is showing.
+    flashing: bool,
     /// The layout mode, or `None` until the layout has announced it.
     mode: Option<LayoutMode>,
     /// Every modifier held.
@@ -37,16 +62,12 @@ pub struct Indicator {
     sticky: Mods,
 }
 
-impl Default for Indicator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Indicator {
     /// An indicator with nothing to show yet.
-    pub const fn new() -> Self {
+    pub const fn new(display: ModeDisplay) -> Self {
         Indicator {
+            display,
+            flashing: false,
             mode: None,
             oneshot: Mods::empty(),
             sticky: Mods::empty(),
@@ -54,8 +75,25 @@ impl Indicator {
     }
 
     /// Show the layout mode.
-    pub fn set_mode(&mut self, mode: LayoutMode) {
+    ///
+    /// Returns true if this starts a flash, or restarts one already showing,
+    /// in which case the caller should call [`end_flash`](Self::end_flash)
+    /// [`MODE_FLASH_MS`] from now.  That is every call with
+    /// [`ModeDisplay::Flash`], and never with [`ModeDisplay::Steady`].
+    pub fn set_mode(&mut self, mode: LayoutMode) -> bool {
         self.mode = Some(mode);
+        self.flashing = self.display == ModeDisplay::Flash;
+        self.flashing
+    }
+
+    /// End the mode flash, if one is showing.
+    pub fn end_flash(&mut self) {
+        self.flashing = false;
+    }
+
+    /// Whether a mode flash is showing.
+    pub fn flashing(&self) -> bool {
+        self.flashing
     }
 
     /// The mode last set, if any.
@@ -85,7 +123,12 @@ impl Indicator {
                 };
             }
         }
-        let image = self.mode.map_or(0, mode_image);
+        let image = match (self.mode, self.display) {
+            (None, _) => 0,
+            (Some(mode), ModeDisplay::Steady) => steady_image(mode),
+            (Some(mode), ModeDisplay::Flash) if self.flashing => flash_image(mode),
+            (Some(_), ModeDisplay::Flash) => 0,
+        };
         if slot < 32 && image & (1 << slot) != 0 {
             Level::Mode
         } else {
@@ -105,16 +148,31 @@ fn slot_modifier(slot: usize) -> Option<Mods> {
     Mods::from_bits(bit)
 }
 
-/// The slots a mode lights when no modifier is in the way, as a mask.
+/// The slots a mode lights when no modifier is in the way, as a mask, for
+/// [`ModeDisplay::Steady`].
 ///
 /// Taipo, whichever chord table it is on, is dark.  Orsy lights everything:
 /// Orsy and Dosh are the same keys and produce the same kind of output, so
 /// nothing else says which one a chord is about to be read as.
-fn mode_image(mode: LayoutMode) -> u32 {
+fn steady_image(mode: LayoutMode) -> u32 {
     match mode {
         #[cfg(feature = "orsy")]
         LayoutMode::Orsy => !0,
         _ => 0,
+    }
+}
+
+/// The slots a mode lights during a flash, for [`ModeDisplay::Flash`].
+///
+/// Provisional: which slots each mode should light depends on the wireless
+/// board's LEDs, which aren't settled.  All this has to do for now is make
+/// every mode visible and tell Orsy from Taipo: Orsy lights everything as it
+/// does when steady, and every other mode lights the first slot.
+fn flash_image(mode: LayoutMode) -> u32 {
+    match mode {
+        #[cfg(feature = "orsy")]
+        LayoutMode::Orsy => !0,
+        _ => 1,
     }
 }
 
@@ -127,7 +185,7 @@ mod test {
     /// Each modifier lights its own slot, and only that one.
     #[test]
     fn test_modifier_slots() {
-        let mut ind = Indicator::new();
+        let mut ind = Indicator::new(ModeDisplay::Steady);
         ind.set_mode(LayoutMode::Taipo);
         for (slot, &modifier) in MODS.iter().enumerate() {
             ind.set_mods(modifier, Mods::empty());
@@ -142,7 +200,7 @@ mod test {
     /// A sticky modifier is latched; the others held stay held.
     #[test]
     fn test_latched_over_held() {
-        let mut ind = Indicator::new();
+        let mut ind = Indicator::new(ModeDisplay::Steady);
         ind.set_mode(LayoutMode::Taipo);
         ind.set_mods(Mods::SHIFT | Mods::ALT, Mods::ALT);
         assert_eq!(
@@ -154,7 +212,7 @@ mod test {
     /// Nothing shows before the layout announces its mode, and Taipo is dark.
     #[test]
     fn test_dark() {
-        let mut ind = Indicator::new();
+        let mut ind = Indicator::new(ModeDisplay::Steady);
         assert_eq!(ind.levels(), [Level::Off; 4]);
         ind.set_mode(LayoutMode::Taipo);
         assert_eq!(ind.levels(), [Level::Off; 4]);
@@ -164,7 +222,7 @@ mod test {
     #[cfg(feature = "orsy")]
     #[test]
     fn test_modifiers_over_mode() {
-        let mut ind = Indicator::new();
+        let mut ind = Indicator::new(ModeDisplay::Steady);
         ind.set_mode(LayoutMode::Orsy);
         assert_eq!(ind.levels(), [Level::Mode; 4]);
         ind.set_mods(Mods::CONTROL | Mods::GUI, Mods::GUI);
@@ -175,6 +233,58 @@ mod test {
         // A slot with no modifier of its own only ever shows the mode.
         assert_eq!(ind.level(4), Level::Mode);
         assert_eq!(ind.level(100), Level::Off);
+    }
+
+    /// A flash shows the mode's image, and ends when told to, leaving the
+    /// board dark.
+    #[test]
+    fn test_flash() {
+        let mut ind = Indicator::new(ModeDisplay::Flash);
+        assert_eq!(ind.levels(), [Level::Off; 4]);
+        assert!(ind.set_mode(LayoutMode::Taipo));
+        assert!(ind.flashing());
+        assert_eq!(ind.levels(), [Level::Mode, Level::Off, Level::Off, Level::Off]);
+        ind.end_flash();
+        assert!(!ind.flashing());
+        assert_eq!(ind.levels(), [Level::Off; 4]);
+        // Ending a flash that isn't showing does nothing.
+        ind.end_flash();
+        assert_eq!(ind.levels(), [Level::Off; 4]);
+    }
+
+    /// Modifiers are drawn over a flash, and stay once it has ended.
+    #[test]
+    fn test_modifiers_over_flash() {
+        let mut ind = Indicator::new(ModeDisplay::Flash);
+        ind.set_mode(LayoutMode::Taipo);
+        ind.set_mods(Mods::CONTROL | Mods::SHIFT, Mods::SHIFT);
+        assert_eq!(ind.levels(), [Level::Held, Level::Latched, Level::Off, Level::Off]);
+        ind.end_flash();
+        assert_eq!(ind.levels(), [Level::Held, Level::Latched, Level::Off, Level::Off]);
+    }
+
+    /// Every mode change starts a flash, including one during a flash, which
+    /// shows the new mode.  Orsy flashes every slot, and is dark after.
+    #[cfg(feature = "orsy")]
+    #[test]
+    fn test_flash_restarts() {
+        let mut ind = Indicator::new(ModeDisplay::Flash);
+        assert!(ind.set_mode(LayoutMode::Taipo));
+        assert!(ind.set_mode(LayoutMode::Orsy));
+        assert!(ind.flashing());
+        assert_eq!(ind.levels(), [Level::Mode; 4]);
+        ind.end_flash();
+        assert_eq!(ind.levels(), [Level::Off; 4]);
+        assert!(ind.set_mode(LayoutMode::Orsy));
+        assert_eq!(ind.levels(), [Level::Mode; 4]);
+    }
+
+    /// A steady indicator never flashes.
+    #[test]
+    fn test_steady_never_flashes() {
+        let mut ind = Indicator::new(ModeDisplay::Steady);
+        assert!(!ind.set_mode(LayoutMode::Taipo));
+        assert!(!ind.flashing());
     }
 
     /// The rule jolt-embassy-rp's `LedManager::render` used before this
@@ -220,7 +330,7 @@ mod test {
                     if !oneshot.contains(sticky) {
                         continue;
                     }
-                    let mut ind = Indicator::new();
+                    let mut ind = Indicator::new(ModeDisplay::Steady);
                     ind.set_mode(mode);
                     ind.set_mods(oneshot, sticky);
                     assert_eq!(

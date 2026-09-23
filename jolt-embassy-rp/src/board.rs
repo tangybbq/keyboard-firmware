@@ -3,6 +3,7 @@
 //! This module initializes all of the various hardware devices used by the keyboard firmware, as
 //! appropriate for the board information we have determined.
 
+use bbq_keyboard::indicator::ModeDisplay;
 use bbq_keyboard::{boardinfo::BoardInfo, KeyAction, KeyEvent, Side};
 use embassy_executor::SendSpawner;
 use embassy_rp::Peripherals;
@@ -31,7 +32,7 @@ mod jolt3 {
         Irqs,
     };
 
-    use super::{Board, UsbHandler};
+    use super::{Board, ModeDisplay, UsbHandler};
 
     // Split up the periperals for each init.
     struct MatrixResources {
@@ -95,6 +96,7 @@ mod jolt3 {
             inter: Inter::ActiveI2C(key_chan.receiver()),
             usb: Some(usb),
             two_row: false,
+            mode_display: ModeDisplay::Steady,
         }
     }
 
@@ -134,6 +136,7 @@ mod jolt3 {
             inter: Inter::PassiveI2C(passive),
             usb: None,
             two_row: false,
+            mode_display: ModeDisplay::Steady,
         }
     }
 
@@ -225,7 +228,7 @@ mod jolt2 {
     use crate::{inter_uart::InterPassive, leds::LedSet, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
-    use super::{Board, Inter};
+    use super::{Board, ModeDisplay, Inter};
 
     // Split up the peripherals.
     struct MatrixResources {
@@ -266,6 +269,7 @@ mod jolt2 {
             inter: Inter::PassiveUart(uart),
             usb: None,
             two_row: false,
+            mode_display: ModeDisplay::Steady,
         }
     }
 
@@ -357,7 +361,7 @@ mod jolt2dir {
     use crate::{inter_uart::InterActive, leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
-    use super::{Board, Inter, UsbHandler};
+    use super::{Board, ModeDisplay, Inter, UsbHandler};
 
     /// The PIO instance that drives the RGB LEDs.
     type RgbPIO = peripherals::PIO0;
@@ -412,6 +416,7 @@ mod jolt2dir {
             inter: Inter::ActiveUart(uart),
             usb: Some(usb),
             two_row: false,
+            mode_display: ModeDisplay::Steady,
         }
     }
 
@@ -540,7 +545,7 @@ mod proto4 {
     use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
-    use super::{Board, Inter, UsbHandler};
+    use super::{Board, ModeDisplay, Inter, UsbHandler};
 
     /// The PIO instance that drives the RGB LEDs.
     type RgbPIO = peripherals::PIO0;
@@ -590,6 +595,7 @@ mod proto4 {
             inter: Inter::None,
             usb: Some(usb),
             two_row: true,
+            mode_display: ModeDisplay::Steady,
         }
     }
 
@@ -684,7 +690,7 @@ mod mesa1 {
     use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
-    use super::{Board, Inter, UsbHandler};
+    use super::{Board, ModeDisplay, Inter, UsbHandler};
 
     /// The PIO instance that drives the RGB LEDs.
     type RgbPIO = peripherals::PIO0;
@@ -735,6 +741,7 @@ mod mesa1 {
             inter: Inter::None,
             usb: Some(usb),
             two_row: true,
+            mode_display: ModeDisplay::Steady,
         }
     }
 
@@ -836,7 +843,7 @@ mod mesa2 {
     use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
-    use super::{Board, Inter, UsbHandler};
+    use super::{Board, ModeDisplay, Inter, UsbHandler};
 
     /// The PIO instance that drives the RGB LEDs.
     type RgbPIO = peripherals::PIO0;
@@ -886,6 +893,7 @@ mod mesa2 {
             inter: Inter::None,
             usb: Some(usb),
             two_row: true,
+            mode_display: ModeDisplay::Steady,
         }
     }
 
@@ -1000,7 +1008,7 @@ mod mesa3 {
     use crate::{leds::{led_strip::{LedStripGroup, LedStripHandle}, LedSet}, matrix::Matrix, Irqs};
     use crate::logging::unwrap;
 
-    use super::{Board, Inter, UsbHandler};
+    use super::{Board, ModeDisplay, Inter, UsbHandler};
 
     /// The PIO instance that drives the RGB LEDs.
     type RgbPIO = peripherals::PIO0;
@@ -1053,6 +1061,7 @@ mod mesa3 {
             inter: Inter::None,
             usb: Some(usb),
             two_row: true,
+            mode_display: ModeDisplay::Steady,
         }
     }
 
@@ -1167,6 +1176,10 @@ pub struct Board {
     /// Is this a 2-row keyboard?  These have fewer keys, and select modes differently, with the
     /// upper-left key acting as the "Fn" key.
     pub two_row: bool,
+    /// When the LEDs show the layout mode: always, or only in a flash after it changes.  Every
+    /// board here is USB powered and keeps the steady display; a board can be switched to
+    /// `ModeDisplay::Flash` to try out what a battery-powered board would show.
+    pub mode_display: ModeDisplay,
 }
 
 impl Board {

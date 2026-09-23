@@ -33,6 +33,11 @@
 //! Which LED shows what, when, is `bbq_keyboard::indicator`, shared with any other firmware that
 //! shows the same thing; this module is only the colors.
 //!
+//! A board can instead show the mode only in a short flash when it changes
+//! (`ModeDisplay::Flash`), which is what a battery-powered board will do, as nothing may keep an
+//! LED lit indefinitely there.  Every board here keeps the steady display described above; the
+//! flash is here so it can be tried.
+//!
 //! The one thing besides the modifiers is the layout mode, and it is shown underneath them rather
 //! than on an LED of its own, as the color an LED falls back to when its modifier is not held.
 //! Taipo, whichever chord table it is on, keeps the dark board it has always had; Orsy lights all
@@ -41,7 +46,7 @@
 //! be read as, and that is worth a whole board's worth of light.  Modifiers still paint over it,
 //! so a modifier held in Orsy reads as its own color against the three white ones.
 
-use bbq_keyboard::indicator::{Indicator, Level};
+use bbq_keyboard::indicator::{Indicator, Level, ModeDisplay, MODE_FLASH_MS};
 use bbq_keyboard::{LayoutMode, Mods};
 use heapless::Vec;
 use smart_leds::RGB8;
@@ -74,7 +79,9 @@ static MOD_LEDS: [RGB8; 4] = [
 /// on.
 const LATCH: RGB8 = RGB8::new(4, 4, 4);
 
-/// The background for Orsy: every LED that has no modifier to show, white.
+/// An LED showing the mode, white.  In Orsy, with the steady display, that is every LED that has
+/// no modifier to show, for as long as Orsy is on; with the mode flash, it is the mode's image,
+/// for a moment.
 ///
 /// Equal channels, like [`LATCH`], because that is what actually looks white on these parts.
 /// Summing the three balanced primaries is the version of this that reasons from their numbers,
@@ -90,8 +97,7 @@ const LATCH: RGB8 = RGB8::new(4, 4, 4);
 ///
 /// It sits well below the held modifiers, which leaves a modifier in Orsy the brightest thing on
 /// the board rather than a dim patch in a white field.
-#[cfg(feature = "orsy")]
-const MODE_ORSY: RGB8 = RGB8::new(1, 1, 1);
+const MODE: RGB8 = RGB8::new(1, 1, 1);
 
 pub struct LedManager {
     leds: LedSet,
@@ -101,10 +107,13 @@ pub struct LedManager {
 
     /// The mode and modifier state, and what each LED should show for it.
     indicator: Indicator,
+
+    /// When the mode flash showing should end, in `Instant` milliseconds.
+    flash_until: Option<u64>,
 }
 
 impl LedManager {
-    pub fn new(mut leds: LedSet) -> Self {
+    pub fn new(mut leds: LedSet, display: ModeDisplay) -> Self {
         // Written once here rather than waiting for the first modifier: after a soft reset the
         // ws2812s hold whatever the last run left in them.
         let colors: Vec<RGB8, MAX_LEDS> = core::iter::repeat(OFF).take(leds.len()).collect();
@@ -113,7 +122,8 @@ impl LedManager {
         LedManager {
             leds,
             colors,
-            indicator: Indicator::new(),
+            indicator: Indicator::new(display),
+            flash_until: None,
         }
     }
 
@@ -121,9 +131,28 @@ impl LedManager {
     ///
     /// The layout tells us the mode on its first tick as well as on every change, so this is not
     /// waiting on the user to do something before the board is honest about which mode it is in.
-    pub fn set_mode(&mut self, mode: LayoutMode) {
-        self.indicator.set_mode(mode);
+    ///
+    /// `now` is the time in `Instant` milliseconds, from which a mode flash is timed.  The caller
+    /// has to wake [`Self::wake`] at [`Self::flash_deadline`], which this may have moved.
+    pub fn set_mode(&mut self, mode: LayoutMode, now: u64) {
+        if self.indicator.set_mode(mode) {
+            self.flash_until = Some(now + MODE_FLASH_MS);
+        }
         self.render();
+    }
+
+    /// When [`Self::wake`] next has to be called, if ever: the end of the mode flash showing.
+    pub fn flash_deadline(&self) -> Option<u64> {
+        self.flash_until
+    }
+
+    /// End the mode flash, if it is due.  Waking early does nothing.
+    pub fn wake(&mut self, now: u64) {
+        if self.flash_until.is_some_and(|until| until <= now) {
+            self.flash_until = None;
+            self.indicator.end_flash();
+            self.render();
+        }
     }
 
     /// Show the modifier state.
@@ -150,12 +179,10 @@ impl LedManager {
     }
 
     /// The color of an LED showing the mode.
+    ///
+    /// The same for every mode: which LEDs are lit is what tells them apart.
     fn mode_color(&self) -> RGB8 {
-        match self.indicator.mode() {
-            #[cfg(feature = "orsy")]
-            Some(LayoutMode::Orsy) => MODE_ORSY,
-            _ => OFF,
-        }
+        MODE
     }
 
     /// Rewrite the LEDs with what they are already showing, if they need it.
