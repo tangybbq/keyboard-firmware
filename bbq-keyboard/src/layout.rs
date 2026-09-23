@@ -25,6 +25,9 @@ mod qwerty;
 #[cfg(feature = "steno")]
 mod steno;
 pub mod taipo;
+pub mod timed;
+
+pub use self::timed::TimedLayout;
 
 /// The taipo chord window, exposed so that tests can time their chords against
 /// the same value the layout uses.
