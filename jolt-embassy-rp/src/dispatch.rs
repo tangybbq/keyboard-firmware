@@ -4,30 +4,28 @@
 //! protected using Atomic or Mutexes.
 
 use bbq_keyboard::layout::taipo::TaipoVariant;
-use bbq_keyboard::layout::{LayoutActions, LayoutManager};
+use bbq_keyboard::layout::{LayoutActions, LayoutManager, TimedLayout};
 #[cfg(feature = "steno")]
 use bbq_keyboard::steno_delay::StenoDelay;
 #[cfg(feature = "steno")]
 use bbq_keyboard::usb_typer::{enqueue_action, ActionHandler};
 #[cfg(feature = "steno")]
 use bbq_keyboard::{Event, Keyboard};
-use bbq_keyboard::{KeyAction, LayoutMode, MinorMode, Mods};
+use bbq_keyboard::{KeyAction, KeyEvent, LayoutMode, MinorMode, Mods};
 #[cfg(feature = "steno")]
 use bbq_steno::dict::Joined;
 #[cfg(feature = "steno")]
 use bbq_steno::Stroke;
 use embassy_executor::SendSpawner;
+use embassy_futures::select::{select, Either};
 #[cfg(feature = "steno")]
 use embassy_futures::select::{select3, Either3};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 #[cfg(feature = "steno")]
 use embassy_sync::channel::{Receiver, Sender};
 use embassy_sync::mutex::Mutex;
-#[cfg(feature = "steno")]
 use embassy_sync::signal::Signal;
-use embassy_time::{Duration, Ticker};
-#[cfg(feature = "steno")]
-use embassy_time::{Instant, Timer};
+use embassy_time::{Duration, Instant, Ticker, Timer};
 use minder::keylog::Marker;
 use static_cell::StaticCell;
 
@@ -40,7 +38,10 @@ use crate::{board::Board, matrix::MatrixAction};
 
 pub struct Dispatch {
     leds: Mutex<CriticalSectionRawMutex, LedManager>,
-    layout: Option<Mutex<CriticalSectionRawMutex, LayoutManager>>,
+    layout: Option<Mutex<CriticalSectionRawMutex, TimedLayout>>,
+    /// Tells `layout_loop` that a key event may have moved the layout's
+    /// deadline.
+    layout_wake: Signal<CriticalSectionRawMutex, ()>,
     inter: Inter,
     usb: Option<UsbHandler>,
     #[cfg(feature = "steno")]
@@ -69,7 +70,10 @@ impl Dispatch {
 
         // The layout is present, as long as we aren't the passive side.
         let layout = if board.inter.is_active() {
-            Some(Mutex::new(LayoutManager::new(board.two_row)))
+            Some(Mutex::new(TimedLayout::new(
+                LayoutManager::new(board.two_row),
+                Instant::now().as_millis(),
+            )))
         } else {
             None
         };
@@ -78,6 +82,7 @@ impl Dispatch {
         let this = THIS.init(Dispatch {
             leds,
             layout,
+            layout_wake: Signal::new(),
             inter: board.inter,
             usb: board.usb,
             #[cfg(feature = "steno")]
@@ -132,16 +137,40 @@ async fn active_uart_task(dispatch: &'static Dispatch, act: &'static crate::inte
     }
 }
 
+/// Run the layout's timers.
+///
+/// The layout only needs time to pass while a timer is running, which is only
+/// while a chord is being built, so this sleeps until the layout's deadline,
+/// or indefinitely if it has none.  A key event can create, move or remove the
+/// deadline, so every event signals `layout_wake`, and the loop throws away
+/// what it was waiting on and asks again.  The deadline is only ever read under
+/// the lock, never carried across a wait, so the loop can't act on an old one.
+/// A spurious wake does no harm: the layout's timers only fire once their time
+/// is up.
 #[embassy_executor::task]
 async fn layout_loop(dispatch: &'static Dispatch) -> ! {
-    // The layout timeouts are all in milliseconds, so tick at that rate to keep
-    // them from being quantized.
-    let mut ticker = Ticker::every(Duration::from_millis(1));
     // The layout should always be set if we're runing.
     let layout = dispatch.layout.as_ref().unwrap();
+
+    // Announces the initial mode.
+    layout.lock().await.wake(Instant::now().as_millis(), dispatch).await;
+
     loop {
-        ticker.next().await;
-        layout.lock().await.tick(dispatch, 1).await;
+        let deadline = layout.lock().await.deadline();
+        let due = async {
+            match deadline {
+                Some(deadline) => Timer::at(Instant::from_millis(deadline)).await,
+                None => core::future::pending().await,
+            }
+        };
+
+        match select(due, dispatch.layout_wake.wait()).await {
+            Either::First(()) => {
+                layout.lock().await.wake(Instant::now().as_millis(), dispatch).await;
+            }
+            // An event may have moved the deadline; go round and read it again.
+            Either::Second(()) => (),
+        }
     }
 }
 
@@ -243,19 +272,35 @@ async fn active_task(dispatch: &'static Dispatch, chan: KeyChannel) -> ! {
         let event = chan.receive().await;
         // The remote half's keys arrive here rather than through `handle_key`.
         keylog::log_key(event.key(), event.is_press());
-        layout.lock().await.handle_event(event, dispatch).await;
+        dispatch.layout_event(layout, event).await;
+    }
+}
+
+impl Dispatch {
+    /// Give a key event to the layout, and let `layout_loop` know that its
+    /// deadline may have moved.
+    ///
+    /// Every event has to go through here: an event that doesn't signal can
+    /// leave `layout_loop` asleep past a chord's deadline.
+    async fn layout_event(&self, layout: &Mutex<CriticalSectionRawMutex, TimedLayout>, event: KeyEvent) {
+        layout
+            .lock()
+            .await
+            .handle_event(event, Instant::now().as_millis(), self)
+            .await;
+        self.layout_wake.signal(());
     }
 }
 
 impl MatrixAction for Dispatch {
-    async fn handle_key(&self, event: bbq_keyboard::KeyEvent) {
+    async fn handle_key(&self, event: KeyEvent) {
         // info!("Matrix Key: {:?}", event);
         if let Some(layout) = &self.layout {
             // Logged before the layout sees it, and timestamped here rather than in
             // `bbq-keyboard`, which stays time-free and no_std.  This is the local half; the
             // remote half's keys come through `active_task`.
             keylog::log_key(event.key(), event.is_press());
-            layout.lock().await.handle_event(event, self).await
+            self.layout_event(layout, event).await
         } else if let Inter::PassiveI2C(passive) = &self.inter {
             passive.update(event).await;
         } else if let Inter::PassiveUart(passive_uart) = &self.inter {
