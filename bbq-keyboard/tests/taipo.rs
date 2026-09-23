@@ -633,6 +633,24 @@ fn test_quick_tap() {
     script.run();
 }
 
+/// A chord is typed by the event that finishes it, with no tick in between:
+/// the release of a tap, or a press on the other hand ending a held chord.
+#[test]
+fn test_typed_without_tick() {
+    let mut script = Script::taipo();
+
+    script.press(LEFT, A).tick(5).idle();
+    script.release(LEFT, A).types(Keyboard::A);
+
+    // The right hand starting commits the left chord.
+    script.press(LEFT, S | N).tick(5).idle();
+    script.press(RIGHT, A).presses(Keyboard::P, Mods::empty());
+    script.release(LEFT, S | N).releases();
+    script.release(RIGHT, A).types(Keyboard::A);
+
+    script.run();
+}
+
 /// Multi-key chords, including ones that only differ by the row.
 #[test]
 fn test_chords() {
@@ -1304,6 +1322,28 @@ fn test_steno_taipo_latch() {
         .presses(Keyboard::A, Mods::empty());
     script.release(LEFT, A).tick(1).releases();
     script.release_scan(TAIPO_KEY).tick(1).idle();
+
+    script.run();
+}
+
+/// A chord typed through the taipo latch is typed while still in steno mode,
+/// by the release that finishes it.  The mode only changes on a solo tap of
+/// the taipo key, which has no chord to type.
+#[test]
+fn test_steno_latch_then_switch() {
+    let mut script = Script::steno_taipo();
+
+    script.press_scan(TAIPO_KEY);
+    script.press(LEFT, A).tick(5).idle();
+    script.release(LEFT, A).types(Keyboard::A);
+    script.release_scan(TAIPO_KEY).idle();
+
+    script
+        .press_scan(TAIPO_KEY)
+        .release_scan(TAIPO_KEY)
+        .mode(LayoutMode::Taipo)
+        .idle();
+    script.tap(LEFT, A).types(Keyboard::A);
 
     script.run();
 }

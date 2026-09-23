@@ -491,6 +491,13 @@ impl LayoutManager {
             }
         }
 
+        // Type whatever the event finished, in the mode it was delivered in,
+        // rather than leaving it for the next tick.  In practice nothing is
+        // queued across a steno/taipo switch below, as that is a solo tap of a
+        // taipo key, which the taipo engine never makes a chord of.
+        self.taipo.process(actions, self.mode.is_steno()).await;
+        self.check_orsy_request(actions).await;
+
         self.mode.after_event(actions, next).await;
     }
 
@@ -576,9 +583,9 @@ impl LayoutManager {
                 }
             }
             orsy::Escape::Dosh(side, code) => {
-                // The taipo engine types it on the next tick, with its
-                // modifier handling and all, on the hand it was struck on,
-                // though the Dosh table is the same on both.
+                // The taipo engine types it once the event has been routed,
+                // with its modifier handling and all, on the hand it was
+                // struck on, though the Dosh table is the same on both.
                 self.taipo.inject_chord(side, code);
 
                 // What the Dosh chord does to the text the output stage is

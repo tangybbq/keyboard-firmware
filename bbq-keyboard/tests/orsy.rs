@@ -363,7 +363,7 @@ fn test_punctuation() {
 }
 
 /// The one-shot escape plays the right hand's chord through the Dosh table,
-/// on the next tick, and the layout stays in Orsy.
+/// and the layout stays in Orsy.
 #[test]
 fn test_dosh_oneshot() {
     let mut t = Tester::new();
@@ -378,6 +378,19 @@ fn test_dosh_oneshot() {
     assert_eq!(t.typed(), ".");
     t.stroke(ten());
     assert_eq!(t.typed(), " Ten");
+}
+
+/// The escaped chord is typed by the release that finishes the stroke, with
+/// no tick after it.
+#[test]
+fn test_dosh_oneshot_without_tick() {
+    let mut t = Tester::new();
+    let (left, right) = (commands::DOSH_ONESHOT, dosh_chord(','));
+    t.press(Side::Left, left);
+    t.press(Side::Right, right);
+    t.release(Side::Left, left);
+    t.release(Side::Right, right);
+    assert_eq!(t.typed(), ",");
 }
 
 /// A backspace played through the escape is taken off the output stage's
@@ -426,6 +439,18 @@ fn test_dosh_toggle() {
     assert_eq!(t.drain(), vec![Actions::SetMode(LayoutMode::Orsy)]);
     t.stroke(ten());
     assert_eq!(t.typed(), "ten");
+}
+
+/// The Orsy chord in Dosh switches as soon as it is released, with no tick
+/// after it.
+#[test]
+fn test_dosh_toggle_without_tick() {
+    let mut t = Tester::new();
+    t.stroke((commands::DOSH_TOGGLE, 0));
+    assert_eq!(t.drain(), vec![Actions::SetMode(LayoutMode::Taipo)]);
+    t.press(Side::Right, commands::DOSH_TOGGLE);
+    t.release(Side::Right, commands::DOSH_TOGGLE);
+    assert_eq!(t.drain(), vec![Actions::SetMode(LayoutMode::Orsy)]);
 }
 
 /// Toggling from the taipo table lands in Dosh, and says so.

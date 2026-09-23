@@ -236,8 +236,9 @@ impl TaipoManager {
     ///
     /// For the Orsy one-shot escape, which plays a Dosh chord through this
     /// engine so that it gets the same modifier handling as any other.  The
-    /// chord is typed on the next tick.  Nothing is reported through
-    /// `taipo_chord`: it was not a chord this engine assembled.
+    /// chord is typed by the next [`process`](Self::process), which the layout
+    /// manager runs once the event has been routed.  Nothing is reported
+    /// through `taipo_chord`: it was not a chord this engine assembled.
     #[cfg(feature = "orsy")]
     pub fn inject_chord(&mut self, side: Side, code: u16) {
         let _ = self.keys.push_back(TaipoEvent {
@@ -349,8 +350,9 @@ impl TaipoManager {
                 #[cfg(feature = "orsy")]
                 Some(Entry { action: Action::Orsy, .. }) => {
                     // Gated the way the variant chords are.  The layout
-                    // manager does the switching, on its tick; nothing is
-                    // typed, so the chord's release does nothing.
+                    // manager does the switching once this has been
+                    // processed; nothing is typed, so the chord's release
+                    // does nothing.
                     if self.active(is_steno) {
                         self.orsy_request = true;
                     }
@@ -404,7 +406,7 @@ impl TaipoManager {
     ///
     /// Characters the key table has no key for are skipped.  Sequences want to
     /// be short: every character is a report on a queue that drains at one per
-    /// millisecond, so a long one would stall the tick it is sent from.
+    /// millisecond, so a long one would stall the layout while it is sent.
     async fn type_text<ACT: LayoutActions>(
         &mut self,
         actions: &ACT,
@@ -826,9 +828,10 @@ mod test_side_manager {
     }
 
     /// The event queue is fixed size, and events that don't fit are silently
-    /// discarded.  In practice the queue is drained every tick, and a tick can
-    /// only produce a couple of events per side, so this only matters if key
-    /// events arrive much faster than the layout is ticked.
+    /// discarded.  In practice the queue is drained after every key event and
+    /// tick, each of which only produces a couple of events per side, so this
+    /// can't happen in the layout; it is only reachable by driving a side
+    /// directly, as this does.
     #[test]
     fn test_event_queue_overflow() {
         let mut tester = Tester::new();
@@ -1018,10 +1021,10 @@ struct TaipoEvent {
 
 /// A queue of events recorded.
 ///
-/// The queue is drained on every tick.  Between ticks, each side can add a
-/// release for a rolled-over chord, and a press and release for the chord that
-/// replaced it, so this is generously sized; events that don't fit are silently
-/// dropped.
+/// The queue is drained after every key event and every tick, so it only ever
+/// holds what one of those produces: at most a release for a rolled-over chord
+/// and a press and release for the chord that replaced it, on each side.  This
+/// is generously sized for that; events that don't fit are silently dropped.
 type TaipoEvents = ArrayDeque<TaipoEvent, 16>;
 
 /// Mapping between scan codes, and Taipo codes.  Taipo codes are a 10 number,
