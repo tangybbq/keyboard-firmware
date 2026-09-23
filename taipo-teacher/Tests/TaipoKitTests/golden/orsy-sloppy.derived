@@ -68,81 +68,81 @@ key 878 KeyPress(A, Mods(0x0))
 key 878 KeyRelease
 key 878 KeyPress(L, Mods(0x0))
 key 878 KeyRelease
-stroke 957 [Sp-s] spread=14 text "ls" before=0 after=1
-key 957 KeyPress(L, Mods(0x0))
-key 957 KeyRelease
-key 957 KeyPress(S, Mods(0x0))
-key 957 KeyRelease
-stroke 1092 [a+o+n+i-s+i] spread=70 text "mais" before=1 after=0
-key 1092 KeyPress(Space, Mods(0x0))
-key 1092 KeyRelease
-key 1092 KeyPress(M, Mods(0x0))
-key 1092 KeyRelease
-key 1092 KeyPress(A, Mods(0x0))
-key 1092 KeyRelease
-key 1092 KeyPress(I, Mods(0x0))
-key 1092 KeyRelease
-key 1092 KeyPress(S, Mods(0x0))
-key 1092 KeyRelease
-stroke 1199 [i+Sp+Bk-Sp] spread=42 dosh 0x100
-key 1199 KeyPress(DeleteBackspace, Mods(0x0))
-key 1199 KeyRelease
-stroke 1306 [i+Sp+Bk-Sp] spread=42 dosh 0x100
-key 1306 KeyPress(DeleteBackspace, Mods(0x0))
-key 1306 KeyRelease
-stroke 1413 [i+Sp+Bk-Sp] spread=42 dosh 0x100
-key 1413 KeyPress(DeleteBackspace, Mods(0x0))
-key 1413 KeyRelease
-stroke 1520 [i+Sp+Bk-Sp] spread=42 dosh 0x100
-key 1520 KeyPress(DeleteBackspace, Mods(0x0))
-key 1520 KeyRelease
-stroke 1627 [i+Sp+Bk-Sp] spread=42 dosh 0x100
-key 1627 KeyPress(DeleteBackspace, Mods(0x0))
-key 1627 KeyRelease
-stroke 1762 [a+o+n+i-n+i] spread=70 text "main" before=1 after=0
-key 1762 KeyPress(Space, Mods(0x0))
-key 1762 KeyRelease
-key 1762 KeyPress(M, Mods(0x0))
-key 1762 KeyRelease
-key 1762 KeyPress(A, Mods(0x0))
-key 1762 KeyRelease
-key 1762 KeyPress(I, Mods(0x0))
-key 1762 KeyRelease
-key 1762 KeyPress(N, Mods(0x0))
-key 1762 KeyRelease
-stroke 1883 [Sp-a+n+i+Bk] spread=56 text "ly" before=1 after=1
-key 1883 KeyPress(L, Mods(0x0))
-key 1883 KeyRelease
-key 1883 KeyPress(Y, Mods(0x0))
-key 1883 KeyRelease
-stroke 1990 [-e+n+i+Bk] spread=42 text "on" before=1 after=1
-key 1990 KeyPress(Space, Mods(0x0))
-key 1990 KeyRelease
-key 1990 KeyPress(O, Mods(0x0))
-key 1990 KeyRelease
-key 1990 KeyPress(N, Mods(0x0))
-key 1990 KeyRelease
-stroke 2097 [o+n-e+Bk] spread=42 text "the" before=1 after=1
-key 2097 KeyPress(Space, Mods(0x0))
-key 2097 KeyRelease
-key 2097 KeyPress(T, Mods(0x0))
-key 2097 KeyRelease
-key 2097 KeyPress(H, Mods(0x0))
-key 2097 KeyRelease
-key 2097 KeyPress(E, Mods(0x0))
-key 2097 KeyRelease
-stroke 2232 [o+s+Sp-e+i+Sp] spread=70 dead
-stroke 2339 [o+s+Sp-Sp] spread=42 text "pla" before=1 after=0
-key 2339 KeyPress(Space, Mods(0x0))
-key 2339 KeyRelease
-key 2339 KeyPress(P, Mods(0x0))
-key 2339 KeyRelease
-key 2339 KeyPress(L, Mods(0x0))
-key 2339 KeyRelease
-key 2339 KeyPress(A, Mods(0x0))
-key 2339 KeyRelease
-stroke 2432 [-n+i+Bk] spread=28 text "in" before=1 after=1
-key 2432 KeyPress(I, Mods(0x0))
-key 2432 KeyRelease
-key 2432 KeyPress(N, Mods(0x0))
-key 2432 KeyRelease
+stroke 971 [t+s-s] spread=28 text "ls" before=0 after=1
+key 971 KeyPress(L, Mods(0x0))
+key 971 KeyRelease
+key 971 KeyPress(S, Mods(0x0))
+key 971 KeyRelease
+stroke 1106 [a+o+n+i-s+i] spread=70 text "mais" before=1 after=0
+key 1106 KeyPress(Space, Mods(0x0))
+key 1106 KeyRelease
+key 1106 KeyPress(M, Mods(0x0))
+key 1106 KeyRelease
+key 1106 KeyPress(A, Mods(0x0))
+key 1106 KeyRelease
+key 1106 KeyPress(I, Mods(0x0))
+key 1106 KeyRelease
+key 1106 KeyPress(S, Mods(0x0))
+key 1106 KeyRelease
+stroke 1213 [i+Sp+Bk-Sp] spread=42 dosh 0x100
+key 1213 KeyPress(DeleteBackspace, Mods(0x0))
+key 1213 KeyRelease
+stroke 1320 [i+Sp+Bk-Sp] spread=42 dosh 0x100
+key 1320 KeyPress(DeleteBackspace, Mods(0x0))
+key 1320 KeyRelease
+stroke 1427 [i+Sp+Bk-Sp] spread=42 dosh 0x100
+key 1427 KeyPress(DeleteBackspace, Mods(0x0))
+key 1427 KeyRelease
+stroke 1534 [i+Sp+Bk-Sp] spread=42 dosh 0x100
+key 1534 KeyPress(DeleteBackspace, Mods(0x0))
+key 1534 KeyRelease
+stroke 1641 [i+Sp+Bk-Sp] spread=42 dosh 0x100
+key 1641 KeyPress(DeleteBackspace, Mods(0x0))
+key 1641 KeyRelease
+stroke 1776 [a+o+n+i-n+i] spread=70 text "main" before=1 after=0
+key 1776 KeyPress(Space, Mods(0x0))
+key 1776 KeyRelease
+key 1776 KeyPress(M, Mods(0x0))
+key 1776 KeyRelease
+key 1776 KeyPress(A, Mods(0x0))
+key 1776 KeyRelease
+key 1776 KeyPress(I, Mods(0x0))
+key 1776 KeyRelease
+key 1776 KeyPress(N, Mods(0x0))
+key 1776 KeyRelease
+stroke 1911 [t+s-a+n+i+Bk] spread=70 text "ly" before=1 after=1
+key 1911 KeyPress(L, Mods(0x0))
+key 1911 KeyRelease
+key 1911 KeyPress(Y, Mods(0x0))
+key 1911 KeyRelease
+stroke 2018 [-e+n+i+Bk] spread=42 text "on" before=1 after=1
+key 2018 KeyPress(Space, Mods(0x0))
+key 2018 KeyRelease
+key 2018 KeyPress(O, Mods(0x0))
+key 2018 KeyRelease
+key 2018 KeyPress(N, Mods(0x0))
+key 2018 KeyRelease
+stroke 2125 [o+n-e+Bk] spread=42 text "the" before=1 after=1
+key 2125 KeyPress(Space, Mods(0x0))
+key 2125 KeyRelease
+key 2125 KeyPress(T, Mods(0x0))
+key 2125 KeyRelease
+key 2125 KeyPress(H, Mods(0x0))
+key 2125 KeyRelease
+key 2125 KeyPress(E, Mods(0x0))
+key 2125 KeyRelease
+stroke 2260 [o+s+Sp-e+i+Sp] spread=70 dead
+stroke 2367 [o+s+Sp-Sp] spread=42 text "pla" before=1 after=0
+key 2367 KeyPress(Space, Mods(0x0))
+key 2367 KeyRelease
+key 2367 KeyPress(P, Mods(0x0))
+key 2367 KeyRelease
+key 2367 KeyPress(L, Mods(0x0))
+key 2367 KeyRelease
+key 2367 KeyPress(A, Mods(0x0))
+key 2367 KeyRelease
+stroke 2460 [-n+i+Bk] spread=28 text "in" before=1 after=1
+key 2460 KeyPress(I, Mods(0x0))
+key 2460 KeyRelease
+key 2460 KeyPress(N, Mods(0x0))
+key 2460 KeyRelease
