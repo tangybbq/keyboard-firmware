@@ -255,13 +255,10 @@ impl TaipoManager {
         });
     }
 
-    /// Poll doesn't do anything.
-    pub fn poll(&mut self) {
-    }
-
-    /// Tick is needed to track time.
+    /// Let `ticks` milliseconds pass for the chord windows, and act on any
+    /// chord whose window runs out.
     ///
-    /// The tick also tracks whether we are in steno mode at the time.  In steno mode, everything
+    /// `is_steno` says whether we are in steno mode at the time.  In steno mode, everything
     /// works as before, except we don't actually send the resulting keys, unless the taipo modifier
     /// key is pressed.
     pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize, is_steno: bool) {

@@ -431,7 +431,11 @@ impl LayoutManager {
         self.taipo.set_variant(variant);
     }
 
-    // For now, just pass everything through.
+    /// Let `ticks` milliseconds pass, firing any timer that runs out.
+    ///
+    /// One call with a large `ticks` behaves the same as many small ones, so
+    /// the layout only needs ticking when [`next_tick`](Self::next_tick) says
+    /// so; [`TimedLayout`] does that from a clock.
     pub async fn tick<ACT: LayoutActions>(&mut self, actions: &ACT, ticks: usize) {
         #[cfg(feature = "steno")]
         self.raw.tick(ticks);
@@ -467,12 +471,6 @@ impl LayoutManager {
         #[cfg(feature = "qwerty")]
         let next = min_tick(next, self.qwerty.next_tick());
         next
-    }
-
-    pub fn poll(&mut self) {
-        #[cfg(feature = "steno")]
-        self.raw.poll();
-        self.taipo.poll();
     }
 
     /// Handle a single key event.

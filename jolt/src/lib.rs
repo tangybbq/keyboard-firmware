@@ -173,7 +173,6 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
             manager.handle_event(ev, &ACTION).await;
         }
         manager.tick(&ACTION, 1).await;
-        manager.poll();
         count += 1;
         if count % 30000 == 0 {
             printkln!("Keyboard task running: count={}", count);

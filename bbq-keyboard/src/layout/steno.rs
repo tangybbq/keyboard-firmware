@@ -52,10 +52,11 @@ impl RawStenoHandler {
         }
     }
 
-    // For now, we don't do anything with the tick, but it will be needed when
-    // trying to implement the hold modes.
+    // Raw steno has no timers, so there is nothing to do with the tick.  A
+    // timer added here, for hold modes say, also has to be counted in
+    // `LayoutManager::next_tick`, or it will only run when something else
+    // happens to be ticking the layout.
     pub fn tick(&mut self, _ticks: usize) {}
-    pub fn poll(&mut self) {}
 
     // Handle a single event.
     pub async fn handle_event<ACT: LayoutActions>(&mut self, event: KeyEvent, actions: &ACT) {
