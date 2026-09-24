@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.91"
-bbq-keyboard = { version = "0.1.0", path = "../bbq-keyboard", default-features = false, features = ["std", "proto3", "log"] }
+bbq-keyboard = { version = "0.1.0", path = "../bbq-keyboard", default-features = false, features = ["std", "proto3", "log", "orsy"] }
 clap = { version = "4.5.20", features = ["derive"] }

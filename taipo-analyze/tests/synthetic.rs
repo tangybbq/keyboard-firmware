@@ -327,19 +327,25 @@ fn test_corrections_carry_their_measured_cost() {
 /// Working the machine is not typing, and stays out of the ranking.
 #[test]
 fn test_the_ranking_is_only_of_chords_that_type() {
+    use bbq_keyboard::layout::dosh::DOSH_ACTIONS;
     use bbq_keyboard::layout::taipo::{Action, TAIPO_ACTIONS};
     use taipo_analyze::stats::{types_a_character, VariantKey};
 
-    for entry in TAIPO_ACTIONS {
-        let types = types_a_character(VariantKey::Taipo, entry.code);
-        match &entry.action {
-            Action::OneShot(_) | Action::Release | Action::Variant(_) => {
-                assert!(!types, "0x{:03x} is not typing", entry.code)
+    for (variant, table) in [
+        (VariantKey::Taipo, TAIPO_ACTIONS),
+        (VariantKey::Dosh, DOSH_ACTIONS),
+    ] {
+        for entry in table {
+            let types = types_a_character(variant, entry.code);
+            match &entry.action {
+                Action::OneShot(_) | Action::Release | Action::Variant(_) | Action::Orsy => {
+                    assert!(!types, "{variant:?} 0x{:03x} is not typing", entry.code)
+                }
+                Action::Text(_) => assert!(types, "{variant:?} 0x{:03x} types text", entry.code),
+                // Return, the arrows and the function keys have no character; the letters,
+                // the digits, the punctuation and space all do.
+                Action::Simple(_) | Action::Shifted(_) => (),
             }
-            Action::Text(_) => assert!(types, "0x{:03x} types text", entry.code),
-            // Return, the arrows and the function keys have no character; the letters,
-            // the digits, the punctuation and space all do.
-            Action::Simple(_) | Action::Shifted(_) => (),
         }
     }
     assert!(types_a_character(VariantKey::Taipo, 0x100), "space types");
