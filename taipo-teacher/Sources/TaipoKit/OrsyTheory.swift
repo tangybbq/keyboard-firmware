@@ -53,7 +53,9 @@ public enum OrsyOutcome: Equatable, Sendable {
     case space
     case capNext
     case doshToggle
-    /// The one-shot: this right-hand chord is played through the Dosh table.
+    /// The one-shot: this chord is played through the Dosh table.  It is on the right for
+    /// the chord form, and on either hand with an Fn key; the Dosh table is the same on
+    /// both, so the hand does not matter here.
     case dosh(UInt16)
     /// A mark that takes part in the spacing.
     case punct(Layouts.Orsy.Punctuation)
@@ -127,6 +129,25 @@ public final class OrsyTheory {
     }
 
     /// What a stroke is: a syllable, a command, a mark, or nothing.
+    /// What a stroke is, with the Fn keys that were struck in it.
+    /// `OrsyManager::outcome_with_fn` in the Rust.
+    ///
+    /// An Fn key alone is the toggle, and with keys on the other hand only is the
+    /// one-shot for that hand.  Anything else with an Fn key in it is dead, rather than
+    /// being read as though Fn were not there.
+    public func outcome(left: UInt16, right: UInt16, fnLeft: Bool, fnRight: Bool)
+        -> OrsyOutcome
+    {
+        switch (fnLeft, fnRight) {
+        case (false, false): return outcome(left: left, right: right)
+        case (true, true): return .dead
+        case _ where left == 0 && right == 0: return .doshToggle
+        case (true, false) where left == 0: return .dosh(right)
+        case (false, true) where right == 0: return .dosh(left)
+        default: return .dead
+        }
+    }
+
     public func outcome(left: UInt16, right: UInt16) -> OrsyOutcome {
         // A mark is a right-handed stroke on its own, the word-end marker plus outer keys.
         if left == 0, let mark = tables.punctuation.first(where: { $0.bits == right }) {

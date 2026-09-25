@@ -27,6 +27,21 @@ public struct Layouts: Decodable {
     /// of one-hand chord codes, and Orsy is a syllabic layout whose strokes are spelled by
     /// rule from a few dozen patterns.  See `OrsyTheory`.
     public let orsy: Orsy?
+    /// The key codes the layout manager handles itself.  Only the ones a reader needs are
+    /// decoded.
+    public let specialKeys: SpecialKeys?
+
+    public struct SpecialKeys: Decodable {
+        /// The mesa3b's Fn keys, which are keys of the stroke in Orsy.  Absent from an
+        /// export older than the mesa3b.
+        public let fnLeft: Int?
+        public let fnRight: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case fnLeft = "fn_left"
+            case fnRight = "fn_right"
+        }
+    }
 
     public struct Bit: Decodable {
         public let bit: Int
@@ -172,6 +187,7 @@ public struct Layouts: Decodable {
         case defaultVariant = "default_variant"
         case fingerprint, bits, variants, orsy
         case scanMap = "scan_map"
+        case specialKeys = "special_keys"
     }
 
     public static func load(from url: URL) throws -> Layouts {
@@ -198,6 +214,13 @@ public struct Layouts: Decodable {
     /// A chord code looked up in a variant's table.
     public func chord(_ code: UInt16, variant: String) -> Chord? {
         variants[variant]?.chords.first { $0.code == code }
+    }
+
+    /// The hand whose Fn key a key code is, or nil when it is not an Fn key.
+    public func fnKey(_ key: Int) -> Side? {
+        if key == specialKeys?.fnLeft { return .left }
+        if key == specialKeys?.fnRight { return .right }
+        return nil
     }
 
     /// The hand and chord bit a key code maps to, or nil for a key the layout ignores.

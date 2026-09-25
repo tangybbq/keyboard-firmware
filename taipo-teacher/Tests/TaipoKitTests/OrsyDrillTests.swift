@@ -571,4 +571,69 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(session.control(for: stroke(theory, 0x380, 0x300, at: 2000)), .restart)
         XCTAssertNil(session.control(for: stroke(theory, 0x004, 0x248, at: 2000)))
     }
+
+    /// Strike a chord on the stroke engine key by key, as the keyboard reports it: the
+    /// left hand's keys, then `fn` if there is one, then the right hand's, all down and
+    /// then all up in the same order.
+    private func strike(
+        _ engine: StrokeEngine, _ layouts: Layouts, left: UInt16, right: UInt16,
+        fn: Int? = nil, at ms: UInt32
+    ) throws -> Stroke? {
+        func keys(_ side: String, _ chord: UInt16) throws -> [Int] {
+            try (0..<10).filter { chord & (1 << $0) != 0 }.map { bit in
+                try XCTUnwrap(
+                    layouts.scanMap.upper.first { $0.side == side && $0.mask == 1 << bit }?.key)
+            }
+        }
+        let all = try keys("left", left) + (fn.map { [$0] } ?? []) + keys("right", right)
+        var done: Stroke?
+        for key in all {
+            XCTAssertNil(engine.feed(key: key, press: true, timeMs: ms, lowerRow: false))
+        }
+        for key in all {
+            if let s = engine.feed(key: key, press: false, timeMs: ms + 30, lowerRow: false) {
+                XCTAssertNil(done, "one chord, one stroke")
+                done = s
+            }
+        }
+        return done
+    }
+
+    /// An Fn key struck with Enter's Dosh chord on the other hand moves on, from either
+    /// hand, as the chord form does; alone it is the toggle; and with keys on its own hand
+    /// it is dead.
+    func testFnKeys() throws {
+        let (layouts, theory, words) = try fixtures()
+        let fnLeft = try XCTUnwrap(layouts.specialKeys?.fnLeft)
+        let fnRight = try XCTUnwrap(layouts.specialKeys?.fnRight)
+        let target = OrsyDrillTarget(text: "ten", words: words, theory: theory)
+        let session = OrsyDrillSession(target: target, theory: theory, layouts: layouts)
+        let engine = StrokeEngine(layouts: layouts, theory: theory)
+        let enter = try XCTUnwrap(
+            layouts.variants["dosh"]?.chords.first {
+                $0.action.kind == "key" && $0.action.key == "ReturnEnter"
+            }?.code)
+
+        let viaLeft = try XCTUnwrap(
+            strike(engine, layouts, left: 0, right: enter, fn: fnLeft, at: 1000))
+        XCTAssertEqual(viaLeft.outcome, .dosh(enter))
+        XCTAssertEqual(session.control(for: viaLeft), .next)
+
+        let viaRight = try XCTUnwrap(
+            strike(engine, layouts, left: enter, right: 0, fn: fnRight, at: 2000))
+        XCTAssertEqual(viaRight.outcome, .dosh(enter))
+        XCTAssertEqual(session.control(for: viaRight), .next)
+
+        // The chord form still works.
+        let chord = try XCTUnwrap(
+            strike(engine, layouts, left: 0x380, right: enter, at: 3000))
+        XCTAssertEqual(session.control(for: chord), .next)
+
+        let toggle = try XCTUnwrap(strike(engine, layouts, left: 0, right: 0, fn: fnLeft, at: 4000))
+        XCTAssertEqual(toggle.outcome, .doshToggle)
+
+        let dead = try XCTUnwrap(
+            strike(engine, layouts, left: enter, right: 0, fn: fnLeft, at: 5000))
+        XCTAssertEqual(dead.outcome, .dead)
+    }
 }

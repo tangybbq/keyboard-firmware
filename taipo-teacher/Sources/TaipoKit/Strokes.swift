@@ -35,6 +35,9 @@ public final class StrokeEngine {
     public let theory: OrsyTheory
     private var left: UInt16 = 0
     private var right: UInt16 = 0
+    /// The Fn keys held.  Keys of the stroke, but not chord bits, so kept apart.
+    private var fnLeft = false
+    private var fnRight = false
     /// Whether keys are being pressed (true) or released (false).
     private var pressing = true
     /// When each chord bit last went down, per hand.
@@ -50,22 +53,29 @@ public final class StrokeEngine {
     public func reset() {
         left = 0
         right = 0
+        fnLeft = false
+        fnRight = false
         pressing = true
     }
 
     /// Feed one key event, returning the stroke it completed, if any.
     public func feed(key: Int, press: Bool, timeMs: UInt32, lowerRow: Bool) -> Stroke? {
-        guard let (side, mask) = layouts.scan(key, lowerRow: lowerRow) else { return nil }
-        let handMask = theory.tables.outerMask | theory.tables.innerMask
-        // The upper pinky, which is not an Orsy key.
-        guard mask & handMask != 0 else { return nil }
-
-        let (heldLeft, heldRight) = (left, right)
-        if press {
-            pressedMs[side.index][mask.trailingZeroBitCount] = timeMs
-            if side == .left { left |= mask } else { right |= mask }
+        let held = (left: left, right: right, fnLeft: fnLeft, fnRight: fnRight)
+        if let side = layouts.fnKey(key) {
+            // An Fn key is a key of the stroke like any other, on the mesa3b.
+            if side == .left { fnLeft = press } else { fnRight = press }
         } else {
-            if side == .left { left &= ~mask } else { right &= ~mask }
+            guard let (side, mask) = layouts.scan(key, lowerRow: lowerRow) else { return nil }
+            let handMask = theory.tables.outerMask | theory.tables.innerMask
+            // The upper pinky, which is not an Orsy key.
+            guard mask & handMask != 0 else { return nil }
+
+            if press {
+                pressedMs[side.index][mask.trailingZeroBitCount] = timeMs
+                if side == .left { left |= mask } else { right |= mask }
+            } else {
+                if side == .left { left &= ~mask } else { right &= ~mask }
+            }
         }
 
         switch (press, pressing) {
@@ -75,8 +85,11 @@ public final class StrokeEngine {
             // The first release sends everything that was held.  A stroke of nothing can
             // only be a release left over from another mode.
             pressing = false
-            guard heldLeft != 0 || heldRight != 0 else { return nil }
-            return stroke(left: heldLeft, right: heldRight, at: timeMs)
+            guard held.left != 0 || held.right != 0 || held.fnLeft || held.fnRight
+            else { return nil }
+            return stroke(
+                left: held.left, right: held.right, fnLeft: held.fnLeft,
+                fnRight: held.fnRight, at: timeMs)
         case (true, false):
             pressing = true
             return nil
@@ -85,7 +98,9 @@ public final class StrokeEngine {
         }
     }
 
-    private func stroke(left: UInt16, right: UInt16, at time: UInt32) -> Stroke {
+    private func stroke(
+        left: UInt16, right: UInt16, fnLeft: Bool, fnRight: Bool, at time: UInt32
+    ) -> Stroke {
         var first = UInt32.max
         var last: UInt32 = 0
         for (side, code) in [(0, left), (1, right)] {
@@ -98,7 +113,7 @@ public final class StrokeEngine {
             timeMs: time, left: left, right: right,
             firstKeyMs: first == .max ? time : first,
             lastKeyMs: first == .max ? time : last,
-            outcome: theory.outcome(left: left, right: right))
+            outcome: theory.outcome(left: left, right: right, fnLeft: fnLeft, fnRight: fnRight))
     }
 
     /// The stroke rendered as the Rust replay renders it, so the golden files can be
