@@ -19,6 +19,8 @@
   ],
   "special_keys": {
     "mode": 2,
+    "fn_left": 48,
+    "fn_right": 49,
     "row_toggle": 0,
     "dosh_toggle": 1,
     "taipo_latch": [{ "key": 20, "bit": 1 }, { "key": 22, "bit": 4 }, { "key": 44, "bit": 2 }, { "key": 46, "bit": 8 }]

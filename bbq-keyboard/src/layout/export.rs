@@ -43,7 +43,7 @@ use crate::Mods;
 
 use super::dosh::DOSH_ACTIONS;
 use super::taipo::{Action, Entry, TaipoVariant, CHORD_TIME, SCAN_MAP, TAIPO_ACTIONS};
-use super::MODE_KEY;
+use super::{FN_LEFT, FN_RIGHT, MODE_KEY};
 #[cfg(feature = "proto3")]
 use super::{DOSH_TOGGLE_KEY, ROW_TOGGLE_KEY};
 
@@ -163,6 +163,9 @@ fn special_keys_json() -> String {
     let mut out = String::new();
     out.push_str("{\n");
     out.push_str(&format!("    \"mode\": {},\n", MODE_KEY));
+    // The mesa3b's Fn keys, which are part of the stroke in Orsy.
+    out.push_str(&format!("    \"fn_left\": {},\n", FN_LEFT));
+    out.push_str(&format!("    \"fn_right\": {},\n", FN_RIGHT));
     #[cfg(feature = "proto3")]
     {
         out.push_str(&format!("    \"row_toggle\": {},\n", ROW_TOGGLE_KEY));
