@@ -162,6 +162,33 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertTrue(early.due.isEmpty)
     }
 
+    /// Nothing new is unlocked while a review is due, and the ladder goes on once it
+    /// has been done.
+    func testDueReviewHoldsNewItems() throws {
+        let (_, theory, words) = try fixtures()
+        let today = 100
+        func model(looked: Bool) -> OrsySkillModel {
+            var skills = [String: PatternSkill]()
+            for key in words.lessons[0].items.flatMap({ $0 }) {
+                skills[key] = PatternSkill(
+                    name: key, count: 50, medianMs: 400, deleted: 0,
+                    retention: Retention(reached: today, box: 0))
+            }
+            var r = Retention(reached: today - 1)
+            if looked { for _ in 0..<3 { r.note(day: today, gap: 400, bad: false) { 400 } } }
+            skills["s3:e"] = PatternSkill(
+                name: "s3:e", count: 50, medianMs: 400, deleted: 0, retention: r)
+            return OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        }
+        let lessonOne = words.lessons[0].items.reduce(0) { $0 + $1.count }
+        let held = OrsyLadder(words: words, theory: theory, skill: model(looked: false), today: today)
+        XCTAssertEqual(held.due.map(\.key), ["s3:e"])
+        XCTAssertEqual(held.unlockedCount, lessonOne)
+        let after = OrsyLadder(words: words, theory: theory, skill: model(looked: true), today: today)
+        XCTAssertTrue(after.due.isEmpty)
+        XCTAssertGreaterThan(after.unlockedCount, lessonOne)
+    }
+
     /// An item that failed today's look takes the polishing place ahead of the slowest,
     /// though it is not due and its confidence is the best on the board.
     func testLapsedItemIsPractisedAgain() throws {

@@ -31,6 +31,12 @@ import Foundation
 /// one line is one look.  Once looked at an item is no longer due, the focus moves on,
 /// and the item being learned comes back.
 ///
+/// **Nothing new comes out while a review is due.**  New material on top of old that has
+/// not been checked is how the old gets lost, so the ladder stops at the next unreached
+/// item until the day's looks are done, as it does when `introduce` is off.  It holds
+/// for items that are due, not for ones that lapsed: a lapse has had its look, and
+/// holding for it would stop the ladder until tomorrow over one slip.
+///
 /// **A lapse gets practice the same day,** not only a look tomorrow.  An item that has
 /// just failed its look is not due -- it has been looked at -- and in the ranking by
 /// confidence it would have to wait its turn behind whatever is slowest, which for an
@@ -139,6 +145,13 @@ public struct OrsyLadder: Sendable {
         func reached(_ item: OrsyLadderItem, _ exercisable: Set<String>) -> Bool {
             !exercisable.contains(item.key) || skill.reached(item.key)
         }
+        /// Whether any of `unlocked` that a line could ask for is due a look.
+        func reviewing(_ unlocked: ArraySlice<OrsyLadderItem>, _ exercisable: Set<String>)
+            -> Bool
+        {
+            guard let today else { return false }
+            return unlocked.contains { exercisable.contains($0.key) && skill.due($0.key, on: today) }
+        }
 
         // Unlock while there is room: see `Ladder` for why the allowance is one less than
         // the focus set holds.  The pool grows with each unlock, so what counts as short
@@ -156,7 +169,11 @@ public struct OrsyLadder: Sendable {
             // pool would then ask for it and the writer has not reached it, so that is
             // where the ladder stops.  One the material cannot reach yet is not new in
             // any sense the writer would notice, and is stepped over as usual.
-            if !options.introduce, !reached(items[count], grown) { break }
+            if !options.introduce || reviewing(items.prefix(count), reach),
+                !reached(items[count], grown)
+            {
+                break
+            }
             count += 1
             reach = grown
         }
