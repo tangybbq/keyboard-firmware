@@ -282,6 +282,11 @@ public struct OrsySkillModel: Sendable {
         skills[name]?.retention?.overdue(on: today)
     }
 
+    /// Whether a pattern's last look was a lapse, as of `today`.
+    public func lapsed(_ name: String, on today: Int) -> Bool {
+        skills[name]?.retention?.settled(on: today).lapsed ?? false
+    }
+
     public func parts(_ name: String) -> SkillModel.Parts {
         guard let s = skills[name], s.count > 0 else {
             return SkillModel.Parts(exposure: 0, speed: 0, accuracy: 0)

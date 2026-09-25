@@ -162,6 +162,32 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertTrue(early.due.isEmpty)
     }
 
+    /// An item that failed today's look takes the polishing place ahead of the slowest,
+    /// though it is not due and its confidence is the best on the board.
+    func testLapsedItemIsPractisedAgain() throws {
+        let (_, theory, words) = try fixtures()
+        let today = 100
+        var skills = [String: PatternSkill]()
+        for key in words.lessons[0].items.flatMap({ $0 }) {
+            skills[key] = PatternSkill(
+                name: key, count: 50, medianMs: 2000, deleted: 0,
+                retention: Retention(reached: today - 1, box: 1))
+        }
+        // The vowel `i` was looked at today and slipped.
+        var lapsed = Retention(reached: today - 1)
+        for n in 0..<3 { lapsed.note(day: today, gap: 400, bad: n == 0) { 400 } }
+        XCTAssertTrue(lapsed.lapsed)
+        skills["s3:i"] = PatternSkill(
+            name: "s3:i", count: 50, medianMs: 400, deleted: 0, retention: lapsed)
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let ladder = OrsyLadder(words: words, theory: theory, skill: model, today: today)
+        XCTAssertTrue(ladder.due.isEmpty)
+        XCTAssertTrue(ladder.focus.contains { $0.key == "s3:i" }, "\(ladder.focus)")
+        // Without the day, it is ranked by its confidence and loses the place.
+        let undated = OrsyLadder(words: words, theory: theory, skill: model)
+        XCTAssertFalse(undated.focus.contains { $0.key == "s3:i" })
+    }
+
     /// A line works the reading the ladder is waiting on: with the coda `s` known and the
     /// onset not, every line has a word with an onset `s`.
     func testLinesDrillTheWeakReading() throws {

@@ -31,6 +31,12 @@ import Foundation
 /// one line is one look.  Once looked at an item is no longer due, the focus moves on,
 /// and the item being learned comes back.
 ///
+/// **A lapse gets practice the same day,** not only a look tomorrow.  An item that has
+/// just failed its look is not due -- it has been looked at -- and in the ranking by
+/// confidence it would have to wait its turn behind whatever is slowest, which for an
+/// item that was fast yesterday may be never.  So a lapsed item takes the polishing
+/// place ahead of the others, until a look passes it again.
+///
 /// Nothing is stored: the unlocked set is a pure function of `OrsySkillModel`, and the
 /// day it is asked on.
 
@@ -178,6 +184,14 @@ public struct OrsyLadder: Sendable {
         for i in eligible
         where chosen.count < options.focus && !skill.reached(out[i].key) && !chosen.contains(i) {
             chosen.append(i)
+        }
+        if let today {
+            for i in eligible
+            where chosen.count < options.focus && skill.lapsed(out[i].key, on: today)
+                && !chosen.contains(i)
+            {
+                chosen.append(i)
+            }
         }
         for i in eligible
         where chosen.count < options.focus && skill.reached(out[i].key)
