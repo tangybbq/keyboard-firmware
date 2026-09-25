@@ -221,7 +221,10 @@ public struct OrsyLadder: Sendable {
         self.focus = chosen.map { out[$0] }
     }
 
-    public func headline() -> String { "Orsy — \(unlockedCount) of \(items.count)" }
+    public func headline() -> String {
+        let reviews = due.isEmpty ? "" : " · \(due.count) to review"
+        return "Orsy — \(unlockedCount) of \(items.count)" + reviews
+    }
 
     public func title() -> String {
         let names = focus.map { "\"\($0.label)\"" }.joined(separator: " ")

@@ -53,7 +53,7 @@ struct OrsyDrillView: View {
                 hintSwitch
             }
             ForEach(ladder.focus, id: \.key) { item in
-                focusRow(item)
+                focusRow(item, due: ladder.due.contains(item))
             }
         }
     }
@@ -96,7 +96,8 @@ struct OrsyDrillView: View {
             .help(
                 "Whether the ladder may introduce its next item.  Off, the block reviews "
                 + "what you have already reached; the item waiting is unaffected and "
-                + "comes out when you turn this back on.")
+                + "comes out when you turn this back on.  On, it still waits while any "
+                + "review is due.")
     }
 
     /// Draw the next stroke always, while it is new, or never; and name its keys or not.
@@ -124,8 +125,32 @@ struct OrsyDrillView: View {
             + "in writing either way, which is the half you can say to yourself.")
     }
 
+    /// Why an item is in focus, as far as the review boxes go: due a look, lapsed today,
+    /// or settled in a box.  Blank for one not yet reached, which is in focus because it
+    /// is being learned.
+    private func reviewTag(_ item: OrsyLadderItem, due: Bool, skill: OrsySkillModel)
+        -> some View
+    {
+        let today = LogDay.today()
+        let (text, colour): (String, Color) =
+            due
+            ? ("review", .accentColor)
+            : skill.lapsed(item.key, on: today)
+                ? ("again", .orange)
+                : skill.skill(item.key)?.retention.map { ("box \($0.box + 1)", .secondary) }
+                    ?? ("", .secondary)
+        return Text(text)
+            .font(.caption2)
+            .foregroundStyle(colour)
+            .frame(width: 40, alignment: .leading)
+            .help(
+                "Review: due a look today, and the first uses of the day are the look.  "
+                + "Again: missed today's look, so back to the first box and drilled "
+                + "again.  Box: how settled it is; each box waits twice as many days.")
+    }
+
     @ViewBuilder
-    private func focusRow(_ item: OrsyLadderItem) -> some View {
+    private func focusRow(_ item: OrsyLadderItem, due: Bool) -> some View {
         if let skill = monitor.orsySkill {
             let parts = skill.parts(item.key)
             let s = skill.skill(item.key)
@@ -138,6 +163,7 @@ struct OrsyDrillView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .frame(width: 44, alignment: .leading)
+                reviewTag(item, due: due, skill: skill)
                 // What the pattern is made of, and what Dosh does there.  The rule is
                 // sayable, which the picture is not.
                 Text(mnemonic(item) ?? "")
