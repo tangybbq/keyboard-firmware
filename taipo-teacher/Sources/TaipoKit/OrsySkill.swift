@@ -29,10 +29,13 @@ public struct PatternSkill: Equatable, Sendable {
     public let medianMs: UInt32
     public let deleted: Int
     public let recent: Int
+    /// Its review box, once it has been reached; nil before, and for anything the
+    /// ladder does not teach.
+    public let retention: Retention?
 
     public init(
         name: String, count: Int, medianMs: UInt32, deleted: Int, recent: Int? = nil,
-        everReached: Bool? = nil
+        everReached: Bool? = nil, retention: Retention? = nil
     ) {
         self.name = name
         self.count = count
@@ -40,10 +43,142 @@ public struct PatternSkill: Equatable, Sendable {
         self.deleted = deleted
         self.recent = recent ?? count
         self.everReached = everReached ?? (count > 0 && deleted * 10 <= count)
+        self.retention = retention
     }
 
     public var errorRate: Double {
         recent > 0 ? min(1, Double(deleted) / Double(recent)) : 0
+    }
+}
+
+/// Whether a reached pattern is still there the next day, and when to look again.
+///
+/// **Reaching an item is a day's work, and that is the trouble.**  The gate is forty uses
+/// with few taken back, and a focus item is worked six times a line, so it passes in the
+/// sitting it was introduced in.  After that the model has nothing to say about it that
+/// the drilling did not put there: the window is full of warmed-up uses, so the item
+/// looks *better* than the ones learned a week ago and loses the polishing place to them,
+/// and from then on it gets what English happens to ask for.  On the logs up to
+/// 2026-09-25, Series 2 `e` was struck 53 times on the 16th and 23 on the 17th, twice on
+/// the 18th, and not once in the seven days after; Series 2 `o` 36 times on the 17th and
+/// then once in eight days.  And the day an item does come back, its first uses are the
+/// slow ones: Series 2 `l` took 3569ms over its first five on the 23rd and 2620ms over
+/// the rest of the day.
+///
+/// So each reached item sits in a **box**, Leitner's way: the box says how many days may
+/// pass before the item is looked at again, doubling from one to thirty-two.  **The look
+/// is the first `coldUses` uses on a day**, which is the only moment the logs can see
+/// recall rather than repetition; after them the hand is warm, and anything later that
+/// day says nothing new.  Clean and not badly slow, and the item was due, it moves up a
+/// box; clean but not yet due, nothing changes -- meeting it early does no harm and
+/// earns nothing.  A use taken back, or a median more than `slowFactor` times the item's
+/// warmed-up one, is a **lapse**, and the item goes back to the first box, due tomorrow.
+///
+/// **Twice the warmed-up median, not the one and a half first thought of.**  Replaying
+/// the logs to the 25th with each, one and a half called 118 lapses of which 70 were for
+/// speed alone, and on inspection those were mostly the opening of a session, where
+/// everything is slow for a stroke or two -- `e␣` failing on a Tuesday is not the vowel
+/// being forgotten.  Twice called 68, 13 of them for speed, and the items it still
+/// catches are the ones that were visibly lost.  A use with no timing (the first of a
+/// session, or after a pause past the cut-off) is judged on whether it was taken back
+/// alone.
+///
+/// Worked out as the logs are folded, like the rest, from the day each file is named
+/// for; the cache stays a cache because the day comes from the file, not the clock.  The
+/// clock is only asked at the end, by `due(on:)`: a day that ended with fewer than
+/// `coldUses` looks is graded on what it had, once it is over.
+public struct Retention: Codable, Equatable, Sendable {
+    /// How many days each box waits, first box first.
+    public static let intervals = [1, 2, 4, 8, 16, 32]
+    /// How many of a day's first uses are the look.
+    static let coldUses = 3
+    /// How much slower than warmed up a look may be before it is a lapse.
+    static let slowFactor: UInt64 = 2
+
+    /// Which box, as an index into `intervals`.
+    public private(set) var box = 0
+    /// The day the current wait runs from: when it was reached, last moved up, or lapsed.
+    public private(set) var since: Int
+    /// How many times it has gone back to the first box.
+    public private(set) var lapses = 0
+    /// Whether the last look was a lapse.
+    public private(set) var lapsed = false
+
+    /// The day whose first uses are being gathered, and what they were.
+    var day: Int?
+    var cold: [Use] = []
+    /// Whether `day` has been graded; its later uses are warm.
+    var graded = false
+    /// The median the day's looks are measured against, taken before the first of them.
+    var warmMs: UInt32 = .max
+
+    struct Use: Codable, Equatable, Sendable {
+        var gap: UInt32?
+        var bad: Bool
+    }
+
+    /// Reached on `day`: in the first box, due the day after.
+    init(reached day: Int) { since = day }
+
+    /// Whether the ladder teaches `key`, and so whether it gets a box.  Commands, marks
+    /// and whole strokes are counted but not reviewed.
+    static func tracks(_ key: String) -> Bool {
+        key.hasPrefix("s1:") || key.hasPrefix("s2:") || key.hasPrefix("s3:")
+            || key.hasPrefix("s4:") || key.hasPrefix("rule:")
+    }
+
+    /// How many days this box waits.
+    public var interval: Int { Self.intervals[box] }
+
+    /// Whether the item wants looking at on `today`: its wait is over, and today's look
+    /// has not yet happened.  A look in progress -- one or two uses so far -- is still due.
+    public func due(on today: Int) -> Bool {
+        let settled = settled(on: today)
+        return today - settled.since >= settled.interval
+    }
+
+    /// This record with any earlier day's unfinished look graded.
+    public func settled(on today: Int) -> Retention {
+        var out = self
+        if let day, day < today { out.grade() }
+        return out
+    }
+
+    /// One use on `day`.  `warm` is the item's median as it stands, asked for only when
+    /// a new day's look begins.
+    mutating func note(day: Int, gap: UInt32?, bad: Bool, warm: () -> UInt32) {
+        // The day it was reached or last lapsed is not a look: the hand is warm from
+        // the practice that did it.
+        guard day > since else { return }
+        if self.day != day {
+            grade()
+            self.day = day
+            cold = []
+            graded = false
+            warmMs = warm()
+        }
+        guard !graded else { return }
+        cold.append(Use(gap: gap, bad: bad))
+        if cold.count >= Self.coldUses { grade() }
+    }
+
+    mutating func grade() {
+        guard let day, !graded, !cold.isEmpty else { return }
+        graded = true
+        let timed = cold.compactMap(\.gap)
+        let slow =
+            warmMs != .max && !timed.isEmpty
+            && UInt64(SkillModel.median(timed)) > UInt64(warmMs) * Self.slowFactor
+        if slow || cold.contains(where: \.bad) {
+            box = 0
+            since = day
+            lapses += 1
+            lapsed = true
+        } else if day - since >= interval {
+            box = min(box + 1, Self.intervals.count - 1)
+            since = day
+            lapsed = false
+        }
     }
 }
 
@@ -128,6 +263,11 @@ public struct OrsySkillModel: Sendable {
             && s.errorRate <= options.maxErrorRate
     }
 
+    /// Whether a reached pattern is due a look on `today`.  See `Retention`.
+    public func due(_ name: String, on today: Int) -> Bool {
+        skills[name]?.retention?.due(on: today) ?? false
+    }
+
     public func parts(_ name: String) -> SkillModel.Parts {
         guard let s = skills[name], s.count > 0 else {
             return SkillModel.Parts(exposure: 0, speed: 0, accuracy: 0)
@@ -190,7 +330,7 @@ public struct OrsySkillModel: Sendable {
             guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
             collector.fold(
                 text: text, layouts: layouts, options: SkillModel.Options(),
-                orsyOptions: options, history: history)
+                orsyOptions: options, history: history, day: LogDay.number(of: file))
         }
         return collector.orsyModel(options: options)
     }
@@ -233,6 +373,8 @@ struct OrsyJudge {
 /// The Orsy half of `SkillCollector`: samples by pattern, and the counts.
 struct OrsySamples: Codable, Equatable {
     var patterns: [String: ChordSamples] = [:]
+    /// The review box of every reached pattern the ladder teaches.
+    var retention: [String: Retention] = [:]
     var sessions = 0
     var skipped = 0
     var strokes = 0
@@ -244,9 +386,11 @@ struct OrsySamples: Codable, Equatable {
     /// was logged; a stroke using one is not evidence about the pattern that lives there
     /// now, and is passed over the way a changed chord is.
     /// `lines` is where each drill line began, as (what it asked for, first stroke).
+    /// `day` is the day the session was typed on, for the review boxes; without one they
+    /// are left as they are.
     mutating func fold(
         _ all: [Stroke], lines: [(text: String, from: Int)] = [], judge: OrsyJudge? = nil,
-        changed: Set<String>, options: SkillModel.Options
+        changed: Set<String>, options: SkillModel.Options, day: Int? = nil
     ) {
         guard !all.isEmpty else { return }
         sessions += 1
@@ -291,8 +435,19 @@ struct OrsySamples: Codable, Equatable {
             let skipped = corrections.skip[i] ?? []
             let blamed = corrections.blame[i] ?? []
             for key in keys where !skipped.contains(key) {
+                let deleted = blamed.contains(key)
+                if let day, Retention.tracks(key) {
+                    retention[key]?.note(day: day, gap: gap, bad: deleted) {
+                        SkillModel.median(patterns[key]?.gaps ?? [])
+                    }
+                }
                 patterns[key, default: ChordSamples()]
-                    .note(gap: gap, deleted: blamed.contains(key), options: options)
+                    .note(gap: gap, deleted: deleted, options: options)
+                if let day, retention[key] == nil, Retention.tracks(key),
+                    patterns[key]?.everReached == true
+                {
+                    retention[key] = Retention(reached: day)
+                }
             }
             previousMs = stroke.timeMs
         }

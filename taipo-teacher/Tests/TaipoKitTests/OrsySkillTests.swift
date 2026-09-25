@@ -188,6 +188,111 @@ final class OrsySkillTests: XCTestCase {
         XCTAssertEqual(contents.folded.count, 1)
     }
 
+    /// Days are numbered from the file's name, the same in any time zone.
+    func testLogDay() {
+        XCTAssertEqual(LogDay.number("1970-01-01"), 0)
+        XCTAssertEqual(LogDay.number("2026-09-25"), 20721)
+        XCTAssertEqual(LogDay.number("2026-03-01")! - LogDay.number("2026-02-28")!, 1)
+        XCTAssertEqual(LogDay.number("2024-03-01")! - LogDay.number("2024-02-28")!, 2)
+        XCTAssertNil(LogDay.number("notes"))
+        XCTAssertEqual(
+            LogDay.number(of: URL(fileURLWithPath: "/logs/2026-09-25.txt")), 20721)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        XCTAssertEqual(LogDay.today(Date(timeIntervalSince1970: 86400 * 3 + 5), calendar: utc), 3)
+    }
+
+    /// Three clean looks on the day it is due move an item up; a look before then earns
+    /// nothing; a slip sends it back to the first box.
+    func testRetentionBoxes() {
+        func look(_ r: inout Retention, day: Int, gaps: [UInt32?], bad: Int? = nil) {
+            for (i, gap) in gaps.enumerated() {
+                r.note(day: day, gap: gap, bad: i == bad) { 1000 }
+            }
+        }
+        var r = Retention(reached: 10)
+        XCTAssertFalse(r.due(on: 10), "not the day it was reached")
+        XCTAssertTrue(r.due(on: 11))
+        look(&r, day: 10, gaps: [900, 900, 900])
+        XCTAssertEqual(r.box, 0, "the day it was reached is not a look")
+
+        look(&r, day: 11, gaps: [1200, 1500, 1100])
+        XCTAssertEqual(r.box, 1)
+        XCTAssertEqual(r.since, 11)
+        XCTAssertFalse(r.due(on: 12))
+        XCTAssertTrue(r.due(on: 13))
+
+        // Early: clean, but only a day into a two-day wait.
+        look(&r, day: 12, gaps: [900, 900, 900])
+        XCTAssertEqual(r.box, 1)
+        XCTAssertEqual(r.since, 11)
+
+        // Later uses the same day are warm and change nothing, even a slip.
+        look(&r, day: 13, gaps: [900, 900, 900, 900], bad: 3)
+        XCTAssertEqual(r.box, 2)
+        XCTAssertEqual(r.lapses, 0)
+
+        // A slip among the first three is a lapse, back to the first box.
+        look(&r, day: 17, gaps: [900, 900, 900], bad: 1)
+        XCTAssertEqual(r.box, 0)
+        XCTAssertEqual(r.since, 17)
+        XCTAssertTrue(r.lapsed)
+        XCTAssertEqual(r.lapses, 1)
+        XCTAssertTrue(r.due(on: 18))
+
+        // More than twice the warmed-up median is a lapse too; missing timings are not.
+        var slow = Retention(reached: 0)
+        look(&slow, day: 1, gaps: [2500, 2100, nil])
+        XCTAssertTrue(slow.lapsed)
+        var untimed = Retention(reached: 0)
+        look(&untimed, day: 1, gaps: [nil, nil, 1900])
+        XCTAssertEqual(untimed.box, 1)
+    }
+
+    /// A day with fewer looks than a full set is graded on what it had once it is over,
+    /// and is still due while it is going on.
+    func testRetentionPartialDay() {
+        var r = Retention(reached: 0)
+        r.note(day: 1, gap: 900, bad: false) { 1000 }
+        XCTAssertTrue(r.due(on: 1), "one look of three: still due today")
+        XCTAssertEqual(r.box, 0)
+        XCTAssertEqual(r.settled(on: 2).box, 1, "graded once the day is over")
+        XCTAssertFalse(r.due(on: 2))
+        // And the next day's use settles it for good.
+        r.note(day: 2, gap: 900, bad: false) { 1000 }
+        XCTAssertEqual(r.box, 1)
+        XCTAssertEqual(r.since, 1)
+    }
+
+    /// The fold gives a pattern its box on the day it is reached and grades it from the
+    /// next day's file, and the checkpoint agrees.
+    func testRetentionFromLogs() throws {
+        let clean = try golden("orsy-clean", "log")
+        let dir = try logDirectory(clean)
+        let header = "# session device=test boot_id=0x1 layout=\(try layouts().fingerprint)\n"
+        try (header + clean).write(
+            to: dir.appendingPathComponent("2026-09-02.txt"), atomically: true, encoding: .utf8)
+        let options = SkillModel.Options(minSamples: 1, pauseMs: 4000)
+        let model = OrsySkillModel.build(
+            logDirectory: dir, layouts: try layouts(), options: options)
+        let day1 = try XCTUnwrap(LogDay.number("2026-09-01"))
+        // `e` ending is struck three times a file, at the same pace both days.
+        let r = try XCTUnwrap(model.skill("s3:ue")?.retention)
+        XCTAssertEqual(r.box, 1)
+        XCTAssertEqual(r.since, day1 + 1)
+        XCTAssertFalse(model.due("s3:ue", on: day1 + 2))
+        XCTAssertTrue(model.due("s3:ue", on: day1 + 3))
+        let unreviewed = model.skills.filter { $0.key.hasPrefix("stroke:") || $0.key.hasPrefix("cmd:") }
+        XCTAssertFalse(unreviewed.isEmpty)
+        XCTAssertTrue(unreviewed.values.allSatisfy { $0.retention == nil }, "strokes and commands are not reviewed")
+        XCTAssertFalse(model.due("s1:none", on: day1 + 3))
+
+        let cache = dir.appendingPathComponent("cache.json")
+        let stored = SkillStore.orsyModel(
+            logDirectory: dir, cache: cache, layouts: try layouts(), options: options)
+        XCTAssertEqual(stored.skills, model.skills)
+    }
+
     /// The signatures this writes agree with what the sync script recorded for the
     /// tables in hand.
     func testSignaturesMatchTheRecordedRevision() throws {

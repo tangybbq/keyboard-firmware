@@ -27,7 +27,7 @@ public struct SkillStore {
     struct Contents: Codable {
         /// Bumped when the shape changes, so an old file is discarded rather than
         /// misread.  A wrong cache is worse than no cache.
-        var version: Int = 10
+        var version: Int = 11
         /// The window the samples were gathered with.  A different one means the stored
         /// gaps are the wrong length and have to be gathered again.
         var window: Int
@@ -142,7 +142,8 @@ public struct SkillStore {
                 let stamp = stamp(file)
             else { continue }
             collector.fold(
-                text: text, layouts: layouts, options: options, orsyOptions: orsyOptions)
+                text: text, layouts: layouts, options: options, orsyOptions: orsyOptions,
+                day: LogDay.number(of: file))
             folded.append(stamp)
         }
 
@@ -156,7 +157,8 @@ public struct SkillStore {
         // The newest file on top, every time, and never kept: it is still growing.
         if let live, let text = try? String(contentsOf: live, encoding: .utf8) {
             collector.fold(
-                text: text, layouts: layouts, options: options, orsyOptions: orsyOptions)
+                text: text, layouts: layouts, options: options, orsyOptions: orsyOptions,
+                day: LogDay.number(of: live))
         }
         return collector
     }

@@ -131,10 +131,14 @@ struct SkillCollector {
     ///
     /// All variants at once, rather than only the one being asked about, so that switching
     /// tables does not mean folding the history again.
+    ///
+    /// `day` is the day the file covers, as `LogDay` numbers them, which is what the Orsy
+    /// review boxes run on; without one the rest is measured as ever and the boxes are
+    /// left alone.
     mutating func fold(
         text: String, layouts: Layouts, options: SkillModel.Options,
         orsyOptions: SkillModel.Options = OrsySkillModel.defaultOptions,
-        history: LayoutHistory = LayoutHistory.bundled()
+        history: LayoutHistory = LayoutHistory.bundled(), day: Int? = nil
     ) {
         for session in KeyLogFile.sessions(from: text, layouts: layouts) {
             // Logged under a layout nothing can interpret, so its chords might mean
@@ -178,7 +182,7 @@ struct SkillCollector {
                 if let changedPatterns = history.changedPatterns(since: session.layout, layouts: layouts) {
                     orsy.fold(
                         strokes, lines: lines, judge: OrsyJudge.make(layouts),
-                        changed: changedPatterns, options: orsyOptions)
+                        changed: changedPatterns, options: orsyOptions, day: day)
                 } else {
                     orsy.skipped += 1
                 }
@@ -228,7 +232,7 @@ struct SkillCollector {
             skills[name] = PatternSkill(
                 name: name, count: s.total, medianMs: SkillModel.median(s.gaps),
                 deleted: s.outcomes.filter { $0 }.count, recent: s.outcomes.count,
-                everReached: s.everReached)
+                everReached: s.everReached, retention: orsy.retention[name])
         }
         return OrsySkillModel(
             skills: skills, sessions: orsy.sessions, skipped: orsy.skipped,
@@ -414,7 +418,8 @@ public struct SkillModel: Sendable {
         for file in logFiles(in: logDirectory) {
             guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
             collector.fold(
-                text: text, layouts: layouts, options: options, history: history)
+                text: text, layouts: layouts, options: options, history: history,
+                day: LogDay.number(of: file))
         }
         return collector.model(variant: variant, options: options)
     }
@@ -438,5 +443,44 @@ public struct SkillModel: Sendable {
         guard !values.isEmpty else { return .max }
         let sorted = values.sorted()
         return sorted[sorted.count / 2]
+    }
+}
+
+/// Days as whole numbers, so that how long ago something was is a subtraction.
+///
+/// The day is the one a log file is named for, which is the writer's local calendar day:
+/// `LogWriter` names files by the local date, and a day of practice is the writer's day,
+/// not Greenwich's.  Counted from 1970-01-01 on the Gregorian calendar, worked out from
+/// the three numbers rather than through a `Date`, so that a file's day cannot depend on
+/// the time zone the replay happens to run in.
+public enum LogDay {
+    /// The day a log file covers, or nil for a file not named `yyyy-MM-dd`.
+    public static func number(of file: URL) -> Int? {
+        number(file.deletingPathExtension().lastPathComponent)
+    }
+
+    /// The day a `yyyy-MM-dd` string names.
+    public static func number(_ name: String) -> Int? {
+        let parts = name.split(separator: "-")
+        guard parts.count == 3, let y = Int(parts[0]), let m = Int(parts[1]),
+            let d = Int(parts[2]), (1...12).contains(m), (1...31).contains(d)
+        else { return nil }
+        return days(year: y, month: m, day: d)
+    }
+
+    /// Today, on the calendar the log files are named by.
+    public static func today(_ now: Date = Date(), calendar: Calendar = .current) -> Int {
+        let c = calendar.dateComponents([.year, .month, .day], from: now)
+        return days(year: c.year ?? 1970, month: c.month ?? 1, day: c.day ?? 1)
+    }
+
+    /// Days since 1970-01-01.  Howard Hinnant's `days_from_civil`.
+    static func days(year: Int, month: Int, day: Int) -> Int {
+        let y = month <= 2 ? year - 1 : year
+        let era = (y >= 0 ? y : y - 399) / 400
+        let yoe = y - era * 400
+        let doy = (153 * ((month + 9) % 12) + 2) / 5 + day - 1
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+        return era * 146097 + doe - 719468
     }
 }
