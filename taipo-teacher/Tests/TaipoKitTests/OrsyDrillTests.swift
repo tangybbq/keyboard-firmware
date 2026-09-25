@@ -123,6 +123,45 @@ final class OrsyDrillTests: XCTestCase {
             advancing.unlockedCount)
     }
 
+    /// Items due a look take the focus ahead of the one being learned, most overdue
+    /// first, and a line then asks for each of them several times.
+    func testDueItemsAreReviewedFirst() throws {
+        let (_, theory, words) = try fixtures()
+        let today = 100
+        // Everything in the first lesson reached, in a box whose wait is not over...
+        var skills = [String: PatternSkill]()
+        for key in words.lessons[0].items.flatMap({ $0 }) {
+            skills[key] = PatternSkill(
+                name: key, count: 50, medianMs: 400, deleted: 0,
+                retention: Retention(reached: today, box: 0))
+        }
+        // ...but for two: the onset `t` (FP) a day past due, the coda `n` six.
+        skills["s1:FP"] = PatternSkill(
+            name: "s1:FP", count: 50, medianMs: 400, deleted: 0,
+            retention: Retention(reached: today - 2))
+        skills["s4:N"] = PatternSkill(
+            name: "s4:N", count: 50, medianMs: 400, deleted: 0,
+            retention: Retention(reached: today - 10, box: 2))
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+
+        let ladder = OrsyLadder(words: words, theory: theory, skill: model, today: today)
+        XCTAssertEqual(ladder.due.map(\.key), ["s4:N", "s1:FP"])
+        XCTAssertEqual(ladder.focus.map(\.key), ["s4:N", "s1:FP"])
+        var rng = DrillRandom(seed: 5)
+        let line = OrsyLadderMaker(words: words).line(ladder, words: 6, using: &rng)
+        let codaN = line.split(separator: " ").filter {
+            words.word(String($0))?.patterns.contains("s4:N") == true
+        }
+        XCTAssertGreaterThanOrEqual(codaN.count, OrsyLadderMaker.perFocus, line)
+
+        // Not told the day, or the day before either was due, and nothing is reviewed.
+        let undated = OrsyLadder(words: words, theory: theory, skill: model)
+        XCTAssertTrue(undated.due.isEmpty)
+        XCTAssertFalse(undated.focus.contains { $0.key == "s4:N" })
+        let early = OrsyLadder(words: words, theory: theory, skill: model, today: today - 7)
+        XCTAssertTrue(early.due.isEmpty)
+    }
+
     /// A line works the reading the ladder is waiting on: with the coda `s` known and the
     /// onset not, every line has a word with an onset `s`.
     func testLinesDrillTheWeakReading() throws {

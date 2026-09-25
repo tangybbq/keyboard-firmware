@@ -117,8 +117,12 @@ public struct Retention: Codable, Equatable, Sendable {
         var bad: Bool
     }
 
-    /// Reached on `day`: in the first box, due the day after.
-    init(reached day: Int) { since = day }
+    /// Reached on `day`: in the first box, due the day after.  `box` is for tests that
+    /// want one further up without typing their way there.
+    init(reached day: Int, box: Int = 0) {
+        since = day
+        self.box = box
+    }
 
     /// Whether the ladder teaches `key`, and so whether it gets a box.  Commands, marks
     /// and whole strokes are counted but not reviewed.
@@ -132,9 +136,14 @@ public struct Retention: Codable, Equatable, Sendable {
 
     /// Whether the item wants looking at on `today`: its wait is over, and today's look
     /// has not yet happened.  A look in progress -- one or two uses so far -- is still due.
-    public func due(on today: Int) -> Bool {
+    public func due(on today: Int) -> Bool { overdue(on: today) != nil }
+
+    /// How many days past due the item is on `today`: zero on the day its wait runs out,
+    /// nil if it is not due.
+    public func overdue(on today: Int) -> Int? {
         let settled = settled(on: today)
-        return today - settled.since >= settled.interval
+        let late = today - settled.since - settled.interval
+        return late >= 0 ? late : nil
     }
 
     /// This record with any earlier day's unfinished look graded.
@@ -266,6 +275,11 @@ public struct OrsySkillModel: Sendable {
     /// Whether a reached pattern is due a look on `today`.  See `Retention`.
     public func due(_ name: String, on today: Int) -> Bool {
         skills[name]?.retention?.due(on: today) ?? false
+    }
+
+    /// How many days past due a pattern is, or nil if it is not due.
+    public func overdue(_ name: String, on today: Int) -> Int? {
+        skills[name]?.retention?.overdue(on: today)
     }
 
     public func parts(_ name: String) -> SkillModel.Parts {

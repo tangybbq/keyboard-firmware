@@ -578,7 +578,8 @@ public final class DeviceMonitor: ObservableObject {
                 logDirectory: directory, cache: SkillStore.defaultURL(forLogsIn: directory),
                 layouts: layouts)
             let ladder = OrsyLadder(
-                words: words, theory: theory, skill: skill, options: options)
+                words: words, theory: theory, skill: skill, options: options,
+                today: LogDay.today())
             let drill = OrsyLadderMaker(words: words, made: skill.madeStrokes)
                 .drill(ladder, lines: Self.ladderBlock, seed: seed)
             await MainActor.run { [weak self] in
@@ -608,7 +609,8 @@ public final class DeviceMonitor: ObservableObject {
                 logDirectory: directory, cache: SkillStore.defaultURL(forLogsIn: directory),
                 layouts: layouts)
             let built = OrsyLadder(
-                words: words, theory: theory, skill: skill, options: options)
+                words: words, theory: theory, skill: skill, options: options,
+                today: LogDay.today())
             var moved = false
             if let previous {
                 moved = built.unlockedCount != previous.unlockedCount || built.focus != previous.focus

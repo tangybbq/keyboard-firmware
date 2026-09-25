@@ -23,7 +23,16 @@ import Foundation
 /// and it comes back into the reckoning -- unreached, at the front of the focus ranking --
 /// as soon as the pool grows to include a word that uses it.
 ///
-/// Nothing is stored: the unlocked set is a pure function of `OrsySkillModel`.
+/// **Reviews come first.**  An item reached yesterday is not known today just because
+/// it was fast by the end of yesterday's drilling; `Retention` keeps each reached item in
+/// a box that says when to look at it again.  Items whose look is due take the focus
+/// places ahead of everything else, most overdue first, so the day opens on them: the
+/// look is the first few uses of the day, and a focus item gets three words a line, so
+/// one line is one look.  Once looked at an item is no longer due, the focus moves on,
+/// and the item being learned comes back.
+///
+/// Nothing is stored: the unlocked set is a pure function of `OrsySkillModel`, and the
+/// day it is asked on.
 
 /// What kind of thing an Orsy ladder item teaches, which is also the reading it measures.
 public enum OrsyStage: String, Sendable {
@@ -83,6 +92,9 @@ public struct OrsyLadder: Sendable {
     public let items: [OrsyLadderItem]
     public let unlockedCount: Int
     public let focus: [OrsyLadderItem]
+    /// The unlocked items due a look today that a line can ask for, most overdue first.
+    /// Empty when the ladder was not told what day it is.
+    public let due: [OrsyLadderItem]
     public let options: Options
     public let lessons: [OrsyWords.Lesson]
 
@@ -98,9 +110,11 @@ public struct OrsyLadder: Sendable {
         return lessons[last.lesson]
     }
 
+    /// `today` is the day it is, as `LogDay` numbers them, for the reviews; without it
+    /// nothing is ever due.
     public init(
         words: OrsyWords, theory: OrsyTheory, skill: OrsySkillModel,
-        options: Options = Options()
+        options: Options = Options(), today: Int? = nil
     ) {
         self.options = options
         self.lessons = words.lessons
@@ -151,10 +165,23 @@ public struct OrsyLadder: Sendable {
         // Only items a line can actually work: one the pool cannot reach would rank first
         // on its confidence of zero and then get no practice at all.
         let eligible = ranked.filter { exercisableNow.contains(out[$0].key) }
-        var chosen = Array(eligible.filter { !skill.reached(out[$0].key) }.prefix(options.focus))
+        // Most overdue first, then in the ladder's order: the older item has had longer
+        // to fade.
+        let due: [(index: Int, late: Int)] =
+            today.map { day in
+                eligible.compactMap { i in skill.overdue(out[i].key, on: day).map { (i, $0) } }
+            } ?? []
+        let dueFirst = due.sorted { $0.late != $1.late ? $0.late > $1.late : $0.index < $1.index }
+            .map(\.index)
+        self.due = dueFirst.map { out[$0] }
+        var chosen = Array(dueFirst.prefix(options.focus))
+        for i in eligible
+        where chosen.count < options.focus && !skill.reached(out[i].key) && !chosen.contains(i) {
+            chosen.append(i)
+        }
         for i in eligible
         where chosen.count < options.focus && skill.reached(out[i].key)
-            && skill.confidence(out[i].key) < 1
+            && skill.confidence(out[i].key) < 1 && !chosen.contains(i)
         {
             chosen.append(i)
         }
