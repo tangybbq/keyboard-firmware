@@ -172,6 +172,8 @@ stroke.
 
 ## The mapping as grids
 
+Written by `midi4text-analysis/grids.py`; rerun it after any change to the chords.
+
 ```
 OUTER FIVE - consonants, both hands (onset left / coda right)
               a   o   s   t   n   
@@ -225,18 +227,18 @@ INNER FOUR, right hand - the vowel
 
 INNER FOUR, left hand - the second character
          e   i  Sp  Bk   
-  r     .   .   .   #
-  l     .   .   #   .
+  r     .   .   #   .
+  l     .   .   .   #
   i     .   #   .   .
-  t     #   .   #   .
+  t     .   #   .   #
   m     #   .   .   #
   o     #   #   .   .
   s     #   .   .   .
-  e     .   #   .   #
-  w     .   .   #   #
+  e     #   .   #   .
+  w     #   #   .   #
   c     #   #   #   .
   u     .   #   #   .
-  p     #   #   .   #
+  p     .   .   #   #
   n     #   .   #   #
 ```
 
