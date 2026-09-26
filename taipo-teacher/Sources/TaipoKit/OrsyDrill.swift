@@ -23,22 +23,36 @@ import Foundation
 /// character.  Retyping the end of a word after an undo got a space it should not have.
 struct OrsyOutput {
     private(set) var recent: [Character] = []
-    /// What each stroke did, oldest first: the characters it typed, and whether a space
-    /// and a capital were pending before it, to put back.
-    private var strokes: [(chars: Int, pendingSpace: Bool, pendingCap: Bool)] = []
+    /// What one stroke did: the characters it typed, and the state before it, to put
+    /// back.
+    private struct Record {
+        var chars: Int
+        var pendingSpace: Bool
+        var pendingCap: Bool
+        var allCaps: Bool
+    }
+
+    /// What each stroke did, oldest first.
+    private var strokes: [Record] = []
     /// The last stroke allowed a space after it, so the next word gets one.
     private(set) var pendingSpace = false
     private var pendingCap = false
+    /// Every letter is capitalised until the word closes.
+    private var allCaps = false
+
+    private func before(_ chars: Int) -> Record {
+        Record(chars: chars, pendingSpace: pendingSpace, pendingCap: pendingCap, allCaps: allCaps)
+    }
 
     /// Type a syllable, returning the characters it puts on the screen.
     mutating func stroke(_ t: OrsyTranslation) -> String {
-        let (before, cap) = (pendingSpace, pendingCap)
+        var record = before(0)
         var out = ""
         if pendingSpace && t.spaceBefore && !t.text.isEmpty {
             out.append(" ")
         }
         for ch in t.text {
-            if pendingCap && ch.isLetter {
+            if (pendingCap || allCaps) && ch.isLetter {
                 pendingCap = false
                 out.append(contentsOf: ch.uppercased())
             } else {
@@ -46,26 +60,45 @@ struct OrsyOutput {
             }
         }
         pendingSpace = t.spaceAfter
+        // A stroke that closes the word ends the capitals.
+        if t.spaceAfter { allCaps = false }
         recent.append(contentsOf: out)
-        strokes.append((out.count, before, cap))
+        record.chars = out.count
+        strokes.append(record)
         return out
     }
 
     mutating func space() -> String {
         recent.append(" ")
-        strokes.append((1, pendingSpace, pendingCap))
+        strokes.append(before(1))
         pendingSpace = false
+        allCaps = false
         return " "
     }
 
+    /// Capitalise the next letter.  Not a stroke of its own, unlike `.capNext` through
+    /// `prefix`: for a sentence-ender played through the Dosh escape.
     mutating func capNext() { pendingCap = true }
+
+    /// A command that types nothing but changes how the next stroke is typed, recorded as
+    /// a stroke so that undo takes back only the command.
+    mutating func prefix(_ prefix: OrsyPrefix) {
+        strokes.append(before(0))
+        switch prefix {
+        case .join: pendingSpace = false
+        case .capNext: pendingCap = true
+        case .allCaps: allCaps = true
+        }
+    }
 
     /// Type a punctuation mark: it attaches to what came before, and most owe the next
     /// word a space, while the apostrophe and the hyphen bind straight on to it.
     mutating func mark(_ mark: Layouts.Orsy.Punctuation) -> String {
         recent.append(contentsOf: mark.text)
-        strokes.append((mark.text.count, pendingSpace, pendingCap))
+        strokes.append(before(mark.text.count))
         pendingSpace = mark.spaceAfter
+        // A mark that owes a space ends the word, and so its capitals.
+        if mark.spaceAfter { allCaps = false }
         pendingCap = pendingCap || mark.capitalises
         return mark.text
     }
@@ -77,6 +110,7 @@ struct OrsyOutput {
         recent.removeLast(min(stroke.chars, recent.count))
         pendingCap = stroke.pendingCap
         pendingSpace = stroke.pendingSpace
+        allCaps = stroke.allCaps
         return stroke.chars
     }
 
@@ -92,6 +126,16 @@ struct OrsyOutput {
     /// Something typed through the Dosh escape.  The firmware's output stage does not see
     /// it at all -- it is neither on the record nor undoable -- and neither does this.
     mutating func typed(_ text: String) {}
+}
+
+/// A command that types nothing but changes the next stroke.  `Prefix` in the Rust.
+enum OrsyPrefix {
+    /// Drop the space owed before the next word, so that it joins the last.
+    case join
+    /// Capitalise the next letter.
+    case capNext
+    /// Capitalise every letter of the next word.
+    case allCaps
 }
 
 /// One stroke of the table's division of a target.

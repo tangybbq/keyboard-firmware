@@ -10,8 +10,11 @@
 //!   ending-form vowel allows a space after, a plain vowel does not, and a
 //!   fragment with no vowel takes no space before.
 //! - **Capitals.**  [`Output::cap_next`] capitalises the first letter of the
-//!   next stroke.  [`Output::cap_previous`] walks back over the recent text
-//!   and capitalises words already typed.
+//!   next stroke, and [`Prefix::AllCaps`] every letter of the next word.
+//!   [`Output::cap_previous`] walks back over the recent text and
+//!   capitalises words already typed.
+//! - **Joining.**  [`Prefix::Join`] drops the space owed before the next
+//!   word, so that it runs on from the last.
 //! - **Undo.**  Each stroke records how many characters it typed, and undo
 //!   backspaces over them.  That is the whole of it.
 //!
@@ -83,6 +86,20 @@ impl Default for Ops {
     }
 }
 
+/// A command that types nothing, but changes how the next stroke is typed.
+///
+/// Given to [`Output::prefix`], which records it as a stroke of its own, so
+/// that undo takes back the command and not the word before it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Prefix {
+    /// Drop the space owed before the next word, so that it joins the last.
+    Join,
+    /// Capitalise the next letter.
+    CapNext,
+    /// Capitalise every letter of the next word.
+    AllCaps,
+}
+
 /// What one stroke did, so that undo can take it back.
 #[derive(Clone, Copy, Default)]
 struct Stroke {
@@ -92,6 +109,9 @@ struct Stroke {
     pending_space: bool,
     /// Whether a capital was pending before the stroke, to put back.
     pending_cap: bool,
+    /// Whether the word was being typed in capitals before the stroke, to
+    /// put back.
+    all_caps: bool,
 }
 
 /// The output stage.
@@ -106,6 +126,8 @@ pub struct Output {
     pending_space: bool,
     /// The next letter typed is capitalised.
     pending_cap: bool,
+    /// Every letter is capitalised until the word closes.
+    all_caps: bool,
 }
 
 impl Default for Output {
@@ -119,10 +141,12 @@ impl Output {
         Output {
             recent: [' '; RECENT],
             recent_len: 0,
-            strokes: [Stroke { chars: 0, pending_space: false, pending_cap: false }; STROKES],
+            strokes: [Stroke { chars: 0, pending_space: false, pending_cap: false, all_caps: false };
+                STROKES],
             strokes_len: 0,
             pending_space: false,
             pending_cap: false,
+            all_caps: false,
         }
     }
 
@@ -135,7 +159,7 @@ impl Output {
             count += 1;
         }
         for ch in t.chars() {
-            let ch = if self.pending_cap && ch.is_ascii_alphabetic() {
+            let ch = if (self.pending_cap || self.all_caps) && ch.is_ascii_alphabetic() {
                 self.pending_cap = false;
                 ch.to_ascii_uppercase()
             } else {
@@ -145,6 +169,8 @@ impl Output {
             count = count.saturating_add(1);
         }
         self.pending_space = t.space_after;
+        // A stroke that closes the word ends the capitals.
+        self.all_caps &= !t.space_after;
         self.record(Stroke { chars: count, ..record });
     }
 
@@ -162,6 +188,9 @@ impl Output {
             count = count.saturating_add(1);
         }
         self.pending_space = mark.space_after;
+        // A mark that owes a space ends the word, and so its capitals; the
+        // apostrophe and the hyphen carry them on to what follows.
+        self.all_caps &= !mark.space_after;
         // Never cleared here: a mark that does not capitalise should not cancel a capital
         // the writer has already asked for.
         self.pending_cap |= mark.capitalises;
@@ -173,10 +202,27 @@ impl Output {
         let record = self.before(1);
         self.emit(' ', ops);
         self.pending_space = false;
+        self.all_caps = false;
+        self.record(record);
+    }
+
+    /// A command that changes how the next stroke is typed.  Recorded as a
+    /// stroke that typed nothing, so that undo takes back only the command.
+    pub fn prefix(&mut self, prefix: Prefix) {
+        let record = self.before(0);
+        match prefix {
+            Prefix::Join => self.pending_space = false,
+            Prefix::CapNext => self.pending_cap = true,
+            Prefix::AllCaps => self.all_caps = true,
+        }
         self.record(record);
     }
 
     /// Capitalise the next letter typed.
+    ///
+    /// Not a stroke of its own, unlike [`Prefix::CapNext`]: for the layout
+    /// manager, which asks for it after a sentence-ender played through the
+    /// Dosh escape.
     pub fn cap_next(&mut self) {
         self.pending_cap = true;
     }
@@ -259,6 +305,7 @@ impl Output {
         self.recent_len = keep;
         self.pending_space = stroke.pending_space;
         self.pending_cap = stroke.pending_cap;
+        self.all_caps = stroke.all_caps;
     }
 
     /// The recent text, for tests.
@@ -280,7 +327,12 @@ impl Output {
     /// The record of a stroke about to type `chars` characters, holding the
     /// state it starts from.
     fn before(&self, chars: u8) -> Stroke {
-        Stroke { chars, pending_space: self.pending_space, pending_cap: self.pending_cap }
+        Stroke {
+            chars,
+            pending_space: self.pending_space,
+            pending_cap: self.pending_cap,
+            all_caps: self.all_caps,
+        }
     }
 
     fn record(&mut self, stroke: Stroke) {
@@ -423,6 +475,71 @@ mod tests {
         out.cap_next();
         assert_eq!(stroke(&mut out, c(TEN)), " Ten");
         assert_eq!(stroke(&mut out, c(TEN)), " ten");
+    }
+
+    /// Join drops the space the next word is owed, and is undone on its own.
+    #[test]
+    fn join() {
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        out.prefix(Prefix::Join);
+        assert_eq!(stroke(&mut out, c(TEN)), "ten");
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        assert_eq!(out.recent(), "tenten ten");
+        // Undo takes the word back, then the join, and the space is owed again.
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        out.prefix(Prefix::Join);
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        assert_eq!(ops.as_slice().len(), 0);
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+    }
+
+    /// The cap-next command is a stroke: undo takes it back, not the word
+    /// before it.
+    #[test]
+    fn cap_next_command() {
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        out.prefix(Prefix::CapNext);
+        assert_eq!(stroke(&mut out, c(TEN)), " Ten");
+        stroke(&mut out, c(TEN));
+        out.prefix(Prefix::CapNext);
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        assert_eq!(ops.as_slice().len(), 0);
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        assert_eq!(out.recent(), "ten Ten ten ten");
+    }
+
+    /// All caps lasts until the word closes, across the strokes of the word
+    /// and through an apostrophe, but not past a space.
+    #[test]
+    fn all_caps() {
+        fn find(text: &str) -> &'static punctuation::Mark {
+            punctuation::ALL.iter().find(|m| m.text == text).expect("a mark")
+        }
+        let mut out = Output::new();
+        out.prefix(Prefix::AllCaps);
+        assert_eq!(stroke(&mut out, c(TE_)), "TEN");
+        assert_eq!(stroke(&mut out, c(TEN)), "TEN");
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        out.prefix(Prefix::AllCaps);
+        stroke(&mut out, c(TE_));
+        let mut ops = Ops::new();
+        out.mark(find("'"), &mut ops);
+        assert_eq!(stroke(&mut out, c(S_CODA)), "S");
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        assert_eq!(out.recent(), "TENTEN ten TEN'S ten");
+        // Undoing into the word puts the capitals back for the retype.
+        let mut out = Output::new();
+        out.prefix(Prefix::AllCaps);
+        stroke(&mut out, c(TE_));
+        stroke(&mut out, c(TEN));
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        assert_eq!(stroke(&mut out, c(TEN)), "TEN");
     }
 
     /// Cap previous walks back over words and retypes them.

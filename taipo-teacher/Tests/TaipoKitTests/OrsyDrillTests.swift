@@ -426,6 +426,50 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(String(output.recent), "ten ten")
     }
 
+    /// The commands that change the next stroke are strokes of their own, so undo takes
+    /// back the command and not the word before it.  `join`, `cap_next_command` and
+    /// `all_caps` in the Rust.
+    func testPrefixCommands() throws {
+        let (_, theory, _) = try fixtures()
+        let apostrophe = try XCTUnwrap(theory.tables.punctuation.first { $0.text == "'" })
+        let ten = try XCTUnwrap(theory.translate(left: 0x004, right: 0x248))
+        let tenOpen = try XCTUnwrap(theory.translate(left: 0x004, right: 0x048))
+        let codaS = try XCTUnwrap(theory.translate(left: 0, right: 0x020))
+
+        var output = OrsyOutput()
+        _ = output.stroke(ten)
+        output.prefix(.join)
+        XCTAssertEqual(output.stroke(ten), "ten")
+        output.prefix(.join)
+        XCTAssertEqual(output.undo(), 0)
+        XCTAssertEqual(output.stroke(ten), " ten")
+        output.prefix(.capNext)
+        XCTAssertEqual(output.stroke(ten), " Ten")
+        output.prefix(.capNext)
+        XCTAssertEqual(output.undo(), 0)
+        XCTAssertEqual(output.stroke(ten), " ten")
+        XCTAssertEqual(String(output.recent), "tenten ten Ten ten")
+
+        // All caps lasts until the word closes, through an apostrophe.
+        output = OrsyOutput()
+        output.prefix(.allCaps)
+        XCTAssertEqual(output.stroke(tenOpen), "TEN")
+        XCTAssertEqual(output.stroke(ten), "TEN")
+        XCTAssertEqual(output.stroke(ten), " ten")
+        output.prefix(.allCaps)
+        _ = output.stroke(tenOpen)
+        _ = output.mark(apostrophe)
+        XCTAssertEqual(output.stroke(codaS), "S")
+        XCTAssertEqual(output.stroke(ten), " ten")
+        // Undoing into the word puts the capitals back for the retype.
+        output.prefix(.allCaps)
+        _ = output.stroke(tenOpen)
+        _ = output.stroke(ten)
+        _ = output.undo()
+        XCTAssertEqual(output.stroke(ten), "TEN")
+        XCTAssertEqual(String(output.recent), "TENTEN ten TEN'S ten TENTEN")
+    }
+
     /// The apostrophe and the hyphen bind forward: what follows joins the same word.
     func testBindingMarks() throws {
         let (_, theory, _) = try fixtures()
