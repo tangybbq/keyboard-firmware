@@ -10,9 +10,10 @@
 //!   ending-form vowel allows a space after, a plain vowel does not, and a
 //!   fragment with no vowel takes no space before.
 //! - **Capitals.**  [`Output::cap_next`] capitalises the first letter of the
-//!   next stroke, and [`Prefix::AllCaps`] every letter of the next word.
-//!   [`Output::cap_previous`] walks back over the recent text and
-//!   capitalises words already typed.
+//!   next stroke, and [`Prefix::AllCaps`] every letter of the next word;
+//!   [`Prefix::Uncap`] cancels either.  [`Output::cap_previous`] walks back
+//!   over the recent text and capitalises words already typed, and
+//!   [`Output::uncap_previous`] takes the capitals off again.
 //! - **Joining.**  [`Prefix::Join`] drops the space owed before the next
 //!   word, so that it runs on from the last.
 //! - **Undo.**  Each stroke records how many characters it typed, and undo
@@ -98,6 +99,10 @@ pub enum Prefix {
     CapNext,
     /// Capitalise every letter of the next word.
     AllCaps,
+    /// Capitalise nothing of the next word, cancelling a capital already
+    /// asked for: after a full stop that does not end a sentence, or before
+    /// something that must stay lower case.
+    Uncap,
 }
 
 /// What one stroke did, so that undo can take it back.
@@ -214,6 +219,10 @@ impl Output {
             Prefix::Join => self.pending_space = false,
             Prefix::CapNext => self.pending_cap = true,
             Prefix::AllCaps => self.all_caps = true,
+            Prefix::Uncap => {
+                self.pending_cap = false;
+                self.all_caps = false;
+            }
         }
         self.record(record);
     }
@@ -231,8 +240,20 @@ impl Output {
     ///
     /// Backspaces to the start of the `n`th word back (or as far as the
     /// recent text reaches) and retypes it with each word's first letter in
-    /// capitals.  Counts as a stroke, so it can be undone.
+    /// capitals.  Not a stroke of its own: the text is the same length, and
+    /// undoing back over a retype would only lose the capitals it added.
     pub fn cap_previous(&mut self, n: usize, ops: &mut Ops) {
+        self.recase_previous(n, true, ops);
+    }
+
+    /// Take the capital off the first letter of each of the previous `n`
+    /// words, as [`cap_previous`](Self::cap_previous) puts it on.  The rest
+    /// of each word is left as it is.
+    pub fn uncap_previous(&mut self, n: usize, ops: &mut Ops) {
+        self.recase_previous(n, false, ops);
+    }
+
+    fn recase_previous(&mut self, n: usize, upper: bool, ops: &mut Ops) {
         let text = &self.recent[..self.recent_len];
         // Walk back over n words: each word is a run of non-spaces, with
         // whatever spaces precede it.
@@ -250,7 +271,11 @@ impl Output {
         let mut at_word_start = true;
         for (i, ch) in text[start..].iter().enumerate() {
             retyped[i] = if at_word_start && ch.is_ascii_alphabetic() {
-                ch.to_ascii_uppercase()
+                if upper {
+                    ch.to_ascii_uppercase()
+                } else {
+                    ch.to_ascii_lowercase()
+                }
             } else {
                 *ch
             };
@@ -263,8 +288,6 @@ impl Output {
             ops.push(Op::Char(*ch));
         }
         self.recent[start..self.recent_len].copy_from_slice(&retyped[..tail]);
-        // Nothing to undo: the text is the same length, and undoing back
-        // over a retype would only lose the capitals it added.
     }
 
     /// A character was erased by something other than this stage -- a
@@ -540,6 +563,47 @@ mod tests {
         let mut ops = Ops::new();
         out.undo(&mut ops);
         assert_eq!(stroke(&mut out, c(TEN)), "TEN");
+    }
+
+    /// Uncap cancels a capital asked for, by a command or a full stop, and
+    /// all caps; it is undone on its own.
+    #[test]
+    fn uncap() {
+        fn find(text: &str) -> &'static punctuation::Mark {
+            punctuation::ALL.iter().find(|m| m.text == text).expect("a mark")
+        }
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        let mut ops = Ops::new();
+        out.mark(find("."), &mut ops);
+        out.prefix(Prefix::Uncap);
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        out.prefix(Prefix::AllCaps);
+        out.prefix(Prefix::Uncap);
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        // Undoing the uncap puts the capital back.
+        out.prefix(Prefix::CapNext);
+        out.prefix(Prefix::Uncap);
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        assert_eq!(stroke(&mut out, c(TEN)), " Ten");
+        assert_eq!(out.recent(), "ten. ten ten Ten");
+    }
+
+    /// Uncap previous takes the first capital off the words before, and
+    /// leaves the rest of each word alone.
+    #[test]
+    fn uncap_previous() {
+        let mut out = Output::new();
+        out.prefix(Prefix::AllCaps);
+        stroke(&mut out, c(TEN));
+        stroke(&mut out, c(TEN));
+        out.cap_previous(1, &mut Ops::new());
+        assert_eq!(out.recent(), "TEN Ten");
+        let mut ops = Ops::new();
+        out.uncap_previous(2, &mut ops);
+        assert_eq!(ops.text(), "\u{8}\u{8}\u{8}\u{8}\u{8}\u{8}\u{8}tEN ten");
+        assert_eq!(out.recent(), "tEN ten");
     }
 
     /// Cap previous walks back over words and retypes them.

@@ -442,6 +442,31 @@ final class OrsyDrillTests: XCTestCase {
         // It is not a stroke: undo takes back the word it capitalised.
         XCTAssertEqual(output.undo(), 4)
         XCTAssertEqual(String(output.recent), "Ten")
+        // Uncap previous takes the first capital off, and leaves the rest.
+        output.prefix(.allCaps)
+        _ = output.stroke(ten)
+        XCTAssertEqual(output.uncapPrevious(2).text, "ten tEN")
+    }
+
+    /// Uncap cancels a capital asked for, by a command or a full stop, and all caps; it
+    /// is undone on its own.  `uncap` in the Rust.
+    func testUncap() throws {
+        let (_, theory, _) = try fixtures()
+        let stop = try XCTUnwrap(theory.tables.punctuation.first { $0.text == "." })
+        let ten = try XCTUnwrap(theory.translate(left: 0x004, right: 0x248))
+        var output = OrsyOutput()
+        _ = output.stroke(ten)
+        _ = output.mark(stop)
+        output.prefix(.uncap)
+        XCTAssertEqual(output.stroke(ten), " ten")
+        output.prefix(.allCaps)
+        output.prefix(.uncap)
+        XCTAssertEqual(output.stroke(ten), " ten")
+        output.prefix(.capNext)
+        output.prefix(.uncap)
+        XCTAssertEqual(output.undo(), 0)
+        XCTAssertEqual(output.stroke(ten), " Ten")
+        XCTAssertEqual(String(output.recent), "ten. ten ten Ten")
     }
 
     /// The commands that change the next stroke are strokes of their own, so undo takes

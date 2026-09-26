@@ -88,6 +88,9 @@ struct OrsyOutput {
         case .join: pendingSpace = false
         case .capNext: pendingCap = true
         case .allCaps: allCaps = true
+        case .uncap:
+            pendingCap = false
+            allCaps = false
         }
     }
 
@@ -118,6 +121,16 @@ struct OrsyOutput {
     /// what to type in their place.  Not recorded, as in the firmware: the text is the
     /// same length, and undoing back over it would only lose the capitals.
     mutating func capPrevious(_ n: Int) -> (erase: Int, text: String) {
+        recasePrevious(n, upper: true)
+    }
+
+    /// Take the capital off the first letter of each of the previous `n` words, as
+    /// `capPrevious` puts it on.
+    mutating func uncapPrevious(_ n: Int) -> (erase: Int, text: String) {
+        recasePrevious(n, upper: false)
+    }
+
+    private mutating func recasePrevious(_ n: Int, upper: Bool) -> (erase: Int, text: String) {
         var start = recent.count
         for _ in 0..<n {
             while start > 0 && recent[start - 1] == " " { start -= 1 }
@@ -126,7 +139,8 @@ struct OrsyOutput {
         var retyped = [Character]()
         var atWordStart = true
         for ch in recent[start...] {
-            retyped.append(atWordStart && ch.isLetter ? Character(ch.uppercased()) : ch)
+            let recased = upper ? ch.uppercased() : ch.lowercased()
+            retyped.append(atWordStart && ch.isLetter ? Character(recased) : ch)
             atWordStart = ch == " "
         }
         recent.replaceSubrange(start..., with: retyped)
@@ -155,6 +169,8 @@ enum OrsyPrefix {
     case capNext
     /// Capitalise every letter of the next word.
     case allCaps
+    /// Capitalise nothing of the next word, cancelling a capital already asked for.
+    case uncap
 }
 
 /// One stroke of the table's division of a target.
