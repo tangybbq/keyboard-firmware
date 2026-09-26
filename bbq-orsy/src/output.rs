@@ -90,6 +90,8 @@ struct Stroke {
     chars: u8,
     /// Whether a space was pending before the stroke, to put back.
     pending_space: bool,
+    /// Whether a capital was pending before the stroke, to put back.
+    pending_cap: bool,
 }
 
 /// The output stage.
@@ -117,7 +119,7 @@ impl Output {
         Output {
             recent: [' '; RECENT],
             recent_len: 0,
-            strokes: [Stroke { chars: 0, pending_space: false }; STROKES],
+            strokes: [Stroke { chars: 0, pending_space: false, pending_cap: false }; STROKES],
             strokes_len: 0,
             pending_space: false,
             pending_cap: false,
@@ -126,7 +128,7 @@ impl Output {
 
     /// Type a stroke.
     pub fn stroke(&mut self, t: &Translation, ops: &mut Ops) {
-        let record = Stroke { chars: 0, pending_space: self.pending_space };
+        let record = self.before(0);
         let mut count = 0u8;
         if self.pending_space && t.space_before && !t.is_empty() {
             self.emit(' ', ops);
@@ -153,7 +155,7 @@ impl Output {
     /// so what follows binds straight on.  Recorded like any other stroke, so undo takes
     /// it back with the characters it typed.
     pub fn mark(&mut self, mark: &punctuation::Mark, ops: &mut Ops) {
-        let record = Stroke { chars: 0, pending_space: self.pending_space };
+        let record = self.before(0);
         let mut count = 0u8;
         for ch in mark.text.chars() {
             self.emit(ch, ops);
@@ -168,7 +170,7 @@ impl Output {
 
     /// The space command: a space on its own.
     pub fn space(&mut self, ops: &mut Ops) {
-        let record = Stroke { chars: 1, pending_space: self.pending_space };
+        let record = self.before(1);
         self.emit(' ', ops);
         self.pending_space = false;
         self.record(record);
@@ -241,7 +243,9 @@ impl Output {
         }
     }
 
-    /// Take back the last stroke.
+    /// Take back the last stroke, and put the spacing and the pending
+    /// capital back as they were before it: a word retyped after undoing it
+    /// gets the capital a sentence-ender or cap-next gave it the first time.
     pub fn undo(&mut self, ops: &mut Ops) {
         if self.strokes_len == 0 {
             return;
@@ -254,7 +258,7 @@ impl Output {
         let keep = self.recent_len.saturating_sub(stroke.chars as usize);
         self.recent_len = keep;
         self.pending_space = stroke.pending_space;
-        self.pending_cap = false;
+        self.pending_cap = stroke.pending_cap;
     }
 
     /// The recent text, for tests.
@@ -271,6 +275,12 @@ impl Output {
         }
         self.recent[self.recent_len] = ch;
         self.recent_len += 1;
+    }
+
+    /// The record of a stroke about to type `chars` characters, holding the
+    /// state it starts from.
+    fn before(&self, chars: u8) -> Stroke {
+        Stroke { chars, pending_space: self.pending_space, pending_cap: self.pending_cap }
     }
 
     fn record(&mut self, stroke: Stroke) {
@@ -487,6 +497,29 @@ mod tests {
         let mut out = Output::new();
         out.erase();
         assert_eq!(out.recent(), "");
+    }
+
+    /// Undo puts back a capital the undone stroke used, so the retype gets
+    /// it too, and takes away one it asked for.
+    #[test]
+    fn undo_restores_capital() {
+        fn find(text: &str) -> &'static punctuation::Mark {
+            punctuation::ALL.iter().find(|m| m.text == text).expect("a mark")
+        }
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        let mut ops = Ops::new();
+        out.mark(find("."), &mut ops);
+        assert_eq!(stroke(&mut out, c(TEN)), " Ten");
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        assert_eq!(stroke(&mut out, c(TEN)), " Ten");
+        // Undoing the full stop takes its capital with it.
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        out.undo(&mut ops);
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        assert_eq!(out.recent(), "ten ten");
     }
 
     /// Undo reaches back a bounded number of strokes.

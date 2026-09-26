@@ -24,15 +24,15 @@ import Foundation
 struct OrsyOutput {
     private(set) var recent: [Character] = []
     /// What each stroke did, oldest first: the characters it typed, and whether a space
-    /// was pending before it, to put back.
-    private var strokes: [(chars: Int, pendingSpace: Bool)] = []
+    /// and a capital were pending before it, to put back.
+    private var strokes: [(chars: Int, pendingSpace: Bool, pendingCap: Bool)] = []
     /// The last stroke allowed a space after it, so the next word gets one.
     private(set) var pendingSpace = false
     private var pendingCap = false
 
     /// Type a syllable, returning the characters it puts on the screen.
     mutating func stroke(_ t: OrsyTranslation) -> String {
-        let before = pendingSpace
+        let (before, cap) = (pendingSpace, pendingCap)
         var out = ""
         if pendingSpace && t.spaceBefore && !t.text.isEmpty {
             out.append(" ")
@@ -47,14 +47,13 @@ struct OrsyOutput {
         }
         pendingSpace = t.spaceAfter
         recent.append(contentsOf: out)
-        strokes.append((out.count, before))
+        strokes.append((out.count, before, cap))
         return out
     }
 
     mutating func space() -> String {
-        let before = pendingSpace
         recent.append(" ")
-        strokes.append((1, before))
+        strokes.append((1, pendingSpace, pendingCap))
         pendingSpace = false
         return " "
     }
@@ -64,20 +63,19 @@ struct OrsyOutput {
     /// Type a punctuation mark: it attaches to what came before, and most owe the next
     /// word a space, while the apostrophe and the hyphen bind straight on to it.
     mutating func mark(_ mark: Layouts.Orsy.Punctuation) -> String {
-        let before = pendingSpace
         recent.append(contentsOf: mark.text)
-        strokes.append((mark.text.count, before))
+        strokes.append((mark.text.count, pendingSpace, pendingCap))
         pendingSpace = mark.spaceAfter
         pendingCap = pendingCap || mark.capitalises
         return mark.text
     }
 
     /// Take back the last stroke, returning how many characters go, and put the spacing
-    /// state back as it was before it.
+    /// and the pending capital back as they were before it.
     mutating func undo() -> Int {
         guard let stroke = strokes.popLast() else { return 0 }
         recent.removeLast(min(stroke.chars, recent.count))
-        pendingCap = false
+        pendingCap = stroke.pendingCap
         pendingSpace = stroke.pendingSpace
         return stroke.chars
     }

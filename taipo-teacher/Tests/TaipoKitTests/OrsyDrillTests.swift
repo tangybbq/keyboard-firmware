@@ -407,6 +407,25 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(String(output.recent), "ten. Ten ten")
     }
 
+    /// Undo puts back a capital the undone stroke used, so the retype gets it too, and
+    /// takes away one it asked for.  `undo_restores_capital` in the Rust.
+    func testUndoRestoresTheCapital() throws {
+        let (_, theory, _) = try fixtures()
+        let stop = try XCTUnwrap(theory.tables.punctuation.first { $0.text == "." })
+        let ten = try XCTUnwrap(theory.translate(left: 0x004, right: 0x248))
+        var output = OrsyOutput()
+        _ = output.stroke(ten)
+        _ = output.mark(stop)
+        XCTAssertEqual(output.stroke(ten), " Ten")
+        _ = output.undo()
+        XCTAssertEqual(output.stroke(ten), " Ten")
+        // Undoing the full stop takes its capital with it.
+        _ = output.undo()
+        _ = output.undo()
+        XCTAssertEqual(output.stroke(ten), " ten")
+        XCTAssertEqual(String(output.recent), "ten ten")
+    }
+
     /// The apostrophe and the hyphen bind forward: what follows joins the same word.
     func testBindingMarks() throws {
         let (_, theory, _) = try fixtures()
