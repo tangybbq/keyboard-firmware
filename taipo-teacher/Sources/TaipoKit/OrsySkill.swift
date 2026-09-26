@@ -488,6 +488,8 @@ struct OrsySamples: Codable, Equatable {
         case .join: return ["cmd:join"]
         case .allCaps: return ["cmd:all_caps"]
         case .capPrevious: return ["cmd:capitalise_previous"]
+        case .uncap: return ["cmd:uncap_next"]
+        case .uncapPrevious: return ["cmd:uncap_previous"]
         case .doshToggle: return ["cmd:dosh_toggle"]
         case .dosh: return ["cmd:dosh_oneshot"]
         case .punct(let mark): return ["punct:\(mark.text)"]

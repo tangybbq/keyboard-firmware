@@ -1079,6 +1079,8 @@ public final class DeviceMonitor: ObservableObject {
         case .join: label = "join"
         case .allCaps: label = "all caps"
         case .capPrevious: label = "cap previous"
+        case .uncap: label = "uncap"
+        case .uncapPrevious: label = "uncap previous"
         case .doshToggle: label = "to Dosh"
         case .dosh(let code):
             let entry = layouts.chord(code, variant: "dosh")

@@ -27,8 +27,8 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 15 | x on the middle pair and lower ring | 70 |
 | 16 | the second character: r and l | 509 |
 | 17 | the second character: i, t and m | 709 |
-| 18 | the second character: o, s and e | 505 |
-| 19 | the second character: w, c, u, p and n | 194 |
+| 18 | the second character: o, s and e | 506 |
+| 19 | the second character: w, c, u, p and n | 193 |
 | 20 | ea and ou | 61 |
 | 21 | v, m and k | 1623 |
 | 22 | ind/nd, inc/ng and int/nt | 1223 |
@@ -847,7 +847,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 `o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.  Struck with nothing else, `e` capitalises the next word.
 
-505 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
+506 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -896,7 +896,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 `w` is `e+i+Bk`, `c` is `e+i+Sp`, `u` is `i+Sp` as for the vowel, `p` is `Sp+Bk`, `n` is `e+Sp+Bk`.
 
-194 words qualify, 40 here, most common first.  `drills/19-second-rest.txt`.
+193 words qualify, 40 here, most common first.  `drills/19-second-rest.txt`.
 
 | word | strokes | division |
 |---|---|---|

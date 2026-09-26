@@ -335,6 +335,13 @@ fn test_alone_commands() {
     assert_eq!(t.typed(), " ten");
     t.stroke((commands::CAP_PREVIOUS, 0));
     assert_eq!(t.typed(), "\u{8}\u{8}\u{8}Ten");
+    t.stroke((commands::UNCAP_PREVIOUS, 0));
+    assert_eq!(t.typed(), "\u{8}\u{8}\u{8}ten");
+    // Uncap cancels the capital cap-next asked for.
+    t.stroke((commands::CAP_NEXT, 0));
+    t.stroke((commands::UNCAP_NEXT, 0));
+    t.stroke(ten());
+    assert_eq!(t.typed(), " ten");
     // Undo takes back the join alone, and the space is owed again.
     t.stroke((commands::JOIN, 0));
     t.stroke((commands::UNDO, 0));

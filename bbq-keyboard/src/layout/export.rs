@@ -336,6 +336,8 @@ fn orsy_json() -> String {
         ("join", "left", commands::JOIN),
         ("all_caps", "left", commands::ALL_CAPS),
         ("capitalise_previous", "left", commands::CAP_PREVIOUS),
+        ("uncap_next", "left", commands::UNCAP_NEXT),
+        ("uncap_previous", "left", commands::UNCAP_PREVIOUS),
     ]
     .iter()
     .enumerate()

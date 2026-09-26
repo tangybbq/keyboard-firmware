@@ -14,14 +14,14 @@
 //!
 //! # Commands
 //!
-//! Eight whole strokes are commands rather than syllables.  Three are on a
+//! Ten whole strokes are commands rather than syllables.  Three are on a
 //! key combination that is unassigned within its own group, so no syllable
-//! can produce them; the other five are Series 2 shapes struck alone on the
+//! can produce them; the other seven are Series 2 shapes struck alone on the
 //! left, which spell nothing any word needs (see
-//! [`commands`](bbq_orsy::tables::commands)).  Six are handled here: undo, a
-//! space on its own, capitalise the next word, join the next word to the
-//! last, all caps for the next word, and capitalise the word before.  The
-//! other two escape to Dosh and need the
+//! [`commands`](bbq_orsy::tables::commands)).  Eight are handled here: undo,
+//! a space on its own, join the next word to the last, and the capitals --
+//! capitalise, all caps or uncap the next word, and capitalise or uncap the
+//! word before.  The other two escape to Dosh and need the
 //! layout manager, so they are returned to it as an [`Escape`]: holding the
 //! one-shot shape on the left plays the right hand's chord through the Dosh
 //! table for that stroke only, and the toggle switches the keyboard to Dosh
@@ -70,6 +70,10 @@ pub enum StrokeOutcome {
     AllCaps,
     /// The capitalise-previous command: capitalise the word before.
     CapPrevious,
+    /// The uncap command: no capital on the next word.
+    Uncap,
+    /// The uncap-previous command: take the capital off the word before.
+    UncapPrevious,
     /// A punctuation mark that takes part in the spacing.
     Punct(&'static punctuation::Mark),
     /// The toggle: the keyboard is switching to Dosh.
@@ -210,6 +214,8 @@ impl OrsyManager {
             (commands::JOIN, 0) => StrokeOutcome::Join,
             (commands::ALL_CAPS, 0) => StrokeOutcome::AllCaps,
             (commands::CAP_PREVIOUS, 0) => StrokeOutcome::CapPrevious,
+            (commands::UNCAP_NEXT, 0) => StrokeOutcome::Uncap,
+            (commands::UNCAP_PREVIOUS, 0) => StrokeOutcome::UncapPrevious,
             _ => match translate(chord) {
                 Some(t) => StrokeOutcome::Text(t),
                 None => StrokeOutcome::Dead,
@@ -252,6 +258,8 @@ impl OrsyManager {
             StrokeOutcome::Join => self.output.prefix(Prefix::Join),
             StrokeOutcome::AllCaps => self.output.prefix(Prefix::AllCaps),
             StrokeOutcome::CapPrevious => self.output.cap_previous(1, &mut ops),
+            StrokeOutcome::Uncap => self.output.prefix(Prefix::Uncap),
+            StrokeOutcome::UncapPrevious => self.output.uncap_previous(1, &mut ops),
             StrokeOutcome::Punct(mark) => self.output.mark(mark, &mut ops),
             StrokeOutcome::Text(t) => self.output.stroke(&t, &mut ops),
             // Not a syllable.  Nothing is typed, which is the error signal

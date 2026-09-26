@@ -58,6 +58,10 @@ public enum OrsyOutcome: Equatable, Sendable {
     case allCaps
     /// Capitalise the word before.
     case capPrevious
+    /// No capital on the next word.
+    case uncap
+    /// Take the capital off the word before.
+    case uncapPrevious
     case doshToggle
     /// The one-shot: this chord is played through the Dosh table.  It is on the right for
     /// the chord form, and on either hand with an Fn key; the Dosh table is the same on
@@ -103,6 +107,8 @@ public final class OrsyTheory {
     private let join: UInt16
     private let allCaps: UInt16
     private let capPrevious: UInt16
+    private let uncapNext: UInt16
+    private let uncapPrevious: UInt16
 
     public init(_ tables: Layouts.Orsy) {
         self.tables = tables
@@ -121,6 +127,8 @@ public final class OrsyTheory {
         join = tables.command("join") ?? 0x200
         allCaps = tables.command("all_caps") ?? 0x208
         capPrevious = tables.command("capitalise_previous") ?? 0x280
+        uncapNext = tables.command("uncap_next") ?? 0x108
+        uncapPrevious = tables.command("uncap_previous") ?? 0x180
     }
 
     /// Split a stroke into its patterns, or nil if any Series holds a combination its table
@@ -174,6 +182,8 @@ public final class OrsyTheory {
         case (join, 0): return .join
         case (allCaps, 0): return .allCaps
         case (capPrevious, 0): return .capPrevious
+        case (uncapNext, 0): return .uncap
+        case (uncapPrevious, 0): return .uncapPrevious
         default:
             if let t = translate(left: left, right: right) { return .text(t) }
             return .dead

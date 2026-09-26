@@ -132,6 +132,8 @@ public final class StrokeEngine {
         case .join: outcome = "join"
         case .allCaps: outcome = "all-caps"
         case .capPrevious: outcome = "cap-previous"
+        case .uncap: outcome = "uncap"
+        case .uncapPrevious: outcome = "uncap-previous"
         case .doshToggle: outcome = "dosh-toggle"
         case .dosh(let code): outcome = String(format: "dosh 0x%03x", code)
         case .punct(let mark): outcome = "punct \"\(mark.text)\""

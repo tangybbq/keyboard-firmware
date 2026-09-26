@@ -395,10 +395,14 @@ public final class OrsyDrillSession {
         case .allCaps:
             output.prefix(.allCaps)
             events.append(.ignored)
-        case .capPrevious:
+        case .uncap:
+            output.prefix(.uncap)
+            events.append(.ignored)
+        case .capPrevious, .uncapPrevious:
             // Retyped in place, so the text is judged afresh rather than counted as a
             // correction.
-            let (erase, text) = output.capPrevious(1)
+            let (erase, text) = stroke.outcome == .capPrevious
+                ? output.capPrevious(1) : output.uncapPrevious(1)
             let n = min(erase, typed.count)
             typed.removeLast(n)
             if divergedAt == nil, !agrees(typed + text) { divergedAt = typed.count }

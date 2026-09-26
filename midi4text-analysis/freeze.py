@@ -141,6 +141,11 @@ def main():
          "Series 2 'm' struck alone", True),
         ("capitalise_previous", "iBk", "left",
          "Series 2 't' struck alone", True),
+        ("uncap_next", "eSp", "left",
+         "Series 2 'e' struck alone", True),
+        ("uncap_previous", "iSp", "left",
+         "Series 2 'u' struck alone; a final u after a closed syllable divides "
+         "the other way at no cost", True),
     ):
         out["commands"].append({
             "name": name, "hand": hand, "why": why, "alone": alone,

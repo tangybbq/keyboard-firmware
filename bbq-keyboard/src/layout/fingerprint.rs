@@ -155,6 +155,8 @@ pub fn orsy_fingerprint() -> u64 {
         commands::JOIN,
         commands::ALL_CAPS,
         commands::CAP_PREVIOUS,
+        commands::UNCAP_NEXT,
+        commands::UNCAP_PREVIOUS,
     ] {
         h.u16(c);
     }

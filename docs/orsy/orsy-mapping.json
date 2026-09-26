@@ -683,6 +683,28 @@
         "Bk"
       ],
       "bits": 640
+    },
+    {
+      "name": "uncap_next",
+      "hand": "left",
+      "why": "Series 2 'e' struck alone",
+      "alone": true,
+      "keys": [
+        "e",
+        "Sp"
+      ],
+      "bits": 264
+    },
+    {
+      "name": "uncap_previous",
+      "hand": "left",
+      "why": "Series 2 'u' struck alone; a final u after a closed syllable divides the other way at no cost",
+      "alone": true,
+      "keys": [
+        "i",
+        "Sp"
+      ],
+      "bits": 384
     }
   ]
 }

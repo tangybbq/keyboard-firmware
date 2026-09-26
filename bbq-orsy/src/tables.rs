@@ -543,10 +543,15 @@ pub mod commands {
     pub const ALL_CAPS: u16 = 0x208;
     /// Left hand, `i+Bk` alone: capitalise the word before.
     pub const CAP_PREVIOUS: u16 = 0x280;
+    /// Left hand, `e+Sp` alone: cancel a capital asked for the next word.
+    pub const UNCAP_NEXT: u16 = 0x108;
+    /// Left hand, `i+Sp` alone: take the capital off the word before.
+    pub const UNCAP_PREVIOUS: u16 = 0x180;
 
     /// The whole-stroke commands, struck on the left with nothing on the
     /// right.
-    pub const ALONE: [u16; 5] = [UNDO, CAP_NEXT, JOIN, ALL_CAPS, CAP_PREVIOUS];
+    pub const ALONE: [u16; 7] =
+        [UNDO, CAP_NEXT, JOIN, ALL_CAPS, CAP_PREVIOUS, UNCAP_NEXT, UNCAP_PREVIOUS];
 
     /// Whether a chord is a whole-stroke command rather than the fragment its
     /// Series 2 shape would otherwise spell.
