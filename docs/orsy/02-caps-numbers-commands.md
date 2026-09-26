@@ -22,6 +22,12 @@ syllables**, not carved out of the alphabets — which is what Midi4Text itself 
 its punctuation dictionary is nothing but ordinary strokes whose orthographic reading is
 impossible.
 
+**Series 2 struck alone is one such place.** On its own, a Series 2 consonant spells a
+fragment leaning back onto the word before, and Series 4 always writes that consonant in
+the stroke it ends, so no division of any word uses one. Those lone shapes are one or two
+keys on the left, and they are where the capitals, undo and join ended up; see
+`03-implementation-spec.md` for the argument and the figures.
+
 ## Capitals
 
 ### Sentence-ending punctuation should cap the next word
@@ -47,30 +53,36 @@ words costs 1.72 → 1.76 keys per consonant slot and eats the one spare outer c
 prefix stroke costs one extra stroke on a capitalised word — about 0.03 strokes per word
 in ordinary prose — and leaves both alphabets untouched.
 
-**Cap next word** — left outer `a`+`s` with inner `e`, nothing on the right:
+**Cap next word** — the left `e` alone, nothing else on the board:
 
       LEFT                        RIGHT
       a  o  s  t  n  e  i Sp Bk   a  o  s  t  n  e  i Sp Bk
-      #  .  #  .  .  #  .  .  .   .  .  .  .  .  .  .  .  .
+      .  .  .  .  .  #  .  .  .   .  .  .  .  .  .  .  .  .
 
-A shape the syllabic system never produces. (An earlier draft put this on all four inner
-keys; that shape is now the Dosh toggle, which needs to be free in both layouts.)
+In a syllable `e` is the Series 2 `s`; alone it spells nothing a word needs. (Earlier
+drafts put this on all four inner keys, now the Dosh toggle; on left `a`+`s`+`e`; and on
+the right `e`+`i`+`Sp`, the plain `ou` that never occurs, at three keys.)
 
 ## A command family, Phoenix-style
 
-The same left-hand shape with a right-hand argument gives the retro-commands. Phoenix's
-set is the right model: *cap next*, *don't cap next*, *cap previous N words*.
+Phoenix's set is the right model: *cap next*, *don't cap next*, *cap previous N words*.
+What is assigned, all on the left inner keys struck alone:
 
-| command | left inner | right hand |
+| command | left inner | |
 |---|---|---|
-| cap next word | all four | — |
-| don't cap next | all four | `e` |
-| cap previous N words | all four | digit N on the outer five |
-| join previous (kill space) | all four | `i` |
+| cap next word | `e` | the Series 2 `s` |
+| all caps, next word | `e`+`Bk` | the Series 2 `m` |
+| cap previous word | `i`+`Bk` | the Series 2 `t` |
+| join (no space before the next word) | `Bk` | the Series 2 `l` |
+| undo | `Sp` | the Series 2 `r`; Backspace in Dosh |
 
-*Join previous* is much less useful here than in Phoenix, since Midi4Text controls spacing
+*Don't cap next* and *cap previous N* are not assigned. `e`+`Sp`, and the lone `w`, `c`,
+`p` and `n` shapes, are still free for them.
+
+*Join* is much less useful here than in Phoenix, since Midi4Text controls spacing
 through the vowel's ending form rather than emitting a space per stroke — it is worth
-having only for compounds and repairs.
+having only for compounds and repairs. The compounds are real, though: a `CvCe` head like
+`life` closes its word, so `lifestyle` cannot otherwise be written as its parts.
 
 ## One-hand strokes, and where an escape can live
 
@@ -151,10 +163,12 @@ of the three — punctuation is commoner than capitals:
 | | shape | keys | roughly |
 |---|---|---|---|
 | one-shot Dosh escape | left inner `i`+`Sp`+`Bk` | 3 | 0.15 / word |
-| capitalise | left outer `a`+`s`, inner `e` | 3 | 0.03 / word |
+| capitalise | left `e` alone | 1 | 0.03 / word |
 | Dosh toggle | all four inner | 4 | rare |
 
-All three are among the 169 left-hand shapes the syllabic system never produces.
+The escape and the toggle are among the 169 left-hand shapes the syllabic system never
+produces; capitalise is a Series 2 shape that only means a letter with more in the
+stroke.
 
 ## The mapping as grids
 

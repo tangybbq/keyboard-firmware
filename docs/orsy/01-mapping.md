@@ -199,7 +199,8 @@ large strokes.
 
 - The three rare coda-only shapes (final `h`, the `AE` tail, and the unused onset slot) are
   parked on four- and five-key chords. They are individually under 0.1% of slots, so this
-  costs nothing measurable, but they deserve a deliberate home.
+  costs nothing measurable, but they deserve a deliberate home. The one spare outer
+  chord, all five keys, is free again now that undo has moved off it.
 - **The mirrored form does not mark its space.** Every other ending form is the plain one
   plus `Bk`; the mirrored vowel closes the word with no marker, and has no forward-binding
   form at all. So a compound whose first half is a `CvCe` word cannot be written as its
@@ -217,13 +218,18 @@ large strokes.
   the mnemonic, since `Bk` is the thumb that types Space.
 
   The alternative is a **joiner command** that eats the preceding space, which needs no
-  chord-space change and works on any compound, at one stroke each.
+  chord-space change and works on any compound, at one stroke each. That now exists, as
+  the left `Bk` struck alone (see `03-implementation-spec.md`), so the compounds can be
+  written as their parts today; the writer does not divide with it, and they stay out of
+  the drills until the marker is decided.
 
   Neither has been tried by hand, and the simulation used a simplified ranking, so the
   figures are indicative rather than settled.
 
-- Capitalisation, the number bar, and the punctuation and command chords have no assignment
-  yet. On Michela these live in Series 4's spare patterns; here Series 4's 5-key group has
-  one spare chord and the vowel groups have two each, which is not obviously enough.
+- Capitalisation, the number bar, and the punctuation and command chords had no assignment
+  here. On Michela these live in Series 4's spare patterns; here Series 4's 5-key group has
+  one spare chord and the vowel groups have two each, which is not obviously enough. They
+  have since found room as whole strokes: see `02-caps-numbers-commands.md` and
+  `03-implementation-spec.md`.
 - Nothing here has been tried by hand. The voicing-pair mnemonic in particular is a guess
   about what will feel memorable.

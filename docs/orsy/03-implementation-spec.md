@@ -46,16 +46,41 @@ A chord is two `u16`s, one per hand. A Series is a mask, so splitting a stroke i
 
 ## Commands
 
-All five sit on chords unassigned *within their own group*, so no syllable can produce
+Three sit on chords unassigned *within their own group*, so no syllable can produce
 them. Shapes that are merely unattested in the corpus were rejected as not safe enough.
 
 | command | hand | keys | bits | why it is free |
 |---|---|---|---|---|
 | `dosh_oneshot` | left | i + Sp + Bk | `0x380` | spare Series 2 chord; right hand carries the Dosh chord |
 | `dosh_toggle` | left | e + i + Sp + Bk | `0x388` | spare Series 2 chord, and unmapped as 0x388 in Dosh, so one shape does both |
-| `capitalise_next` | right | e + i + Sp | `0x188` | spare Series 3 chord: plain 'ou', which never occurs since ou always closes |
 | `space` | right | Bk | `0x200` | spare Series 3 chord: the word-end marker with no vowel |
-| `undo` | left | a + o + s + t + n | `0x067` | the one spare outer chord; deliberately expensive |
+
+The other five are **whole-stroke commands**: a Series 2 shape struck on the left with
+nothing else on either hand. That is not unattested but useless. Series 2 alone spells its
+consonant as a fragment leaning back onto the word before, and Series 4 writes every such
+consonant in the stroke it ends, so no division of any word uses one: the writer never
+chooses a lone consonant shape over the top 50,000 words of `count_1w`, and banning every
+lone Series 2 shape, vowels included, costs no strokes and 0.001 keys per word. The shapes
+keep their letters in any stroke with anything else in it; only the stroke that is
+nothing but the shape is the command.
+
+| command | keys | bits | letter it shadows | |
+|---|---|---|---|---|
+| `undo` | Sp | `0x100` | `r` | Backspace in Dosh |
+| `capitalise_next` | e | `0x008` | `s` | |
+| `join` | Bk | `0x200` | `l` | no space before the next word |
+| `all_caps` | e + Bk | `0x208` | `m` | the next word in capitals |
+| `capitalise_previous` | i + Bk | `0x280` | `t` | the word before, retyped |
+
+The lone vowel shapes -- `i`, `e+i` (`o`), `i+Sp` (`u`) -- are left alone: they write a
+word's final vowel after a closed syllable (`phot|o`, `men|u`, `tax|i`), which is the
+natural division there. `e+Sp` alone, and the other lone consonants `w`, `c`, `p` and
+`n`, are still free.
+
+Undo, cap-next, join and all caps are recorded by the output stage as strokes that typed
+nothing, so undoing a mistaken one takes back only the command. Undo was once all five
+left outer keys, chosen to be hard to hit; that made the commonest correction the most
+expensive stroke on the board, and that chord is free again.
 
 **Punctuation that affects spacing is native**, which `02-caps-numbers-commands.md`
 originally said it need not be. The chords extend the space command: `Bk` alone is a space,
@@ -166,8 +191,11 @@ Much smaller than the steno typer, because nothing is ever retranslated.
   The word-boundary rule maps directly: ending-form vowel → space after; plain vowel → no
   space after; empty Series 3 → no space before.
 - **Capitals.** `pending_cap` set by the cap-prefix stroke, consumed by the next letter.
+  All caps holds until the word closes, through the apostrophe and the hyphen.
+- **Join.** Clears the space owed to the next word.
 - **Retro-cap.** Walk back N word boundaries in `recent`, backspace, retype.
-- **Undo.** Backspace `strokes[last]` characters and pop. That is the whole of it.
+- **Undo.** Backspace `strokes[last]` characters and pop, and put back the spacing and
+  capitals as they were before that stroke. That is the whole of it.
 
 ## Mode integration
 

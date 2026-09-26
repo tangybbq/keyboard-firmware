@@ -23,7 +23,10 @@ Dosh is one skill: 133 chords, each a letter. Orsy is three:
    is cheapest. Nothing in Dosh resembles this; it is the skill the corpus figures assume
    and that the spec says only hands can settle.
 
-Plus five commands, of which the Dosh one-shot is the one used every sentence.
+Plus eight commands, of which the Dosh one-shot is the one used every sentence. Five of
+them are the left inner shapes struck alone -- undo on `Sp`, Dosh's Backspace, join on
+`Bk`, and three for capitals -- so they are taught with the Series 2 letters on the same
+shapes.
 
 ### What transfers from Dosh, and what fights it
 
@@ -100,7 +103,8 @@ mode**, so practice done this way is not lost: once the replay learns to read Or
 
 Lesson order, for a Dosh hand:
 
-1. **Transfer.** `s` `t` `n`, vowels `e` `i` plain and ending, the space and undo commands.
+1. **Transfer.** `s` `t` `n`, vowels `e` `i` plain and ending, the space and undo commands
+   (right `Bk` and left `Sp`, alone: Dosh's Space and Backspace).
    Words: ten, sit, net, tin, its, tent, nest. This is where syllable division is met
    first, on words whose patterns are all known.
 2. **Vowels** `a` `o` `u`, in one lesson. These are conflicts too, and the worst of
@@ -216,8 +220,9 @@ device; and the practice tab scores nothing in Orsy mode until Phase C.
   which is the spec's unanswered question — whether a five-key chord forms as fast as a
   two-key one — measured for free on every stroke; divisions per word against the
   optimum. The alternation strip is meaningless for two-hand strokes and is hidden in Orsy.
-- Auto-capitalisation after a one-shot `.`, the undo command and the space command all
-  go through the drill's output stage so the target stays in step with the keyboard.
+- Auto-capitalisation after a one-shot `.`, and every command that touches the text --
+  undo, space, join and the three capitals -- go through the drill's output stage so the
+  target stays in step with the keyboard.
 
 Done, in a first form. `orsy-words.json` (the word table and the lesson plan, written
 by the `lessons` example), `OrsyLadder`, `OrsyLadderMaker`, `OrsyDrillSession` with the
