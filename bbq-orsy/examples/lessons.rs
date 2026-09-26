@@ -61,7 +61,7 @@ const LESSONS: &[Lesson] = &[
         note: "`s`, `t` and `n` on the outer keys, and `e` and `i` on the inner, are \
                Dosh's own keys and mean the same here.  Add `Bk`, the space thumb, to a \
                vowel to end the word.  Also the two commands with nothing to learn: right \
-               `Bk` alone is a space, and the whole left outer row is undo.",
+               `Bk` alone is a space, and left `Sp` alone, Dosh's Backspace, is undo.",
         items: &[
             Outer(Outer::S), Outer(Outer::FP), Outer(Outer::N),
             Vowel(Vowel::E), Vowel(Vowel::Ue), Vowel(Vowel::I), Vowel(Vowel::Ui),
@@ -100,17 +100,23 @@ const LESSONS: &[Lesson] = &[
     Lesson {
         name: "second-r-l", title: "the second character: r and l",
         note: "The left hand's inner four are the second character of the syllable, \
-               mostly consonants.  `r` is `Sp` alone and `l` is `Bk` alone.",
+               mostly consonants.  `r` is `Sp` alone and `l` is `Bk` alone.  Only in a \
+               syllable, though: struck with nothing else on the board, the left inner \
+               shapes are commands, and these two are undo and join, which takes away \
+               the space before the next word.",
         items: &[Second(Second::R), Second(Second::RI)],
     },
     Lesson {
         name: "second-i-t-m", title: "the second character: i, t and m",
-        note: "`i` is the same key as the vowel; `t` is `i+Bk`, `m` is `e+Bk`.",
+        note: "`i` is the same key as the vowel; `t` is `i+Bk`, `m` is `e+Bk`.  Struck \
+               alone, `i+Bk` capitalises the word before and `e+Bk` puts the next word \
+               in capitals.",
         items: &[Second(Second::I), Second(Second::RIU), Second(Second::RU)],
     },
     Lesson {
         name: "second-o-s-e", title: "the second character: o, s and e",
-        note: "`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.",
+        note: "`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.  Struck \
+               with nothing else, `e` capitalises the next word.",
         items: &[Second(Second::RXI), Second(Second::X), Second(Second::RX)],
     },
     Lesson {
@@ -342,12 +348,13 @@ fn main() {
     // The head is nearly always a word whose single stroke is a mirrored
     // vowel -- `life`, `home`, `time`, `fire`, `free` -- and the mirrored
     // form closes the word by construction, so that stroke cannot be the
-    // first of a longer one.  Whether it should is an open question: either
-    // a joiner command, or giving the mirrored form the same `Bk` space
-    // marker every other ending form has.  Until that is settled these
-    // words teach a division the answer may well overturn, and one that
-    // bears no relation to the syllables a learner hears.  See
-    // `docs/orsy/01-mapping.md`.
+    // first of a longer one.  The join command (left `Bk` alone) will write
+    // them as their parts, at a stroke per compound, but the writer does not
+    // divide with it, and whether the mirrored form should instead take the
+    // same `Bk` space marker every other ending form has is still open.
+    // Until that is settled these words teach a division the answer may well
+    // overturn, and one that bears no relation to the syllables a learner
+    // hears.  See `docs/orsy/01-mapping.md`.
     let listed: HashSet<&str> = words.iter().map(|w| w.as_str()).collect();
     let torn = |word: &str| -> bool {
         if word.len() < 7 {
@@ -472,9 +479,11 @@ fn main() {
          The layout writes `life` in one stroke, but as a mirrored vowel, and the \
          mirrored form closes the word by construction, so it cannot open a longer one: \
          `lifestyle` comes out `lif|est|yle`, which is neither the syllables nor \
-         anything a learner could predict.  Either a joiner command or giving the \
-         mirrored form the `Bk` space marker every other ending form has would settle \
-         it, so until one of them is chosen these words are not drilled: {}.\n",
+         anything a learner could predict.  The join command, left `Bk` alone, writes \
+         them as their parts -- `life`, join, `style` -- at a stroke per compound; \
+         giving the mirrored form the `Bk` space marker every other ending form has \
+         would do it for nothing.  Until one of them is chosen these words are not \
+         drilled: {}.\n",
         held_out.len(),
         held_out.join(", ")
     )

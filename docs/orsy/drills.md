@@ -6,7 +6,7 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 
 **One shape per Series.**  A stroke holds at most one onset, one second character, one vowel and one coda, and the keys of a group pressed together are one shape, not several letters: `s`+`t` on the right is the coda `l`, so `i`+`t`+`s` spells `il`.  A word that needs two consonants where one shape goes takes another stroke, and the extra consonant leans back onto the syllable before it -- `its` is `it`, then `s` alone.  The only two-consonant codas that fit one stroke are the shapes the mapping has for them: `st`, `nd`, `ng`, `nt`, `ch`, `sh`, `th`, `ck`, `gh`.  For a Dosh hand this is the thing to unlearn first: adding a key changes the consonant rather than adding one.
 
-**58 compounds are held out**, pending a decision the mapping has not made.  The layout writes `life` in one stroke, but as a mirrored vowel, and the mirrored form closes the word by construction, so it cannot open a longer one: `lifestyle` comes out `lif|est|yle`, which is neither the syllables nor anything a learner could predict.  Either a joiner command or giving the mirrored form the `Bk` space marker every other ending form has would settle it, so until one of them is chosen these words are not drilled: something, wireless, homepage, sometimes, coverage, generally, generated, covered, baseball, thailand, printable, notebook, lifestyle, gateway, generate, carefully, notebooks, pipeline, somewhat, covering, shareware, somewhere, lifetime, firewall, moderate, moreover, somebody, hopefully, filename, baseline, heather, homework, generating, widescreen, literally, homeland, livestock, timeline, widespread, homeless, mileage, likewise, changelog, fireplace, hometown, thereafter, generates, homeowners, sometime, homemade, fireworks, homeowner, timetable, vineyard, lifestyles, lifelong, firewalls, feather.
+**58 compounds are held out**, pending a decision the mapping has not made.  The layout writes `life` in one stroke, but as a mirrored vowel, and the mirrored form closes the word by construction, so it cannot open a longer one: `lifestyle` comes out `lif|est|yle`, which is neither the syllables nor anything a learner could predict.  The join command, left `Bk` alone, writes them as their parts -- `life`, join, `style` -- at a stroke per compound; giving the mirrored form the `Bk` space marker every other ending form has would do it for nothing.  Until one of them is chosen these words are not drilled: something, wireless, homepage, sometimes, coverage, generally, generated, covered, baseball, thailand, printable, notebook, lifestyle, gateway, generate, carefully, notebooks, pipeline, somewhat, covering, shareware, somewhere, lifetime, firewall, moderate, moreover, somebody, hopefully, filename, baseline, heather, homework, generating, widescreen, literally, homeland, livestock, timeline, widespread, homeless, mileage, likewise, changelog, fireplace, hometown, thereafter, generates, homeowners, sometime, homemade, fireworks, homeowner, timetable, vineyard, lifestyles, lifelong, firewalls, feather.
 
 | lesson | new | words |
 |---|---|---|
@@ -42,7 +42,7 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 
 ## Lesson 1 — what transfers from Dosh
 
-`s`, `t` and `n` on the outer keys, and `e` and `i` on the inner, are Dosh's own keys and mean the same here.  Add `Bk`, the space thumb, to a vowel to end the word.  Also the two commands with nothing to learn: right `Bk` alone is a space, and the whole left outer row is undo.
+`s`, `t` and `n` on the outer keys, and `e` and `i` on the inner, are Dosh's own keys and mean the same here.  Add `Bk`, the space thumb, to a vowel to end the word.  Also the two commands with nothing to learn: right `Bk` alone is a space, and left `Sp` alone, Dosh's Backspace, is undo.
 
 22 words qualify, 22 here, most common first.  `drills/01-transfer.txt`.
 
@@ -747,7 +747,7 @@ Dosh has PrintScreen here.
 
 ## Lesson 16 — the second character: r and l
 
-The left hand's inner four are the second character of the syllable, mostly consonants.  `r` is `Sp` alone and `l` is `Bk` alone.
+The left hand's inner four are the second character of the syllable, mostly consonants.  `r` is `Sp` alone and `l` is `Bk` alone.  Only in a syllable, though: struck with nothing else on the board, the left inner shapes are commands, and these two are undo and join, which takes away the space before the next word.
 
 509 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
 
@@ -796,7 +796,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 ## Lesson 17 — the second character: i, t and m
 
-`i` is the same key as the vowel; `t` is `i+Bk`, `m` is `e+Bk`.
+`i` is the same key as the vowel; `t` is `i+Bk`, `m` is `e+Bk`.  Struck alone, `i+Bk` capitalises the word before and `e+Bk` puts the next word in capitals.
 
 709 words qualify, 40 here, most common first.  `drills/17-second-i-t-m.txt`.
 
@@ -845,7 +845,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 ## Lesson 18 — the second character: o, s and e
 
-`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.
+`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.  Struck with nothing else, `e` capitalises the next word.
 
 505 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
 
