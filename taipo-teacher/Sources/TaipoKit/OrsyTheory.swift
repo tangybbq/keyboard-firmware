@@ -52,6 +52,12 @@ public enum OrsyOutcome: Equatable, Sendable {
     case undo
     case space
     case capNext
+    /// No space before the next word.
+    case join
+    /// The next word in capitals.
+    case allCaps
+    /// Capitalise the word before.
+    case capPrevious
     case doshToggle
     /// The one-shot: this chord is played through the Dosh table.  It is on the right for
     /// the chord form, and on either hand with an Fn key; the Dosh table is the same on
@@ -94,6 +100,9 @@ public final class OrsyTheory {
     private let capNext: UInt16
     private let space: UInt16
     private let undo: UInt16
+    private let join: UInt16
+    private let allCaps: UInt16
+    private let capPrevious: UInt16
 
     public init(_ tables: Layouts.Orsy) {
         self.tables = tables
@@ -109,6 +118,9 @@ public final class OrsyTheory {
         capNext = tables.command("capitalise_next") ?? 0x188
         space = tables.command("space") ?? 0x200
         undo = tables.command("undo") ?? 0x067
+        join = tables.command("join") ?? 0x200
+        allCaps = tables.command("all_caps") ?? 0x208
+        capPrevious = tables.command("capitalise_previous") ?? 0x280
     }
 
     /// Split a stroke into its patterns, or nil if any Series holds a combination its table
@@ -159,6 +171,9 @@ public final class OrsyTheory {
         case (undo, 0): return .undo
         case (0, space): return .space
         case (0, capNext): return .capNext
+        case (join, 0): return .join
+        case (allCaps, 0): return .allCaps
+        case (capPrevious, 0): return .capPrevious
         default:
             if let t = translate(left: left, right: right) { return .text(t) }
             return .dead

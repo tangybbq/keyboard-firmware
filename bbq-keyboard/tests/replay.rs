@@ -646,6 +646,9 @@ fn test_orsy_commands_and_dead() {
     log.tap('R', "e+i+Sp", 20).wait(50);
     // The one-shot shape with nothing on the right is not a syllable.
     log.tap('L', "i+Sp+Bk", 20).wait(50);
+    log.tap('L', "Bk", 20).wait(50);
+    log.tap('L', "e+Bk", 20).wait(50);
+    log.tap('L', "i+Bk", 20).wait(50);
     let derived = replay_in_mode(true, LayoutMode::Orsy, TaipoVariant::Dosh, &log.events);
     let outcomes: Vec<StrokeOutcome> = strokes(&derived).iter().map(|s| s.outcome).collect();
     assert_eq!(
@@ -655,6 +658,9 @@ fn test_orsy_commands_and_dead() {
             StrokeOutcome::Undo,
             StrokeOutcome::CapNext,
             StrokeOutcome::Dead,
+            StrokeOutcome::Join,
+            StrokeOutcome::AllCaps,
+            StrokeOutcome::CapPrevious,
         ]
     );
     // The space typed, the undo took it back, and nothing else was sent.

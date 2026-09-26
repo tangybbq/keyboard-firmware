@@ -426,6 +426,24 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(String(output.recent), "ten ten")
     }
 
+    /// Capitalise-previous retypes the word before in place.  `cap_previous` in the Rust.
+    func testCapPrevious() throws {
+        let (_, theory, _) = try fixtures()
+        let ten = try XCTUnwrap(theory.translate(left: 0x004, right: 0x248))
+        var output = OrsyOutput()
+        _ = output.stroke(ten)
+        _ = output.stroke(ten)
+        let (erase, text) = output.capPrevious(1)
+        XCTAssertEqual(erase, 3)
+        XCTAssertEqual(text, "Ten")
+        XCTAssertEqual(String(output.recent), "ten Ten")
+        // More words than there are is fine.
+        XCTAssertEqual(output.capPrevious(9).text, "Ten Ten")
+        // It is not a stroke: undo takes back the word it capitalised.
+        XCTAssertEqual(output.undo(), 4)
+        XCTAssertEqual(String(output.recent), "Ten")
+    }
+
     /// The commands that change the next stroke are strokes of their own, so undo takes
     /// back the command and not the word before it.  `join`, `cap_next_command` and
     /// `all_caps` in the Rust.

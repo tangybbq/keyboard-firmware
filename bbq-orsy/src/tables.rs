@@ -515,8 +515,14 @@ impl Patterns {
     }
 }
 
-/// The commands: whole strokes that no syllable can produce, because each
-/// sits on a key combination unassigned within its own group.
+/// The commands: whole strokes that no syllable can produce.
+///
+/// Most sit on a key combination unassigned within its own group.  The
+/// others are whole-stroke commands: a Series 2 shape struck with nothing
+/// else on either hand.  Alone, Series 2 spells its consonant as a fragment
+/// leaning back onto the word before, which no division of any word uses --
+/// Series 4 writes every such consonant in the stroke it ends -- so the lone
+/// shape is free, and keeps its meaning in any stroke with more in it.
 pub mod commands {
     /// Left hand, `i+Sp+Bk`, held while the right hand plays a Dosh chord.
     pub const DOSH_ONESHOT: u16 = 0x380;
@@ -529,6 +535,23 @@ pub mod commands {
     pub const SPACE: u16 = 0x200;
     /// Left hand, all five outer keys: undo the last stroke.
     pub const UNDO: u16 = 0x067;
+    /// Left hand, `Bk` alone: drop the space owed before the next word, so
+    /// that it joins the last.
+    pub const JOIN: u16 = 0x200;
+    /// Left hand, `e+Bk` alone: capitalise every letter of the next word.
+    pub const ALL_CAPS: u16 = 0x208;
+    /// Left hand, `i+Bk` alone: capitalise the word before.
+    pub const CAP_PREVIOUS: u16 = 0x280;
+
+    /// The whole-stroke commands, struck on the left with nothing on the
+    /// right.
+    pub const ALONE: [u16; 3] = [JOIN, ALL_CAPS, CAP_PREVIOUS];
+
+    /// Whether a chord is a whole-stroke command rather than the fragment its
+    /// Series 2 shape would otherwise spell.
+    pub fn is_alone(chord: crate::chord::Chord) -> bool {
+        chord.right == 0 && ALONE.contains(&chord.left)
+    }
 }
 
 /// The punctuation that takes part in spacing.
@@ -660,6 +683,23 @@ mod tests {
         assert_eq!(Vowel::lookup(commands::CAP_NEXT), None);
         assert_eq!(Vowel::lookup(commands::SPACE), None);
         assert_eq!(Outer::lookup(commands::UNDO), None);
+    }
+
+    /// Each whole-stroke command is a Series 2 shape, and none is another
+    /// command's.
+    #[test]
+    fn alone_commands() {
+        use crate::chord::Chord;
+        let others = [commands::DOSH_ONESHOT, commands::DOSH_TOGGLE, commands::UNDO];
+        for (i, &bits) in commands::ALONE.iter().enumerate() {
+            assert!(Second::lookup(bits).is_some_and(|s| s != Second::Empty), "{bits:#x}");
+            assert!(!others.contains(&bits), "{bits:#x}");
+            assert!(!commands::ALONE[..i].contains(&bits), "{bits:#x}");
+            assert!(commands::is_alone(Chord::new(bits, 0)));
+            // With anything else in the stroke it is the syllable again.
+            assert!(!commands::is_alone(Chord::new(bits, 0x008)));
+            assert!(!commands::is_alone(Chord::new(bits | 0x004, 0)));
+        }
     }
 
     /// The ending form of a vowel is its plain form plus `Bk`.

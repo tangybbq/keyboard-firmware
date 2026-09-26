@@ -114,6 +114,25 @@ struct OrsyOutput {
         return stroke.chars
     }
 
+    /// Capitalise the previous `n` words: returns how many characters to take back, and
+    /// what to type in their place.  Not recorded, as in the firmware: the text is the
+    /// same length, and undoing back over it would only lose the capitals.
+    mutating func capPrevious(_ n: Int) -> (erase: Int, text: String) {
+        var start = recent.count
+        for _ in 0..<n {
+            while start > 0 && recent[start - 1] == " " { start -= 1 }
+            while start > 0 && recent[start - 1] != " " { start -= 1 }
+        }
+        var retyped = [Character]()
+        var atWordStart = true
+        for ch in recent[start...] {
+            retyped.append(atWordStart && ch.isLetter ? Character(ch.uppercased()) : ch)
+            atWordStart = ch == " "
+        }
+        recent.replaceSubrange(start..., with: retyped)
+        return (retyped.count, String(retyped))
+    }
+
     /// A character erased by a backspace through the Dosh escape.
     mutating func erase() {
         guard let erased = recent.popLast() else { return }
@@ -352,7 +371,22 @@ public final class OrsyDrillSession {
             append(
                 output.mark(mark), stroke: stroke, translation: nil, wanted: wantedStroke)
         case .capNext:
-            output.capNext()
+            output.prefix(.capNext)
+            events.append(.ignored)
+        case .join:
+            output.prefix(.join)
+            events.append(.ignored)
+        case .allCaps:
+            output.prefix(.allCaps)
+            events.append(.ignored)
+        case .capPrevious:
+            // Retyped in place, so the text is judged afresh rather than counted as a
+            // correction.
+            let (erase, text) = output.capPrevious(1)
+            let n = min(erase, typed.count)
+            typed.removeLast(n)
+            if divergedAt == nil, !agrees(typed + text) { divergedAt = typed.count }
+            typed += text
             events.append(.ignored)
         case .undo:
             let count = output.undo()

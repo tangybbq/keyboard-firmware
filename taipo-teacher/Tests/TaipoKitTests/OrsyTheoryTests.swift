@@ -50,6 +50,14 @@ final class OrsyTheoryTests: XCTestCase {
         XCTAssertEqual(t.outcome(left: 0x067, right: 0), .undo)
         XCTAssertEqual(t.outcome(left: 0, right: 0x200), .space)
         XCTAssertEqual(t.outcome(left: 0, right: 0x188), .capNext)
+        XCTAssertEqual(t.outcome(left: 0x200, right: 0), .join)
+        XCTAssertEqual(t.outcome(left: 0x208, right: 0), .allCaps)
+        XCTAssertEqual(t.outcome(left: 0x280, right: 0), .capPrevious)
+        // With anything else in the stroke, `Bk` is the Series 2 `l` again.
+        guard case .text(let tle) = t.outcome(left: 0x204, right: 0x208) else {
+            return XCTFail("t+l+e is a syllable")
+        }
+        XCTAssertEqual(tle.text, "tle")
         XCTAssertEqual(t.outcome(left: 0x380, right: 0), .dead)
         XCTAssertEqual(t.outcome(left: 0x014, right: 0x008), .dead)
         // `ten`, closing the word: t, e+Bk, n.

@@ -1065,6 +1065,9 @@ impl Stroke {
                 StrokeOutcome::Undo => "undo".to_string(),
                 StrokeOutcome::Space => "space".to_string(),
                 StrokeOutcome::CapNext => "cap-next".to_string(),
+                StrokeOutcome::Join => "join".to_string(),
+                StrokeOutcome::AllCaps => "all-caps".to_string(),
+                StrokeOutcome::CapPrevious => "cap-previous".to_string(),
                 StrokeOutcome::Punct(mark) => format!("punct {:?}", mark.text),
                 StrokeOutcome::ToggleDosh => "dosh-toggle".to_string(),
                 // The hand is in the key names already.

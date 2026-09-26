@@ -316,6 +316,37 @@ fn test_space_and_cap() {
     assert_eq!(t.typed(), " ten");
 }
 
+/// The whole-stroke commands on the left: join, all caps and capitalise the
+/// word before.  Struck alone they are commands; in a syllable, the same
+/// shapes are still the Series 2 consonants.
+#[test]
+fn test_alone_commands() {
+    let mut t = Tester::new();
+    t.stroke(ten());
+    t.stroke((commands::JOIN, 0));
+    assert_eq!(t.typed(), "ten");
+    t.stroke(ten());
+    assert_eq!(t.typed(), "ten");
+    t.stroke((commands::ALL_CAPS, 0));
+    t.stroke(ten());
+    assert_eq!(t.typed(), " TEN");
+    t.stroke(ten());
+    assert_eq!(t.typed(), " ten");
+    t.stroke((commands::CAP_PREVIOUS, 0));
+    assert_eq!(t.typed(), "\u{8}\u{8}\u{8}Ten");
+    // Undo takes back the join alone, and the space is owed again.
+    t.stroke((commands::JOIN, 0));
+    t.stroke((commands::UNDO, 0));
+    assert_eq!(t.typed(), "");
+    t.stroke(ten());
+    assert_eq!(t.typed(), " ten");
+    // `Bk` with an onset is the Series 2 `l` again.
+    let tl = syllable(Outer::FP, Second::RI, Vowel::Ue, Outer::Empty);
+    assert_eq!(tl.0, Outer::FP.bits() | commands::JOIN);
+    t.stroke(tl);
+    assert_eq!(t.typed(), " tle");
+}
+
 /// The spacing punctuation is native: it attaches to the word before it, closed or
 /// not, gives the next word its space, and the sentence-enders capitalise.
 #[test]

@@ -118,20 +118,32 @@ def main():
     # Commands sit on chords that are unassigned *within their own group*, so
     # no syllable can ever produce them.  Shapes that merely happen to be
     # unattested in the corpus are not safe enough for this.
-    for name, chord, hand, why in (
+    #
+    # The exception is the whole-stroke commands (`alone`): a Series 2 shape
+    # struck with nothing else on either hand.  Series 2 alone spells its
+    # consonant as a fragment leaning back onto the word before, which Series
+    # 4 always writes better, so no division of any word uses one; the shape
+    # keeps its meaning in every stroke that has anything else in it.
+    for name, chord, hand, why, alone in (
         ("dosh_oneshot", "iSpBk", "left",
-         "spare Series 2 chord; right hand carries the Dosh chord"),
+         "spare Series 2 chord; right hand carries the Dosh chord", False),
         ("dosh_toggle", "eiSpBk", "left",
-         "spare Series 2 chord, and unmapped as 0x388 in Dosh, so one shape does both"),
+         "spare Series 2 chord, and unmapped as 0x388 in Dosh, so one shape does both", False),
         ("capitalise_next", "eiSp", "right",
-         "spare Series 3 chord: plain 'ou', which never occurs since ou always closes"),
+         "spare Series 3 chord: plain 'ou', which never occurs since ou always closes", False),
         ("space", "Bk", "right",
-         "spare Series 3 chord: the word-end marker with no vowel"),
+         "spare Series 3 chord: the word-end marker with no vowel", False),
         ("undo", "aostn", "left",
-         "the one spare outer chord; deliberately expensive"),
+         "the one spare outer chord; deliberately expensive", False),
+        ("join", "Bk", "left",
+         "Series 2 'l' struck alone; the space thumb, taking the space away", True),
+        ("all_caps", "eBk", "left",
+         "Series 2 'm' struck alone", True),
+        ("capitalise_previous", "iBk", "left",
+         "Series 2 't' struck alone", True),
     ):
         out["commands"].append({
-            "name": name, "hand": hand, "why": why,
+            "name": name, "hand": hand, "why": why, "alone": alone,
             "keys": keys(chord), "bits": bits(chord),
         })
 
@@ -148,7 +160,9 @@ def main():
         dup = [b for b, n in seen.items() if n > 1]
         assert not dup, f"{group} has duplicate chords: {[hex(b) for b in dup]}"
     # A command must be free in the groups on its own hand; the other hand is
-    # a different keyboard half and cannot collide.
+    # a different keyboard half and cannot collide.  A whole-stroke command
+    # is a Series 2 shape by design, and must only be free of the other
+    # commands on its hand.
     per_hand = {
         "left": {e["bits"] for e in out["inner_left"]},
         "right": {e["bits"] for e in out["inner_right"]},
@@ -156,8 +170,15 @@ def main():
     outer_bits = {e["bits"] for e in out["outer"]}
     for c in out["commands"]:
         hand = c["hand"]
+        if c["alone"]:
+            assert hand == "left" and c["bits"] in per_hand["left"], \
+                f"whole-stroke command {c['name']} is not a Series 2 shape"
+            continue
         clash = c["bits"] in outer_bits or c["bits"] in per_hand[hand]
         assert not clash, f"command {c['name']} clashes on the {hand} hand"
+    seen = collections.Counter((c["hand"], c["bits"]) for c in out["commands"])
+    dup = [c for c, n in seen.items() if n > 1]
+    assert not dup, f"commands share a chord: {dup}"
     print("no duplicate chords within any group; no command clashes on its own hand")
 
 

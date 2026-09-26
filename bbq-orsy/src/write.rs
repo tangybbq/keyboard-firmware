@@ -66,7 +66,7 @@ use std::collections::HashMap;
 
 use crate::chord::{Chord, HAND_MASK, INNER_MASK};
 use crate::compose::translate;
-use crate::tables::{Patterns, Second};
+use crate::tables::{commands, Patterns, Second};
 
 /// How many letters a single stroke can spell.  The longest is `str` plus a
 /// second character, a two-letter nucleus, a two-letter coda and the silent
@@ -169,7 +169,9 @@ impl Default for Writer {
 }
 
 impl Writer {
-    /// Index every stroke that spells a run of lowercase letters.
+    /// Index every stroke that spells a run of lowercase letters, except the
+    /// whole-stroke commands, which the keyboard takes as commands rather
+    /// than the fragment the rules would spell.
     pub fn new() -> Writer {
         let mut chunks: HashMap<String, Vec<Entry>> = HashMap::new();
         for left in 0u16..0x400 {
@@ -178,6 +180,9 @@ impl Writer {
                     continue;
                 }
                 let chord = Chord::new(left, right);
+                if commands::is_alone(chord) {
+                    continue;
+                }
                 let Some(t) = translate(chord) else { continue };
                 let text = t.text();
                 if text.is_empty() || !text.bytes().all(|b| b.is_ascii_lowercase()) {

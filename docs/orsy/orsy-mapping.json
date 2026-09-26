@@ -601,6 +601,7 @@
       "name": "dosh_oneshot",
       "hand": "left",
       "why": "spare Series 2 chord; right hand carries the Dosh chord",
+      "alone": false,
       "keys": [
         "i",
         "Sp",
@@ -612,6 +613,7 @@
       "name": "dosh_toggle",
       "hand": "left",
       "why": "spare Series 2 chord, and unmapped as 0x388 in Dosh, so one shape does both",
+      "alone": false,
       "keys": [
         "e",
         "i",
@@ -624,6 +626,7 @@
       "name": "capitalise_next",
       "hand": "right",
       "why": "spare Series 3 chord: plain 'ou', which never occurs since ou always closes",
+      "alone": false,
       "keys": [
         "e",
         "i",
@@ -635,6 +638,7 @@
       "name": "space",
       "hand": "right",
       "why": "spare Series 3 chord: the word-end marker with no vowel",
+      "alone": false,
       "keys": [
         "Bk"
       ],
@@ -644,6 +648,7 @@
       "name": "undo",
       "hand": "left",
       "why": "the one spare outer chord; deliberately expensive",
+      "alone": false,
       "keys": [
         "a",
         "o",
@@ -652,6 +657,38 @@
         "n"
       ],
       "bits": 103
+    },
+    {
+      "name": "join",
+      "hand": "left",
+      "why": "Series 2 'l' struck alone; the space thumb, taking the space away",
+      "alone": true,
+      "keys": [
+        "Bk"
+      ],
+      "bits": 512
+    },
+    {
+      "name": "all_caps",
+      "hand": "left",
+      "why": "Series 2 'm' struck alone",
+      "alone": true,
+      "keys": [
+        "e",
+        "Bk"
+      ],
+      "bits": 520
+    },
+    {
+      "name": "capitalise_previous",
+      "hand": "left",
+      "why": "Series 2 't' struck alone",
+      "alone": true,
+      "keys": [
+        "i",
+        "Bk"
+      ],
+      "bits": 640
     }
   ]
 }
