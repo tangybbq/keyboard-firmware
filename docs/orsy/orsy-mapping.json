@@ -623,18 +623,6 @@
       "bits": 904
     },
     {
-      "name": "capitalise_next",
-      "hand": "right",
-      "why": "spare Series 3 chord: plain 'ou', which never occurs since ou always closes",
-      "alone": false,
-      "keys": [
-        "e",
-        "i",
-        "Sp"
-      ],
-      "bits": 392
-    },
-    {
       "name": "space",
       "hand": "right",
       "why": "spare Series 3 chord: the word-end marker with no vowel",
@@ -647,16 +635,22 @@
     {
       "name": "undo",
       "hand": "left",
-      "why": "the one spare outer chord; deliberately expensive",
-      "alone": false,
+      "why": "Series 2 'r' struck alone; the key is Backspace in Dosh",
+      "alone": true,
       "keys": [
-        "a",
-        "o",
-        "s",
-        "t",
-        "n"
+        "Sp"
       ],
-      "bits": 103
+      "bits": 256
+    },
+    {
+      "name": "capitalise_next",
+      "hand": "left",
+      "why": "Series 2 's' struck alone",
+      "alone": true,
+      "keys": [
+        "e"
+      ],
+      "bits": 8
     },
     {
       "name": "join",

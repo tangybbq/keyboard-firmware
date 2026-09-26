@@ -529,12 +529,13 @@ pub mod commands {
     /// Either hand, `e+i+Sp+Bk`: switch to Dosh and back.  Unmapped in Dosh
     /// too, so the one shape does both.
     pub const DOSH_TOGGLE: u16 = 0x388;
-    /// Right hand, `e+i+Sp`: capitalise the next word.
-    pub const CAP_NEXT: u16 = 0x188;
     /// Right hand, `Bk`: a space on its own.
     pub const SPACE: u16 = 0x200;
-    /// Left hand, all five outer keys: undo the last stroke.
-    pub const UNDO: u16 = 0x067;
+    /// Left hand, `Sp` alone: undo the last stroke.  The key is Backspace
+    /// in Dosh.
+    pub const UNDO: u16 = 0x100;
+    /// Left hand, `e` alone: capitalise the next word.
+    pub const CAP_NEXT: u16 = 0x008;
     /// Left hand, `Bk` alone: drop the space owed before the next word, so
     /// that it joins the last.
     pub const JOIN: u16 = 0x200;
@@ -545,7 +546,7 @@ pub mod commands {
 
     /// The whole-stroke commands, struck on the left with nothing on the
     /// right.
-    pub const ALONE: [u16; 3] = [JOIN, ALL_CAPS, CAP_PREVIOUS];
+    pub const ALONE: [u16; 5] = [UNDO, CAP_NEXT, JOIN, ALL_CAPS, CAP_PREVIOUS];
 
     /// Whether a chord is a whole-stroke command rather than the fragment its
     /// Series 2 shape would otherwise spell.
@@ -662,7 +663,6 @@ mod tests {
             assert_eq!(mark.bits & INNER_MASK, commands::SPACE, "{mark:?}");
             assert_ne!(mark.bits & OUTER_MASK, 0, "{mark:?}");
             assert_ne!(mark.bits, commands::SPACE);
-            assert_ne!(mark.bits, commands::CAP_NEXT);
             // Not a syllable, whatever the left hand is doing.
             assert_eq!(crate::compose::translate(Chord::new(0, mark.bits)), None, "{mark:?}");
             for other in &punctuation::ALL[..i] {
@@ -673,16 +673,15 @@ mod tests {
         assert_eq!(punctuation::lookup(commands::SPACE), None);
     }
 
-    /// The commands are free within their own group, so no syllable can
-    /// produce them.  `DOSH_TOGGLE` must be free in Series 2 (it is only ever
-    /// looked for on the left) and `SPACE` and `CAP_NEXT` in Series 3.
+    /// The commands other than the whole-stroke ones are free within their
+    /// own group, so no syllable can produce them.  `DOSH_TOGGLE` must be
+    /// free in Series 2 (it is only ever looked for on the left) and `SPACE`
+    /// in Series 3.
     #[test]
     fn commands_are_free() {
         assert_eq!(Second::lookup(commands::DOSH_ONESHOT), None);
         assert_eq!(Second::lookup(commands::DOSH_TOGGLE), None);
-        assert_eq!(Vowel::lookup(commands::CAP_NEXT), None);
         assert_eq!(Vowel::lookup(commands::SPACE), None);
-        assert_eq!(Outer::lookup(commands::UNDO), None);
     }
 
     /// Each whole-stroke command is a Series 2 shape, and none is another
@@ -690,7 +689,7 @@ mod tests {
     #[test]
     fn alone_commands() {
         use crate::chord::Chord;
-        let others = [commands::DOSH_ONESHOT, commands::DOSH_TOGGLE, commands::UNDO];
+        let others = [commands::DOSH_ONESHOT, commands::DOSH_TOGGLE];
         for (i, &bits) in commands::ALONE.iter().enumerate() {
             assert!(Second::lookup(bits).is_some_and(|s| s != Second::Empty), "{bits:#x}");
             assert!(!others.contains(&bits), "{bits:#x}");
@@ -709,7 +708,7 @@ mod tests {
             if v.ends_word() {
                 assert_ne!(v.bits() & 0x200, 0, "{v:?}");
                 let plain = Vowel::lookup(v.bits() & !0x200);
-                // `ia` (ou) has no plain form; that chord is the cap command.
+                // `ia` (ou) has no plain form, as it only ever closes.
                 if v == Vowel::Ia {
                     assert_eq!(plain, None);
                 } else {

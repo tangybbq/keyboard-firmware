@@ -140,7 +140,7 @@
     "jolt3": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 19, 15, 255, 255, 255, 24, 25, 26, 28, 29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 39, 43, 47, 255, 255, 255]
   },
   "orsy": {
-    "fingerprint": "0xa4c1d7491e085142",
+    "fingerprint": "0x217d569b94064d11",
     "rules_version": 1,
     "outer_mask": 103,
     "inner_mask": 904,
@@ -209,9 +209,9 @@
     "commands": [
       { "name": "dosh_oneshot", "hand": "left", "bits": 896, "keys": ["i", "Sp", "Bk"] },
       { "name": "dosh_toggle", "hand": "left", "bits": 904, "keys": ["e", "i", "Sp", "Bk"] },
-      { "name": "capitalise_next", "hand": "right", "bits": 392, "keys": ["e", "i", "Sp"] },
+      { "name": "capitalise_next", "hand": "left", "bits": 8, "keys": ["e"] },
       { "name": "space", "hand": "right", "bits": 512, "keys": ["Bk"] },
-      { "name": "undo", "hand": "left", "bits": 103, "keys": ["a", "o", "t", "s", "n"] },
+      { "name": "undo", "hand": "left", "bits": 256, "keys": ["Sp"] },
       { "name": "join", "hand": "left", "bits": 512, "keys": ["Bk"] },
       { "name": "all_caps", "hand": "left", "bits": 520, "keys": ["e", "Bk"] },
       { "name": "capitalise_previous", "hand": "left", "bits": 640, "keys": ["i", "Bk"] }

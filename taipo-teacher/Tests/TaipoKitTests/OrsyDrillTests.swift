@@ -596,7 +596,7 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(got, "il")
         XCTAssertEqual(series, ["coda"])
         // Undo, then the right strokes.
-        session.feed(stroke(theory, 0x067, 0, at: 1500))
+        session.feed(stroke(theory, 0x100, 0, at: 1500))
         XCTAssertTrue(session.onTrack)
         XCTAssertEqual(session.typed, "")
         XCTAssertEqual(session.stats.corrections, 1)
@@ -625,8 +625,8 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(session.typed, "tennissit")
         XCTAssertFalse(session.onTrack)
         // Undo twice, back to `ten`.
-        session.feed(stroke(theory, 0x067, 0, at: 2500))
-        session.feed(stroke(theory, 0x067, 0, at: 3000))
+        session.feed(stroke(theory, 0x100, 0, at: 2500))
+        session.feed(stroke(theory, 0x100, 0, at: 3000))
         XCTAssertEqual(session.typed, "ten")
         XCTAssertEqual(session.wantedStroke?.text, "nis")
         // nis with the ending form: no space before it, and the word closes.
@@ -662,8 +662,8 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertTrue(session.diagnosis?.hasPrefix("space: the stroke before closed the word early") ?? false)
         XCTAssertTrue(session.diagnosis?.contains("this stroke was right") ?? false)
         // Undo both, plain ten, then nis: right.
-        session.feed(stroke(theory, 0x067, 0, at: 2000))
-        session.feed(stroke(theory, 0x067, 0, at: 2500))
+        session.feed(stroke(theory, 0x100, 0, at: 2000))
+        session.feed(stroke(theory, 0x100, 0, at: 2500))
         session.feed(stroke(theory, 0x004, 0x048, at: 3000))
         XCTAssertFalse(session.wordClosedEarly)
         session.feed(stroke(theory, 0x040, 0x2a0, at: 3500))
@@ -692,7 +692,7 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertTrue(session.finalWordOpen)
         XCTAssertFalse(session.wordClosedEarly)
         // Undo and use the ending form: now the line is done.
-        session.feed(stroke(theory, 0x067, 0, at: 1500))
+        session.feed(stroke(theory, 0x100, 0, at: 1500))
         XCTAssertEqual(session.typed, "")
         session.feed(stroke(theory, closing.left, closing.right, at: 2000))
         XCTAssertEqual(session.typed, "the")

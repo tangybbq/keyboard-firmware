@@ -14,9 +14,9 @@
 //!
 //! # Commands
 //!
-//! Eight whole strokes are commands rather than syllables.  Five are on a
+//! Eight whole strokes are commands rather than syllables.  Three are on a
 //! key combination that is unassigned within its own group, so no syllable
-//! can produce them; the other three are Series 2 shapes struck alone on the
+//! can produce them; the other five are Series 2 shapes struck alone on the
 //! left, which spell nothing any word needs (see
 //! [`commands`](bbq_orsy::tables::commands)).  Six are handled here: undo, a
 //! space on its own, capitalise the next word, join the next word to the
@@ -206,7 +206,7 @@ impl OrsyManager {
             (commands::DOSH_ONESHOT, right) if right != 0 => StrokeOutcome::Dosh(Side::Right, right),
             (commands::UNDO, 0) => StrokeOutcome::Undo,
             (0, commands::SPACE) => StrokeOutcome::Space,
-            (0, commands::CAP_NEXT) => StrokeOutcome::CapNext,
+            (commands::CAP_NEXT, 0) => StrokeOutcome::CapNext,
             (commands::JOIN, 0) => StrokeOutcome::Join,
             (commands::ALL_CAPS, 0) => StrokeOutcome::AllCaps,
             (commands::CAP_PREVIOUS, 0) => StrokeOutcome::CapPrevious,

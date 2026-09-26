@@ -642,8 +642,8 @@ fn test_orsy_stroke() {
 fn test_orsy_commands_and_dead() {
     let mut log = Log::new();
     log.tap('R', "Bk", 20).wait(50);
-    log.tap('L', "a+o+s+t+n", 20).wait(50);
-    log.tap('R', "e+i+Sp", 20).wait(50);
+    log.tap('L', "Sp", 20).wait(50);
+    log.tap('L', "e", 20).wait(50);
     // The one-shot shape with nothing on the right is not a syllable.
     log.tap('L', "i+Sp+Bk", 20).wait(50);
     log.tap('L', "Bk", 20).wait(50);

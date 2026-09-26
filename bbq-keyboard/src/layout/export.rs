@@ -330,7 +330,7 @@ fn orsy_json() -> String {
     for (num, (name, hand, bits)) in [
         ("dosh_oneshot", "left", commands::DOSH_ONESHOT),
         ("dosh_toggle", "left", commands::DOSH_TOGGLE),
-        ("capitalise_next", "right", commands::CAP_NEXT),
+        ("capitalise_next", "left", commands::CAP_NEXT),
         ("space", "right", commands::SPACE),
         ("undo", "left", commands::UNDO),
         ("join", "left", commands::JOIN),

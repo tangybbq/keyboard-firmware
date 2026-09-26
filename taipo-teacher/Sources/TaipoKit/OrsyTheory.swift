@@ -115,9 +115,9 @@ public final class OrsyTheory {
         handMask = tables.outerMask | tables.innerMask
         doshOneshot = tables.command("dosh_oneshot") ?? 0x380
         doshToggle = tables.command("dosh_toggle") ?? 0x388
-        capNext = tables.command("capitalise_next") ?? 0x188
+        capNext = tables.command("capitalise_next") ?? 0x008
         space = tables.command("space") ?? 0x200
-        undo = tables.command("undo") ?? 0x067
+        undo = tables.command("undo") ?? 0x100
         join = tables.command("join") ?? 0x200
         allCaps = tables.command("all_caps") ?? 0x208
         capPrevious = tables.command("capitalise_previous") ?? 0x280
@@ -170,7 +170,7 @@ public final class OrsyTheory {
         case (doshOneshot, let r) where r != 0: return .dosh(r)
         case (undo, 0): return .undo
         case (0, space): return .space
-        case (0, capNext): return .capNext
+        case (capNext, 0): return .capNext
         case (join, 0): return .join
         case (allCaps, 0): return .allCaps
         case (capPrevious, 0): return .capPrevious

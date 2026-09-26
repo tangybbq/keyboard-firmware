@@ -273,7 +273,8 @@ fn test_held_hand_restrikes() {
 #[test]
 fn test_unknown_chord() {
     let mut t = Tester::new();
-    t.stroke((0x001, commands::CAP_NEXT | 0x001));
+    // The plain `ou`, which has no meaning since `ou` always closes.
+    t.stroke((0x001, 0x189));
     assert_eq!(t.typed(), "");
     t.stroke(ten());
     assert_eq!(t.typed(), "ten");
@@ -308,7 +309,7 @@ fn test_space_and_cap() {
     let mut t = Tester::new();
     t.stroke((0, commands::SPACE));
     assert_eq!(t.typed(), " ");
-    t.stroke((0, commands::CAP_NEXT));
+    t.stroke((commands::CAP_NEXT, 0));
     assert_eq!(t.typed(), "");
     t.stroke(ten());
     assert_eq!(t.typed(), "Ten");
