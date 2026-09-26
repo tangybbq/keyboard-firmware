@@ -845,7 +845,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 ## Lesson 18 — the second character: o, s and e
 
-`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.  Struck with nothing else, `e` capitalises the next word.
+`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.  Struck with nothing else, `e` capitalises the next word and `e+Sp` keeps it in lower case, even after a full stop.
 
 506 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
 
@@ -894,7 +894,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 ## Lesson 19 — the second character: w, c, u, p and n
 
-`w` is `e+i+Bk`, `c` is `e+i+Sp`, `u` is `i+Sp` as for the vowel, `p` is `Sp+Bk`, `n` is `e+Sp+Bk`.
+`w` is `e+i+Bk`, `c` is `e+i+Sp`, `u` is `i+Sp` as for the vowel, `p` is `Sp+Bk`, `n` is `e+Sp+Bk`.  Struck alone, `i+Sp` takes the capital off the word before.
 
 193 words qualify, 40 here, most common first.  `drills/19-second-rest.txt`.
 

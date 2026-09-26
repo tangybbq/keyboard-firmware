@@ -116,13 +116,15 @@ const LESSONS: &[Lesson] = &[
     Lesson {
         name: "second-o-s-e", title: "the second character: o, s and e",
         note: "`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.  Struck \
-               with nothing else, `e` capitalises the next word.",
+               with nothing else, `e` capitalises the next word and `e+Sp` keeps it in \
+               lower case, even after a full stop.",
         items: &[Second(Second::RXI), Second(Second::X), Second(Second::RX)],
     },
     Lesson {
         name: "second-rest", title: "the second character: w, c, u, p and n",
         note: "`w` is `e+i+Bk`, `c` is `e+i+Sp`, `u` is `i+Sp` as for the vowel, `p` is \
-               `Sp+Bk`, `n` is `e+Sp+Bk`.",
+               `Sp+Bk`, `n` is `e+Sp+Bk`.  Struck alone, `i+Sp` takes the capital off \
+               the word before.",
         items: &[Second(Second::XI), Second(Second::XIU), Second(Second::U), Second(Second::IU), Second(Second::XU)],
     },
     Lesson {

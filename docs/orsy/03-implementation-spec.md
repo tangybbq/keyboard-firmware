@@ -55,7 +55,7 @@ them. Shapes that are merely unattested in the corpus were rejected as not safe 
 | `dosh_toggle` | left | e + i + Sp + Bk | `0x388` | spare Series 2 chord, and unmapped as 0x388 in Dosh, so one shape does both |
 | `space` | right | Bk | `0x200` | spare Series 3 chord: the word-end marker with no vowel |
 
-The other five are **whole-stroke commands**: a Series 2 shape struck on the left with
+The other seven are **whole-stroke commands**: a Series 2 shape struck on the left with
 nothing else on either hand. That is not unattested but useless. Series 2 alone spells its
 consonant as a fragment leaning back onto the word before, and Series 4 writes every such
 consonant in the stroke it ends, so no division of any word uses one: the writer never
@@ -71,14 +71,18 @@ nothing but the shape is the command.
 | `join` | Bk | `0x200` | `l` | no space before the next word |
 | `all_caps` | e + Bk | `0x208` | `m` | the next word in capitals |
 | `capitalise_previous` | i + Bk | `0x280` | `t` | the word before, retyped |
+| `uncap_next` | e + Sp | `0x108` | `e` | no capital on the next word, even after a full stop |
+| `uncap_previous` | i + Sp | `0x180` | `u` | the capital taken off the word before |
 
-The lone vowel shapes -- `i`, `e+i` (`o`), `i+Sp` (`u`) -- are left alone: they write a
-word's final vowel after a closed syllable (`phot|o`, `men|u`, `tax|i`), which is the
-natural division there. `e+Sp` alone, and the other lone consonants `w`, `c`, `p` and
-`n`, are still free.
+The lone `i` and `e+i` (`o`) are left alone: they write a word's final vowel after a
+closed syllable (`phot|o`, `tax|i`), which is the natural division there. The lone
+`i+Sp` did the same for `u` in 102 of the top 50,000 words (`men|u`, `gur|u`); without
+it they divide `me|nu` and `gu|ru` at the same stroke count, so it is `uncap_previous`.
+The lone `w`, `c`, `p` and `n` are still free.
 
-Undo, cap-next, join and all caps are recorded by the output stage as strokes that typed
-nothing, so undoing a mistaken one takes back only the command. Undo was once all five
+The commands that change the next word -- cap-next, all caps, uncap and join -- and undo
+are recorded by the output stage as strokes that typed nothing, so undoing a mistaken one
+takes back only the command. The two that act on the word before retype it in place. Undo was once all five
 left outer keys, chosen to be hard to hit; that made the commonest correction the most
 expensive stroke on the board, and that chord is free again.
 

@@ -73,11 +73,16 @@ What is assigned, all on the left inner keys struck alone:
 | cap next word | `e` | the Series 2 `s` |
 | all caps, next word | `e`+`Bk` | the Series 2 `m` |
 | cap previous word | `i`+`Bk` | the Series 2 `t` |
+| don't cap next word | `e`+`Sp` | the Series 2 `e` |
+| uncap previous word | `i`+`Sp` | the Series 2 `u` |
 | join (no space before the next word) | `Bk` | the Series 2 `l` |
 | undo | `Sp` | the Series 2 `r`; Backspace in Dosh |
 
-*Don't cap next* and *cap previous N* are not assigned. `e`+`Sp`, and the lone `w`, `c`,
-`p` and `n` shapes, are still free for them.
+*Don't cap next* matters more than it looks: auto-capitalisation after a full stop is
+wrong after one that does not end a sentence (`e.g.`), and before anything that must
+stay lower case, like a command typed after a sentence. The `e` shapes act on the next
+word and the `i` shapes on the word before. *Cap previous N* is not assigned; the lone
+`w`, `c`, `p` and `n` shapes are still free for it.
 
 *Join* is much less useful here than in Phoenix, since Midi4Text controls spacing
 through the vowel's ending form rather than emitting a space per stroke — it is worth
