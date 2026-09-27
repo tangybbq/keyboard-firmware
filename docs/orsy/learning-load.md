@@ -73,11 +73,17 @@ the layout spells them.
 
 ## Compared with Dosh
 
-| | shapes | rules | per word |
-|---|---|---|---|
-| Dosh | 133 chords, each a letter, symbol or key | none | about a chord per character, 8.13 keys |
-| Orsy | 74 | 7 | 1.83 strokes, 7.69 keys |
+| | shapes | rules | strokes per word | on the busiest hand |
+|---|---|---|---|---|
+| Dosh | 133 chords, each a letter, symbol or key | none | 5.90 | 2.95 |
+| Orsy | 74 | 7 | 1.83 | 1.68 |
 
-The per-word figures are the corpus measurements from `01-mapping.md` and
-`03-implementation-spec.md`, not from typing; Orsy folds the space into the last stroke of
-a word.
+Orsy takes about a third as many strokes as Dosh. Dosh's hands alternate, though, so one
+hand forms its next chord while the other is still striking; counted per hand, Orsy's
+advantage is about 1.76×. Every Orsy stroke uses both hands, and each is a larger chord.
+Whether a larger chord takes longer to form is the open question that decides how much of
+that advantage is real.
+
+The figures are frequency-weighted over the top 20,000 words, both including the space,
+from `../midi4text/03-mesa3-and-verdict.md`. They are corpus measurements, not typing
+speeds.
