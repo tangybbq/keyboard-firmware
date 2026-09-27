@@ -150,6 +150,14 @@ For numbers, code, or symbol-heavy text, switch wholesale. In Dosh both hands ar
 independent layouts with rollover, so a run goes at full Dosh speed rather than one
 right-handed chord at a time.
 
+**Driving a UI wants the toggle too.** Dosh sends a chord as soon as its 100 ms window
+runs out, with the keys still down, so a chord can be held: a key a GUI app watches while
+it is held, or an arrow left to repeat. Orsy sends nothing until the first release, like
+steno, because a two-hand stroke is not complete until then, and the one-shot inherits
+that: its Dosh chord is typed as a press and an immediate release once the stroke is
+over, and is never held. That is no loss for a symbol in the middle of a sentence, and it
+is why navigation and GUI work are for the toggle, not the one-shot.
+
 **Toggle: all four inner keys of one hand**, `e`+`i`+`Sp`+`Bk`. This shape is free in
 *both* layouts — it is a spare Series 2 chord in Midi4Text, and Dosh leaves `0x388`
 unmapped — so the same chord enters and leaves. In Orsy it is a left-hand command that

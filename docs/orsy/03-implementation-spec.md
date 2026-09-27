@@ -234,7 +234,10 @@ The Dosh escape needs the layout manager, not the crate, so `OrsyManager` return
 - **One-shot** — left inner `i`+`Sp`+`Bk` held with any right-hand chord: the right hand's
   9 bits are injected into the taipo engine on the Dosh table for that stroke only, so they
   get its modifier handling. A backspace played this way is reported to the output stage,
-  and `.` `!` `?` set its pending capital.
+  and `.` `!` `?` set its pending capital. The chord goes in as a press and an immediate
+  release once the Orsy stroke commits, on the first release, so unlike a chord in Dosh
+  it is never sent early by the chord timer and can never be held or repeat. Anything that
+  needs a key held down is for the toggle.
 - **Toggle** — all four inner keys of the left hand: a mode switch to taipo on the Dosh
   table. `0x388` is unmapped in Dosh, so its entry there is the one that switches back.
   There is no `MinorMode` for it; the mode change is what the key log sees.
