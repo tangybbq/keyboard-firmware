@@ -203,7 +203,7 @@ OUTER FIVE - consonants, both hands (onset left / coda right)
   t          .   .   .   #   .
   r          #   .   .   .   .
   c          .   #   .   .   .
-  d          #   .   .   #   .
+  d          #   #   .   .   .
   p          .   #   #   .   .
   f          .   #   .   #   .
   y          #   .   .   .   #
@@ -211,7 +211,7 @@ OUTER FIVE - consonants, both hands (onset left / coda right)
   l          .   .   #   #   .
   b          #   #   #   .   .
   w          .   .   #   .   #
-  g          #   #   .   .   .
+  g          #   .   .   #   .
   h/st       .   .   .   #   #
   v          #   #   .   #   .
   m          #   #   .   .   #

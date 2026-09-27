@@ -40,7 +40,7 @@ hands. Computed from `layouts.json` against `orsy-mapping.json`:
 | `n` `s` `t` | n s t | **n s t** | | `a+o+t` `a+o+n` `a+t+n` | — | v m k |
 | `a` | a | r | | `a+s+t` `a+s+n` | — | ind/nd inc/ng |
 | `o` | o | c | | `o+s+t` `o+s+n` | — | ch int/nt |
-| `a+t` | q | d | | `a+o+s+t` `s+t+n` | — | sh gh |
+| `a+t` | q | g | | `a+o+s+t` `s+t+n` | — | sh gh |
 | `o+s` | alt | p | | `a+s` `a+o+s+n` | — | z ck |
 | `o+t` | u | f | | `o+t+n` | PrintScreen | x |
 | `a+n` | j | y | | | | |
@@ -48,7 +48,7 @@ hands. Computed from `layouts.json` against `orsy-mapping.json`:
 | `s+t` | ? | l | | | | |
 | `a+o+s` | gui | b | | | | |
 | `s+n` | p | w | | | | |
-| `a+o` | l | g | | | | |
+| `a+o` | l | d | | | | |
 | `t+n` | control | h/st | | | | |
 
 Three shapes transfer, fourteen are free in Dosh, and **thirteen actively conflict**: the
@@ -119,7 +119,7 @@ Lesson order, for a Dosh hand:
    drilling it on 214 ordinary words. It also fills the drill sheets: 11 of the lessons
    could not reach the 40-word sheet before, and 4 cannot now.
 3. **The conflicts, one pair at a time**, commonest first: `a` (r, not a), `o` (c),
-   `a+t` (d), `o+s` (p), `o+t` (f), and the rest of the thirteen.
+   `a+o` (d), `o+s` (p), `o+t` (f), and the rest of the thirteen.
 4. **Series 2** by frequency, `r` `l` first; then `ea` and `ou`, which spell their
    digraph only with a second character (with none, they are written across the hands:
    the Series 2 `e` or `o`, then the Series 3 `a` or `u`); then **the free shapes** by

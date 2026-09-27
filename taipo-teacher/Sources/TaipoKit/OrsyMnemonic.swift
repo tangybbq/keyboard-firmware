@@ -5,7 +5,7 @@ import Foundation
 /// The drill draws the stroke, which is the obvious way to show a chord and no use at all
 /// to a writer who has no visual imagery to store it in.  What is left for them is the
 /// movement, which wants repetition rather than pictures, and the rules the mapping was
-/// designed around, which can be said: `d` is `t` plus the pinky, `ea` is `e` plus `a`,
+/// designed around, which can be said: `b` is `p` plus the pinky, `ea` is `e` plus `a`,
 /// the ending form is the plain one plus `Bk`.
 ///
 /// Derived from the tables rather than written out, so a mapping change cannot leave a
@@ -34,7 +34,7 @@ public enum OrsyMnemonic {
         switch series {
         case "s1", "s4":
             // The mapping's voicing rule: the rarer of a pair is the commoner plus the
-            // pinky.  `d` is `t` plus the pinky, `b` is `p` plus the pinky.
+            // pinky.  `b` is `p` plus the pinky, `v` is `f` plus the pinky.
             guard let shape = tables.outer.first(where: { $0.michela == name }),
                 shape.bits & pinky != 0,
                 let base = tables.outer.first(where: { $0.bits == shape.bits & ~pinky })

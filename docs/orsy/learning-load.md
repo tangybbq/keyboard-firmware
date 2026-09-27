@@ -22,9 +22,7 @@ follow from them: 170,120 chords translate, not counting the commands.
 
 - **Outer five.** 23 shapes spell the same consonant as an onset and a coda. Four read
   differently as a coda (`h`/`st`, `ind`/`nd`, `inc`/`ng`, `int`/`nt`), and three are
-  coda-only (a final `h`, a tail `e`, and the capitalising coda). Voiced pairs add the
-  pinky: d = t + pinky, b = p + pinky, g = c + pinky, v = f + pinky, z = s + pinky,
-  sh = ch + pinky.
+  coda-only (a final `h`, a tail `e`, and the capitalising coda).
 - **Second character.** Seven of the thirteen reuse a vowel's shape from the right hand:
   `r` (`a`), `i`, `s` (`e`), `e` (`ea`), `o`, `u`, and `w` (the ending `o`).
 - **Vowel.** Seven vowels, `a e i o u ea ou`, each plain or with `Bk` added to end the

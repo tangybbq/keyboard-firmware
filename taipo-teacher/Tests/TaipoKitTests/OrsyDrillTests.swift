@@ -547,10 +547,10 @@ final class OrsyDrillTests: XCTestCase {
         func of(_ key: String) -> String? {
             OrsyMnemonic.of(key, tables: theory.tables, layouts: layouts)
         }
-        // d is t plus the pinky, and Dosh types q there.
-        XCTAssertEqual(of("s1:SCP"), "t + pinky · Dosh: q")
+        // d is c plus the pinky, and Dosh types l there.
+        XCTAssertEqual(of("s1:SCP"), "c + pinky · Dosh: l")
         // The coda reading takes the coda of the same base shape.
-        XCTAssertTrue(of("s4:SCP")?.hasPrefix("t + pinky") ?? false)
+        XCTAssertTrue(of("s4:SCP")?.hasPrefix("c + pinky") ?? false)
         // s transfers from Dosh untouched.
         XCTAssertEqual(of("s1:S"), "as in Dosh")
         // An ending vowel is the plain one plus the space thumb.

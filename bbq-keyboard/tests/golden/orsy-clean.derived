@@ -88,7 +88,7 @@ key 930 KeyRelease
 stroke 1020 [-a+n+i+Bk] spread=0 text "y" before=1 after=1
 key 1020 KeyPress(Y, Mods(0x0))
 key 1020 KeyRelease
-stroke 1110 [a+t-a+o+e+i+Bk] spread=0 text "dog" before=1 after=1
+stroke 1110 [a+o-a+t+e+i+Bk] spread=0 text "dog" before=1 after=1
 key 1110 KeyPress(Space, Mods(0x0))
 key 1110 KeyRelease
 key 1110 KeyPress(D, Mods(0x0))

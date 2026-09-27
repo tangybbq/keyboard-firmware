@@ -104,8 +104,12 @@ the mirrored `o` is the left hand's, and is part of the vowel), and it is the re
    Dosh keys, so they keep their Dosh chords for free. Likewise `e` and `i` in the vowel
    group.
 2. **The pinky as a voicing modifier.** Where a voiced/unvoiced pair exists, the rarer
-   member is the commoner one plus the pinky: d = t + pinky, b = p + pinky, g = c + pinky,
-   v = f + pinky, z = s + pinky, sh = ch + pinky.
+   member is the commoner one plus the pinky: b = p + pinky, v = f + pinky, z = s + pinky,
+   sh = ch + pinky. `d` and `g` started out as t + pinky and c + pinky, and were swapped
+   by hand after typing (27 September 2026): `a+t` skips the ring finger, which is hard
+   to hold once the index joins the chord, and `d` is more than twice as common as `g`,
+   so `d` took `a+o`. The mnemonic was never much help, and ease and frequency came
+   first.
 3. **One vowel, one chord, either hand.** Series 2 keeps the Series 3 chord wherever it
    means the same vowel, plainly or as a mirrored vowel, so `a`, `e`, `i`, `o`, `u` and
    `ea` read identically on both hands. The mirrored `o` is the one exception, and uses
@@ -126,7 +130,7 @@ OUTER FIVE   a (pinky), o/s (ring), t/n (middle)
        t      t  t       Dosh key
        r      r  a       
        c      c  o       
-       d      d  at      = t + pinky
+       d      d  ao      
        p      p  os      
        f      f  ot      
        y      y  an      
@@ -134,7 +138,7 @@ OUTER FIVE   a (pinky), o/s (ring), t/n (middle)
        l      l  st      
        b      b  aos     = p + pinky
        w      w  sn      
-       g      g  ao      = c + pinky
+       g      g  at      
        h     st  tn      
        v      v  aot     = f + pinky
        m      m  aon     

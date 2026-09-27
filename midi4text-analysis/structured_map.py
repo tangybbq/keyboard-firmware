@@ -28,6 +28,15 @@ PINKY = "a"
 ANCHORS_BY_SPELLING = {"n": "n", "s": "s", "t": "t"}   # free transfer from Dosh
 PAIRS_BY_SPELLING = {"d": "t", "z": "s", "v": "f", "b": "p", "g": "c", "ch": "sh"}
 
+# Moves made by hand after typing the layout, applied once the rest is placed,
+# so that nothing else shifts.  Each pair trades chords, and a pair that moves
+# stops being "base plus pinky".
+#
+# d and g (27 September 2026): d's `a+t` skips the ring finger, which is hard
+# to keep up once the index joins the chord, and d is more than twice as common
+# as g, so d takes g's `a+o`, where pinky and ring are next to each other.
+SWAPS_BY_SPELLING = [("d", "g")]
+
 
 def by_spelling():
     """Map an onset spelling back to its Michela Series 1 pattern."""
@@ -100,6 +109,12 @@ def build(freq):
             break
         assigned[shape] = free[0]
         used.add(free[0])
+
+    for a, b in SWAPS_BY_SPELLING:
+        pa, pb = pat[a], pat[b]
+        assigned[pa], assigned[pb] = assigned[pb], assigned[pa]
+        PAIRS.pop(pa, None)
+        PAIRS.pop(pb, None)
 
     clash = [c for c, n in collections.Counter(assigned.values()).items() if n > 1]
     assert not clash, f"chords assigned twice: {clash}"

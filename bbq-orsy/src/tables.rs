@@ -30,7 +30,7 @@ pub enum Outer {
     FCN,
     /// `o`: onset `c`, coda `c`.
     CP,
-    /// `a+t`: onset `d`, coda `d`.
+    /// `a+o`: onset `d`, coda `d`.
     SCP,
     /// `o+s`: onset `p`, coda `p`.
     P,
@@ -46,7 +46,7 @@ pub enum Outer {
     FCP,
     /// `s+n`: onset `w`, coda `w`.
     CN,
-    /// `a+o`: onset `g`, coda `g`.
+    /// `a+t`: onset `g`, coda `g`.
     ZP,
     /// `t+n`: onset `h`, coda `st`.
     FC,
@@ -98,7 +98,7 @@ impl Outer {
             Outer::FP => 0x004,
             Outer::FCN => 0x001,
             Outer::CP => 0x002,
-            Outer::SCP => 0x005,
+            Outer::SCP => 0x003,
             Outer::P => 0x022,
             Outer::F => 0x006,
             Outer::ZN => 0x041,
@@ -106,7 +106,7 @@ impl Outer {
             Outer::SCN => 0x024,
             Outer::FCP => 0x023,
             Outer::CN => 0x060,
-            Outer::ZP => 0x003,
+            Outer::ZP => 0x005,
             Outer::FC => 0x044,
             Outer::SC => 0x007,
             Outer::SZP => 0x043,

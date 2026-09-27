@@ -82,7 +82,7 @@ const LESSONS: &[Lesson] = &[
     },
     Lesson { name: "r", title: "r on the pinky", note: "Dosh types `a` here.", items: &[Outer(Outer::FCN)] },
     Lesson { name: "c", title: "c on the lower ring", note: "Dosh types `o` here.", items: &[Outer(Outer::CP)] },
-    Lesson { name: "d", title: "d is t plus the pinky", note: "Dosh types `q` here.", items: &[Outer(Outer::SCP)] },
+    Lesson { name: "d", title: "d on pinky and lower ring", note: "Dosh types `l` here.", items: &[Outer(Outer::SCP)] },
     Lesson { name: "p", title: "p on the ring pair", note: "Dosh has one-shot alt here.", items: &[Outer(Outer::P)] },
     Lesson { name: "f", title: "f on lower ring and middle", note: "Dosh types `u` here.", items: &[Outer(Outer::F)] },
     Lesson { name: "y", title: "y on pinky and upper middle", note: "Dosh types `j` here.", items: &[Outer(Outer::ZN)] },
@@ -90,7 +90,7 @@ const LESSONS: &[Lesson] = &[
     Lesson { name: "l", title: "l on upper ring and lower middle", note: "Dosh types `?` here.", items: &[Outer(Outer::SCN)] },
     Lesson { name: "b", title: "b is p plus the pinky", note: "Dosh has one-shot gui here.", items: &[Outer(Outer::FCP)] },
     Lesson { name: "w", title: "w on the upper ring and middle", note: "Dosh types `p` here.", items: &[Outer(Outer::CN)] },
-    Lesson { name: "g", title: "g is c plus the pinky", note: "Dosh types `l` here.", items: &[Outer(Outer::ZP)] },
+    Lesson { name: "g", title: "g on pinky and lower middle", note: "Dosh types `q` here.", items: &[Outer(Outer::ZP)] },
     Lesson {
         name: "h-st", title: "h as an onset, st as a coda",
         note: "The one shape that reads differently on the two hands.  Dosh has one-shot control here.",
