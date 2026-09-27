@@ -151,6 +151,7 @@ OUTER FIVE   a (pinky), o/s (ring), t/n (middle)
 
 INNER FOUR, right hand -- Series 3, the vowel
   Seven identities; add Bk, the Space thumb, to end the word.
+  ou has only the ending form: it never binds forward.
 
    vowel  plain   + space  note
        e  e       eBk      Dosh key
@@ -159,7 +160,7 @@ INNER FOUR, right hand -- Series 3, the vowel
        o  ei      eiBk     
        u  iSp     iSpBk    
       ea  eSp     eSpBk    = e + a
-      ou  eiSp    eiSpBk   = o + u
+      ou  -       eiSpBk   = o + u
 
 INNER FOUR, left hand -- Series 2, the second character
   Mostly consonants, not vowels.  Where Series 2 does mean a vowel,

@@ -227,7 +227,6 @@ INNER FOUR, right hand - the vowel
   u +space      .   #   #   #
   ea            #   .   #   .
   ea +space     #   .   #   #
-  ou            #   #   #   .
   ou +space     #   #   #   #
 
 INNER FOUR, left hand - the second character

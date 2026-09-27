@@ -74,7 +74,8 @@ def main():
     print()
     rows = []
     for ident, chord in F.VOWEL_IDENTITY.items():
-        rows.append((ident, chord))
+        if ident in F.PLAIN_IDENTITIES:
+            rows.append((ident, chord))
         rows.append((ident + " +space", chord + F.END_MARKER))
     table("INNER FOUR, right hand - the vowel", INNER, rows, "")
 

@@ -55,6 +55,10 @@ SERIES3 = {
     "ia": ("ou", True),
 }
 
+# The identities with a plain form.  The chord VOWEL_IDENTITY gives them is
+# the plain one; for the rest it is only the base of the ending form.
+PLAIN_IDENTITIES = {ident for ident, closes in SERIES3.values() if not closes}
+
 # Series 2 keeps the vowel chords wherever it means the same vowel, so a chord
 # reads the same on either hand.  That covers each pattern's mirrored vowel as
 # well as its plain reading: R is r, but also the mirrored a, so it takes a's
@@ -128,7 +132,8 @@ def main():
               f"{theory.CODA.get(L.mirror(shape),'-'):>6}  {cmap[shape]:<7} {note}")
 
     print("\nINNER FOUR, right hand -- Series 3, the vowel")
-    print("  Seven identities; add Bk, the Space thumb, to end the word.\n")
+    print("  Seven identities; add Bk, the Space thumb, to end the word.")
+    print("  ou has only the ending form: it never binds forward.\n")
     print(f"  {'vowel':>6}  {'plain':<7} {'+ space':<8} note")
     seen = set()
     for ident, chord in VOWEL_IDENTITY.items():
@@ -137,7 +142,8 @@ def main():
         seen.add(ident)
         note = {"e": "Dosh key", "i": "Dosh key",
                 "ea": "= e + a", "ou": "= o + u"}.get(ident, "")
-        print(f"  {ident:>6}  {chord:<7} {chord + END_MARKER:<8} {note}")
+        plain = chord if ident in PLAIN_IDENTITIES else "-"
+        print(f"  {ident:>6}  {plain:<7} {chord + END_MARKER:<8} {note}")
 
     print("\nINNER FOUR, left hand -- Series 2, the second character")
     print("  Mostly consonants, not vowels.  Where Series 2 does mean a vowel,")
