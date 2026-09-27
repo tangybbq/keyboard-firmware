@@ -13,7 +13,8 @@
 //!    a placeholder glyph alone.  A Series 2 vowel can fuse with the Series 3
 //!    vowel into a diphthong.  With no Series 3 at all, Series 2 may supply a
 //!    "mirrored" vowel instead of a consonant, which appends a silent `e` and
-//!    closes the word.
+//!    closes the word.  After the `y` shape the Series 2 `i` is always the
+//!    onset `j`, and neither vowel reading applies to it.
 //! 3. The onset is spelled: a handful of onset clusters are spelled by the
 //!    onset and Series 2 together (`str`, `spl`, `qu`), and Series 2's `XI`
 //!    is `h` rather than `w` after `p`, `w` and `r`.
@@ -32,7 +33,7 @@ use crate::tables::{Outer, Patterns, Second, Vowel};
 /// Bump it when a change here alters what some stroke spells or how it
 /// binds; a host that has learned strokes under the old rules has to know.
 /// Table changes are fingerprinted on their own and need no bump.
-pub const RULES_VERSION: u32 = 1;
+pub const RULES_VERSION: u32 = 2;
 
 /// The composition rules a stroke used, as flags in [`Translation::rules`].
 ///
@@ -179,7 +180,7 @@ impl Nucleus {
 }
 
 /// Choose the nucleus (`_nucleus` in the reference).
-fn nucleus(s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
+fn nucleus(s1: Outer, s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
     // The free combinations: alone, a placeholder glyph that closes the
     // word; with Series 2, the digraph Series 2 cannot reach on its own.
     match s3 {
@@ -210,8 +211,14 @@ fn nucleus(s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
         _ => (),
     }
 
+    // After the `y` shape, the Series 2 `i` is the onset `j` and never a
+    // vowel, so that `jim` and `jive` can be written.  Only `yai` is lost to
+    // it, and two strokes still write that.
+    let s2_can_be_vowel = !(s1 == Outer::ZN && s2 == Second::I);
+
     // A Series 2 vowel fused with the Series 3 vowel.
     match (s2, s3) {
+        _ if !s2_can_be_vowel => (),
         (Second::U, Vowel::U) | (Second::U, Vowel::Uia) => {
             return Nucleus::new("au", false, s3.ends_word(), true).by(rules::DIPHTHONG);
         }
@@ -231,7 +238,7 @@ fn nucleus(s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
         Second::RXI => return Nucleus::new("o", false, false, true).by(rules::MIRRORED),
         _ => (),
     }
-    if let Some(vowel) = s2.mirrored_vowel() {
+    if let Some(vowel) = s2.mirrored_vowel().filter(|_| s2_can_be_vowel) {
         // Only with a real coda: `ck` and the capitalisation marker are
         // digraph tails or commands rather than consonants, and do not
         // license the mirrored reading.
@@ -267,7 +274,7 @@ pub fn translate(chord: Chord) -> Option<Translation> {
     // The coda-only shapes have no onset reading.
     let s1_onset = s1.onset()?;
 
-    let n = nucleus(s2, s3, s4);
+    let n = nucleus(s1, s2, s3, s4);
     let mut used = n.rule;
 
     // An onset cluster like FC+R = "str" needs Series 2 as a consonant; when
@@ -383,6 +390,11 @@ mod tests {
         check(chord(Outer::FC, Second::R, Vowel::Ua, Outer::N), "stran", true, true);
         check(chord(Outer::CP, Second::XIU, Vowel::I, Outer::FP), "quit", true, false);
         check(chord(Outer::ZN, Second::I, Vowel::Ua, Outer::SZP), "jam", true, true);
+        // `j` wins over the diphthong and the mirrored vowel, which would
+        // otherwise take the Series 2 `i`.
+        check(chord(Outer::ZN, Second::I, Vowel::I, Outer::SZP), "jim", true, false);
+        check(chord(Outer::ZN, Second::I, Vowel::Ui, Outer::SCN), "jil", true, true);
+        check(chord(Outer::ZN, Second::I, Vowel::Empty, Outer::SC), "jv", false, true);
         // But not when Series 2 is the nucleus: FC + I with no vowel is
         // h + mirrored i.
         check(chord(Outer::FC, Second::I, Vowel::Empty, Outer::SCP), "hide", true, true);
@@ -450,6 +462,7 @@ mod tests {
         assert_eq!(used(chord(Outer::CN, Second::XI, Vowel::E, Outer::N)), rules::XI_H);
         assert_eq!(used(chord(Outer::S, Second::XI, Vowel::E, Outer::FP)), 0);
         assert_eq!(used(chord(Outer::P, Second::U, Vowel::U, Outer::SCN)), rules::DIPHTHONG);
+        assert_eq!(used(chord(Outer::ZN, Second::I, Vowel::I, Outer::SZP)), rules::CLUSTER);
         assert_eq!(used(chord(Outer::SCP, Second::R, Vowel::Ea, Outer::SZP)), rules::FREE);
         assert_eq!(used(chord(Outer::Empty, Second::Empty, Vowel::Ui, Outer::ZN)), rules::BARE_Y);
         assert_eq!(used(chord(Outer::FP, Second::Empty, Vowel::Ie, Outer::SCZ)), rules::CAPITALISE);

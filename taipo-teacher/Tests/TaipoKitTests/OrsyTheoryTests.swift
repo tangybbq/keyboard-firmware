@@ -87,5 +87,8 @@ final class OrsyTheoryTests: XCTestCase {
         // quit: c + c(XIU) is qu.
         XCTAssertEqual(t.translate(left: 0x18a, right: 0x084)?.rules, OrsyTheory.Rules.cluster)
         XCTAssertEqual(t.translate(left: 0x18a, right: 0x084)?.text, "quit")
+        // After the `y` shape the Series 2 `i` is `j`, not half of the `ai` diphthong.
+        XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c3)?.rules, OrsyTheory.Rules.cluster)
+        XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c3)?.text, "jim")
     }
 }

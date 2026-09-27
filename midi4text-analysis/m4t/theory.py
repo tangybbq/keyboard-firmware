@@ -88,6 +88,12 @@ FREE = {
 DIPHTHONG = {("U", "u"): "au", ("U", "uia"): "au",
              ("I", "i"): "ai", ("I", "ui"): "ai"}
 
+# After this onset, the Series 2 pattern is part of the onset and never a
+# vowel: 'ZN' + 'I' is always 'j', so that 'jim' and 'jive' can be written.
+# Only 'yai' is lost to it, and two strokes still write that.  An Orsy change;
+# Midi4Text has the diphthong and the mirrored vowel win.
+ALWAYS_ONSET = {("ZN", "I")}
+
 # Series 2 'XI' spells H rather than W after these onset letters.
 XI_IS_H_AFTER = ("p", "w", "r")
 
@@ -99,7 +105,8 @@ def _nucleus(s1, s2, s3, s4):
         if s2 == "":
             return alone, False, True, False
         return joined, False, closes, False
-    if (s2, s3) in DIPHTHONG:
+    s2_can_be_vowel = (s1, s2) not in ALWAYS_ONSET
+    if s2_can_be_vowel and (s2, s3) in DIPHTHONG:
         return DIPHTHONG[(s2, s3)], False, s3 in ENDING_VOWELS, True
     if s3 != "":
         return VOWEL[s3], False, s3 in ENDING_VOWELS, False
@@ -108,7 +115,7 @@ def _nucleus(s1, s2, s3, s4):
         return MIRRORED_VOWEL["RX"], True, True, True
     if s2 == "RXI":
         return SECOND["RXI"], False, False, True
-    if s2 in MIRRORED_VOWEL and s4 and s4 not in EXTRA_ORDINEM:
+    if s2_can_be_vowel and s2 in MIRRORED_VOWEL and s4 and s4 not in EXTRA_ORDINEM:
         return MIRRORED_VOWEL[s2], True, True, True
     return "", False, False, False
 

@@ -201,7 +201,7 @@ public final class OrsyTheory {
     }
 
     /// Choose the nucleus.  `_nucleus` in the Python, `nucleus` in the Rust.
-    private func nucleus(_ s2: String, _ s3: String, _ s4: String) -> Nucleus {
+    private func nucleus(_ s1: String, _ s2: String, _ s3: String, _ s4: String) -> Nucleus {
         // The free combinations: alone, a placeholder glyph that closes the word; with
         // Series 2, the digraph Series 2 cannot reach on its own.
         switch s3 {
@@ -220,8 +220,11 @@ public final class OrsyTheory {
         default: break
         }
         let ends = vowelByName[s3]?.endsWord ?? false
+        // After the `y` shape, the Series 2 `i` is the onset `j` and never a vowel.
+        let s2CanBeVowel = !(s1 == "ZN" && s2 == "I")
         // A Series 2 vowel fused with the Series 3 vowel.
         switch (s2, s3) {
+        case _ where !s2CanBeVowel: break
         case ("U", "u"), ("U", "uia"):
             return Nucleus(text: "au", silentE: false, closes: ends, consumed: true, rule: Rules.diphthong)
         case ("I", "i"), ("I", "ui"):
@@ -237,7 +240,7 @@ public final class OrsyTheory {
         case "RXI": return Nucleus(text: "o", silentE: false, closes: false, consumed: true, rule: Rules.mirrored)
         default: break
         }
-        if let vowel = secondByName[s2]?.mirroredVowel {
+        if s2CanBeVowel, let vowel = secondByName[s2]?.mirroredVowel {
             // Only with a real coda: `ck` and the capitalisation marker do not license the
             // mirrored reading.
             if !s4.isEmpty && s4 != "CZ" && s4 != "SCZ" {
@@ -266,7 +269,7 @@ public final class OrsyTheory {
             s1Onset = onset
         }
 
-        let n = nucleus(s2, s3, s4)
+        let n = nucleus(s1, s2, s3, s4)
         var used = n.rule
 
         // An onset cluster needs Series 2 as a consonant; when Series 2 has been taken for

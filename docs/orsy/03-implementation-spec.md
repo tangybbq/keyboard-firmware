@@ -184,7 +184,9 @@ tests, and the host tools can then exercise it. It does **not** depend on `bbq-s
 3. Choose the nucleus: the free combinations (`ea` and `ou` with a second character, a
    placeholder glyph without); the diphthongs (`au`, `ai`); the Series 3 vowel; or, with no
    Series 3, the mirrored-vowel rule (Series 2 supplies the nucleus, append silent `e`,
-   close the word).
+   close the word). After the `y` shape the Series 2 `i` is always the onset `j`, and
+   neither Series 2 reading applies to it; Midi4Text lets the vowel win, which leaves
+   `jim` and `jive` unwritable.
 4. Spell the onset (the onset clusters, and `XI` as `h` after `p`, `w` and `r`), then the
    coda, with the bare final `y`.
 5. Emit `text` plus two flags, `space_before` and `space_after`, and the rules the stroke

@@ -35,7 +35,7 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 23 | ch, sh, gh, z and ck | 732 |
 | 24 | the coda-only shapes: h and e | 42 |
 | 25 | the mirrored vowel and the silent e | 1176 |
-| 26 | the onset clusters | 356 |
+| 26 | the onset clusters | 358 |
 | 27 | w reads as h after p, w and r | 57 |
 | 28 | au and ai | 252 |
 | 29 | a bare final y | 706 |
@@ -1239,7 +1239,7 @@ With no vowel on the right hand and a real coda, a second character that is also
 
 An onset and a second character that spell a cluster together: `h+r` is `str`, `h+l` is `spl`, `h+p` is `spr`, `h+c` is `scr`, `sh+c` is `sch`, `z+c` is `sk`, `s+s` is `sci`, `y+i` is `j`, `c+c` is `qu`.
 
-356 words qualify, 40 here, most common first.  `drills/26-clusters.txt`.
+358 words qualify, 40 here, most common first.  `drills/26-clusters.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1433,5 +1433,5 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 
 ## Not writable
 
-5 words of the list cannot be written by the rules at all, and need the Dosh escape: iraq, iraqi, beijing, fiji, qatar
+3 words of the list cannot be written by the rules at all, and need the Dosh escape: iraq, iraqi, qatar
 

@@ -57,7 +57,7 @@ trainer tracks as separate items:
    is also a vowel becomes the vowel and a silent `e` is added: `time`, `name` and `life`
    are one stroke each.
 2. **Onset clusters.** Nine onset and second-character pairs spell a cluster outright:
-   `str spl spr scr sch sk sci j qu`.
+   `str spl spr scr sch sk sci j qu`. The `j` always does, even before an `i` (`jim`).
 3. **`w` reads as `h`** after `p`, `w` and `r`: `when`, `phase`.
 4. **Diphthongs.** A second-character vowel fuses with the vowel into `au` or `ai`.
 5. **The free vowel pairs.** `ea` and `ou` on the right spell the digraph only after a
