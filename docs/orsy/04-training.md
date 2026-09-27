@@ -1,8 +1,9 @@
 # Orsy — training plan
 
-Follows `03-implementation-spec.md`. The firmware side of Orsy exists and has not been
-typed on. This is the plan for learning it, written for a writer who already knows Dosh
-well and has the TaipoTeacher trainer (`taipo-teacher/`) and its key logs.
+Follows `03-implementation-spec.md`. The firmware side of Orsy exists and has been typed
+since 10 September 2026. This is the plan for learning it, and a record of how much of it
+is built, written for a writer who already knows Dosh well and has the TaipoTeacher
+trainer (`taipo-teacher/`) and its key logs.
 
 The short version: **the unit of skill is the pattern, not the stroke**; the first
 deliverable is static drill sheets that need no app work; the app then learns to read Orsy
@@ -23,10 +24,11 @@ Dosh is one skill: 133 chords, each a letter. Orsy is three:
    is cheapest. Nothing in Dosh resembles this; it is the skill the corpus figures assume
    and that the spec says only hands can settle.
 
-Plus ten commands, of which the Dosh one-shot is the one used every sentence. Seven of
-them are the left inner shapes struck alone -- undo on `Sp`, Dosh's Backspace, join on
-`Bk`, and five for capitals -- so they are taught with the Series 2 letters on the same
-shapes.
+Plus ten commands and eight punctuation marks. Seven of the commands are the left inner
+shapes struck alone -- undo on `Sp`, Dosh's Backspace, join on `Bk`, and five for
+capitals -- so they are taught with the Series 2 letters on the same shapes. The marks
+that take part in spacing, `.` `,` `'` `?` `-` `!` `:` `;`, are right `Bk` plus outer
+keys; the Dosh one-shot has the rest.
 
 ### What transfers from Dosh, and what fights it
 
@@ -88,12 +90,12 @@ So an Orsy stroke is **split into its Series and each pattern gets the sample**:
 A host-only example in `bbq-orsy`, `lessons`, that prints lesson word lists as markdown into
 `docs/orsy/drills/`, the way `words/drills.py` does for the n-gram chords. Each lesson is
 a set of patterns; a word belongs to the lesson that completes its cheapest division.
-Every word is printed with its strokes in key names:
+Every word is printed with its strokes in key names, left hand, hyphen, right hand:
 
-    dream    d+r | ea+m      at+Sp  -  eSp+aon
+    | great | `aoSp-teSpBk` | great |
 
-This needs one new piece of logic, **`bbq_orsy::write(word)`**: the fewest-stroke division
-of a word, ties broken by fewest keys, a port of `m4t/writer.py`'s DP over
+This needs one new piece of logic, **`bbq_orsy::Writer::write`**: the fewest-stroke
+division of a word, ties broken by fewest keys, a port of `m4t/writer.py`'s DP over
 `translate`. It is behind a `std` feature and is reused by everything below.
 
 The keyboard already prints text, so the sheets work in MonkeyType or an editor with the
@@ -119,11 +121,14 @@ Lesson order, for a Dosh hand:
 3. **The conflicts, one pair at a time**, commonest first: `a` (r, not a), `o` (c),
    `a+t` (d), `o+s` (p), `o+t` (f), and the rest of the thirteen.
 4. **Series 2** by frequency, `r` `l` first; then `ea` and `ou`, which spell their
-   digraph only with a second character; then **the free shapes** by frequency.
+   digraph only with a second character (with none, they are written across the hands:
+   the Series 2 `e` or `o`, then the Series 3 `a` or `u`); then **the free shapes** by
+   frequency.
 5. **The rules**, each with words that need it: mirrored vowels (tame, hide, tone), onset
    clusters (strap, quit, jam), `h`/`w` (when, phase), diphthongs (paul, pail), `y`.
 6. **The escapes**: the one-shot for punctuation with the Dosh chords already known; the
-   toggle for a run of digits.
+   toggle for a run of digits. Not yet in the sheets, nor the native marks: the word list
+   has no punctuation to call for them.
 
 A day's work, and it gives something to type tomorrow.  Done: `cargo run --release
 --example lessons` in `bbq-orsy` writes `drills.md` and `drills/`.
@@ -220,24 +225,25 @@ device; and the practice tab scores nothing in Orsy mode until Phase C.
   which is the spec's unanswered question — whether a five-key chord forms as fast as a
   two-key one — measured for free on every stroke; divisions per word against the
   optimum. The alternation strip is meaningless for two-hand strokes and is hidden in Orsy.
-- Auto-capitalisation after a one-shot `.`, and every command that touches the text --
-  undo, space, join and the capitals -- go through the drill's output stage so the
-  target stays in step with the keyboard.
+- The capital after `.` `?` `!`, native or played through the one-shot, and every command
+  that touches the text -- undo, space, join and the capitals -- go through the drill's
+  output stage so the target stays in step with the keyboard.
 
 Done, in a first form. `orsy-words.json` (the word table and the lesson plan, written
 by the `lessons` example), `OrsyLadder`, `OrsyLadderMaker`, `OrsyDrillSession` with the
 output-stage port and diagnosis by Series, and `OrsyDrillView` with `StrokeHint`. The
-practice screen follows the keyboard's mode. Left for later: decorations, since
-punctuation is the Dosh escape and not on this ladder; a stage filter; and the
-per-word division figure, which the stats do not yet report.
+practice screen follows the keyboard's mode. Left for later: decorations, since the drill
+recognises the native marks but they are not in the word table or the lesson plan, so no
+line asks for one; a stage filter; and the per-word division figure, which the stats do
+not yet report.
 
 ## Phase D: on the hands
 
-Nothing here has been typed, so the thresholds are guesses and two decisions wait on
-Phase A's measurements: whether first-up is the right commit rule for a two-hand stroke
-(a ragged release that splits one stroke into two will show up as untranslatable strokes
-in the log), and whether `SkillModel.Options` — 12 samples to reach, 700 ms target —
-suit chords of twice the size.
+Orsy has been typed since 10 September 2026, but the thresholds are still guesses, and two
+decisions still wait on measurement: whether first-up is the right commit rule for a
+two-hand stroke (a ragged release that splits one stroke into two will show up as
+untranslatable strokes in the log), and whether `SkillModel.Options` — 12 samples to
+reach, 700 ms target — suit chords of twice the size.
 
 ## Order and size
 
