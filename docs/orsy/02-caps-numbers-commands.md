@@ -16,6 +16,10 @@ The syllabic mapping leaves very little inside each group:
 | inner four, left (Series 2) | 15 | 13 | 2 |
 | inner four, right (Series 3) | 15 | 13 | 2 |
 
+The two spare left shapes are now the Dosh escapes and one of the right's is the space
+command, all below; the right's other, `e`+`i`+`Sp`, and the outer five all held together
+are still free.
+
 But a *whole stroke* is 9 keys against 9, and real English needs only 6,982 of those
 262,144 combinations. So commands should be built as **whole strokes that are not valid
 syllables**, not carved out of the alphabets — which is what Midi4Text itself does, and why
@@ -30,10 +34,11 @@ keys on the left, and they are where the capitals, undo and join ended up; see
 
 ## Capitals
 
-### Sentence-ending punctuation should cap the next word
+### Sentence-ending punctuation caps the next word
 
-Yes — adopt it. Plover's `{.}` already does exactly this, and Midi4Text's punctuation
-dictionary already emits `{.}`, so it costs nothing to keep.
+`.`, `?` and `!` capitalise the next word, as Plover's `{.}` does and as Midi4Text's
+punctuation dictionary does with it. They are native strokes (below), so the capital goes
+through the output stage like any other.
 
 **But it buys less than it seems.** Measured over the manual's own prose — the only cased
 English to hand, and unrepresentative in absolute terms at 27.6% capitalised words —
@@ -128,8 +133,8 @@ about keystrokes, and it is right about those; what it missed is that the escape
 word after it, or capitalises what follows is doing the output stage's job, and an escaped
 one cannot: it is not on the record, so undo strands it and retro-capitalisation miscounts
 the word boundaries, and it cannot supply the space when the word before it was left open.
-So `.` `,` `?` `!` `:` are native strokes — see `03-implementation-spec.md` — and the
-escape keeps everything else, which is most of it.
+So `.` `,` `'` `?` `-` `!` `:` `;` are native strokes — see `03-implementation-spec.md`
+— and the escape keeps everything else, which is most of it.
 
 The right hand has all nine keys, so every Dosh chord is reachable, thumb layers included,
 and the hands are identical so nothing is lost by the Dosh chord always being right-handed.
@@ -147,13 +152,16 @@ right-handed chord at a time.
 
 **Toggle: all four inner keys of one hand**, `e`+`i`+`Sp`+`Bk`. This shape is free in
 *both* layouts — it is a spare Series 2 chord in Midi4Text, and Dosh leaves `0x388`
-unmapped — so the same chord enters and leaves, with no special-casing needed beyond
-intercepting it the way `dosh_event` already intercepts `DOSH_TOGGLE_KEY`.
+unmapped — so the same chord enters and leaves. In Orsy it is a left-hand command that
+switches the keyboard to taipo mode with the Dosh table selected (on the right the shape
+is the ending `ou`, and alone it types that glyph, `*`); in the Dosh table `0x388` is the
+entry that switches back to Orsy, from either hand. The mode change is what the key log
+records.
 
-**The firmware already has all of this.** `LayoutManager::dosh_event` toggles
-`TaipoVariant` on a lone press-and-release and raises `MinorMode::Dosh` so the mode is
-visible; the mechanism, the indicator and the tests exist. The only change is that on
-mesa3 all 18 keys are spoken for, so the trigger is a chord rather than a lone key.
+**The Fn keys.** The mesa3b has an Fn key on each hand, which does both escapes without a
+chord shape: tapped alone, either one is the toggle, and struck with keys on the other
+hand only, it plays those keys through Dosh as the one-shot does. The chord forms still
+work, for the boards without Fn keys.
 
 **Numbers should use the toggle, not a number bar.** Michela's number bar plus ten digit
 shapes is ten things to learn for something used rarely and almost always in runs, where a
@@ -248,6 +256,8 @@ INNER FOUR, left hand - the second character
 
 ## Still open
 
-- Punctuation beyond the sentence-enders has no assignment.
+- *Cap previous N words* has no assignment; the lone `w`, `c`, `p` and `n` shapes are
+  free for it.
 - The three rare coda-only shapes still sit on four- and five-key chords.
-- Digit shapes and multi-digit numbers need the treatment the consonants got.
+- The right hand's `ea` and `ou` struck with no second character still type Midi4Text's
+  placeholder glyphs; see `01-mapping.md`.
