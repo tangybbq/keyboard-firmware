@@ -155,8 +155,11 @@ def translate(stroke):
     if closes:
         return word
     if s3 == "":
-        # No Series 3 vowel: a fragment.  A bare onset leans forward, anything
-        # carrying Series 2 or a coda leans back onto the preceding syllable.
-        leans_forward = (s1 and not s2 and not s4) or s4 == "nz"
+        # No Series 3 vowel: a fragment.  A bare onset leans forward, and so
+        # does an onset cluster, whose Series 2 is part of the onset (an Orsy
+        # change; Midi4Text leans it back); anything else carrying Series 2, or
+        # a coda, leans back onto the preceding syllable.
+        bare_onset = s1 and not s4 and (not s2 or override is not None)
+        leans_forward = bare_onset or s4 == "nz"
         return "{" + word + "^}" if leans_forward else "{^" + word + "}"
     return "{" + word + "^}"

@@ -320,9 +320,11 @@ public final class OrsyTheory {
         if n.closes {
             (before, after) = (true, true)
         } else if s3.isEmpty {
-            // No vowel: a fragment.  A bare onset leans forward, anything carrying Series 2
-            // or a coda leans back onto the preceding syllable.
-            let leansForward = (!s1.isEmpty && s2.isEmpty && s4.isEmpty) || s4 == "ZN"
+            // No vowel: a fragment.  A bare onset leans forward, and so does an onset
+            // cluster, whose Series 2 is part of the onset; anything else carrying Series 2,
+            // or a coda, leans back onto the preceding syllable.
+            let bareOnset = !s1.isEmpty && s4.isEmpty && (s2.isEmpty || override != nil)
+            let leansForward = bareOnset || s4 == "ZN"
             (before, after) = leansForward ? (true, false) : (false, true)
         } else {
             (before, after) = (true, false)

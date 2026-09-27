@@ -90,5 +90,10 @@ final class OrsyTheoryTests: XCTestCase {
         // After the `y` shape the Series 2 `i` is `j`, not half of the `ai` diphthong.
         XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c3)?.rules, OrsyTheory.Rules.cluster)
         XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c3)?.text, "jim")
+        // A lone onset cluster leans forward, like any bare onset.
+        let j = try XCTUnwrap(t.translate(left: 0x0c1, right: 0))
+        XCTAssertEqual(j.text, "j")
+        XCTAssertEqual(j.spaceBefore, true)
+        XCTAssertEqual(j.spaceAfter, false)
     }
 }

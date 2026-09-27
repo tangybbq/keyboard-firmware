@@ -48,7 +48,8 @@ The structure applies to every stroke:
 - One shape per Series. Adding a key changes the consonant rather than adding one.
 - Spacing follows from the vowel. The ending form (`+ Bk`) closes the word and adds the
   space, a plain vowel joins onto the next stroke, and a stroke with no vowel joins onto
-  the one before.
+  the one before, except an onset on its own (`s`, `str`, `j`), which joins onto the
+  next.
 
 On top of that are the seven composition rules that `compose::rules` flags, and that the
 trainer tracks as separate items:

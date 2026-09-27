@@ -25,17 +25,17 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 13 | g is c plus the pinky | 185 |
 | 14 | h as an onset, st as a coda | 239 |
 | 15 | x on the middle pair and lower ring | 70 |
-| 16 | the second character: r and l | 509 |
+| 16 | the second character: r and l | 508 |
 | 17 | the second character: i, t and m | 709 |
 | 18 | the second character: o, s and e | 506 |
 | 19 | the second character: w, c, u, p and n | 193 |
 | 20 | ea and ou | 61 |
 | 21 | v, m and k | 1623 |
-| 22 | ind/nd, inc/ng and int/nt | 1223 |
+| 22 | ind/nd, inc/ng and int/nt | 1222 |
 | 23 | ch, sh, gh, z and ck | 732 |
 | 24 | the coda-only shapes: h and e | 42 |
 | 25 | the mirrored vowel and the silent e | 1176 |
-| 26 | the onset clusters | 358 |
+| 26 | the onset clusters | 360 |
 | 27 | w reads as h after p, w and r | 57 |
 | 28 | au and ai | 252 |
 | 29 | a bare final y | 706 |
@@ -749,7 +749,7 @@ Dosh has PrintScreen here.
 
 The left hand's inner four are the second character of the syllable, mostly consonants.  `r` is `Sp` alone and `l` is `Bk` alone.  Only in a syllable, though: struck with nothing else on the board, the left inner shapes are commands, and these two are undo and join, which takes away the space before the next word.
 
-509 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
+508 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1043,7 +1043,7 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
 Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `nd`, `ng` and `nt` as codas.
 
-1223 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
+1222 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1239,7 +1239,7 @@ With no vowel on the right hand and a real coda, a second character that is also
 
 An onset and a second character that spell a cluster together: `h+r` is `str`, `h+l` is `spl`, `h+p` is `spr`, `h+c` is `scr`, `sh+c` is `sch`, `z+c` is `sk`, `s+s` is `sci`, `y+i` is `j`, `c+c` is `qu`.
 
-358 words qualify, 40 here, most common first.  `drills/26-clusters.txt`.
+360 words qualify, 40 here, most common first.  `drills/26-clusters.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1250,12 +1250,12 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | job | `ani-aoseiBk` | job |
 | join | `ani-ei -niBk` | jo·in |
 | science | `se-ne o-eBk` | scien·ce |
-| june | `ani-niSp -eBk` | jun·e |
+| june | `ani- iSp-n` | j·une |
 | required | `a-e oeiSp-ai -ateBk` | re·quir·ed |
 | questions | `oeiSp-tne i-nei -s` | quest·ion·s |
 | street | `tnSp-e -teBk` | stre·et |
 | equipment | `-e oeiSp-osi aon-osneBk` | e·quip·ment |
-| quote | `oeiSp-tei -eBk` | quot·e |
+| quote | `oeiSp- eiBk-t` | qu·ote |
 | question | `oeiSp-tne i-neiBk` | quest·ion |
 | request | `a-e oeiSp-tneBk` | re·quest |
 | major | `aon-Sp ani-aeiBk` | ma·jor |
@@ -1263,7 +1263,7 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | display | `at-i tnBk-anSpBk` | di·splay |
 | requirements | `a-e oeiSp-ai -aone -ne t-s` | re·quir·em·en·ts |
 | projects | `osSp-ei ani-oe t-s` | pro·jec·ts |
-| subscribe | `s-aosiSp tneiSp-aosi -eBk` | sub·scrib·e |
+| subscribe | `s-aosiSp tneiSp- i-aos` | sub·scr·ibe |
 | construction | `o-nei tnSp-oiSp ti-neiBk` | con·struc·tion |
 | quick | `oeiSp-aosniBk` | quick |
 | japan | `ani-osSp -nSpBk` | jap·an |
@@ -1275,11 +1275,11 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | schedule | `aosteiSp-ate iSp-st` | sched·ule |
 | unique | `-niSp -i oeiSp-eBk` | un·i·que |
 | strong | `tnSp-asneiBk` | strong |
-| quite | `oeiSp-ti -eBk` | quit·e |
+| quite | `oeiSp- i-t` | qu·ite |
 | joined | `ani-ei -ni -ateBk` | jo·in·ed |
 | abstract | `-aosSp tnSp-oSp -t` | ab·strac·t |
 | skin | `aseiSp-niBk` | skin |
-| require | `a-e oeiSp-ai -eBk` | re·quir·e |
+| require | `a-e oeiSp- i-a` | re·qu·ire |
 | string | `tnSp-asniBk` | string |
 | japanese | `ani-osSp -nSp e-s` | jap·an·ese |
 | instructions | `-ni tnSp-oiSp ti-nei -s` | in·struc·tion·s |

@@ -22,8 +22,8 @@
 //!    nothing themselves.
 //! 5. The spacing follows from the vowel: an ending form closes the word,
 //!    a plain vowel binds forward to the next stroke, and no vowel at all
-//!    makes a fragment that binds backward, unless it is a bare onset, which
-//!    binds forward.
+//!    makes a fragment that binds backward, unless it is a bare onset or
+//!    onset cluster, which binds forward.
 
 use crate::chord::Chord;
 use crate::tables::{Outer, Patterns, Second, Vowel};
@@ -33,7 +33,7 @@ use crate::tables::{Outer, Patterns, Second, Vowel};
 /// Bump it when a change here alters what some stroke spells or how it
 /// binds; a host that has learned strokes under the old rules has to know.
 /// Table changes are fingerprinted on their own and need no bump.
-pub const RULES_VERSION: u32 = 2;
+pub const RULES_VERSION: u32 = 3;
 
 /// The composition rules a stroke used, as flags in [`Translation::rules`].
 ///
@@ -322,11 +322,14 @@ pub fn translate(chord: Chord) -> Option<Translation> {
     let (space_before, space_after) = if n.closes {
         (true, true)
     } else if s3 == Vowel::Empty {
-        // No Series 3 vowel: a fragment.  A bare onset leans forward,
-        // anything carrying Series 2 or a coda leans back onto the preceding
-        // syllable.
-        let leans_forward =
-            (s1 != Outer::Empty && s2 == Second::Empty && s4 == Outer::Empty) || s4 == Outer::ZN;
+        // No Series 3 vowel: a fragment.  A bare onset leans forward, and so
+        // does an onset cluster, whose Series 2 is part of the onset;
+        // anything else carrying Series 2, or a coda, leans back onto the
+        // preceding syllable.
+        let bare_onset = s1 != Outer::Empty
+            && s4 == Outer::Empty
+            && (s2 == Second::Empty || override_.is_some());
+        let leans_forward = bare_onset || s4 == Outer::ZN;
         if leans_forward {
             (true, false)
         } else {
@@ -382,6 +385,9 @@ mod tests {
         check(chord(Outer::S, Second::Empty, Vowel::Empty, Outer::Empty), "s", true, false);
         // Onset with a second character leans back.
         check(chord(Outer::S, Second::RI, Vowel::Empty, Outer::Empty), "sl", false, true);
+        // But an onset cluster is a bare onset, and leans forward.
+        check(chord(Outer::ZN, Second::I, Vowel::Empty, Outer::Empty), "j", true, false);
+        check(chord(Outer::FC, Second::R, Vowel::Empty, Outer::Empty), "str", true, false);
     }
 
     /// The onset clusters that Series 2 rewrites wholesale.

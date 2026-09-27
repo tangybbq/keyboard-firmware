@@ -210,7 +210,8 @@ Much smaller than the steno typer, because nothing is ever retranslated.
 
 - **Spacing.** A space is emitted before a word unless the previous stroke suppressed it.
   The word-boundary rule maps directly: ending-form vowel → space after; plain vowel → no
-  space after; empty Series 3 → no space before.
+  space after; empty Series 3 → no space before, except a bare onset or onset cluster
+  (`s`, `str`, `j`), which leans forward like a plain vowel.
 - **Capitals.** `pending_cap` is set by cap-next and by the sentence-ending marks, and
   consumed by the next letter. All caps holds until the word closes, through the
   apostrophe and the hyphen. Uncap clears both.
