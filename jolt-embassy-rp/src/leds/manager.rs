@@ -48,7 +48,8 @@
 //!
 //! Orsy also shows what its output stage has pending for the next stroke, in place of the white
 //! on two of the LEDs: the second green while the next letter will be a capital, and the third
-//! blue while a space is owed before the next word.  A held modifier still paints over these.
+//! blue while within a word, when the next stroke will run on with no space.  A held modifier
+//! still paints over these.
 //! They are single, pure channels, so they read as a color rather than as a tint on the white
 //! around them, and a little dimmer than the held modifiers, which stay the brightest thing on
 //! the board.  The third LED is also alt's, and alt held is blue too, only brighter; alt is rare
@@ -109,13 +110,13 @@ const MODE: RGB8 = RGB8::new(1, 1, 1);
 
 /// Orsy: the next letter will be a capital.  Green, on the second LED.
 ///
-/// This and [`SPACE_NEXT`] are two-thirds of held control's green and held alt's blue, which keeps
+/// This and [`IN_WORD`] are two-thirds of held control's green and held alt's blue, which keeps
 /// the balance between the two.  Going under green's floor of 3 is safe here: that floor is about
 /// holding a ratio between channels, and a single channel has none to hold.
 const CAP_NEXT: RGB8 = RGB8::new(0, 2, 0);
 
-/// Orsy: a space is owed before the next word.  Blue, on the third LED.
-const SPACE_NEXT: RGB8 = RGB8::new(0, 0, 16);
+/// Orsy: within a word.  Blue, on the third LED.
+const IN_WORD: RGB8 = RGB8::new(0, 0, 16);
 
 pub struct LedManager {
     leds: LedSet,
@@ -184,8 +185,8 @@ impl LedManager {
 
     /// Show what Orsy's output stage has pending for the next stroke.
     #[cfg(feature = "orsy")]
-    pub fn set_orsy_pending(&mut self, cap: bool, space: bool) {
-        self.indicator.set_orsy_pending(cap, space);
+    pub fn set_orsy_pending(&mut self, cap: bool, in_word: bool) {
+        self.indicator.set_orsy_pending(cap, in_word);
         self.render();
     }
 
@@ -199,7 +200,7 @@ impl LedManager {
                 Level::Held => *held,
                 Level::Latched => add(*held, LATCH),
                 Level::CapNext => CAP_NEXT,
-                Level::SpaceNext => SPACE_NEXT,
+                Level::InWord => IN_WORD,
             };
         }
         self.set_state();

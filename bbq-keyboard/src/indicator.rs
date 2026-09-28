@@ -10,11 +10,11 @@
 //!
 //! In Orsy, two slots also show what the output stage has pending for the
 //! next stroke, between the modifiers and the mode image: slot 1 that the next
-//! letter will be a capital, and slot 2 that a space is owed before the next
-//! word.  A held modifier still wins its slot, as it is what the next key
-//! press will do.  These are shown only with [`ModeDisplay::Steady`]: a space
-//! is owed after nearly every word, so on a board that must not keep an LED
-//! lit, it would be lit nearly all the time.
+//! letter will be a capital, and slot 2 that the writer is within a word, so
+//! the next stroke runs on with no space.  A held modifier still wins its
+//! slot, as it is what the next key press will do.  These are shown only with
+//! [`ModeDisplay::Steady`]: either can last for as long as the writer pauses,
+//! which a board that must not keep an LED lit cannot show.
 //!
 //! The slot count follows the hardware and is not fixed here.  A slot past
 //! the last modifier only ever shows the mode image, and a board with fewer
@@ -57,16 +57,15 @@ pub enum Level {
     Latched,
     /// Orsy: the next letter will be a capital.  Only ever [`CAP_SLOT`].
     CapNext,
-    /// Orsy: a space is owed before the next word.  Only ever
-    /// [`SPACE_SLOT`].
-    SpaceNext,
+    /// Orsy: the writer is within a word.  Only ever [`WORD_SLOT`].
+    InWord,
 }
 
 /// The slot that shows Orsy's pending capital, the shift slot.
 pub const CAP_SLOT: usize = 1;
 
-/// The slot that shows Orsy's pending space.
-pub const SPACE_SLOT: usize = 2;
+/// The slot that shows Orsy's being within a word.
+pub const WORD_SLOT: usize = 2;
 
 /// The state the indicator shows: the mode and the Taipo modifiers.
 pub struct Indicator {
@@ -81,8 +80,8 @@ pub struct Indicator {
     sticky: Mods,
     /// Orsy: the next letter will be a capital.
     cap_next: bool,
-    /// Orsy: a space is owed before the next word.
-    space_next: bool,
+    /// Orsy: the writer is within a word.
+    in_word: bool,
 }
 
 impl Indicator {
@@ -95,7 +94,7 @@ impl Indicator {
             oneshot: Mods::empty(),
             sticky: Mods::empty(),
             cap_next: false,
-            space_next: false,
+            in_word: false,
         }
     }
 
@@ -136,9 +135,9 @@ impl Indicator {
     /// Show what Orsy's output stage has pending, as reported by
     /// [`LayoutActions::set_orsy_pending`](crate::layout::LayoutActions::set_orsy_pending).
     /// Kept outside Orsy, and shown again on returning to it.
-    pub fn set_orsy_pending(&mut self, cap: bool, space: bool) {
+    pub fn set_orsy_pending(&mut self, cap: bool, in_word: bool) {
         self.cap_next = cap;
-        self.space_next = space;
+        self.in_word = in_word;
     }
 
     /// What one slot shows.
@@ -161,8 +160,8 @@ impl Indicator {
             if slot == CAP_SLOT && self.cap_next {
                 return Level::CapNext;
             }
-            if slot == SPACE_SLOT && self.space_next {
-                return Level::SpaceNext;
+            if slot == WORD_SLOT && self.in_word {
+                return Level::InWord;
             }
         }
         let image = match (self.mode, self.display) {
@@ -286,8 +285,8 @@ mod test {
         assert_eq!(ind.level(100), Level::Off);
     }
 
-    /// Orsy's pending capital and space light their slots over the mode,
-    /// and under a held modifier.
+    /// Orsy's pending capital and being within a word light their slots
+    /// over the mode, and under a held modifier.
     #[cfg(feature = "orsy")]
     #[test]
     fn test_orsy_pending() {
@@ -296,12 +295,12 @@ mod test {
         ind.set_orsy_pending(true, false);
         assert_eq!(ind.levels(), [Level::Mode, Level::CapNext, Level::Mode, Level::Mode]);
         ind.set_orsy_pending(false, true);
-        assert_eq!(ind.levels(), [Level::Mode, Level::Mode, Level::SpaceNext, Level::Mode]);
+        assert_eq!(ind.levels(), [Level::Mode, Level::Mode, Level::InWord, Level::Mode]);
         ind.set_orsy_pending(true, true);
         ind.set_mods(Mods::SHIFT, Mods::empty());
-        assert_eq!(ind.levels(), [Level::Mode, Level::Held, Level::SpaceNext, Level::Mode]);
+        assert_eq!(ind.levels(), [Level::Mode, Level::Held, Level::InWord, Level::Mode]);
         ind.set_mods(Mods::empty(), Mods::empty());
-        assert_eq!(ind.levels(), [Level::Mode, Level::CapNext, Level::SpaceNext, Level::Mode]);
+        assert_eq!(ind.levels(), [Level::Mode, Level::CapNext, Level::InWord, Level::Mode]);
     }
 
     /// Orsy's pending state shows only in Orsy, and only on a steady
@@ -315,7 +314,7 @@ mod test {
         ind.set_mode(LayoutMode::Taipo);
         assert_eq!(ind.levels(), [Level::Off; 4]);
         ind.set_mode(LayoutMode::Orsy);
-        assert_eq!(ind.levels(), [Level::Mode, Level::CapNext, Level::SpaceNext, Level::Mode]);
+        assert_eq!(ind.levels(), [Level::Mode, Level::CapNext, Level::InWord, Level::Mode]);
 
         let mut ind = Indicator::new(ModeDisplay::Flash);
         ind.set_mode(LayoutMode::Orsy);

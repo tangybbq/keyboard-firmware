@@ -109,8 +109,8 @@ pub struct OrsyManager {
     /// The output stage.
     output: Output,
     /// What was last reported through
-    /// [`LayoutActions::set_orsy_pending`], as `(cap, space)`.  Nothing is
-    /// pending to begin with, which is what an indicator starts out showing.
+    /// [`LayoutActions::set_orsy_pending`], as `(cap, in_word)`.  Nothing
+    /// is pending to begin with, which is what an indicator starts out showing.
     reported: (bool, bool),
 }
 
@@ -196,7 +196,7 @@ impl OrsyManager {
     /// once it has acted on any escape, as [`cap_next`](Self::cap_next) and
     /// [`backspace`](Self::backspace) change it as well as strokes.
     pub async fn report_pending<ACT: LayoutActions>(&mut self, actions: &ACT) {
-        let pending = (self.output.cap_pending(), self.output.space_pending());
+        let pending = (self.output.cap_pending(), self.output.in_word());
         if pending != self.reported {
             self.reported = pending;
             actions.set_orsy_pending(pending.0, pending.1).await;

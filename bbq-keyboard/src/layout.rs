@@ -343,14 +343,15 @@ mod async_traits {
         /// Report a change in what Orsy's output stage has pending for the
         /// next stroke.
         ///
-        /// `cap` is true when the next letter will be a capital, and `space`
-        /// when a space is owed before the next word.  Like `set_mod_state`,
+        /// `cap` is true when the next letter will be a capital, and
+        /// `in_word` when the writer is within a word, so that the next
+        /// stroke runs on from the last with no space.  Like `set_mod_state`,
         /// this is called only when the state changes, and is meant to drive
         /// an indicator.  The state is kept while the keyboard is out of
         /// Orsy, and is not reported again on the way back.
         #[cfg(feature = "orsy")]
-        async fn set_orsy_pending(&self, cap: bool, space: bool) {
-            let _ = (cap, space);
+        async fn set_orsy_pending(&self, cap: bool, in_word: bool) {
+            let _ = (cap, in_word);
         }
 
         /// Report the 2-row layouts moving between the top two rows of a

@@ -376,8 +376,8 @@ impl LayoutActions for Dispatch {
     }
 
     #[cfg(feature = "orsy")]
-    async fn set_orsy_pending(&self, cap: bool, space: bool) {
-        self.leds.lock().await.set_orsy_pending(cap, space);
+    async fn set_orsy_pending(&self, cap: bool, in_word: bool) {
+        self.leds.lock().await.set_orsy_pending(cap, in_word);
     }
 }
 

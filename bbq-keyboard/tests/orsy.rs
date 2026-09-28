@@ -76,7 +76,7 @@ enum Actions {
 #[derive(Default)]
 struct Recorder {
     actions: RefCell<VecDeque<Actions>>,
-    /// Every `set_orsy_pending` report, as `(cap, space)`.  Kept apart from
+    /// Every `set_orsy_pending` report, as `(cap, in_word)`.  Kept apart from
     /// `actions`, so that what is typed can be checked without them.
     pending: RefCell<Vec<(bool, bool)>>,
 }
@@ -103,8 +103,8 @@ impl LayoutActions for Recorder {
     #[cfg(feature = "steno")]
     async fn send_raw_steno(&self, _stroke: bbq_steno::Stroke) {}
 
-    async fn set_orsy_pending(&self, cap: bool, space: bool) {
-        self.pending.borrow_mut().push((cap, space));
+    async fn set_orsy_pending(&self, cap: bool, in_word: bool) {
+        self.pending.borrow_mut().push((cap, in_word));
     }
 }
 
@@ -335,18 +335,20 @@ fn test_space_and_cap() {
 fn test_pending_reported() {
     let mut t = Tester::new();
     assert_eq!(t.pending(), []);
-    t.stroke(ten());
+    t.stroke(ten_());
     assert_eq!(t.pending(), [(false, true)]);
+    t.stroke(ten());
+    assert_eq!(t.pending(), [(false, false)]);
     t.stroke(ten());
     assert_eq!(t.pending(), []);
     t.stroke((commands::CAP_NEXT, 0));
-    assert_eq!(t.pending(), [(true, true)]);
-    t.stroke(ten());
-    assert_eq!(t.pending(), [(false, true)]);
-    t.stroke((commands::DOSH_ONESHOT, dosh_chord('.')));
-    assert_eq!(t.pending(), [(true, true)]);
-    t.stroke((commands::JOIN, 0));
     assert_eq!(t.pending(), [(true, false)]);
+    t.stroke(ten());
+    assert_eq!(t.pending(), [(false, false)]);
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord('.')));
+    assert_eq!(t.pending(), [(true, false)]);
+    t.stroke((commands::JOIN, 0));
+    assert_eq!(t.pending(), [(true, true)]);
 }
 
 /// The whole-stroke commands on the left: join, all caps and capitalise the

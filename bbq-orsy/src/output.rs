@@ -233,11 +233,12 @@ impl Output {
         self.pending_cap || self.all_caps
     }
 
-    /// Whether a space is owed before the next word.  It is typed only if
-    /// that word allows a space before it; a fragment with no vowel, or a
-    /// mark, still binds on.  For an indicator.
-    pub fn space_pending(&self) -> bool {
-        self.pending_space
+    /// Whether the writer is within a word: something has been typed since
+    /// the last space, and no space is owed, so what comes next runs on.
+    /// False at the start, after the space command, and after a word that
+    /// closed.  For an indicator.
+    pub fn in_word(&self) -> bool {
+        !self.pending_space && self.recent_len > 0 && self.recent[self.recent_len - 1] != ' '
     }
 
     /// Capitalise the next letter typed.
@@ -578,30 +579,35 @@ mod tests {
         assert_eq!(stroke(&mut out, c(TEN)), "TEN");
     }
 
-    /// What is pending follows the capitals and the spacing, for an
-    /// indicator.
+    /// The pending capital and being within a word follow the capitals and
+    /// the spacing, for an indicator.
     #[test]
     fn pending() {
         let mut out = Output::new();
-        assert!(!out.cap_pending() && !out.space_pending());
+        assert!(!out.cap_pending() && !out.in_word());
         out.prefix(Prefix::CapNext);
         assert!(out.cap_pending());
         stroke(&mut out, c(TE_));
-        assert!(!out.cap_pending() && !out.space_pending());
+        assert!(!out.cap_pending() && out.in_word());
         stroke(&mut out, c(TEN));
-        assert!(out.space_pending());
+        assert!(!out.in_word());
         out.prefix(Prefix::Join);
-        assert!(!out.space_pending());
+        assert!(out.in_word());
         // All caps stays pending until the word closes.
         out.prefix(Prefix::AllCaps);
         stroke(&mut out, c(TE_));
         assert!(out.cap_pending());
         stroke(&mut out, c(TEN));
-        assert!(!out.cap_pending() && out.space_pending());
+        assert!(!out.cap_pending() && !out.in_word());
         // Undo puts back what was pending before the stroke.
         let mut ops = Ops::new();
         out.undo(&mut ops);
-        assert!(out.cap_pending() && !out.space_pending());
+        assert!(out.cap_pending() && out.in_word());
+        // The space command leaves the writer between words, with no space
+        // owed.
+        stroke(&mut out, c(TE_));
+        out.space(&mut ops);
+        assert!(!out.in_word());
     }
 
     /// Uncap cancels a capital asked for, by a command or a full stop, and
