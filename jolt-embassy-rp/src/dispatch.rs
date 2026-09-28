@@ -374,6 +374,11 @@ impl LayoutActions for Dispatch {
     async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
         self.leds.lock().await.set_mods(oneshot, sticky);
     }
+
+    #[cfg(feature = "orsy")]
+    async fn set_orsy_pending(&self, cap: bool, space: bool) {
+        self.leds.lock().await.set_orsy_pending(cap, space);
+    }
 }
 
 // Wrapper around Dispatch because the usb typer wants.

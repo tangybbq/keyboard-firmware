@@ -38,13 +38,21 @@
 //! LED lit indefinitely there.  Every board here keeps the steady display described above; the
 //! flash is here so it can be tried.
 //!
-//! The one thing besides the modifiers is the layout mode, and it is shown underneath them rather
+//! Besides the modifiers there is the layout mode, and it is shown underneath them rather
 //! than on an LED of its own, as the color an LED falls back to when its modifier is not held.
 //! Taipo, whichever chord table it is on, keeps the dark board it has always had; Orsy lights all
 //! four white.  Orsy and Dosh are the same nine keys and produce the same kind of output, so
 //! there is otherwise nothing on the board or on the screen to say which one a chord is about to
 //! be read as, and that is worth a whole board's worth of light.  Modifiers still paint over it,
 //! so a modifier held in Orsy reads as its own color against the three white ones.
+//!
+//! Orsy also shows what its output stage has pending for the next stroke, in place of the white
+//! on two of the LEDs: the second green while the next letter will be a capital, and the third
+//! blue while a space is owed before the next word.  A held modifier still paints over these.
+//! They are single, pure channels, so they read as a color rather than as a tint on the white
+//! around them, and a little dimmer than the held modifiers, which stay the brightest thing on
+//! the board.  The third LED is also alt's, and alt held is blue too, only brighter; alt is rare
+//! enough in Orsy that sharing the hue is not worth another color to learn.
 
 use bbq_keyboard::indicator::{Indicator, Level, ModeDisplay, MODE_FLASH_MS};
 use bbq_keyboard::{LayoutMode, Mods};
@@ -98,6 +106,16 @@ const LATCH: RGB8 = RGB8::new(4, 4, 4);
 /// It sits well below the held modifiers, which leaves a modifier in Orsy the brightest thing on
 /// the board rather than a dim patch in a white field.
 const MODE: RGB8 = RGB8::new(1, 1, 1);
+
+/// Orsy: the next letter will be a capital.  Green, on the second LED.
+///
+/// This and [`SPACE_NEXT`] are two-thirds of held control's green and held alt's blue, which keeps
+/// the balance between the two.  Going under green's floor of 3 is safe here: that floor is about
+/// holding a ratio between channels, and a single channel has none to hold.
+const CAP_NEXT: RGB8 = RGB8::new(0, 2, 0);
+
+/// Orsy: a space is owed before the next word.  Blue, on the third LED.
+const SPACE_NEXT: RGB8 = RGB8::new(0, 0, 16);
 
 pub struct LedManager {
     leds: LedSet,
@@ -164,6 +182,13 @@ impl LedManager {
         self.render();
     }
 
+    /// Show what Orsy's output stage has pending for the next stroke.
+    #[cfg(feature = "orsy")]
+    pub fn set_orsy_pending(&mut self, cap: bool, space: bool) {
+        self.indicator.set_orsy_pending(cap, space);
+        self.render();
+    }
+
     /// Redraw from the mode and modifier state.
     fn render(&mut self) {
         let mode = self.mode_color();
@@ -173,6 +198,8 @@ impl LedManager {
                 Level::Mode => mode,
                 Level::Held => *held,
                 Level::Latched => add(*held, LATCH),
+                Level::CapNext => CAP_NEXT,
+                Level::SpaceNext => SPACE_NEXT,
             };
         }
         self.set_state();
