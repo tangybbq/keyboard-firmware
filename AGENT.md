@@ -67,6 +67,9 @@ There are the following crates:
 - keyminder: A command line tool implementing the Host PC side of the 'minder' protocol.
 - typey: A simple command line tool to test the dictionary. See `typey/CLAUDE.md`.
 - dict-test: The start of a more automated test of the dictionary translation
+- keyvid: Videos of Dosh and Orsy typing, animated with manim from TaipoTeacher's key logs.
+  A Rust extractor replays a stretch of log through `bbq_keyboard::replay` into JSON, and a
+  manim scene draws it.  See `keyvid/README.md`.
 
 ## Sibling checkouts (untracked)
 

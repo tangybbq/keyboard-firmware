@@ -1,0 +1,6 @@
+# Clips are cut from personal key logs, which can hold anything that was
+# typed.  Keep them out of the repository unless one is chosen on purpose.
+clips/
+media/
+.venv/
+__pycache__/

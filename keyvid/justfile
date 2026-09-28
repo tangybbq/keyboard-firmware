@@ -1,0 +1,21 @@
+logs := env_var("HOME") / "Library/Application Support/TaipoTeacher/logs"
+extract := "extract/target/release/keyvid-extract"
+
+# List a day's sessions, each line of text with the times it was typed between.
+list day:
+	cargo build -q --release --manifest-path extract/Cargo.toml
+	{{extract}} "{{logs}}/{{day}}.txt" --list
+
+# Cut a clip out of a day's log: `just clip 2026-09-28 0 1842000 1852000 orsy-directed`.
+clip day session from to name:
+	cargo build -q --release --manifest-path extract/Cargo.toml
+	mkdir -p clips
+	{{extract}} "{{logs}}/{{day}}.txt" --session {{session}} --from {{from}} --to {{to}} -o clips/{{name}}.json
+
+# Render a clip: speed 0.5 is half speed; quality l, m, h or k (480p to 4K).
+render name speed="1" quality="m":
+	KEYVID_CLIP=clips/{{name}}.json KEYVID_SPEED={{speed}} uv run manim -q{{quality}} -o {{name}}.mp4 scenes.py Replay
+
+# Render and open the result.
+preview name speed="1":
+	KEYVID_CLIP=clips/{{name}}.json KEYVID_SPEED={{speed}} uv run manim -pql -o {{name}}.mp4 scenes.py Replay
