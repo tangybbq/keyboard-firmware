@@ -81,8 +81,8 @@ MODE_NAMES = {"dosh": "Dosh", "orsy": "Orsy", "taipo": "Taipo"}
 LABEL_LIFE = 0.9
 # How long the keys of a committed chord flash.
 FLASH = 0.25
-# How many characters of typed text fit on the line.
-LINE_CHARS = 38
+# The typed text's margin from the sides of the frame.
+LINE_MARGIN = 0.8
 
 
 def shown_spell(spell: str) -> str:
@@ -192,9 +192,14 @@ class TypedLine(Group):
     line of all x-height letters, would otherwise shift it about.
     """
 
-    def __init__(self, left_edge):
+    def __init__(self, left_edge, width: float):
         super().__init__()
         self.left_edge = left_edge
+        # As many characters as fit, measured rather than guessed: the font is
+        # monospaced, and the invisible bars are part of the width too.
+        bars = Text("||", font=MONO, font_size=40).width
+        per_char = (Text("|" + "M" * 20 + "|", font=MONO, font_size=40).width - bars) / 20
+        self.chars = int((width - bars) / per_char)
         self.cache: dict[str, Text] = {}
         self.current: Text | None = None
         self.cursor = Rectangle(width=0.05, height=0.55, fill_color=TEXT, fill_opacity=1, stroke_width=0)
@@ -212,8 +217,8 @@ class TypedLine(Group):
 
     def set_text(self, text: str):
         line = text.split("\n")[-1]
-        if len(line) > LINE_CHARS:
-            line = line[-LINE_CHARS:]
+        if len(line) > self.chars:
+            line = line[-self.chars:]
         t = self._render(line)
         if t is not self.current:
             if self.current is not None:
@@ -268,7 +273,11 @@ class Replay(Scene):
             last_in_place[e.side] = label
             labels.append(label)
 
-        line = TypedLine(left.get_left()[0] * RIGHT + (board.get_bottom()[1] - 1.0) * UP)
+        line_left = -config.frame_width / 2 + LINE_MARGIN
+        line = TypedLine(
+            line_left * RIGHT + (board.get_bottom()[1] - 1.0) * UP,
+            config.frame_width - 2 * LINE_MARGIN,
+        )
 
         clock = ValueTracker(0)
         window = speed / config.frame_rate
