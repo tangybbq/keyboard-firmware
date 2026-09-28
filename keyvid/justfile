@@ -1,5 +1,7 @@
 logs := env_var("HOME") / "Library/Application Support/TaipoTeacher/logs"
 extract := "extract/target/release/keyvid-extract"
+# The trainer names each day's log by the local date.
+today := datetime("%F")
 
 # List a day's sessions, each line of text with the times it was typed between.
 list day:
@@ -11,6 +13,25 @@ clip day session from to name:
 	cargo build -q --release --manifest-path extract/Cargo.toml
 	mkdir -p clips
 	{{extract}} "{{logs}}/{{day}}.txt" --session {{session}} --from {{from}} --to {{to}} -o clips/{{name}}.json
+
+# The runs of a day: each stretch typed in one mode, between two switches.
+runs day=today:
+	cargo build -q --release --manifest-path extract/Cargo.toml
+	{{extract}} "{{logs}}/{{day}}.txt" --runs
+
+# Cut the last finished run in MODE and render it: switch to Orsy, type, switch
+# back, then `just last orsy hello`.
+last mode name speed="1" quality="m" day=today:
+	cargo build -q --release --manifest-path extract/Cargo.toml
+	mkdir -p clips
+	{{extract}} "{{logs}}/{{day}}.txt" --last {{mode}} -o clips/{{name}}.json
+	just render {{name}} {{speed}} {{quality}}
+
+# Cut run N (negative counts back from the latest) of a day, as `just runs` numbers them.
+run n name day=today:
+	cargo build -q --release --manifest-path extract/Cargo.toml
+	mkdir -p clips
+	{{extract}} "{{logs}}/{{day}}.txt" --run {{n}} -o clips/{{name}}.json
 
 # Render a clip: speed 0.5 is half speed; quality l, m, h or k (480p to 4K).
 render name speed="1" quality="m":

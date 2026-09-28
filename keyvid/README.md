@@ -20,11 +20,30 @@ Series: onset blue, second teal, vowel orange, coda purple.
 
 ## Making a clip
 
+The easy way is to mark the stretch with the mode switch.  Switch to Orsy, type what the
+video should show, switch back, and then:
+
+```sh
+just last orsy hello        # cut the last finished Orsy run from today's log, and render it
+```
+
+The same works the other way round for Dosh (`just last dosh NAME`).  A run is the typing
+between two switches, without the switch chords, with a little quiet either side.  One still
+going when the log ends is never picked, since it holds whatever was typed to ask for the
+clip.  `just runs` lists a day's runs, and `just run N NAME` cuts any of them (negative N
+counts back from the latest).
+
+For a stretch that is not a whole run, cut by time:
+
 ```sh
 just list 2026-09-28                                  # what was typed when, per session
 just clip 2026-09-28 0 1842000 1852000 orsy-directed  # day, session, from, to (log ms), name
 just render orsy-directed 0.5 m                       # half speed, 720p
 ```
+
+The times are milliseconds on the keyboard's clock from the start of each session.  They
+have no tie to the time of day: only the collector's connect time is written in wall-clock
+time (`# started`), and the session's first event comes some unknown time after that.
 
 The video lands in `media/videos/scenes/<quality>/orsy-directed.mp4`.  `just preview NAME`
 renders at low quality and opens it.
