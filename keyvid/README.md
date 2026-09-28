@@ -48,6 +48,10 @@ time (`# started`), and the session's first event comes some unknown time after 
 The video lands in `media/videos/scenes/<quality>/orsy-directed.mp4`.  `just preview NAME`
 renders at low quality and opens it.
 
+Rendering a name again replaces its video.  `just clean NAME` deletes a clip's videos at
+every quality, and `just clean` deletes all of `media/`, manim's text cache included; the
+clips in `clips/` stay either way.
+
 `uv sync` sets up the Python side the first time.
 
 ## Caveats

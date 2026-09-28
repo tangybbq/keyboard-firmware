@@ -19,8 +19,8 @@ runs day=today:
 	cargo build -q --release --manifest-path extract/Cargo.toml
 	{{extract}} "{{logs}}/{{day}}.txt" --runs
 
-# Cut the last finished run in MODE and render it: switch to Orsy, type, switch
-# back, then `just last orsy hello`.
+# Switch to Orsy, type, switch back, then `just last orsy hello`.
+# Cut the last finished run in MODE from a day's log (today's by default) and render it.
 last mode name speed="1" quality="m" day=today:
 	cargo build -q --release --manifest-path extract/Cargo.toml
 	mkdir -p clips
@@ -33,10 +33,21 @@ run n name day=today:
 	mkdir -p clips
 	{{extract}} "{{logs}}/{{day}}.txt" --run {{n}} -o clips/{{name}}.json
 
-# Render a clip: speed 0.5 is half speed; quality l, m, h or k (480p to 4K).
+# Manim's cache is off.  It keys on a hash of the scene's objects, which does
+# not see everything the clock-driven updater draws from, and a clip is one
+# long animation, so it saves nothing and could hand back a stale render.
+manim := "uv run manim --disable_caching"
+
+# Speed 0.5 is half speed; quality is l, m, h or k (480p to 4K).
+# Render a clip, replacing any earlier video of the same name.
 render name speed="1" quality="m":
-	KEYVID_CLIP=clips/{{name}}.json KEYVID_SPEED={{speed}} uv run manim -q{{quality}} -o {{name}}.mp4 scenes.py Replay
+	KEYVID_CLIP=clips/{{name}}.json KEYVID_SPEED={{speed}} {{manim}} -q{{quality}} -o {{name}}.mp4 scenes.py Replay
 
 # Render and open the result.
 preview name speed="1":
-	KEYVID_CLIP=clips/{{name}}.json KEYVID_SPEED={{speed}} uv run manim -pql -o {{name}}.mp4 scenes.py Replay
+	KEYVID_CLIP=clips/{{name}}.json KEYVID_SPEED={{speed}} {{manim}} -pql -o {{name}}.mp4 scenes.py Replay
+
+# With no name, also manim's leftovers: its text cache and partial movies.
+# Delete a clip's videos at every quality, or every render; the clips stay.
+clean name="":
+	{{ if name == "" { "rm -rf media" } else { "rm -f media/videos/scenes/*/" + name + ".mp4" } }}
