@@ -12,6 +12,7 @@ slowed by `KEYVID_SPEED` -- rather than on a beat of manim's choosing.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -59,16 +60,20 @@ GAP = 0.14
 # Between the two hands.
 SPLIT = 1.3
 
-# The left hand, row by row, pinky on the outside; None is empty board.
+# The left hand, row by row, pinky on the outside; None is empty board.  The
+# upper pinky key only Taipo used is gone from the boards, and from here.
 LEFT_HAND = [
-    ["r", "s", "n", "i"],
+    [None, "s", "n", "i"],
     ["a", "o", "t", "e"],
     [None, None, "Sp", "Bk"],
 ]
-BITS = {"a": 1, "o": 2, "t": 4, "e": 8, "r": 16, "s": 32, "n": 64, "i": 128, "Sp": 256, "Bk": 512}
+BITS = {"a": 1, "o": 2, "t": 4, "e": 8, "s": 32, "n": 64, "i": 128, "Sp": 256, "Bk": 512}
 ORSY_OUTER = 0x067
-# The key no Dosh or Orsy chord uses.
-UNUSED = {"dosh": {"r"}, "orsy": {"r"}, "taipo": set()}
+
+# The firmware names the thumbs for what they do in Taipo.  In Dosh and Orsy
+# the one it calls `Bk` types the space and `Sp` the backspace, so the screen
+# swaps them.  The clips keep the firmware's names, which the logs use.
+SHOWN = {"Sp": "Bk", "Bk": "Sp"}
 
 MODE_NAMES = {"dosh": "Dosh", "orsy": "Orsy", "taipo": "Taipo"}
 
@@ -78,6 +83,11 @@ LABEL_LIFE = 0.9
 FLASH = 0.25
 # How many characters of typed text fit on the line.
 LINE_CHARS = 38
+
+
+def shown_spell(spell: str) -> str:
+    """A chord's keys, `o+Bk` or `a+o-e+Sp`, with the thumbs named as shown."""
+    return re.sub(r"[A-Za-z]+", lambda m: SHOWN.get(m.group(), m.group()), spell)
 
 
 def press_colour(mode: str, side: str, name: str) -> str:
@@ -99,25 +109,24 @@ class Key(VGroup):
             width=KEY, height=KEY, corner_radius=0.12,
             fill_color=KEY_IDLE, fill_opacity=1, stroke_color=KEY_EDGE, stroke_width=2,
         )
-        self.legend = Text(name, font=SANS, font_size=22, color=KEY_NAME)
+        self.legend = Text(SHOWN.get(name, name), font=SANS, font_size=22, color=KEY_NAME)
         self.legend.move_to(self.cap)
         self.add(self.cap, self.legend)
 
     def show(self, mode: str, down: bool, flash: float, dead: bool):
         """Draw the key held or not, with `flash` (0..1) of a commit on it."""
-        unused = self.name_ in UNUSED.get(mode, set())
         if down:
             colour = press_colour(mode, self.side, self.name_)
             self.cap.set_fill(colour, opacity=1)
             self.legend.set_color(BACKGROUND)
         else:
-            self.cap.set_fill(KEY_IDLE, opacity=0.35 if unused else 1)
-            self.legend.set_color(KEY_NAME).set_opacity(0.3 if unused else 1)
+            self.cap.set_fill(KEY_IDLE, opacity=1)
+            self.legend.set_color(KEY_NAME)
         if flash > 0:
             edge = DEAD if dead else "#ffffff"
             self.cap.set_stroke(edge, width=2 + 6 * flash, opacity=1)
         else:
-            self.cap.set_stroke(KEY_EDGE, width=2, opacity=0.35 if unused else 1)
+            self.cap.set_stroke(KEY_EDGE, width=2, opacity=1)
 
 
 def build_hand(side: str) -> tuple[VGroup, dict[str, Key]]:
@@ -147,7 +156,8 @@ class Label(VGroup):
         text = event.label.replace("\n", "⏎") or " "
         self.word = Text(text, font=MONO, font_size=56, color=colour)
         # The keys, unless they only repeat the letter.
-        spell = "" if event.spell == event.label else event.spell
+        spell = shown_spell(event.spell)
+        spell = "" if spell == event.label else spell
         self.spell = Text(spell or " ", font=SANS, font_size=20, color=DIM)
         self.spell.next_to(self.word, DOWN, buff=0.15)
         self.add(self.word, self.spell)
