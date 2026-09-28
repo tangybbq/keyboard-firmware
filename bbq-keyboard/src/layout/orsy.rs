@@ -108,6 +108,10 @@ pub struct OrsyManager {
     pressing: bool,
     /// The output stage.
     output: Output,
+    /// What was last reported through
+    /// [`LayoutActions::set_orsy_pending`], as `(cap, space)`.  Nothing is
+    /// pending to begin with, which is what an indicator starts out showing.
+    reported: (bool, bool),
 }
 
 impl Default for OrsyManager {
@@ -123,6 +127,7 @@ impl OrsyManager {
             fns: FnKeys::NONE,
             pressing: true,
             output: Output::new(),
+            reported: (false, false),
         }
     }
 
@@ -184,6 +189,18 @@ impl OrsyManager {
     /// escape, so the output stage's idea of the text keeps up.
     pub fn backspace(&mut self) {
         self.output.erase();
+    }
+
+    /// Report what the output stage has pending, if it has changed since it
+    /// was last reported.  For the layout manager to call after each event,
+    /// once it has acted on any escape, as [`cap_next`](Self::cap_next) and
+    /// [`backspace`](Self::backspace) change it as well as strokes.
+    pub async fn report_pending<ACT: LayoutActions>(&mut self, actions: &ACT) {
+        let pending = (self.output.cap_pending(), self.output.space_pending());
+        if pending != self.reported {
+            self.reported = pending;
+            actions.set_orsy_pending(pending.0, pending.1).await;
+        }
     }
 
     /// Forget the keys held.  For a mode change: the releases of whatever is

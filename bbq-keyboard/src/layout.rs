@@ -340,6 +340,19 @@ mod async_traits {
             let _ = (chord, outcome);
         }
 
+        /// Report a change in what Orsy's output stage has pending for the
+        /// next stroke.
+        ///
+        /// `cap` is true when the next letter will be a capital, and `space`
+        /// when a space is owed before the next word.  Like `set_mod_state`,
+        /// this is called only when the state changes, and is meant to drive
+        /// an indicator.  The state is kept while the keyboard is out of
+        /// Orsy, and is not reported again on the way back.
+        #[cfg(feature = "orsy")]
+        async fn set_orsy_pending(&self, cap: bool, space: bool) {
+            let _ = (cap, space);
+        }
+
         /// Report the 2-row layouts moving between the top two rows of a
         /// 3-row board and the bottom two.
         ///
@@ -518,6 +531,8 @@ impl LayoutManager {
                     if let Some(escape) = self.orsy.handle_event(event, actions).await {
                         self.orsy_escape(escape, actions).await;
                     }
+                    // After the escape, which can change it too.
+                    self.orsy.report_pending(actions).await;
                 }
             }
         }
