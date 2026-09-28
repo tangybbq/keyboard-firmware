@@ -227,6 +227,19 @@ impl Output {
         self.record(record);
     }
 
+    /// Whether the next letter typed will be a capital: a capital is pending,
+    /// or the word is being typed in capitals.  For an indicator.
+    pub fn cap_pending(&self) -> bool {
+        self.pending_cap || self.all_caps
+    }
+
+    /// Whether a space is owed before the next word.  It is typed only if
+    /// that word allows a space before it; a fragment with no vowel, or a
+    /// mark, still binds on.  For an indicator.
+    pub fn space_pending(&self) -> bool {
+        self.pending_space
+    }
+
     /// Capitalise the next letter typed.
     ///
     /// Not a stroke of its own, unlike [`Prefix::CapNext`]: for the layout
@@ -563,6 +576,32 @@ mod tests {
         let mut ops = Ops::new();
         out.undo(&mut ops);
         assert_eq!(stroke(&mut out, c(TEN)), "TEN");
+    }
+
+    /// What is pending follows the capitals and the spacing, for an
+    /// indicator.
+    #[test]
+    fn pending() {
+        let mut out = Output::new();
+        assert!(!out.cap_pending() && !out.space_pending());
+        out.prefix(Prefix::CapNext);
+        assert!(out.cap_pending());
+        stroke(&mut out, c(TE_));
+        assert!(!out.cap_pending() && !out.space_pending());
+        stroke(&mut out, c(TEN));
+        assert!(out.space_pending());
+        out.prefix(Prefix::Join);
+        assert!(!out.space_pending());
+        // All caps stays pending until the word closes.
+        out.prefix(Prefix::AllCaps);
+        stroke(&mut out, c(TE_));
+        assert!(out.cap_pending());
+        stroke(&mut out, c(TEN));
+        assert!(!out.cap_pending() && out.space_pending());
+        // Undo puts back what was pending before the stroke.
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        assert!(out.cap_pending() && !out.space_pending());
     }
 
     /// Uncap cancels a capital asked for, by a command or a full stop, and
