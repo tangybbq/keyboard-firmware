@@ -267,9 +267,9 @@ pub enum Second {
     RU,
     /// `e+i`: `o`.
     RXI,
-    /// `e`: `s`, or the vowel `e`.
+    /// `e`: `e`, or the vowel `e`.
     X,
-    /// `e+Sp`: `e`, or the vowel `ea`.
+    /// `e+Sp`: `s`, or the vowel `ea`.
     RX,
     /// `e+i+Bk`: `w`, or the vowel `o`.
     XI,
@@ -339,8 +339,8 @@ impl Second {
             Second::RIU => "t",
             Second::RU => "m",
             Second::RXI => "o",
-            Second::X => "s",
-            Second::RX => "e",
+            Second::X => "e",
+            Second::RX => "s",
             Second::XI => "w",
             Second::XIU => "c",
             Second::U => "u",

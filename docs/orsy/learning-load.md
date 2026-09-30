@@ -14,7 +14,7 @@ follow from them: 170,120 chords translate, not counting the commands.
 | group | shapes | |
 |---|---|---|
 | outer five: onset on the left, coda on the right | 30 | one set of shapes for both hands |
-| second character (left inner four) | 13 | `r l i t m o s e w c u p n` |
+| second character (left inner four) | 13 | `r l i t m o e s w c u p n` |
 | vowel (right inner four) | 13 | seven vowels, plain or ending |
 | commands | 10 | |
 | punctuation marks | 8 | `. , ' ? - ! : ;` |
@@ -24,7 +24,7 @@ follow from them: 170,120 chords translate, not counting the commands.
   differently as a coda (`h`/`st`, `ind`/`nd`, `inc`/`ng`, `int`/`nt`), and three are
   coda-only (a final `h`, a tail `e`, and the capitalising coda).
 - **Second character.** Seven of the thirteen reuse a vowel's shape from the right hand:
-  `r` (`a`), `i`, `s` (`e`), `e` (`ea`), `o`, `u`, and `w` (the ending `o`).
+  `r` (`a`), `i`, `e`, `s` (`ea`), `o`, `u`, and `w` (the ending `o`).
 - **Vowel.** Seven vowels, `a e i o u ea ou`, each plain or with `Bk` added to end the
   word; `ou` has only the ending form. In practice that is seven shapes and one habit.
 - **Commands.** Seven left inner shapes struck alone: undo, join, cap next, all caps, cap

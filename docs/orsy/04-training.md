@@ -54,7 +54,7 @@ hands. Computed from `layouts.json` against `orsy-mapping.json`:
 Three shapes transfer, fourteen are free in Dosh, and **thirteen actively conflict**: the
 hand already has a habit for them and it is wrong. The vowel group is the same story:
 `e` and `i` transfer, `e+i` is Dosh's shift and `i+Sp` its full stop. Series 2 on the left
-transfers `e`, `i`, `o`, `u` as vowels but reads `e` alone as `s`.
+reuses the vowel shapes for `e`, `i`, `o` and `u`, both as letters and as vowels.
 
 So the training has to do what `ConfusionDrill` does for Taipo, deliberately: the
 conflicting shapes are drilled as pairs against their Dosh meaning, and the hint has to
@@ -120,15 +120,15 @@ Lesson order, for a Dosh hand:
    could not reach the 40-word sheet before, and 4 cannot now.
 3. **The conflicts, one pair at a time**, commonest first: `a` (r, not a), `o` (c),
    `a+o` (d), `o+s` (p), `o+t` (f), and the rest of the thirteen.
-4. **Series 2** by frequency, `r` `l` first, except the `e`, which waits for the
-   mirrored vowel in step 5: nearly every word that uses it is a silent-e word (*there*,
-   *here*, *were*), and before the rule its only words are *analysis*, *analyses*,
-   *offset* and *tsunami*; then `ea` and `ou`, which spell their
+4. **Series 2** by frequency, `r` `l` first, except the `s`, which waits for the
+   mirrored vowel in step 5: without a vowel on the right its chord is always the
+   mirrored `ea` (*leave*, *peace*), and before the rule its only words are *analysis*,
+   *analyses*, *offset* and *tsunami*; then `ea` and `ou`, which spell their
    digraph only with a second character (with none, they are written across the hands:
    the Series 2 `e` or `o`, then the Series 3 `a` or `u`); then **the free shapes** by
    frequency.
 5. **The rules**, each with words that need it: mirrored vowels (tame, hide, tone), and
-   after them the Series 2 `e`; onset
+   after them the Series 2 `s`; onset
    clusters (strap, quit, jam), `h`/`w` (when, phase), diphthongs (paul, pail), `y`.
 6. **The escapes**: the one-shot for punctuation with the Dosh chords already known; the
    toggle for a run of digits. Not yet in the sheets, nor the native marks: the word list

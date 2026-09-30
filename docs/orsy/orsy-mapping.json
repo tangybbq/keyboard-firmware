@@ -525,7 +525,7 @@
     },
     {
       "michela": "X",
-      "spells": "s",
+      "spells": "e",
       "is_vowel_too": "e",
       "keys": [
         "e"
@@ -534,7 +534,7 @@
     },
     {
       "michela": "RX",
-      "spells": "e",
+      "spells": "s",
       "is_vowel_too": "ea",
       "keys": [
         "e",

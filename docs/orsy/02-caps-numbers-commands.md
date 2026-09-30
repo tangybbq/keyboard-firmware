@@ -64,7 +64,7 @@ in ordinary prose — and leaves both alphabets untouched.
       a  o  s  t  n  e  i Sp Bk   a  o  s  t  n  e  i Sp Bk
       .  .  .  .  .  #  .  .  .   .  .  .  .  .  .  .  .  .
 
-In a syllable `e` is the Series 2 `s`; alone it spells nothing a word needs. (Earlier
+In a syllable `e` is the Series 2 `e`; alone it spells nothing a word needs. (Earlier
 drafts put this on all four inner keys, now the Dosh toggle; on left `a`+`s`+`e`; and on
 the right `e`+`i`+`Sp`, the plain `ou` that never occurs, at three keys.)
 
@@ -75,10 +75,10 @@ What is assigned, all on the left inner keys struck alone:
 
 | command | left inner | |
 |---|---|---|
-| cap next word | `e` | the Series 2 `s` |
+| cap next word | `e` | the Series 2 `e` |
 | all caps, next word | `e`+`Bk` | the Series 2 `m` |
 | cap previous word | `i`+`Bk` | the Series 2 `t` |
-| don't cap next word | `e`+`Sp` | the Series 2 `e` |
+| don't cap next word | `e`+`Sp` | the Series 2 `s` |
 | uncap previous word | `i`+`Sp` | the Series 2 `u` |
 | join (no space before the next word) | `Bk` | the Series 2 `l` |
 | undo | `Sp` | the Series 2 `r`; Backspace in Dosh |
@@ -253,8 +253,8 @@ INNER FOUR, left hand - the second character
   t     .   #   .   #
   m     #   .   .   #
   o     #   #   .   .
-  s     #   .   .   .
-  e     #   .   #   .
+  e     #   .   .   .
+  s     #   .   #   .
   w     #   #   .   #
   c     #   #   #   .
   u     .   #   #   .

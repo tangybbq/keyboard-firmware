@@ -33,7 +33,7 @@ use crate::tables::{Outer, Patterns, Second, Vowel};
 /// Bump it when a change here alters what some stroke spells or how it
 /// binds; a host that has learned strokes under the old rules has to know.
 /// Table changes are fingerprinted on their own and need no bump.
-pub const RULES_VERSION: u32 = 3;
+pub const RULES_VERSION: u32 = 4;
 
 /// The composition rules a stroke used, as flags in [`Translation::rules`].
 ///
@@ -232,7 +232,8 @@ fn nucleus(s1: Outer, s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
         return Nucleus::new(s3.text(), false, s3.ends_word(), false);
     }
 
-    // No Series 3.  Series 2 may supply the nucleus instead.
+    // No Series 3.  Series 2 may supply the nucleus instead.  `RX` is the
+    // mirrored `ea` whether or not there is a coda.
     match s2 {
         Second::RX => return Nucleus::new("ea", true, true, true).by(rules::MIRRORED),
         Second::RXI => return Nucleus::new("o", false, false, true).by(rules::MIRRORED),
@@ -258,7 +259,7 @@ fn onset_override(s1: Outer, s2: Second) -> Option<&'static str> {
         (Outer::FC, Second::XIU) => "scr",
         (Outer::C, Second::XIU) => "sch",
         (Outer::Z, Second::XIU) => "sk",
-        (Outer::S, Second::X) => "sci",
+        (Outer::S, Second::RX) => "sci",
         (Outer::ZN, Second::I) => "j",
         (Outer::CP, Second::XIU) => "qu",
         _ => return None,

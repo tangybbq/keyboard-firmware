@@ -94,8 +94,8 @@ public struct OrsyLadderMaker {
         // Where in the rotation the block starts, from the seed.  A block is rebuilt
         // whenever the focus moves, which is often, and most of them are left long before
         // the rotation comes round; starting each at the top gave the most starved item
-        // the first line of nearly every block.  At the v-m-k lesson that is the second
-        // character `e`, whose only words then are `analysis`, `offset`, `analyses` and
+        // the first line of nearly every block.  At the v-m-k lesson that was the second
+        // character `s`, whose only words then were `analysis`, `offset`, `analyses` and
         // `tsunami`, so four blocks in five opened on a line ending `analysis` or
         // `analyses`.
         let start = rotation.isEmpty ? 0 : Int(seed % UInt64(rotation.count))

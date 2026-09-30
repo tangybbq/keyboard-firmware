@@ -66,8 +66,8 @@ Six of the thirteen Series 2 patterns have a second reading, as a vowel:
 |---|---|
 | `r` (`Sp`) | `a` |
 | `i` (`i`) | `i` |
-| `s` (`e`) | `e` |
-| `e` (`eSp`) | `ea` |
+| `e` (`e`) | `e` |
+| `s` (`eSp`) | `ea` |
 | `w` (`eiBk`) | `o` |
 | `u` (`iSp`) | `u` |
 
@@ -113,7 +113,11 @@ the mirrored `o` is the left hand's, and is part of the vowel), and it is the re
 3. **One vowel, one chord, either hand.** Series 2 keeps the Series 3 chord wherever it
    means the same vowel, plainly or as a mirrored vowel, so `a`, `e`, `i`, `o`, `u` and
    `ea` read identically on both hands. The mirrored `o` is the one exception, and uses
-   the ending `o`.
+   the ending `o`. The Series 2 letter `e` joined them on 30 September 2026: Midi4Text
+   spells `s` on the pattern whose mirrored vowel is `e`, and `e` on the one whose
+   mirrored vowel is `ea`, and Orsy trades the two letters. The left `e` alone is now
+   `e` as a letter, as a mirrored vowel and as the vowel on the right, and the letter,
+   about thirty times as common as the Series 2 `s`, is on the single key.
 
 The pinky is not avoided — with only the lower pinky key present it is not a weak
 position, so chords are scored purely by frequency times size.
@@ -181,8 +185,8 @@ INNER FOUR, left hand -- Series 2, the second character
        t  iBk     
        m  eBk     
        o  ei      same chord as vowel o
-       s  e       mirrored e: same chord as vowel e
-       e  eSp     mirrored ea: same chord as vowel ea
+       e  e       plain or mirrored: same chord as vowel e
+       s  eSp     mirrored ea: same chord as vowel ea
        w  eiBk    mirrored o: same chord as ending o
        c  eiSp    
        u  iSp     mirrored u: same chord as vowel u

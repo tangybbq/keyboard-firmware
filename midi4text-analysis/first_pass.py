@@ -62,7 +62,7 @@ PLAIN_IDENTITIES = {ident for ident, closes in SERIES3.values() if not closes}
 # Series 2 keeps the vowel chords wherever it means the same vowel, so a chord
 # reads the same on either hand.  That covers each pattern's mirrored vowel as
 # well as its plain reading: R is r, but also the mirrored a, so it takes a's
-# chord.  Two patterns read as o, the plain RXI and the mirrored XI; RXI is
+# chord, and X is e both plainly and mirrored.  Two patterns read as o, the plain RXI and the mirrored XI; RXI is
 # four times as common and takes o's chord, and XI takes the ending o, which
 # fits, since the mirrored form ends the word.
 SERIES2_VOWELS = {"R": "Sp", "X": "e", "I": "i", "RXI": "ei", "U": "iSp",
@@ -154,6 +154,8 @@ def main():
         vowel = theory.MIRRORED_VOWEL.get(pat)
         if pat == "RXI":
             note = "same chord as vowel o"
+        elif pat == "X":
+            note = "plain or mirrored: same chord as vowel e"
         elif pat == "XI":
             note = "mirrored o: same chord as ending o"
         elif vowel:

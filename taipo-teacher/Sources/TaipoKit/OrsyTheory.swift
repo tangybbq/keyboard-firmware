@@ -234,7 +234,8 @@ public final class OrsyTheory {
         if !s3.isEmpty {
             return Nucleus(text: vowelByName[s3]?.text ?? "", silentE: false, closes: ends, consumed: false)
         }
-        // No Series 3.  Series 2 may supply the nucleus instead.
+        // No Series 3.  Series 2 may supply the nucleus instead.  `RX` is the mirrored `ea`
+        // whether or not there is a coda.
         switch s2 {
         case "RX": return Nucleus(text: "ea", silentE: true, closes: true, consumed: true, rule: Rules.mirrored)
         case "RXI": return Nucleus(text: "o", silentE: false, closes: false, consumed: true, rule: Rules.mirrored)
@@ -253,7 +254,7 @@ public final class OrsyTheory {
     /// An onset that a Series 2 pattern rewrites wholesale.
     private static let onsetOverride: [String: String] = [
         "FC+R": "str", "FC+RI": "spl", "FC+IU": "spr", "FC+XIU": "scr", "C+XIU": "sch",
-        "Z+XIU": "sk", "S+X": "sci", "ZN+I": "j", "CP+XIU": "qu",
+        "Z+XIU": "sk", "S+RX": "sci", "ZN+I": "j", "CP+XIU": "qu",
     ]
 
     /// Translate one stroke, or nil if it is not a valid syllable.

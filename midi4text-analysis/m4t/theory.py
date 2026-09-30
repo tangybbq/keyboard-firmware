@@ -31,13 +31,15 @@ CODA = {
     "zcf": "h", "pzc": "e", "zcs": "",
 }
 
-# Series 2 -- subsequent characters, read as consonants.
+# Series 2 -- subsequent characters, read as consonants.  X and RX trade
+# letters in Orsy: X, whose mirrored vowel is e, spells e as well, and RX
+# spells s.  Midi4Text has them the other way round.
 SECOND = {
     "": "",
-    "R": "r", "X": "s", "I": "i", "U": "u",
+    "R": "r", "X": "e", "I": "i", "U": "u",
     "RI": "l", "XI": "w", "RU": "m", "XU": "n", "IU": "p",
     "RIU": "t", "XIU": "c",
-    "RX": "e", "RXI": "o",
+    "RX": "s", "RXI": "o",
 }
 
 # Series 2 -- the same patterns read as "mirrored" vowels, which fire only
@@ -58,7 +60,7 @@ ENDING_VOWELS = {"ua", "ue", "ui", "uia", "uie", "iea", "ia"}
 ONSET_OVERRIDE = {
     ("FC", "R"): "str", ("FC", "RI"): "spl", ("FC", "IU"): "spr",
     ("FC", "XIU"): "scr", ("C", "XIU"): "sch", ("Z", "XIU"): "sk",
-    ("S", "X"): "sci", ("ZN", "I"): "j", ("CP", "XIU"): "qu",
+    ("S", "RX"): "sci", ("ZN", "I"): "j", ("CP", "XIU"): "qu",
 }
 
 # Series 4 patterns that are commands or digraph tails rather than consonants,
@@ -73,7 +75,7 @@ class Untranslatable(Exception):
 
 
 # Series 2 patterns that are always vowels, never consonant material.
-VOWEL_ONLY_SECOND = {"RX", "RXI"}
+VOWEL_ONLY_SECOND = {"X", "RXI"}
 
 # Series 3 free combinations.  Struck alone they emit a placeholder glyph and
 # close the word; struck with Series 2 they spell the digraph that Series 2
@@ -110,7 +112,8 @@ def _nucleus(s1, s2, s3, s4):
         return DIPHTHONG[(s2, s3)], False, s3 in ENDING_VOWELS, True
     if s3 != "":
         return VOWEL[s3], False, s3 in ENDING_VOWELS, False
-    # No Series 3.  Series 2 may supply the nucleus instead.
+    # No Series 3.  Series 2 may supply the nucleus instead.  RX is the
+    # mirrored ea whether or not there is a coda.
     if s2 == "RX":
         return MIRRORED_VOWEL["RX"], True, True, True
     if s2 == "RXI":

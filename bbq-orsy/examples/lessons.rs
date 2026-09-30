@@ -114,11 +114,13 @@ const LESSONS: &[Lesson] = &[
         items: &[Second(Second::I), Second(Second::RIU), Second(Second::RU)],
     },
     Lesson {
-        name: "second-o-s", title: "the second character: o and s",
-        note: "`o` is `e+i` as for the vowel; `s` is `e` alone.  Struck with nothing \
-               else, `e` capitalises the next word.  The second character `e` waits for \
-               the silent-e lesson, where its words are.",
-        items: &[Second(Second::RXI), Second(Second::RX)],
+        name: "second-o-e", title: "the second character: o and e",
+        note: "`o` is `e+i` and `e` is `e` alone, each as for the vowel.  Before a vowel \
+               on the right, `e` makes the pair: `see`, `year`, `their`.  With nothing on \
+               the right it closes the word on a syllable of its own: `peop|le`, \
+               `sta|te`.  Struck with nothing else, `e` capitalises the next word.  The \
+               second character `s` waits for the silent-e lesson, where its words are.",
+        items: &[Second(Second::RXI), Second(Second::X)],
     },
     Lesson {
         name: "second-rest", title: "the second character: w, c, u, p and n",
@@ -164,12 +166,12 @@ const LESSONS: &[Lesson] = &[
                and ends the word: `time`, `tone`, `tame`.  Each vowel is its right-hand chord: `a` \
                is `Sp`, `ea` is `e+Sp`, and so on.  The exception is `o`, which is `e+i+Bk`, \
                the right hand's ending `o`, because `e+i` on the left is already the plain \
-               second character `o`.  Then the second character `e`, `e+Sp`: nearly \
-               every word that uses it is a silent-e word -- `there`, `here`, `were` -- \
-               so it comes after the rule rather than with `o` and `s`.  Struck with \
-               nothing else, `e+Sp` keeps the next word in lower case, even after a full \
-               stop.",
-        items: &[Rule(rules::MIRRORED), Second(Second::X)],
+               second character `o`.  Then the second character `s`, `e+Sp`: without \
+               a vowel on the right it is always the mirrored `ea` -- `leave`, `peace` -- \
+               so `s` itself is only ever before a vowel, and rare: `sci|en|ce`, \
+               `an|al|ysis`.  Struck with nothing else, `e+Sp` keeps the next word in \
+               lower case, even after a full stop.",
+        items: &[Rule(rules::MIRRORED), Second(Second::RX)],
     },
     Lesson {
         name: "clusters", title: "the onset clusters",
