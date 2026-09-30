@@ -91,9 +91,18 @@ public struct OrsyLadderMaker {
         // does not change while the ladder stands still, and a rotation re-derived per
         // line would be the same list every time anyway.
         let rotation = self.rotation(ladder)
+        // Where in the rotation the block starts, from the seed.  A block is rebuilt
+        // whenever the focus moves, which is often, and most of them are left long before
+        // the rotation comes round; starting each at the top gave the most starved item
+        // the first line of nearly every block.  At the v-m-k lesson that is the second
+        // character `e`, whose only words then are `analysis`, `offset`, `analyses` and
+        // `tsunami`, so four blocks in five opened on a line ending `analysis` or
+        // `analyses`.
+        let start = rotation.isEmpty ? 0 : Int(seed % UInt64(rotation.count))
         for turn in 0..<lines {
             let line = self.line(
-                ladder, words: wordsPerLine, rotation: rotation, turn: turn, using: &rng)
+                ladder, words: wordsPerLine, rotation: rotation, turn: start + turn,
+                using: &rng)
             if !line.isEmpty { out.append(line) }
         }
         return Drill(title: ladder.title(), lines: out)

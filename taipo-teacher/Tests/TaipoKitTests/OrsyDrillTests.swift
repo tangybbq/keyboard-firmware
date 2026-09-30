@@ -336,6 +336,33 @@ final class OrsyDrillTests: XCTestCase {
         }
     }
 
+    /// Blocks do not all open on the same starved item: a block is rebuilt whenever the
+    /// focus moves, and one that always started at the top of the rotation gave its first
+    /// item the first line of every block.
+    func testBlocksStartAroundTheRotation() throws {
+        let (_, theory, words) = try fixtures()
+        let l = try XCTUnwrap(words.lessons.firstIndex { $0.name == "y" })
+        var skills = [String: PatternSkill]()
+        for lesson in words.lessons[...l] {
+            for key in lesson.items.flatMap({ $0 }) {
+                skills[key] = PatternSkill(name: key, count: 50, medianMs: 900, deleted: 0)
+            }
+        }
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let ladder = OrsyLadder(words: words, theory: theory, skill: model)
+        let maker = OrsyLadderMaker(words: words)
+        let rotation = maker.rotation(ladder)
+        XCTAssertGreaterThan(rotation.count, 1)
+        // The circulating word follows the opener and the focus words.
+        let slot = 1 + ladder.focus.count * OrsyLadderMaker.perFocus
+        for seed in 0..<rotation.count {
+            let line = try XCTUnwrap(maker.drill(ladder, lines: 1, seed: UInt64(seed)).lines.first)
+            let text = line.split(separator: " ").map(String.init)[slot]
+            let word = try XCTUnwrap(words.word(text))
+            XCTAssertTrue(word.patterns.contains(rotation[seed]), "\(seed): \(line)")
+        }
+    }
+
     /// A pool that spreads itself evenly starves nothing, and the line is as it was.
     func testTheFirstLessonNeedsNoRotation() throws {
         let (_, theory, words) = try fixtures()
