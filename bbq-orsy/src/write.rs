@@ -52,6 +52,16 @@
 //! and no extra strokes, and takes the non-onset clusters from 455 to the 142 that have
 //! no other spelling.
 //!
+//! One more keeps the vowel on the right hand.  A Series 2 letter with nothing on the right
+//! is a syllable of its own, leaning back, and when the letter is a vowel that syllable
+//! needs no right hand at all: `peop|le` ends on the left `l` and `e`.  Once the Series 2
+//! `e` was a single key that was often the cheapest spelling, and over
+//! `words/english_10k.json` it spelled 360 syllables, `sta|te`, `ty|pe`, `al|so` and
+//! `in|fo` among them -- a second way to write a vowel, taught by nothing but the key
+//! count.  Ranked with the others, every one of them goes back to the right hand as
+//! `peo|ple`, `stat|e` and `al|so` with the vowel on the right, for 0.2% more keys and
+//! no extra strokes.
+//!
 //! Many words then divide equally well in more than one way (`ten|s` and
 //! `te|ns` are both two strokes of four keys).  Ties are broken towards fewer
 //! inner keys, so a consonant that could be an onset or a second character is
@@ -136,6 +146,15 @@ fn foreign_onset(chord: Chord, text: &str) -> bool {
     !ONSETS.contains(&cluster)
 }
 
+/// Whether the syllable's only vowel is a Series 2 letter, with nothing on the right.
+fn left_vowel(chord: Chord, rules: u8) -> bool {
+    if chord.right != 0 || chord.series1() == 0 || rules & crate::compose::rules::CLUSTER != 0 {
+        return false;
+    }
+    let Some(p) = Patterns::of(chord) else { return false };
+    matches!(p.second.spells(), "a" | "e" | "i" | "o" | "u")
+}
+
 /// One way of spelling a chunk of letters.
 #[derive(Clone, Copy, Debug)]
 struct Entry {
@@ -153,6 +172,8 @@ struct Entry {
     wide: u32,
     /// 1 when the onset and Series 2 spell a cluster English does not begin with.
     foreign: u32,
+    /// 1 when the syllable's only vowel is a Series 2 letter, with the right hand empty.
+    left_vowel: u32,
     rules: u8,
 }
 
@@ -189,6 +210,7 @@ impl Writer {
                     continue;
                 }
                 let foreign = foreign_onset(chord, &text) as u32;
+                let left_vowel = left_vowel(chord, t.rules) as u32;
                 chunks.entry(text).or_default().push(Entry {
                     chord,
                     space_before: t.space_before,
@@ -200,6 +222,7 @@ impl Writer {
                     doubled: t.doubled_onset() as u32,
                     wide: t.wide_onset() as u32,
                     foreign,
+                    left_vowel,
                     rules: t.rules,
                 });
             }
@@ -210,7 +233,7 @@ impl Writer {
                     (
                         e.inner_onset,
                         e.doubled,
-                        e.wide + e.foreign,
+                        e.wide + e.foreign + e.left_vowel,
                         e.keys,
                         e.inner,
                         e.chord.left,
@@ -274,7 +297,7 @@ impl Writer {
                     strokes + 1,
                     onsets + entry.inner_onset,
                     doubled + entry.doubled,
-                    awkward + split + entry.wide + entry.foreign,
+                    awkward + split + entry.wide + entry.foreign + entry.left_vowel,
                     keys + entry.keys,
                     inner + entry.inner,
                     j - i,
@@ -325,6 +348,14 @@ mod tests {
         assert_eq!(texts(&w, "ten"), ["ten"]);
         // A coda-only fragment can end a word.
         assert_eq!(texts(&w, "tens"), ["ten", "s"]);
+        // The vowel is on the right hand, not a Series 2 `e` or `o` on its own.
+        assert_eq!(texts(&w, "people"), ["peo", "ple"]);
+        assert_eq!(texts(&w, "also"), ["al", "so"]);
+        for word in ["people", "table", "state", "also", "info", "menu"] {
+            for c in w.write(word).unwrap() {
+                assert!(!left_vowel(c, translate(c).unwrap().rules), "{word}: {c:?}");
+            }
+        }
         // The mirrored vowel makes this one stroke.
         assert_eq!(texts(&w, "time"), ["time"]);
         // Across a syllable boundary.
