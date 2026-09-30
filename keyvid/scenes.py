@@ -228,13 +228,33 @@ class TypedLine(Group):
         self.cursor.move_to(t[-1].get_center())
 
 
+def load_clip() -> tuple[Clip, float]:
+    """The clip named by `KEYVID_CLIP`, and the speed to play it at."""
+    clip_path = os.environ.get("KEYVID_CLIP")
+    if not clip_path:
+        raise SystemExit("set KEYVID_CLIP to a clip written by keyvid-extract")
+    return Clip(clip_path), float(os.environ.get("KEYVID_SPEED", "1"))
+
+
+def corner_badges(scene: Scene, speed: float) -> dict[str, Text]:
+    """Add the playback speed, if it is not 1, and return a badge per mode.
+
+    The badges go in the top left, all at once, and the caller shows the one
+    for the mode of the moment.
+    """
+    if speed != 1:
+        rate = Text(f"×{speed:g}", font=SANS, font_size=26, color=DIM)
+        rate.to_corner(UP + RIGHT, buff=0.5)
+        scene.add(rate)
+    return {
+        m: Text(n, font=SANS, font_size=30, color=DIM).to_corner(UP + LEFT, buff=0.5)
+        for m, n in MODE_NAMES.items()
+    }
+
+
 class Replay(Scene):
     def construct(self):
-        clip_path = os.environ.get("KEYVID_CLIP")
-        if not clip_path:
-            raise SystemExit("set KEYVID_CLIP to a clip written by keyvid-extract")
-        speed = float(os.environ.get("KEYVID_SPEED", "1"))
-        clip = Clip(clip_path)
+        clip, speed = load_clip()
         self.camera.background_color = BACKGROUND
 
         left, left_keys = build_hand("L")
@@ -244,14 +264,7 @@ class Replay(Scene):
         board = VGroup(left, right).shift(DOWN * 0.3)
         keys = {**left_keys, **right_keys}
 
-        badges = {
-            m: Text(n, font=SANS, font_size=30, color=DIM).to_corner(UP + LEFT, buff=0.5)
-            for m, n in MODE_NAMES.items()
-        }
-        if speed != 1:
-            rate = Text(f"×{speed:g}", font=SANS, font_size=26, color=DIM)
-            rate.to_corner(UP + RIGHT, buff=0.5)
-            self.add(rate)
+        badges = corner_badges(self, speed)
 
         # Labels go over the hand that typed them, or over the middle for an
         # Orsy stroke, which is both.
