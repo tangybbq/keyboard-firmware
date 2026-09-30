@@ -261,12 +261,17 @@ final class OrsyDrillTests: XCTestCase {
                 made.insert(OrsySkillModel.strokeId(left: left, right: right))
             }
         }
+        // A new stroke is charged once however often the line repeats it: drilling `ies`
+        // four times is the point, touring four new strokes is what the pacing prevents.
         func newStrokes(_ line: String, _ maker: OrsyLadderMaker) -> Int {
-            line.split(separator: " ").reduce(0) { total, text in
-                total + (words.word(String(text))?.strokes.filter {
-                    !made.contains(OrsySkillModel.strokeId(left: $0.0, right: $0.1))
-                }.count ?? 0)
+            var new = Set<UInt32>()
+            for text in line.split(separator: " ") {
+                for (left, right) in words.word(String(text))?.strokes ?? [] {
+                    let id = OrsySkillModel.strokeId(left: left, right: right)
+                    if !made.contains(id) { new.insert(id) }
+                }
             }
+            return new.count
         }
         let paced = OrsyLadderMaker(words: words, made: made)
         let blind = OrsyLadderMaker(words: words)
