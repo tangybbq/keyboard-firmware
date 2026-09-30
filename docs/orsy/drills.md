@@ -27,14 +27,14 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 15 | x on the middle pair and lower ring | 70 |
 | 16 | the second character: r and l | 508 |
 | 17 | the second character: i, t and m | 709 |
-| 18 | the second character: o, s and e | 506 |
+| 18 | the second character: o and s | 503 |
 | 19 | the second character: w, c, u, p and n | 193 |
 | 20 | ea and ou | 61 |
-| 21 | v, m and k | 1623 |
+| 21 | v, m and k | 1622 |
 | 22 | ind/nd, inc/ng and int/nt | 1222 |
-| 23 | ch, sh, gh, z and ck | 732 |
+| 23 | ch, sh, gh, z and ck | 731 |
 | 24 | the coda-only shapes: h and e | 42 |
-| 25 | the mirrored vowel and the silent e | 1176 |
+| 25 | the mirrored vowel and the silent e | 1181 |
 | 26 | the onset clusters | 360 |
 | 27 | w reads as h after p, w and r | 57 |
 | 28 | au and ai | 252 |
@@ -843,11 +843,11 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | official | `-otei ot-oi i-stSpBk` | of·fic·ial |
 | region | `a-ate i-neiBk` | reg·ion |
 
-## Lesson 18 — the second character: o, s and e
+## Lesson 18 — the second character: o and s
 
-`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.  Struck with nothing else, `e` capitalises the next word and `e+Sp` keeps it in lower case, even after a full stop.
+`o` is `e+i` as for the vowel; `s` is `e` alone.  Struck with nothing else, `e` capitalises the next word.  The second character `e` waits for the silent-e lesson, where its words are.
 
-506 words qualify, 40 here, most common first.  `drills/18-second-o-s-e.txt`.
+503 words qualify, 40 here, most common first.  `drills/18-second-o-s.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -994,7 +994,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
-1623 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
+1622 words qualify, 40 here, most common first.  `drills/21-v-m-k.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1092,7 +1092,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 
 `sh` is ch plus the pinky; `z` is s plus the pinky.
 
-732 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
+731 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1188,9 +1188,9 @@ Two four-key right-hand shapes with no onset reading: a final `h` and a final `e
 
 ## Lesson 25 — the mirrored vowel and the silent e
 
-With no vowel on the right hand and a real coda, a second character that is also a vowel supplies the nucleus, and the stroke appends a silent `e` and ends the word: `time`, `tone`, `tame`.  Each vowel is its right-hand chord: `a` is `Sp`, `ea` is `e+Sp`, and so on.  The exception is `o`, which is `e+i+Bk`, the right hand's ending `o`, because `e+i` on the left is already the plain second character `o`.
+With no vowel on the right hand and a real coda, a second character that is also a vowel supplies the nucleus, and the stroke appends a silent `e` and ends the word: `time`, `tone`, `tame`.  Each vowel is its right-hand chord: `a` is `Sp`, `ea` is `e+Sp`, and so on.  The exception is `o`, which is `e+i+Bk`, the right hand's ending `o`, because `e+i` on the left is already the plain second character `o`.  Then the second character `e`, `e+Sp`: nearly every word that uses it is a silent-e word -- `there`, `here`, `were` -- so it comes after the rule rather than with `o` and `s`.  Struck with nothing else, `e+Sp` keeps the next word in lower case, even after a full stop.
 
-1176 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
+1181 words qualify, 40 here, most common first.  `drills/25-silent-e.txt`.
 
 | word | strokes | division |
 |---|---|---|

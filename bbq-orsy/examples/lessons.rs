@@ -114,11 +114,11 @@ const LESSONS: &[Lesson] = &[
         items: &[Second(Second::I), Second(Second::RIU), Second(Second::RU)],
     },
     Lesson {
-        name: "second-o-s-e", title: "the second character: o, s and e",
-        note: "`o` is `e+i` as for the vowel; `s` is `e` alone; `e` is `e+Sp`.  Struck \
-               with nothing else, `e` capitalises the next word and `e+Sp` keeps it in \
-               lower case, even after a full stop.",
-        items: &[Second(Second::RXI), Second(Second::X), Second(Second::RX)],
+        name: "second-o-s", title: "the second character: o and s",
+        note: "`o` is `e+i` as for the vowel; `s` is `e` alone.  Struck with nothing \
+               else, `e` capitalises the next word.  The second character `e` waits for \
+               the silent-e lesson, where its words are.",
+        items: &[Second(Second::RXI), Second(Second::RX)],
     },
     Lesson {
         name: "second-rest", title: "the second character: w, c, u, p and n",
@@ -164,8 +164,12 @@ const LESSONS: &[Lesson] = &[
                and ends the word: `time`, `tone`, `tame`.  Each vowel is its right-hand chord: `a` \
                is `Sp`, `ea` is `e+Sp`, and so on.  The exception is `o`, which is `e+i+Bk`, \
                the right hand's ending `o`, because `e+i` on the left is already the plain \
-               second character `o`.",
-        items: &[Rule(rules::MIRRORED)],
+               second character `o`.  Then the second character `e`, `e+Sp`: nearly \
+               every word that uses it is a silent-e word -- `there`, `here`, `were` -- \
+               so it comes after the rule rather than with `o` and `s`.  Struck with \
+               nothing else, `e+Sp` keeps the next word in lower case, even after a full \
+               stop.",
+        items: &[Rule(rules::MIRRORED), Second(Second::X)],
     },
     Lesson {
         name: "clusters", title: "the onset clusters",
