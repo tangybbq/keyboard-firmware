@@ -1,6 +1,12 @@
 """Animate a clip of chorded typing: the two hands, the chords, the text.
 
     KEYVID_CLIP=clips/orsy.json KEYVID_SPEED=0.5 uv run manim -pqm scenes.py Replay
+    KEYVID_CLIP=clips/orsy.json KEYVID_FLOW=scroll uv run manim -pqm scenes.py Stream
+
+`Replay` is one large board with the keys going down and up.  `Stream` is a
+list of small boards, one per chord or stroke, each with what it typed beside
+it, in two columns that take turns (`KEYVID_FLOW=columns`) or one that
+scrolls (`KEYVID_FLOW=scroll`).
 
 The board is drawn the way TaipoTeacher's stroke hint draws it: each hand's
 four finger columns in two rows, the thumbs in a row below under the index
@@ -31,6 +37,7 @@ from manim import (
     VGroup,
     config,
     linear,
+    smooth,
 )
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -322,6 +329,214 @@ class Replay(Scene):
         # animation, once into a static background -- which would freeze the
         # whole board.
         screen = Group(board, *labels, line, *badges.values())
+        screen.add_updater(update)
+        self.add(screen)
+        update(None)
+        self.wait(0.5)
+        self.play(
+            clock.animate.set_value(clip.duration),
+            run_time=clip.duration / speed,
+            rate_func=linear,
+        )
+        self.wait(1)
+
+
+# The small boards of `Stream`, about the teacher's stroke hint beside its
+# text.
+MINI_KEY = 0.22
+MINI_GAP = 0.06
+# Between a small board and what it typed, and between one entry and the next.
+MINI_LABEL_BUFF = 0.35
+ENTRY_GAP = 0.3
+# The entries' part of the frame, between the badges and the typed line.
+STREAM_TOP = 2.9
+STREAM_BOTTOM = -2.6
+# How long, in video seconds, a new entry takes to scroll in, and an old
+# column to clear.
+SCROLL = 0.18
+CLEAR = 0.15
+
+
+class Glyph(VGroup):
+    """A chord or stroke on a small board of both hands, as the teacher hints it.
+
+    Only the chord's own keys are ever lit, so one pressed early for the next
+    chord does not show up on this one.
+    """
+
+    def __init__(self, event: Event):
+        super().__init__()
+        self.caps: dict[str, RoundedRectangle] = {}
+        self.colours: dict[str, str] = {}
+        self.legends: dict[str, Text] = {}
+        hand_width = 4 * MINI_KEY + 3 * MINI_GAP
+        for side, bits in (("L", event.left), ("R", event.right)):
+            x0 = 0 if side == "L" else hand_width + 5 * MINI_GAP
+            for r, row in enumerate(LEFT_HAND):
+                cells = row if side == "L" else list(reversed(row))
+                for c, name in enumerate(cells):
+                    if name is None:
+                        continue
+                    cap = RoundedRectangle(
+                        width=MINI_KEY, height=MINI_KEY, corner_radius=0.04,
+                        fill_color=KEY_IDLE, fill_opacity=1, stroke_width=0,
+                    )
+                    cap.move_to(RIGHT * (x0 + c * (MINI_KEY + MINI_GAP)) + DOWN * r * (MINI_KEY + MINI_GAP))
+                    self.add(cap)
+                    if not bits & BITS[name]:
+                        continue
+                    key = f"{side}.{name}"
+                    self.caps[key] = cap
+                    self.colours[key] = press_colour(event.mode, side, name)
+                    # The thumbs change what a chord means rather than which
+                    # chord it is, so the teacher names them even this small.
+                    if name in SHOWN:
+                        self.legends[key] = Text(
+                            SHOWN[name], font=SANS, font_size=9, weight="BOLD", color=BACKGROUND,
+                        ).move_to(cap)
+        self.add(*self.legends.values())
+
+    def show(self, lit, opacity: float):
+        for key, cap in self.caps.items():
+            cap.set_fill(self.colours[key] if key in lit else KEY_IDLE)
+        self.set_opacity(opacity)
+        for key, legend in self.legends.items():
+            legend.set_opacity(opacity if key in lit else 0)
+
+
+class Entry(VGroup):
+    """One chord or stroke of the stream: its small board, and what it typed.
+
+    The board comes up with the chord's first key and its keys light as they
+    go down, staying lit until the chord commits, so it is drawn rather than
+    pressed and released.  What it typed pops up beside it at the commit.
+    """
+
+    def __init__(self, event: Event, width: float):
+        super().__init__()
+        self.event = event
+        self.glyph = Glyph(event)
+        text = event.label.replace("\n", "⏎") or "·"
+        # Between two invisible bars, so every label sits at the same height.
+        self.word = Text("|" + text + "|", font=MONO, font_size=44, color=DEAD if event.dead else TEXT)
+        room = width - self.glyph.width - MINI_LABEL_BUFF
+        if self.word.width > room:
+            self.word.scale(room / self.word.width)
+        self.word.next_to(self.glyph, RIGHT, buff=MINI_LABEL_BUFF)
+        self.add(self.glyph, self.word)
+        self.scale_now = 1.0
+
+    def show(self, clip: Clip, t: float, speed: float, opacity: float):
+        e = self.event
+        age = (t - e.t) / speed
+        if age < 0:
+            lit = {k for k in self.glyph.caps if clip.pressed_between(k, e.first_key, t)}
+        else:
+            lit = self.glyph.caps.keys()
+        self.glyph.show(lit, opacity)
+        pop = 0.0 if age < 0 else min(1.0, age / 0.1)
+        scale = 1.3 - 0.3 * pop
+        self.word.scale(scale / self.scale_now, about_point=self.word.get_left())
+        self.scale_now = scale
+        self.word.set_opacity(0)
+        self.word[1:-1].set_opacity(opacity * pop)
+
+
+class Stream(Scene):
+    """The clip as a list of small boards, each with what it typed.
+
+    `KEYVID_FLOW=columns` (the default) fills the left column and then the
+    right, clearing each as the next chord starts in it; `scroll` is one
+    column that moves up as each chord comes in.
+    """
+
+    def construct(self):
+        clip, speed = load_clip()
+        flow = os.environ.get("KEYVID_FLOW", "columns")
+        if flow not in ("columns", "scroll"):
+            raise SystemExit(f"KEYVID_FLOW is columns or scroll, not {flow!r}")
+        self.camera.background_color = BACKGROUND
+        badges = corner_badges(self, speed)
+
+        column_width = config.frame_width / 2 - LINE_MARGIN
+        strokes = clip.strokes()
+        entries = [Entry(e, column_width - 0.4) for e in strokes]
+        pitch = (entries[0].glyph.height if entries else 1) + ENTRY_GAP
+        rows = int((STREAM_TOP - STREAM_BOTTOM + ENTRY_GAP) / pitch)
+        # The rows are spread to fill the space, not packed at the top.
+        pitch = (STREAM_TOP - STREAM_BOTTOM + ENTRY_GAP) / rows
+        top = STREAM_TOP - (pitch - ENTRY_GAP) / 2
+        # When each entry's board comes up, and so takes its place.
+        starts = [min(e.first_key, e.t) for e in strokes]
+
+        def place(entry: Entry, x: float, y: float):
+            entry.shift((x - entry.glyph.get_left()[0]) * RIGHT + (y - entry.glyph.get_center()[1]) * UP)
+
+        if flow == "columns":
+            xs = [-config.frame_width / 2 + LINE_MARGIN, LINE_MARGIN / 2]
+            for i, entry in enumerate(entries):
+                place(entry, xs[(i // rows) % 2], top - (i % rows) * pitch)
+        else:
+            x = -column_width / 2
+            for entry in entries:
+                place(entry, x, top)
+
+        def visible(t: float) -> list[tuple[Entry, float]]:
+            """The entries on screen at `t`, with their opacity."""
+            if flow == "columns":
+                shown = []
+                for i, entry in enumerate(entries):
+                    if starts[i] > t:
+                        break
+                    # A column clears when the next block starts in it.
+                    nxt = (i // rows + 2) * rows
+                    fade = 1.0
+                    if nxt < len(entries) and starts[nxt] <= t:
+                        fade = 1 - (t - starts[nxt]) / speed / CLEAR
+                        if fade <= 0:
+                            continue
+                    shown.append((entry, fade))
+                return shown
+            # How far the column has scrolled, in entries: each one eases in.
+            done = sum(smooth(min(1.0, max(0.0, (t - s) / speed / SCROLL))) for s in starts if s <= t)
+            bottom = top - (rows - 1) * pitch
+            shown = []
+            for i, entry in enumerate(entries):
+                if starts[i] > t:
+                    break
+                y = bottom + (done - i - 1) * pitch
+                if y > top + pitch:
+                    continue
+                # In from below, out through the top, and invisible for the
+                # first and last of the way so as not to touch the typed line.
+                fade = min(1.0, (y - (bottom - pitch)) / pitch, (top + pitch - y) / pitch)
+                fade = max(0.0, (fade - 0.4) / 0.6)
+                entry.shift((y - entry.glyph.get_center()[1]) * UP)
+                shown.append((entry, fade))
+            return shown
+
+        line_left = -config.frame_width / 2 + LINE_MARGIN
+        line = TypedLine(
+            line_left * RIGHT + (STREAM_BOTTOM - 0.8) * UP,
+            config.frame_width - 2 * LINE_MARGIN,
+        )
+        stream = Group()
+        clock = ValueTracker(0)
+
+        def update(_):
+            t = clock.get_value()
+            mode = clip.mode_at(t)
+            shown = visible(t)
+            stream.remove(*stream.submobjects)
+            for entry, opacity in shown:
+                entry.show(clip, t, speed, opacity)
+                stream.add(entry)
+            line.set_text(clip.text_at(t))
+            for m, badge in badges.items():
+                badge.set_opacity(1 if m == mode else 0)
+
+        # As in `Replay`, everything that changes is under the one updater.
+        screen = Group(stream, line, *badges.values())
         screen.add_updater(update)
         self.add(screen)
         update(None)

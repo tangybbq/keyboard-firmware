@@ -85,6 +85,15 @@ class Clip:
                 return True
         return False
 
+    def pressed_between(self, key: str, start: float, t: float) -> bool:
+        """Whether `key` went down at any point in `[start, t]`."""
+        for down, _ in self.presses.get(key, ()):
+            if down > t:
+                break
+            if down >= start:
+                return True
+        return False
+
     def last_event(self, t: float) -> Event | None:
         i = bisect_right(self._times, t)
         return self.events[i - 1] if i else None

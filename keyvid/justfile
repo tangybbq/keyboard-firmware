@@ -43,6 +43,11 @@ manim := "uv run manim --disable_caching"
 render name speed="1" quality="m":
 	KEYVID_CLIP=clips/{{name}}.json KEYVID_SPEED={{speed}} {{manim}} -q{{quality}} -o {{name}}.mp4 scenes.py Replay
 
+# Flow is columns or scroll; the video is NAME-stream-FLOW.mp4.
+# Render a clip as a stream of small boards, each with what it typed.
+stream name flow="columns" speed="1" quality="m":
+	KEYVID_CLIP=clips/{{name}}.json KEYVID_FLOW={{flow}} KEYVID_SPEED={{speed}} {{manim}} -q{{quality}} -o {{name}}-stream-{{flow}}.mp4 scenes.py Stream
+
 # Render and open the result.
 preview name speed="1":
 	KEYVID_CLIP=clips/{{name}}.json KEYVID_SPEED={{speed}} {{manim}} -pql -o {{name}}.mp4 scenes.py Replay
@@ -50,4 +55,4 @@ preview name speed="1":
 # With no name, also manim's leftovers: its text cache and partial movies.
 # Delete a clip's videos at every quality, or every render; the clips stay.
 clean name="":
-	{{ if name == "" { "rm -rf media" } else { "rm -f media/videos/scenes/*/" + name + ".mp4" } }}
+	{{ if name == "" { "rm -rf media" } else { "rm -f media/videos/scenes/*/" + name + ".mp4 media/videos/scenes/*/" + name + "-stream-*.mp4" } }}

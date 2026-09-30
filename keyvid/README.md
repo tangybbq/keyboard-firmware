@@ -8,6 +8,17 @@ up with their real timings, what each chord or stroke typed popping up over the 
 typed it, and the text building up underneath.  In Orsy the keys take the colours of their
 Series: onset blue, second teal, vowel orange, coda purple.
 
+The other way to show a clip is as a stream: a small board for each chord or stroke, the
+teacher's hint drawn again with its keys lit, and what it typed beside it.  A board comes up
+with the chord's first key, its keys light as they go down and stay lit, and the letters pop
+up at the commit.  The boards run down two columns that take turns, each clearing as the
+next chord starts in it (`columns`), or down one column that scrolls up as each comes in
+(`scroll`).
+
+```sh
+just stream orsy-directed scroll 0.5    # clip, flow, speed, quality
+```
+
 ## Pieces
 
 - `extract/`: a Rust tool that replays a log through `bbq_keyboard::replay` (the real layout
@@ -15,8 +26,9 @@ Series: onset blue, second teal, vowel orange, coda purple.
   or stroke with its keys and label, and the text on the screen after each.
 - `clip.py`: reads a clip and answers what is held, what mode it is in, and what has been
   typed, at any moment.
-- `scenes.py`: the manim scene.  One animation runs a clock through the clip and every frame
-  is drawn from it.
+- `scenes.py`: the manim scenes, `Replay` for the large board and `Stream` for the small
+  ones.  In each, one animation runs a clock through the clip and every frame is drawn from
+  it.
 
 ## Making a clip
 
@@ -45,8 +57,9 @@ The times are milliseconds on the keyboard's clock from the start of each sessio
 have no tie to the time of day: only the collector's connect time is written in wall-clock
 time (`# started`), and the session's first event comes some unknown time after that.
 
-The video lands in `media/videos/scenes/<quality>/orsy-directed.mp4`.  `just preview NAME`
-renders at low quality and opens it.
+The video lands in `media/videos/scenes/<quality>/orsy-directed.mp4`, or
+`orsy-directed-stream-scroll.mp4` for a stream.  `just preview NAME` renders at low quality
+and opens it.
 
 Rendering a name again replaces its video.  `just clean NAME` deletes a clip's videos at
 every quality, and `just clean` deletes all of `media/`, manim's text cache included; the
