@@ -52,13 +52,13 @@ pub enum Outer {
     FC,
     /// `a+o+t`: onset `v`, coda `v`.
     SC,
-    /// `a+o+n`: onset `m`, coda `m`.
+    /// `a+t+n`: onset `m`, coda `m`.
     SZP,
     /// `a+s+t`: onset `ind`, coda `nd`.
     FN,
     /// `a+s+n`: onset `inc`, coda `ng`.
     SN,
-    /// `a+t+n`: onset `k`, coda `k`.
+    /// `a+o+n`: onset `k`, coda `k`.
     SZ,
     /// `o+s+t`: onset `ch`, coda `ch`.
     SP,
@@ -109,10 +109,10 @@ impl Outer {
             Outer::ZP => 0x005,
             Outer::FC => 0x044,
             Outer::SC => 0x007,
-            Outer::SZP => 0x043,
+            Outer::SZP => 0x045,
             Outer::FN => 0x025,
             Outer::SN => 0x061,
-            Outer::SZ => 0x045,
+            Outer::SZ => 0x043,
             Outer::SP => 0x026,
             Outer::FZN => 0x062,
             Outer::SZN => 0x046,

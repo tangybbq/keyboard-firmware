@@ -37,7 +37,7 @@ hands. Computed from `layouts.json` against `orsy-mapping.json`:
 
 | outer shape | Dosh | Orsy | | outer shape | Dosh | Orsy |
 |---|---|---|---|---|---|---|
-| `n` `s` `t` | n s t | **n s t** | | `a+o+t` `a+o+n` `a+t+n` | — | v m k |
+| `n` `s` `t` | n s t | **n s t** | | `a+o+t` `a+o+n` `a+t+n` | — | v k m |
 | `a` | a | r | | `a+s+t` `a+s+n` | — | ind/nd inc/ng |
 | `o` | o | c | | `o+s+t` `o+s+n` | — | ch int/nt |
 | `a+t` | q | g | | `a+o+s+t` `s+t+n` | — | sh gh |

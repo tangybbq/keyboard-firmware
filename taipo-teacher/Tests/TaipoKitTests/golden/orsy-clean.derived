@@ -41,7 +41,7 @@ key 390 KeyPress(O, Mods(0x0))
 key 390 KeyRelease
 key 390 KeyPress(X, Mods(0x0))
 key 390 KeyRelease
-stroke 480 [a+n+i-a+o+n+i+Sp] spread=0 text "jum" before=1 after=0
+stroke 480 [a+n+i-a+t+n+i+Sp] spread=0 text "jum" before=1 after=0
 key 480 KeyPress(Space, Mods(0x0))
 key 480 KeyRelease
 key 480 KeyPress(J, Mods(0x0))

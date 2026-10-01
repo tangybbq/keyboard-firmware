@@ -998,46 +998,46 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
 | word | strokes | division |
 |---|---|---|
-| from | `otSp-aoneiBk` | from |
-| information | `-ni ot-aei aon-tSp i-neiBk` | in·for·mat·ion |
-| may | `aon-anSpBk` | may |
+| from | `otSp-atneiBk` | from |
+| information | `-ni ot-aei atn-tSp i-neiBk` | in·for·mat·ion |
+| may | `atn-anSpBk` | may |
 | view | `aoti-sneBk` | view |
-| am | `-aonSpBk` | am |
-| me | `aon-eBk` | me |
+| am | `-atnSpBk` | am |
+| me | `atn-eBk` | me |
 | services | `s-ae aot-oi -seBk` | ser·vic·es |
 | over | `-aotei -aeBk` | ov·er |
-| work | `sn-aei -atn` | wor·k |
-| most | `aon-tneiBk` | most |
-| music | `aon-siSp -oiBk` | mus·ic |
-| them | `on-aoneBk` | them |
-| system | `s-an siBk-aoneBk` | sy·stem |
-| number | `n-aoniSp aos-aeBk` | num·ber |
+| work | `sn-aei -aon` | wor·k |
+| most | `atn-tneiBk` | most |
+| music | `atn-siSp -oiBk` | mus·ic |
+| them | `on-atneBk` | them |
+| system | `s-an siBk-atneBk` | sy·stem |
+| number | `n-atniSp aos-aeBk` | num·ber |
 | video | `aot-aoi e-eiBk` | vid·eo |
-| books | `aosei-atnei -s` | book·s |
-| links | `st-ni atn-s` | lin·ks |
+| books | `aosei-aonei -s` | book·s |
+| links | `st-ni aon-s` | lin·ks |
 | review | `a-aote i-sneBk` | rev·iew |
-| book | `aosei-atneiBk` | book |
-| items | `-ti -aone -s` | it·em·s |
-| map | `aon-osSpBk` | map |
+| book | `aosei-aoneiBk` | book |
+| items | `-ti -atne -s` | it·em·s |
+| map | `atn-osSpBk` | map |
 | reviews | `a-aote i-sne -s` | rev·iew·s |
-| program | `osSp-atei a-aonSpBk` | prog·ram |
-| know | `atneSpBk-sneiBk` | know |
-| games | `at-aonSp -seBk` | gam·es |
-| item | `-ti -aoneBk` | it·em |
-| must | `aon-tniSpBk` | must |
+| program | `osSp-atei a-atnSpBk` | prog·ram |
+| know | `aoneSpBk-sneiBk` | know |
+| games | `at-atnSp -seBk` | gam·es |
+| item | `-ti -atneBk` | it·em |
+| must | `atn-tniSpBk` | must |
 | travel | `tSp-aotSp -steBk` | trav·el |
-| comments | `o-aonei aon-ne t-s` | com·men·ts |
-| member | `aon-aone aos-aeBk` | mem·ber |
-| terms | `t-ae aon-s` | ter·ms |
+| comments | `o-atnei atn-ne t-s` | com·men·ts |
+| member | `atn-atne aos-aeBk` | mem·ber |
+| terms | `t-ae atn-s` | ter·ms |
 | reserved | `a-se -ae aot-aoeBk` | res·er·ved |
-| forum | `ot-aei -aoniSpBk` | for·um |
+| forum | `ot-aei -atniSpBk` | for·um |
 | even | `-aote -neBk` | ev·en |
-| women | `sn-aonei -neBk` | wom·en |
-| link | `st-ni -atn` | lin·k |
+| women | `sn-atnei -neBk` | wom·en |
+| link | `st-ni -aon` | lin·k |
 | version | `aot-ae si-neiBk` | ver·sion |
-| american | `-aonSp -ae -oi -nSpBk` | am·er·ic·an |
-| members | `aon-aone aos-ae -s` | mem·ber·s |
-| network | `n-te sn-aei -atn` | net·wor·k |
+| american | `-atnSp -ae -oi -nSpBk` | am·er·ic·an |
+| members | `atn-atne aos-ae -s` | mem·ber·s |
+| network | `n-te sn-aei -aon` | net·wor·k |
 
 ## Lesson 22 — ind/nd, inc/ng and int/nt
 
@@ -1051,9 +1051,9 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | find | `ot-astiBk` | find |
 | into | `osn-eiBk` | into |
 | under | `-astiSp -aeBk` | und·er |
-| management | `aon-nSp -atSp -aone -osneBk` | man·ag·em·ent |
+| management | `atn-nSp -atSp -atne -osneBk` | man·ag·em·ent |
 | international | `osn-ae n-tSp i-nei -stSpBk` | inter·nat·ion·al |
-| development | `ao-aote -ste -osei aon-osneBk` | dev·el·op·ment |
+| development | `ao-aote -ste -osei atn-osneBk` | dev·el·op·ment |
 | send | `s-asteBk` | send |
 | using | `-siSp -asniBk` | us·ing |
 | internet | `osn-ae n-teBk` | inter·net |
@@ -1082,10 +1082,10 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | windows | `sn- ast-snei -s` | w·indow·s |
 | going | `atei-asniBk` | going |
 | friend | `ot- ai-asteBk` | f·riend |
-| looking | `stei-atnei -asniBk` | look·ing |
-| comment | `o-aonei aon-osneBk` | com·ment |
+| looking | `stei-aonei -asniBk` | look·ing |
+| comment | `o-atnei atn-osneBk` | com·ment |
 | things | `on-asni -s` | thing·s |
-| working | `sn-aei atn-asniBk` | wor·king |
+| working | `sn-aei aon-asniBk` | wor·king |
 | standard | `siBk-astSp -aSp -ao` | stand·ar·d |
 
 ## Lesson 23 — ch, sh, gh, z and ck
@@ -1114,20 +1114,20 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 | show | `aost-sneiBk` | show |
 | black | `aosBk-aosnSpBk` | black |
 | check | `ost-aosneBk` | check |
-| much | `aon-ostiSpBk` | much |
+| much | `atn-ostiSpBk` | much |
 | shop | `aost-oseiBk` | shop |
 | children | `ost-sti aoSp-neBk` | chil·dren |
 | shopping | `aost-osei os-asniBk` | shop·ping |
 | shall | `aost-stSp -st` | shal·l |
 | stock | `siBk-aosneiBk` | stock |
 | english | `-asne st-aostiBk` | eng·lish |
-| march | `aon-aSp -ost` | mar·ch |
+| march | `atn-aSp -ost` | mar·ch |
 | feedback | `ote-aoe aos-aosnSpBk` | feed·back |
 | changes | `ost-asnSp -seBk` | chang·es |
 | night | `n-stni -t` | nigh·t |
 | light | `st-stni -t` | ligh·t |
 | china | `ost-ni -SpBk` | chin·a |
-| might | `aon-stni -t` | migh·t |
+| might | `atn-stni -t` | migh·t |
 | child | `ost-sti -ao` | chil·d |
 | schools | `s- ostei-stei -s` | s·chool·s |
 | track | `tSp-aosnSpBk` | track |
@@ -1159,7 +1159,7 @@ Two four-key right-hand shapes with no onset reading: a final `h` and a final `e
 | israeli | `-si a-ostnSp st-iBk` | is·rae·li |
 | steering | `siBk-ostne a-asniBk` | stee·ring |
 | greeting | `atSp-ostne t-asniBk` | gree·ting |
-| knee | `atneSpBk-ostneBk` | knee |
+| knee | `aoneSpBk-ostneBk` | knee |
 | breeding | `aosSp-ostne ao-asniBk` | bree·ding |
 | breeds | `aosSp-ostne ao-s` | bree·ds |
 | speeds | `sSpBk-ostne ao-s` | spee·ds |
@@ -1196,43 +1196,43 @@ With no vowel on the right hand and a real coda, a second character that is also
 |---|---|---|
 | are | `Sp-a` | are |
 | have | `tnSp-aot` | have |
-| more | `aoneiBk-a` | more |
-| home | `tneiBk-aon` | home |
+| more | `atneiBk-a` | more |
+| home | `tneiBk-atn` | home |
 | page | `osSp-at` | page |
 | one | `eiBk-n` | one |
-| time | `ti-aon` | time |
+| time | `ti-atn` | time |
 | site | `si-t` | site |
 | use | `iSp-s` | use |
 | there | `one-a` | there |
 | here | `tne-a` | here |
 | online | `-nei sti-n` | on·line |
 | were | `sne-a` | were |
-| some | `seiBk-aon` | some |
+| some | `seiBk-atn` | some |
 | these | `one-s` | these |
-| like | `sti-atn` | like |
+| like | `sti-aon` | like |
 | service | `s-ae aoti-o` | ser·vice |
 | price | `os- ai-o` | p·rice |
 | date | `aoSp-t` | date |
-| name | `nSp-aon` | name |
-| make | `aonSp-atn` | make |
+| name | `nSp-atn` | name |
+| make | `atnSp-aon` | make |
 | please | `osBk-e Sp-s` | ple·ase |
-| message | `aon-se sSp-at` | mes·sage |
+| message | `atn-se sSp-at` | mes·sage |
 | software | `s-otei t- snSp-a` | sof·t·ware |
 | where | `sn- tne-a` | w·here |
 | life | `sti-ot` | life |
-| made | `aonSp-ao` | made |
+| made | `atnSp-ao` | made |
 | line | `sti-n` | line |
 | before | `aos-ote eiBk-a` | bef·ore |
 | because | `aos-oe -Sp iSp-s` | bec·a·use |
 | those | `oneiBk-s` | those |
 | office | `-otei oti-o` | of·fice |
-| take | `tSp-atn` | take |
+| take | `tSp-aon` | take |
 | phone | `os- tneiBk-n` | p·hone |
 | code | `oeiBk-ao` | code |
 | website | `sn-aose si-t` | web·site |
 | file | `oti-st` | file |
 | case | `oSp-s` | case |
-| same | `sSp-aon` | same |
+| same | `sSp-atn` | same |
 | house | `tn-ei iSp-s` | ho·use |
 
 ## Lesson 26 — the onset clusters
@@ -1254,14 +1254,14 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | required | `a-e oeiSp-ai -aoeBk` | re·quir·ed |
 | questions | `oeiSp-tne i-nei -s` | quest·ion·s |
 | street | `tnSp-e -teBk` | stre·et |
-| equipment | `-e oeiSp-osi aon-osneBk` | e·quip·ment |
+| equipment | `-e oeiSp-osi atn-osneBk` | e·quip·ment |
 | quote | `oeiSp- eiBk-t` | qu·ote |
 | question | `oeiSp-tne i-neiBk` | quest·ion |
 | request | `a-e oeiSp-tneBk` | re·quest |
-| major | `aon-Sp ani-aeiBk` | ma·jor |
+| major | `atn-Sp ani-aeiBk` | ma·jor |
 | journal | `ani-ei -aiSp n-stSpBk` | jo·ur·nal |
 | display | `ao-i tnBk-anSpBk` | di·splay |
-| requirements | `a-e oeiSp-ai -aone -ne t-s` | re·quir·em·en·ts |
+| requirements | `a-e oeiSp-ai -atne -ne t-s` | re·quir·em·en·ts |
 | projects | `osSp-ei ani-oe t-s` | pro·jec·ts |
 | subscribe | `s-aosiSp tneiSp- i-aos` | sub·scr·ibe |
 | construction | `o-nei tnSp-oiSp ti-neiBk` | con·struc·tion |
@@ -1303,7 +1303,7 @@ The second character `w` (`e+i+Bk`) spells `h` after an onset ending in `p`, `w`
 | wholesale | `sneiBk-stei -se Sp-st` | whol·es·ale |
 | whatever | `sneiBk-tSp -aote -aeBk` | what·ev·er |
 | philadelphia | `oseiBk-sti -aoSp -ste os- tni-SpBk` | phil·ad·el·p·hia |
-| whom | `sneiBk-aoneiBk` | whom |
+| whom | `sneiBk-atneiBk` | whom |
 | phoenix | `oseiBk-ostnei n-otniBk` | phoe·nix |
 | alpha | `-stSp oseiBk-SpBk` | al·pha |
 | paragraph | `os-aSp -atSp a-Sp oseiBk-` | par·ag·ra·ph |
@@ -1311,26 +1311,26 @@ The second character `w` (`e+i+Bk`) spells `h` after an onset ending in `p`, `w`
 | wheels | `sneiBk-ostne st-s` | whee·ls |
 | philippines | `oseiBk-sti -osi os-ni -seBk` | phil·ip·pin·es |
 | graph | `atSp-Sp oseiBk-` | gra·ph |
-| emphasis | `-aone oseiBk-sSp -siBk` | em·phas·is |
+| emphasis | `-atne oseiBk-sSp -siBk` | em·phas·is |
 | whereas | `sneiBk-ae e-sSpBk` | wher·eas |
 | whenever | `sneiBk-ne -aote -aeBk` | when·ev·er |
-| memphis | `aon-aone oseiBk-siBk` | mem·phis |
+| memphis | `atn-atne oseiBk-siBk` | mem·phis |
 | polyphonic | `os-stei -an oseiBk-nei -oiBk` | pol·y·phon·ic |
 | alphabetical | `-stSp oseiBk-aosSp -te -oi -stSpBk` | al·phab·et·ic·al |
 | photographer | `oseiBk-tei -atei a-osSp tn-aeBk` | phot·og·rap·her |
-| pharmaceutical | `oseiBk-aSp aon-oSp e-tiSp -oi -stSpBk` | phar·mac·eut·ic·al |
+| pharmaceutical | `oseiBk-aSp atn-oSp e-tiSp -oi -stSpBk` | phar·mac·eut·ic·al |
 | photograph | `oseiBk-tei -atei a-Sp oseiBk-` | phot·og·ra·ph |
 | photoshop | `oseiBk-tei -aostei ei-os` | phot·osh·op |
 | whilst | `sneiBk-sti -tn` | whil·st |
 | photographic | `oseiBk-tei -atei a-osSp tn-oiBk` | phot·og·rap·hic |
 | wheat | `sneiBk-teSpBk` | wheat |
 | photographers | `oseiBk-tei -atei a-osSp tn-ae -s` | phot·og·rap·her·s |
-| pharmacies | `oseiBk-aSp aon-oSp i-seBk` | phar·mac·ies |
+| pharmacies | `oseiBk-aSp atn-oSp i-seBk` | phar·mac·ies |
 | headphones | `tne-aoSp oseiBk-nei -seBk` | head·phon·es |
-| pharmaceuticals | `oseiBk-aSp aon-oSp e-tiSp -oi -stSp -s` | phar·mac·eut·ic·al·s |
+| pharmaceuticals | `oseiBk-aSp atn-oSp e-tiSp -oi -stSp -s` | phar·mac·eut·ic·al·s |
 | wherever | `sneiBk-ae -aote -aeBk` | wher·ev·er |
-| atmospheric | `-tSp aon-sei oseiBk-ae -oiBk` | at·mos·pher·ic |
-| phenomenon | `oseiBk-ne -aonei -ne ei-n` | phen·om·en·on |
+| atmospheric | `-tSp atn-sei oseiBk-ae -oiBk` | at·mos·pher·ic |
+| phenomenon | `oseiBk-ne -atnei -ne ei-n` | phen·om·en·on |
 | phases | `oseiBk-sSp -seBk` | phas·es |
 
 ## Lesson 28 — au and ai
@@ -1341,12 +1341,12 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 
 | word | strokes | division |
 |---|---|---|
-| email | `-aone i-stiBk` | em·ail |
+| email | `-atne i-stiBk` | em·ail |
 | available | `-aotSp i-sti -Sp aosBk-eBk` | av·ail·a·ble |
 | said | `si-aoiBk` | said |
-| mail | `aoni-stiBk` | mail |
+| mail | `atni-stiBk` | mail |
 | details | `ao-te i-sti -s` | det·ail·s |
-| main | `aoni-niBk` | main |
+| main | `atni-niBk` | main |
 | author | `iSp-oniSp ei-a` | auth·or |
 | training | `t- ai-ni -asniBk` | t·rain·ing |
 | air | `i-aiBk` | air |
@@ -1355,9 +1355,9 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | august | `iSp-atiSp -tniSpBk` | aug·ust |
 | audio | `iSp-aoiSp i-eiBk` | aud·io |
 | australia | `iSp-tniSp a-stSp i-SpBk` | aust·ral·ia |
-| entertainment | `-ne t-ae ti-ni aon-osneBk` | en·ter·tain·ment |
+| entertainment | `-ne t-ae ti-ni atn-osneBk` | en·ter·tain·ment |
 | auto | `iSp-tiSp ei-` | aut·o |
-| domain | `ao-aonei i-niBk` | dom·ain |
+| domain | `ao-atnei i-niBk` | dom·ain |
 | certain | `o-ae ti-niBk` | cer·tain |
 | airport | `i-ai os-aei -t` | air·por·t |
 | paid | `osi-aoiBk` | paid |
@@ -1365,8 +1365,8 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | restaurants | `a-tne iSp-aiSp -nSp t-s` | rest·aur·an·ts |
 | retail | `a-te i-stiBk` | ret·ail |
 | contains | `o-nei ti-ni -s` | con·tain·s |
-| mountain | `aonei-niSp ti-niBk` | moun·tain |
-| mailing | `aoni-sti -asniBk` | mail·ing |
+| mountain | `atnei-niSp ti-niBk` | moun·tain |
+| mailing | `atni-sti -asniBk` | mail·ing |
 | default | `ao-ote iSp-stiSp -t` | def·aul·t |
 | authors | `iSp-oniSp -aei -s` | auth·or·s |
 | detailed | `ao-te i-sti -aoeBk` | det·ail·ed |
@@ -1378,7 +1378,7 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | australian | `iSp-tniSp a-stSp i-nSpBk` | aust·ral·ian |
 | detail | `ao-te i-stiBk` | det·ail |
 | auction | `iSp-oiSp ti-neiBk` | auc·tion |
-| automotive | `iSp-tiSp -aonei -tei i-aot` | aut·om·ot·ive |
+| automotive | `iSp-tiSp -atnei -tei i-aot` | aut·om·ot·ive |
 | pain | `osi-niBk` | pain |
 | chair | `osti-aiBk` | chair |
 
@@ -1397,12 +1397,12 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | policy | `os-stei -oi -aniBk` | pol·ic·y |
 | very | `aot-ae -aniBk` | ver·y |
 | privacy | `osSp-aoti -oSp -aniBk` | priv·ac·y |
-| company | `o-aonei os-nSp -aniBk` | com·pan·y |
-| many | `aon-nSp -aniBk` | man·y |
+| company | `o-atnei os-nSp -aniBk` | com·pan·y |
+| many | `atn-nSp -aniBk` | man·y |
 | university | `-niSp -aoti -ae s-ti -aniBk` | un·iv·er·sit·y |
 | january | `ani-nSp iSp-aSp -aniBk` | jan·uar·y |
-| community | `o-aonei aon-niSp -ti -aniBk` | com·mun·it·y |
-| family | `ot-aonSp -sti -aniBk` | fam·il·y |
+| community | `o-atnei atn-niSp -ti -aniBk` | com·mun·it·y |
+| family | `ot-atnSp -sti -aniBk` | fam·il·y |
 | technology | `t-oste n-stei -atei -aniBk` | tech·nol·og·y |
 | security | `s-oe -aiSp -ti -aniBk` | sec·ur·it·y |
 | county | `oei-niSp t-aniBk` | coun·ty |
@@ -1422,7 +1422,7 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | july | `ani-stiSp -aniBk` | jul·y |
 | study | `siBk-aoiSp -aniBk` | stud·y |
 | party | `os-aSp t-aniBk` | par·ty |
-| memory | `aon-aone -aei -aniBk` | mem·or·y |
+| memory | `atn-atne -aei -aniBk` | mem·or·y |
 | story | `siBk-aei -aniBk` | stor·y |
 | body | `aos-aoei -aniBk` | bod·y |
 | february | `ot-aose aiSp-aSp -aniBk` | feb·ruar·y |

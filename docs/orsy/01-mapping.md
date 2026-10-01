@@ -83,8 +83,8 @@ mirrored `o` takes `eiBk`, the right hand's *ending* `o`. That is still a chord 
 hand already knows, and the `Bk` fits: the mirrored form closes the word.
 
     life  =  sti-ot   l (st) + i (index, read as the vowel) + f (ot) + silent e
-    time  =  ti-aon   t + i + m + silent e
-    name  =  nSp-aon  n + a (Sp, read as the vowel) + m + silent e
+    time  =  ti-atn   t + i + m + silent e
+    name  =  nSp-atn  n + a (Sp, read as the vowel) + m + silent e
 
 This is what makes the `CvCe` words one stroke each, and they are among the commonest in
 English: `time`, `name`, `home`, `like`, `date`, `use`, `site`, `price`, `there`. 1,196 of
@@ -122,6 +122,11 @@ the mirrored `o` is the left hand's, and is part of the vowel), and it is the re
 The pinky is not avoided — with only the lower pinky key present it is not a weak
 position, so chords are scored purely by frequency times size.
 
+`m` and `k` were also swapped by hand after typing (1 October 2026). `m` started on
+`a+o+n` and `k` on `a+t+n`, and `a+o+n` turned out the more awkward, most of all as a
+coda. The two are about even as onsets, but `m` is nearly three times as common as a coda
+(1.8% of strokes against 0.65%: *from*, *them*, *time*, *name*), so `m` took `a+t+n`.
+
 ## The mapping
 
 ```
@@ -145,10 +150,10 @@ OUTER FIVE   a (pinky), o/s (ring), t/n (middle)
        g      g  at      
        h     st  tn      
        v      v  aot     = f + pinky
-       m      m  aon     
+       m      m  atn     
      ind     nd  ast     
      inc     ng  asn     
-       k      k  atn     
+       k      k  aon     
       ch     ch  ost     
      int     nt  osn     
        x      x  otn     

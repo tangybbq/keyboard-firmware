@@ -35,7 +35,12 @@ PAIRS_BY_SPELLING = {"d": "t", "z": "s", "v": "f", "b": "p", "g": "c", "ch": "sh
 # d and g (27 September 2026): d's `a+t` skips the ring finger, which is hard
 # to keep up once the index joins the chord, and d is more than twice as common
 # as g, so d takes g's `a+o`, where pinky and ring are next to each other.
-SWAPS_BY_SPELLING = [("d", "g")]
+#
+# m and k (1 October 2026): m's `a+o+n` is the more awkward of the two in
+# typing, most of all as a coda, and m is the commoner: about even with k as an
+# onset, but nearly three times as common as a coda (from, them, time, name).
+# So m takes k's `a+t+n`.
+SWAPS_BY_SPELLING = [("d", "g"), ("m", "k")]
 
 
 def by_spelling():

@@ -73,7 +73,7 @@ key 915 KeyPress(L, Mods(0x0))
 key 915 KeyRelease
 key 915 KeyPress(S, Mods(0x0))
 key 915 KeyRelease
-stroke 1050 [a+o+n+i-s+i] spread=70 text "mais" before=1 after=0
+stroke 1050 [a+t+n+i-s+i] spread=70 text "mais" before=1 after=0
 key 1050 KeyPress(Space, Mods(0x0))
 key 1050 KeyRelease
 key 1050 KeyPress(M, Mods(0x0))
@@ -99,7 +99,7 @@ key 1478 KeyRelease
 stroke 1585 [i+Sp+Bk-Sp] spread=42 dosh 0x100
 key 1585 KeyPress(DeleteBackspace, Mods(0x0))
 key 1585 KeyRelease
-stroke 1720 [a+o+n+i-n+i] spread=70 text "main" before=1 after=0
+stroke 1720 [a+t+n+i-n+i] spread=70 text "main" before=1 after=0
 key 1720 KeyPress(Space, Mods(0x0))
 key 1720 KeyRelease
 key 1720 KeyPress(M, Mods(0x0))

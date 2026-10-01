@@ -214,10 +214,10 @@ OUTER FIVE - consonants, both hands (onset left / coda right)
   g          #   .   .   #   .
   h/st       .   .   .   #   #
   v          #   #   .   #   .
-  m          #   #   .   .   #
+  m          #   .   .   #   #
   ind/nd     #   .   #   #   .
   inc/ng     #   .   #   .   #
-  k          #   .   .   #   #
+  k          #   #   .   .   #
   ch         .   #   #   #   .
   int/nt     .   #   #   .   #
   x          .   #   .   #   #

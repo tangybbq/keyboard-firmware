@@ -82,14 +82,14 @@ final class OrsyTheoryTests: XCTestCase {
             XCTAssertEqual(OrsyTheory.Rules.byName[rule.name], rule.flag, rule.name)
         }
         // time: t + mirrored i + m.
-        XCTAssertEqual(t.translate(left: 0x084, right: 0x043)?.rules, OrsyTheory.Rules.mirrored)
-        XCTAssertEqual(t.translate(left: 0x084, right: 0x043)?.text, "time")
+        XCTAssertEqual(t.translate(left: 0x084, right: 0x045)?.rules, OrsyTheory.Rules.mirrored)
+        XCTAssertEqual(t.translate(left: 0x084, right: 0x045)?.text, "time")
         // quit: c + c(XIU) is qu.
         XCTAssertEqual(t.translate(left: 0x18a, right: 0x084)?.rules, OrsyTheory.Rules.cluster)
         XCTAssertEqual(t.translate(left: 0x18a, right: 0x084)?.text, "quit")
         // After the `y` shape the Series 2 `i` is `j`, not half of the `ai` diphthong.
-        XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c3)?.rules, OrsyTheory.Rules.cluster)
-        XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c3)?.text, "jim")
+        XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c5)?.rules, OrsyTheory.Rules.cluster)
+        XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c5)?.text, "jim")
         // A lone onset cluster leans forward, like any bare onset.
         let j = try XCTUnwrap(t.translate(left: 0x0c1, right: 0))
         XCTAssertEqual(j.text, "j")
