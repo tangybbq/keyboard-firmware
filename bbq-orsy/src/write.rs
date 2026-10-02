@@ -62,6 +62,17 @@
 //! `peo|ple`, `stat|e` and `al|so` with the vowel on the right, for 0.2% more keys and
 //! no extra strokes.
 //!
+//! The last is about where a syllable may begin with a vowel.  Three of the onsets, `ind`,
+//! `inc` and `int`, start with an `i`; they are there for the prefix, and at the start of
+//! a word they are right -- `inter|net`, `includ|ing`, `indust|ry`.  Further in, the key
+//! count reaches for them to take the `i` off the inner keys, and the syllable before is
+//! left a bare consonant or half a vowel pair: `s|ince`, `f|inding`, `po|ints`,
+//! `ma|intain`.  Ranked with the others, but only after the first stroke, it puts the
+//! `i` back with its consonant as `sin|ce`, `find|ing`, `poin|ts` and `main|tain`.  Over
+//! `words/english_10k.json` it changes 39 divisions for 11 more keys and no extra
+//! strokes; the thirteen it leaves, `prov|ince` and `rem|inder` among them, are a stroke
+//! shorter for it.
+//!
 //! Many words then divide equally well in more than one way (`ten|s` and
 //! `te|ns` are both two strokes of four keys).  Ties are broken towards fewer
 //! inner keys, so a consonant that could be an onset or a second character is
@@ -76,7 +87,7 @@ use std::collections::HashMap;
 
 use crate::chord::{Chord, HAND_MASK, INNER_MASK};
 use crate::compose::translate;
-use crate::tables::{commands, Patterns, Second};
+use crate::tables::{commands, Outer, Patterns, Second};
 
 /// How many letters a single stroke can spell.  The longest is `str` plus a
 /// second character, a two-letter nucleus, a two-letter coda and the silent
@@ -155,6 +166,14 @@ fn left_vowel(chord: Chord, rules: u8) -> bool {
     matches!(p.second.spells(), "a" | "e" | "i" | "o" | "u")
 }
 
+/// Whether the onset is one of the three that begin with a vowel: `ind`, `inc` and `int`.
+///
+/// `FN` spells `gn` when Series 2 is taken for the nucleus, so the text decides.
+fn vowel_onset(chord: Chord, text: &str) -> bool {
+    let Some(p) = Patterns::of(chord) else { return false };
+    matches!(p.onset, Outer::FN | Outer::SN | Outer::FZN) && text.starts_with('i')
+}
+
 /// One way of spelling a chunk of letters.
 #[derive(Clone, Copy, Debug)]
 struct Entry {
@@ -174,6 +193,9 @@ struct Entry {
     foreign: u32,
     /// 1 when the syllable's only vowel is a Series 2 letter, with the right hand empty.
     left_vowel: u32,
+    /// 1 when the onset is one of the vowel-initial `ind`, `inc` and `int`.  Charged only
+    /// after the first stroke of a word.
+    vowel_onset: u32,
     rules: u8,
 }
 
@@ -211,6 +233,7 @@ impl Writer {
                 }
                 let foreign = foreign_onset(chord, &text) as u32;
                 let left_vowel = left_vowel(chord, t.rules) as u32;
+                let vowel_onset = vowel_onset(chord, &text) as u32;
                 chunks.entry(text).or_default().push(Entry {
                     chord,
                     space_before: t.space_before,
@@ -223,6 +246,7 @@ impl Writer {
                     wide: t.wide_onset() as u32,
                     foreign,
                     left_vowel,
+                    vowel_onset,
                     rules: t.rules,
                 });
             }
@@ -297,7 +321,8 @@ impl Writer {
                     strokes + 1,
                     onsets + entry.inner_onset,
                     doubled + entry.doubled,
-                    awkward + split + entry.wide + entry.foreign + entry.left_vowel,
+                    awkward + split + entry.wide + entry.foreign + entry.left_vowel
+                        + (i > 0) as u32 * entry.vowel_onset,
                     keys + entry.keys,
                     inner + entry.inner,
                     j - i,
@@ -459,6 +484,22 @@ mod tests {
         assert_eq!(texts(&w, "christmas"), ["christ", "mas"]);
         // And an overlapping pair still divides at the digraph.
         assert_eq!(texts(&w, "monthly"), ["mon", "thly"]);
+    }
+
+    /// The vowel-initial onsets open a word, and are not used to pull an `i` away from
+    /// the consonant before it.
+    #[test]
+    fn vowel_onsets_open_a_word() {
+        let w = Writer::new();
+        assert_eq!(texts(&w, "since"), ["sin", "ce"]);
+        assert_eq!(texts(&w, "finding"), ["find", "ing"]);
+        assert_eq!(texts(&w, "maintain"), ["main", "tain"]);
+        assert_eq!(texts(&w, "winter"), ["win", "ter"]);
+        // At the start of a word they are what they are for.
+        assert_eq!(texts(&w, "internet"), ["inter", "net"]);
+        assert_eq!(texts(&w, "index"), ["index"]);
+        // A preference, not a prohibition: it never costs a stroke.
+        assert_eq!(texts(&w, "province"), ["prov", "ince"]);
     }
 
     /// A fragment that leans back cannot start a word, and nothing unspellable
