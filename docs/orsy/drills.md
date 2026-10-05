@@ -31,8 +31,8 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 19 | the second character: w, c, u, p and n | 189 |
 | 20 | ea and ou | 56 |
 | 21 | v, m and k | 1632 |
-| 22 | ind/nd, inc/ng and int/nt | 1202 |
-| 23 | ch, sh, gh, z and ck | 732 |
+| 22 | ind/nd, inc/ng and int/nt | 1203 |
+| 23 | ch, sh, gh, z and ck | 731 |
 | 24 | the coda-only shapes: h and e | 42 |
 | 25 | the mirrored vowel and the silent e | 1162 |
 | 26 | the onset clusters | 358 |
@@ -1043,7 +1043,7 @@ Free in Dosh: nothing to unlearn.  `v` is f plus the pinky.
 
 Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `nd`, `ng` and `nt` as codas.
 
-1202 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
+1203 words qualify, 40 here, most common first.  `drills/22-nd-ng-nt.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1092,7 +1092,7 @@ Three-key shapes that spell a whole cluster: `ind`, `inc` and `int` as onsets, `
 
 `sh` is ch plus the pinky; `z` is s plus the pinky.
 
-732 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
+731 words qualify, 40 here, most common first.  `drills/23-ch-sh-gh-z-ck.txt`.
 
 | word | strokes | division |
 |---|---|---|

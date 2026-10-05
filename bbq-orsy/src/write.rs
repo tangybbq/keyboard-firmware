@@ -62,7 +62,7 @@
 //! `peo|ple`, `stat|e` and `al|so` with the vowel on the right, for 0.2% more keys and
 //! no extra strokes.
 //!
-//! The last is about where a syllable may begin with a vowel.  Three of the onsets, `ind`,
+//! The last is about where a syllable may begin.  Three of the onsets, `ind`,
 //! `inc` and `int`, start with an `i`; they are there for the prefix, and at the start of
 //! a word they are right -- `inter|net`, `includ|ing`, `indust|ry`.  Further in, the key
 //! count reaches for them to take the `i` off the inner keys, and the syllable before is
@@ -72,6 +72,13 @@
 //! `words/english_10k.json` it changes 39 divisions for 11 more keys and no extra
 //! strokes; the thirteen it leaves, `prov|ince` and `rem|inder` among them, are a stroke
 //! shorter for it.
+//!
+//! The onset `gh` goes with them.  English opens a word with it -- `ghost`, `ghana` --
+//! but inside one a `g` and an `h` that meet are two syllables, and the `g` is usually the
+//! end of an `ng`.  Both `bir|min|gham` and `bir|ming|ham` break one of the [`PAIRS`], so
+//! the key count decided it, and `gh` and a coda `n` are a key cheaper than a coda `ng`
+//! and `h`.  Ranked with the others it gives `bir|ming|ham` and `shang|hai`, the only two
+//! divisions it changes over `words/english_10k.json`, for 2 more keys.
 //!
 //! Many words then divide equally well in more than one way (`ten|s` and
 //! `te|ns` are both two strokes of four keys).  Ties are broken towards fewer
@@ -166,12 +173,17 @@ fn left_vowel(chord: Chord, rules: u8) -> bool {
     matches!(p.second.spells(), "a" | "e" | "i" | "o" | "u")
 }
 
-/// Whether the onset is one of the three that begin with a vowel: `ind`, `inc` and `int`.
+/// Whether the onset is one English only opens a word with: the three that begin with a
+/// vowel, `ind`, `inc` and `int`, and `gh`.
 ///
 /// `FN` spells `gn` when Series 2 is taken for the nucleus, so the text decides.
-fn vowel_onset(chord: Chord, text: &str) -> bool {
+fn opening_onset(chord: Chord, text: &str) -> bool {
     let Some(p) = Patterns::of(chord) else { return false };
-    matches!(p.onset, Outer::FN | Outer::SN | Outer::FZN) && text.starts_with('i')
+    match p.onset {
+        Outer::FN | Outer::SN | Outer::FZN => text.starts_with('i'),
+        Outer::FZP => text.starts_with("gh"),
+        _ => false,
+    }
 }
 
 /// One way of spelling a chunk of letters.
@@ -193,9 +205,9 @@ struct Entry {
     foreign: u32,
     /// 1 when the syllable's only vowel is a Series 2 letter, with the right hand empty.
     left_vowel: u32,
-    /// 1 when the onset is one of the vowel-initial `ind`, `inc` and `int`.  Charged only
-    /// after the first stroke of a word.
-    vowel_onset: u32,
+    /// 1 when the onset is one that only opens a word: the vowel-initial `ind`, `inc` and
+    /// `int`, and `gh`.  Charged only after the first stroke of a word.
+    opening_onset: u32,
     rules: u8,
 }
 
@@ -233,7 +245,7 @@ impl Writer {
                 }
                 let foreign = foreign_onset(chord, &text) as u32;
                 let left_vowel = left_vowel(chord, t.rules) as u32;
-                let vowel_onset = vowel_onset(chord, &text) as u32;
+                let opening_onset = opening_onset(chord, &text) as u32;
                 chunks.entry(text).or_default().push(Entry {
                     chord,
                     space_before: t.space_before,
@@ -246,7 +258,7 @@ impl Writer {
                     wide: t.wide_onset() as u32,
                     foreign,
                     left_vowel,
-                    vowel_onset,
+                    opening_onset,
                     rules: t.rules,
                 });
             }
@@ -322,7 +334,7 @@ impl Writer {
                     onsets + entry.inner_onset,
                     doubled + entry.doubled,
                     awkward + split + entry.wide + entry.foreign + entry.left_vowel
-                        + (i > 0) as u32 * entry.vowel_onset,
+                        + (i > 0) as u32 * entry.opening_onset,
                     keys + entry.keys,
                     inner + entry.inner,
                     j - i,
@@ -487,9 +499,9 @@ mod tests {
     }
 
     /// The vowel-initial onsets open a word, and are not used to pull an `i` away from
-    /// the consonant before it.
+    /// the consonant before it; nor is `gh` used to pull a `g` away from its `n`.
     #[test]
-    fn vowel_onsets_open_a_word() {
+    fn opening_onsets_open_a_word() {
         let w = Writer::new();
         assert_eq!(texts(&w, "since"), ["sin", "ce"]);
         assert_eq!(texts(&w, "finding"), ["find", "ing"]);
@@ -500,6 +512,10 @@ mod tests {
         assert_eq!(texts(&w, "index"), ["index"]);
         // A preference, not a prohibition: it never costs a stroke.
         assert_eq!(texts(&w, "province"), ["prov", "ince"]);
+        // `gh` too: inside a word the `g` goes with the `n` before it.
+        assert_eq!(texts(&w, "birmingham"), ["bir", "ming", "ham"]);
+        assert_eq!(texts(&w, "shanghai"), ["shang", "hai"]);
+        assert_eq!(texts(&w, "ghost"), ["ghost"]);
     }
 
     /// A fragment that leans back cannot start a word, and nothing unspellable
