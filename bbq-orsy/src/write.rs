@@ -87,6 +87,9 @@
 //! on the index finger -- and then towards longer earlier strokes, so a word
 //! reads as a syllable and a suffix rather than a stub and a lump.
 //!
+//! A few words are divided by hand, in [`DIVISIONS`], where the search's answer is one
+//! no writer would use and no preference above picks out the right one from the spelling.
+//!
 //! The index is built by translating every chord once, which takes a moment,
 //! so a `Writer` is meant to be made once and kept.
 
@@ -133,6 +136,16 @@ const ONSETS: [&str; 37] = [
     "gl", "fl", "sl", "sm", "sn", "sp", "st", "sc", "sk", "sw", "tw", "dw", "qu", "kn", "wr",
     "gn", "spr", "str", "spl", "scr", "sch", "thw", "sq",
 ];
+
+/// Words divided by hand, as the text of each stroke.
+///
+/// The search sees letters, not sounds, and a vowel pair is sometimes two syllables:
+/// `create` ties at five keys between `c|reate`, with the `ea` and the silent `e` of
+/// the mirrored vowel, and `cre|ate`, which is how the word is said.  The tie-break
+/// takes the first for its inner keys, and nothing in the spelling tells it from
+/// `t|rain`, where the pair is one vowel and the stub is right.  So the exceptions are
+/// listed.  Each part is spelled the way the search would spell that chunk.
+const DIVISIONS: &[(&str, &[&str])] = &[("create", &["cre", "ate"])];
 
 /// Whether Series 2 put a consonant after the onset that English never does.
 fn foreign_onset(chord: Chord, text: &str) -> bool {
@@ -296,6 +309,9 @@ impl Writer {
         if word.is_empty() || !word.bytes().all(|b| b.is_ascii_lowercase()) {
             return None;
         }
+        if let Some((_, parts)) = DIVISIONS.iter().find(|(w, _)| *w == word) {
+            return self.write_parts(parts, allowed);
+        }
         let n = word.len();
         // best[i]: the cheapest way to spell the first i letters, as
         // (strokes, Series 2 onsets, doubled consonants, keys, inner keys,
@@ -358,6 +374,31 @@ impl Writer {
             }
         }
         best[n].take().map(|(.., path)| path)
+    }
+
+    /// Spell a word divided by hand, each part as the search would spell it on its own:
+    /// the first taking a space before, the last closing the word.
+    fn write_parts(
+        &self,
+        parts: &[&str],
+        allowed: impl Fn(Chord, u8) -> bool,
+    ) -> Option<Vec<Chord>> {
+        parts
+            .iter()
+            .enumerate()
+            .map(|(i, part)| {
+                let last = i + 1 == parts.len();
+                self.chunks
+                    .get(*part)?
+                    .iter()
+                    .find(|e| {
+                        (i > 0 || e.space_before)
+                            && e.space_after == last
+                            && allowed(e.chord, e.rules)
+                    })
+                    .map(|e| e.chord)
+            })
+            .collect()
     }
 }
 
@@ -531,6 +572,16 @@ mod tests {
                 assert!(translate(strokes[0]).unwrap().space_before, "{word}");
             }
         }
+    }
+
+    /// The words divided by hand come out as listed, and wait for every part's patterns.
+    #[test]
+    fn by_hand() {
+        let w = Writer::new();
+        for (word, parts) in DIVISIONS {
+            assert_eq!(texts(&w, word), *parts, "{word}");
+        }
+        assert_eq!(w.write_with("create", |_, r| r & rules::MIRRORED == 0), None);
     }
 
     /// Restricting the strokes changes the division, or makes the word
