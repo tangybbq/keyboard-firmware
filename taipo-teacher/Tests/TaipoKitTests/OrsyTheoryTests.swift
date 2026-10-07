@@ -90,6 +90,8 @@ final class OrsyTheoryTests: XCTestCase {
         // After the `y` shape the Series 2 `i` is `j`, not half of the `ai` diphthong.
         XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c5)?.rules, OrsyTheory.Rules.cluster)
         XCTAssertEqual(t.translate(left: 0x0c1, right: 0x0c5)?.text, "jim")
+        // `ind` before a mirrored vowel stays `ind`; Midi4Text reads it `gn` there.
+        XCTAssertEqual(t.translate(left: 0x2ad, right: 0x045)?.text, "indome")
         // A lone onset cluster leans forward, like any bare onset.
         let j = try XCTUnwrap(t.translate(left: 0x0c1, right: 0))
         XCTAssertEqual(j.text, "j")

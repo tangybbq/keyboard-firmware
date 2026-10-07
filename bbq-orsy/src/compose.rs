@@ -33,7 +33,7 @@ use crate::tables::{Outer, Patterns, Second, Vowel};
 /// Bump it when a change here alters what some stroke spells or how it
 /// binds; a host that has learned strokes under the old rules has to know.
 /// Table changes are fingerprinted on their own and need no bump.
-pub const RULES_VERSION: u32 = 4;
+pub const RULES_VERSION: u32 = 5;
 
 /// The composition rules a stroke used, as flags in [`Translation::rules`].
 ///
@@ -287,7 +287,7 @@ pub fn translate(chord: Chord) -> Option<Translation> {
             (onset, "")
         }
         None => {
-            let onset = if s1 == Outer::FN && n.consumed { "gn" } else { s1_onset };
+            let onset = s1_onset;
             let middle = if n.consumed {
                 ""
             } else if s2 == Second::XI {
@@ -427,8 +427,8 @@ mod tests {
         check(chord(Outer::FP, Second::R, Vowel::Empty, Outer::Empty), "tr", false, true);
         // `ck` does not license it either.
         check(chord(Outer::FP, Second::R, Vowel::Empty, Outer::CZ), "trck", false, true);
-        // FN as an onset is `ind`, but `gn` before a mirrored vowel.
-        check(chord(Outer::FN, Second::XI, Vowel::Empty, Outer::SZP), "gnome", true, true);
+        // FN is `ind` before a mirrored vowel too, not the `gn` Midi4Text has.
+        check(chord(Outer::FN, Second::XI, Vowel::Empty, Outer::SZP), "indome", true, true);
     }
 
     /// Diphthongs and the free combinations.

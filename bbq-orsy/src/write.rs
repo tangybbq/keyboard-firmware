@@ -175,12 +175,10 @@ fn left_vowel(chord: Chord, rules: u8) -> bool {
 
 /// Whether the onset is one English only opens a word with: the three that begin with a
 /// vowel, `ind`, `inc` and `int`, and `gh`.
-///
-/// `FN` spells `gn` when Series 2 is taken for the nucleus, so the text decides.
 fn opening_onset(chord: Chord, text: &str) -> bool {
     let Some(p) = Patterns::of(chord) else { return false };
     match p.onset {
-        Outer::FN | Outer::SN | Outer::FZN => text.starts_with('i'),
+        Outer::FN | Outer::SN | Outer::FZN => true,
         Outer::FZP => text.starts_with("gh"),
         _ => false,
     }

@@ -138,8 +138,6 @@ def translate(stroke):
         onset, middle = override, ""
     else:
         onset = ONSET[s1]
-        if s1 == "FN" and consumed:
-            onset = "gn"
         middle = "" if consumed else SECOND[s2]
         if s2 == "XI" and not consumed:
             middle = "h" if onset.endswith(XI_IS_H_AFTER) else "w"

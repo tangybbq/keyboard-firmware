@@ -283,7 +283,7 @@ public final class OrsyTheory {
             onset = override
             middle = ""
         } else {
-            onset = (s1 == "FN" && n.consumed) ? "gn" : s1Onset
+            onset = s1Onset
             if n.consumed {
                 middle = ""
             } else if s2 == "XI" {
