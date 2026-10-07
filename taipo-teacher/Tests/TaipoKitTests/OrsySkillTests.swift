@@ -39,8 +39,10 @@ final class OrsySkillTests: XCTestCase {
         // Strokes are 90ms apart in the fixture, first key to first key: 60 gap plus
         // 30 hold, measured commit to commit.
         XCTAssertEqual(model.skill("s3:ue")?.medianMs, 90)
-        // `quick` uses the cluster rule.
-        XCTAssertEqual(model.skill("rule:cluster")?.count, 2, "quick and jumps")
+        // `quick` and `jumps` use two different clusters, each its own key.
+        XCTAssertEqual(model.skill("cluster:CP+XIU")?.count, 1, "quick")
+        XCTAssertEqual(model.skill("cluster:ZN+I")?.count, 1, "jumps")
+        XCTAssertNil(model.skill("rule:cluster"))
         // Nothing was typed in Dosh.
         var collector = SkillCollector()
         collector.fold(text: try golden("orsy-clean", "log"), layouts: try layouts(),

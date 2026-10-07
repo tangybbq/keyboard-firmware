@@ -262,6 +262,9 @@ public struct OrsyLadder: Sendable {
                     let vowel = tables.vowel.first { $0.michela == name }
                     label = (vowel?.text ?? name) + (vowel?.endsWord == true ? "␣" : "")
                     stage = .vowel
+                case "cluster":
+                    label = OrsyTheory.cluster(name) ?? name
+                    stage = .onset
                 default:
                     label = name.replacingOccurrences(of: "_", with: " ")
                     stage = .rule

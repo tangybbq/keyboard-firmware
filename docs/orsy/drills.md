@@ -35,10 +35,18 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 23 | ch, sh, gh, z and ck | 731 |
 | 24 | the coda-only shapes: h and e | 42 |
 | 25 | the mirrored vowel and the silent e | 1162 |
-| 26 | the onset clusters | 358 |
-| 27 | w reads as h after p, w and r | 57 |
-| 28 | au and ai | 260 |
-| 29 | a bare final y | 706 |
+| 26 | the cluster j | 106 |
+| 27 | the cluster qu | 101 |
+| 28 | the cluster str | 74 |
+| 29 | the cluster scr | 29 |
+| 30 | the cluster sk | 13 |
+| 31 | the cluster sch | 10 |
+| 32 | the cluster spl | 9 |
+| 33 | the cluster sci | 8 |
+| 34 | the cluster spr | 8 |
+| 35 | w reads as h after p, w and r | 57 |
+| 36 | au and ai | 260 |
+| 37 | a bare final y | 706 |
 
 ## Lesson 1 — what transfers from Dosh
 
@@ -1235,11 +1243,11 @@ With no vowel on the right hand and a real coda, a second character that is also
 | same | `sSp-atn` | same |
 | house | `tn-ei iSp-s` | ho·use |
 
-## Lesson 26 — the onset clusters
+## Lesson 26 — the cluster j
 
-An onset and a second character that spell a cluster together: `h+r` is `str`, `h+l` is `spl`, `h+p` is `spr`, `h+c` is `scr`, `sh+c` is `sch`, `z+c` is `sk`, `s+s` is `sci`, `y+i` is `j`, `c+c` is `qu`.
+The first of the onset clusters, an onset and a second character that spell something together that neither spells apart.  `y` with the second character `i` is `j`: `just`, `job`, `project`.  After `y` the Series 2 `i` is always `j`, and never a vowel.
 
-358 words qualify, 40 here, most common first.  `drills/26-clusters.txt`.
+106 words qualify, 40 here, most common first.  `drills/26-cluster-j.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1249,46 +1257,275 @@ An onset and a second character that spell a cluster together: `h+r` is `str`, `
 | jobs | `ani-aosei -s` | job·s |
 | job | `ani-aoseiBk` | job |
 | join | `ani-ei -niBk` | jo·in |
-| science | `seSp-ne o-eBk` | scien·ce |
 | june | `ani- iSp-n` | j·une |
+| major | `atn-Sp ani-aeiBk` | ma·jor |
+| journal | `ani-ei -aiSp n-stSpBk` | jo·ur·nal |
+| projects | `osSp-ei ani-oe t-s` | pro·jec·ts |
+| japan | `ani-osSp -nSpBk` | jap·an |
+| object | `-aosei ani-oe -t` | ob·jec·t |
+| joined | `ani-ei -ni -aoeBk` | jo·in·ed |
+| japanese | `ani-osSp -nSp e-s` | jap·an·ese |
+| enjoy | `-ne ani-aneiBk` | en·joy |
+| subjects | `s-aosiSp ani-oe t-s` | sub·jec·ts |
+| jersey | `ani-ae s-aneBk` | jer·sey |
+| justice | `ani-tniSp i-o` | just·ice |
+| jump | `ani-atniSp -os` | jum·p |
+| joint | `ani-ei -osniBk` | jo·int |
+| jesus | `ani-se -siSpBk` | jes·us |
+| objects | `-aosei ani-oe t-s` | ob·jec·ts |
+| judge | `ani-aoiSp at-eBk` | jud·ge |
+| jazz | `ani-asSp -as` | jaz·z |
+| junior | `ani-niSp i-aeiBk` | jun·ior |
+| objectives | `-aosei ani-oe t-aoti -seBk` | ob·jec·tiv·es |
+| jean | `ani-neSpBk` | jean |
+| jewish | `ani-sne -aostiBk` | jew·ish |
+| objective | `-aosei ani-oe ti-aot` | ob·jec·tive |
+| journals | `ani-ei -aiSp n-stSp -s` | jo·ur·nal·s |
+| journey | `ani-ei -aiSp n-aneBk` | jo·ur·ney |
+| jacket | `ani-aosnSp -teBk` | jack·et |
+| injuries | `-ni ani-aiSp i-seBk` | in·jur·ies |
+| blackjack | `aosBk-aosnSp ani-aosnSpBk` | black·jack |
+| jet | `ani-teBk` | jet |
+| joy | `ani-aneiBk` | joy |
+| judgment | `ani-aoiSp ateBk-osneBk` | jud·gment |
+| jokes | `ani-aonei -seBk` | jok·es |
+| enjoyed | `-ne ani-anei -aoeBk` | en·joy·ed |
+| jurisdiction | `ani-aiSp -si ao-oi ti-neiBk` | jur·is·dic·tion |
+
+## Lesson 27 — the cluster qu
+
+`c` with the second character `c` is `qu`: `quality`, `question`, `require`.
+
+101 words qualify, 40 here, most common first.  `drills/27-cluster-qu.txt`.
+
+| word | strokes | division |
+|---|---|---|
 | required | `a-e oeiSp-ai -aoeBk` | re·quir·ed |
 | questions | `oeiSp-tne i-nei -s` | quest·ion·s |
-| street | `tnSp-e -teBk` | stre·et |
 | equipment | `-e oeiSp-osi atn-osneBk` | e·quip·ment |
 | quote | `oeiSp- eiBk-t` | qu·ote |
 | question | `oeiSp-tne i-neiBk` | quest·ion |
 | request | `a-e oeiSp-tneBk` | re·quest |
-| major | `atn-Sp ani-aeiBk` | ma·jor |
-| journal | `ani-ei -aiSp n-stSpBk` | jo·ur·nal |
-| display | `ao-i tnBk-anSpBk` | di·splay |
 | requirements | `a-e oeiSp-ai -atne -ne t-s` | re·quir·em·en·ts |
-| projects | `osSp-ei ani-oe t-s` | pro·jec·ts |
-| subscribe | `s-aosiSp tneiSp- i-aos` | sub·scr·ibe |
-| construction | `o-nei tnSp-oiSp ti-neiBk` | con·struc·tion |
 | quick | `oeiSp-aosniBk` | quick |
-| japan | `ani-osSp -nSpBk` | jap·an |
-| screen | `tneiSp-e -neBk` | scre·en |
-| skills | `aseiSp-sti st-s` | skil·ls |
-| object | `-aosei ani-oe -t` | ob·jec·t |
-| structure | `tnSp-oiSp tiSp-a` | struc·ture |
-| spring | `tnSpBk-asniBk` | spring |
-| schedule | `aosteiSp-aoe iSp-st` | sched·ule |
 | unique | `-niSp -i oeiSp-eBk` | un·i·que |
-| strong | `tnSp-asneiBk` | strong |
 | quite | `oeiSp- i-t` | qu·ite |
-| joined | `ani-ei -ni -aoeBk` | jo·in·ed |
-| abstract | `-aosSp tnSp-oSp -t` | ab·strac·t |
-| skin | `aseiSp-niBk` | skin |
 | require | `a-e oeiSp- i-a` | re·qu·ire |
-| string | `tnSp-asniBk` | string |
-| japanese | `ani-osSp -nSp e-s` | jap·an·ese |
-| instructions | `-ni tnSp-oiSp ti-nei -s` | in·struc·tion·s |
+| requires | `a-e oeiSp-ai -seBk` | re·quir·es |
+| quotes | `oeiSp-tei -seBk` | quot·es |
+| square | `s- oeiSp- Sp-a` | s·qu·are |
+| techniques | `t-oste n-i oeiSp-seBk` | tech·ni·ques |
+| requests | `a-e oeiSp-tne -s` | re·quest·s |
+| quarter | `oeiSp-aSp t-aeBk` | quar·ter |
+| sequence | `s-e oeiSp-ne o-eBk` | se·quen·ce |
+| equal | `-e oeiSp-stSpBk` | e·qual |
+| queen | `oeiSp-e -neBk` | que·en |
+| requested | `a-e oeiSp-tne -aoeBk` | re·quest·ed |
+| equivalent | `-e oeiSp-aoti -stSp -osneBk` | e·quiv·al·ent |
+| requirement | `a-e oeiSp-ai -atne -osneBk` | re·quir·em·ent |
+| qualified | `oeiSp-stSp -oti i-aoeBk` | qual·if·ied |
+| liquid | `st-i oeiSp-aoiBk` | li·quid |
+| acquisition | `-oSp oeiSp-si -ti i-neiBk` | ac·quis·it·ion |
+| technique | `t-oste n-i oeiSp-eBk` | tech·ni·que |
+| antique | `-nSp t-i oeiSp-eBk` | an·ti·que |
+| antiques | `-nSp t-i oeiSp-seBk` | an·ti·ques |
+| quiet | `oeiSp-i -teBk` | qui·et |
+| subsequent | `s-aosiSp s-e oeiSp-osneBk` | sub·se·quent |
+| adequate | `-aoSp -e oeiSp- Sp-t` | ad·e·qu·ate |
+| queries | `oeiSp-ae i-seBk` | quer·ies |
+| quest | `oeiSp-tneBk` | quest |
+| consequences | `o-nei s-e oeiSp-ne o-seBk` | con·se·quen·ces |
+| equation | `-e oeiSp-tSp i-neiBk` | e·quat·ion |
+| quebec | `oeiSp-aose -oeBk` | queb·ec |
+| equipped | `-e oeiSp-osi os-aoeBk` | e·quip·ped |
+| acquired | `-oSp oeiSp-ai -aoeBk` | ac·quir·ed |
+| quiz | `oeiSp-asiBk` | quiz |
 
-## Lesson 27 — w reads as h after p, w and r
+## Lesson 28 — the cluster str
+
+`h` with the second character `r` is `str`: `street`, `strong`, `construction`.  The cluster needs the `r` as a consonant, so with a coda and nothing on the right, where the `r` is the mirrored `a`, it is off.
+
+74 words qualify, 40 here, most common first.  `drills/28-cluster-str.txt`.
+
+| word | strokes | division |
+|---|---|---|
+| street | `tnSp-e -teBk` | stre·et |
+| construction | `o-nei tnSp-oiSp ti-neiBk` | con·struc·tion |
+| structure | `tnSp-oiSp tiSp-a` | struc·ture |
+| strong | `tnSp-asneiBk` | strong |
+| abstract | `-aosSp tnSp-oSp -t` | ab·strac·t |
+| string | `tnSp-asniBk` | string |
+| instructions | `-ni tnSp-oiSp ti-nei -s` | in·struc·tion·s |
+| instruments | `-ni tnSp-atniSp -ne t-s` | in·strum·en·ts |
+| stream | `tnSp-atneSpBk` | stream |
+| strategies | `tnSp-tSp -ate i-seBk` | strat·eg·ies |
+| straight | `tnSp-Sp -stni -t` | stra·igh·t |
+| strategic | `tnSp-tSp -ate -oiBk` | strat·eg·ic |
+| strength | `tnSp-asne -on` | streng·th |
+| stress | `tnSp-se -s` | stres·s |
+| structures | `tnSp-oiSp t-aiSp -seBk` | struc·tur·es |
+| instruction | `-ni tnSp-oiSp ti-neiBk` | in·struc·tion |
+| instrument | `-ni tnSp-atniSp -osneBk` | in·strum·ent |
+| strip | `tnSp-osiBk` | strip |
+| strike | `tnSp- i-aon` | str·ike |
+| strange | `tnSp- Sp-asn` | str·ange |
+| instructor | `-ni tnSp-oiSp tei-a` | in·struc·tor |
+| structural | `tnSp-oiSp t-aiSp -stSpBk` | struc·tur·al |
+| streets | `tnSp-ostne t-s` | stree·ts |
+| demonstrate | `ao-atne -nei tnSp- Sp-t` | dem·on·str·ate |
+| strings | `tnSp-asni -s` | string·s |
+| demonstrated | `ao-atne -nei tnSp-tSp -aoeBk` | dem·on·strat·ed |
+| constructed | `o-nei tnSp-oiSp t-aoeBk` | con·struc·ted |
+| stretch | `tnSp-te -ost` | stret·ch |
+| stroke | `tnSp- eiBk-aon` | str·oke |
+| struggle | `tnSp-atiSp atBk-eBk` | strug·gle |
+| constraints | `o-nei tnSp-Sp osn-s` | con·stra·ints |
+| instructional | `-ni tnSp-oiSp ti-nei -stSpBk` | in·struc·tion·al |
+| streaming | `tnSp-atneSp -asniBk` | stream·ing |
+| demonstration | `ao-atne -nei tnSp-tSp i-neiBk` | dem·on·strat·ion |
+| strain | `tnSp-Sp -niBk` | stra·in |
+| stronger | `tnSp-asnei -aeBk` | strong·er |
+| streams | `tnSp-atneSp -s` | stream·s |
+| structured | `tnSp-oiSp t-aiSp -aoeBk` | struc·tur·ed |
+| struck | `tnSp-aosniSpBk` | struck |
+| construct | `o-nei tnSp-oiSp -t` | con·struc·t |
+
+## Lesson 29 — the cluster scr
+
+`h` with the second character `c` is `scr`: `screen`, `script`, `subscribe`.
+
+29 words qualify, 29 here, most common first.  `drills/29-cluster-scr.txt`.
+
+| word | strokes | division |
+|---|---|---|
+| subscribe | `s-aosiSp tneiSp- i-aos` | sub·scr·ibe |
+| screen | `tneiSp-e -neBk` | scre·en |
+| script | `tneiSp-osi -t` | scrip·t |
+| subscription | `s-aosiSp tneiSp-osi ti-neiBk` | sub·scrip·tion |
+| subscriptions | `s-aosiSp tneiSp-osi ti-nei -s` | sub·scrip·tion·s |
+| unsubscribe | `-niSp s-aosiSp tneiSp- i-aos` | un·sub·scr·ibe |
+| scripts | `tneiSp-osi t-s` | scrip·ts |
+| screening | `tneiSp-ostne n-asniBk` | scree·ning |
+| subscriber | `s-aosiSp tneiSp-aosi -aeBk` | sub·scrib·er |
+| screens | `tneiSp-ostne n-s` | scree·ns |
+| subscribers | `s-aosiSp tneiSp-aosi -ae -s` | sub·scrib·er·s |
+| screenshots | `tneiSp-e -ne aost-tei -s` | scre·en·shot·s |
+| scroll | `tneiSp-stei -st` | scrol·l |
+| transcript | `tSp-nSp tneiSp-osi -t` | tran·scrip·t |
+| screw | `tneiSp-sneBk` | screw |
+| screenshot | `tneiSp-e -ne aostei-t` | scre·en·shot |
+| scratch | `tneiSp-tSp -ost` | scrat·ch |
+| transcription | `tSp-nSp tneiSp-osi ti-neiBk` | tran·scrip·tion |
+| scripting | `tneiSp-osi t-asniBk` | scrip·ting |
+| screensaver | `tneiSp-ostne neSp-aotSp -aeBk` | scree·nsav·er |
+| screensavers | `tneiSp-ostne neSp-aotSp -ae -s` | scree·nsav·er·s |
+| transcripts | `tSp-nSp tneiSp-osi t-s` | tran·scrip·ts |
+| scripture | `tneiSp-osi tiSp-a` | scrip·ture |
+| scream | `tneiSp-atneSpBk` | scream |
+| screws | `tneiSp-sne -s` | screw·s |
+| screaming | `tneiSp-atneSp -asniBk` | scream·ing |
+| scrap | `tneiSp-osSpBk` | scrap |
+| scrapbook | `tneiSp-osSp aosei-aoneiBk` | scrap·book |
+| screened | `tneiSp-ostne n-aoeBk` | scree·ned |
+
+## Lesson 30 — the cluster sk
+
+`z` with the second character `c` is `sk`: `skill`, `skin`, `sky`.
+
+13 words qualify, 13 here, most common first.  `drills/30-cluster-sk.txt`.
+
+| word | strokes | division |
+|---|---|---|
+| skills | `aseiSp-sti st-s` | skil·ls |
+| skin | `aseiSp-niBk` | skin |
+| skip | `aseiSp-osiBk` | skip |
+| ski | `aseiSp-iBk` | ski |
+| skill | `aseiSp-sti -st` | skil·l |
+| skiing | `aseiSp-i -asniBk` | ski·ing |
+| skirt | `aseiSp-ai -t` | skir·t |
+| skilled | `aseiSp-sti st-aoeBk` | skil·led |
+| skins | `aseiSp-ni -s` | skin·s |
+| skirts | `aseiSp-ai t-s` | skir·ts |
+| skating | `aseiSp-tSp -asniBk` | skat·ing |
+| skull | `aseiSp-stiSp -st` | skul·l |
+| sketch | `aseiSp-te -ost` | sket·ch |
+
+## Lesson 31 — the cluster sch
+
+`sh` with the second character `c` is `sch`: `schedule`, `scheme`, `scholar`.
+
+10 words qualify, 10 here, most common first.  `drills/31-cluster-sch.txt`.
+
+| word | strokes | division |
+|---|---|---|
+| schedule | `aosteiSp-aoe iSp-st` | sched·ule |
+| scheduled | `aosteiSp-aoe -stiSp -aoeBk` | sched·ul·ed |
+| scholarship | `aosteiSp-stei -aSp aost-osiBk` | schol·ar·ship |
+| schedules | `aosteiSp-aoe -stiSp -seBk` | sched·ul·es |
+| schemes | `aosteiSp-atne -seBk` | schem·es |
+| scholarships | `aosteiSp-stei -aSp aost-osi -s` | schol·ar·ship·s |
+| scheduling | `aosteiSp-aoe -stiSp -asniBk` | sched·ul·ing |
+| scholars | `aosteiSp-stei -aSp -s` | schol·ar·s |
+| schema | `aosteiSp-atne -SpBk` | schem·a |
+| scholar | `aosteiSp-stei -aSpBk` | schol·ar |
+
+## Lesson 32 — the cluster spl
+
+`h` with the second character `l` is `spl`: `display`, `split`, `splash`.
+
+9 words qualify, 9 here, most common first.  `drills/32-cluster-spl.txt`.
+
+| word | strokes | division |
+|---|---|---|
+| display | `ao-i tnBk-anSpBk` | di·splay |
+| displayed | `ao-i tnBk-anSp -aoeBk` | di·splay·ed |
+| split | `tnBk-tiBk` | split |
+| displays | `ao-i tnBk-anSp -s` | di·splay·s |
+| displaying | `ao-i tnBk-anSp -asniBk` | di·splay·ing |
+| splash | `tnBk-aostSpBk` | splash |
+| transplant | `tSp-nSp tnBk-osnSpBk` | tran·splant |
+| displacement | `ao-i tnBk-oSp -atne -osneBk` | di·splac·em·ent |
+| transplantation | `tSp-nSp tnBk-nSp t-tSp i-neiBk` | tran·splan·tat·ion |
+
+## Lesson 33 — the cluster sci
+
+`s` with the second character `s` is `sci`: `science`, `conscious`.
+
+8 words qualify, 8 here, most common first.  `drills/33-cluster-sci.txt`.
+
+| word | strokes | division |
+|---|---|---|
+| science | `seSp-ne o-eBk` | scien·ce |
+| sciences | `seSp-ne o-seBk` | scien·ces |
+| scientific | `seSp-ne t-oti -oiBk` | scien·tif·ic |
+| scientists | `seSp-ne t-tni -s` | scien·tist·s |
+| scientist | `seSp-ne t-tniBk` | scien·tist |
+| consciousness | `o-nei seSp-ei -siSp n-se -s` | con·scio·us·nes·s |
+| conscious | `o-nei seSp-seiSpBk` | con·scious |
+| conscience | `o-nei seSp-ne o-eBk` | con·scien·ce |
+
+## Lesson 34 — the cluster spr
+
+`h` with the second character `p` is `spr`: `spring`, `spread`, `spray`.
+
+8 words qualify, 8 here, most common first.  `drills/34-cluster-spr.txt`.
+
+| word | strokes | division |
+|---|---|---|
+| spring | `tnSpBk-asniBk` | spring |
+| spread | `tnSpBk-aoeSpBk` | spread |
+| spray | `tnSpBk-anSpBk` | spray |
+| sprint | `tnSpBk-osniBk` | sprint |
+| spreading | `tnSpBk-aoeSp -asniBk` | spread·ing |
+| offspring | `-otei ot- tnSpBk-asniBk` | of·f·spring |
+| spreadsheet | `tnSpBk-aoeSp aoste-teBk` | spread·sheet |
+| spreads | `tnSpBk-aoeSp -s` | spread·s |
+
+## Lesson 35 — w reads as h after p, w and r
 
 The second character `w` (`e+i+Bk`) spells `h` after an onset ending in `p`, `w` or `r`: `ph`, `wh`, `rh`.
 
-57 words qualify, 40 here, most common first.  `drills/27-h-after-p-w-r.txt`.
+57 words qualify, 40 here, most common first.  `drills/35-h-after-p-w-r.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1333,11 +1570,11 @@ The second character `w` (`e+i+Bk`) spells `h` after an onset ending in `p`, `w`
 | phenomenon | `oseiBk-ne -atnei -ne ei-n` | phen·om·en·on |
 | phases | `oseiBk-sSp -seBk` | phas·es |
 
-## Lesson 28 — au and ai
+## Lesson 36 — au and ai
 
 A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spells `ai`.
 
-260 words qualify, 40 here, most common first.  `drills/28-diphthongs.txt`.
+260 words qualify, 40 here, most common first.  `drills/36-diphthongs.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -1382,11 +1619,11 @@ A second-character `u` before the vowel `u` spells `au`, and `i` before `i` spel
 | automotive | `iSp-tiSp -atnei -tei i-aot` | aut·om·ot·ive |
 | pain | `osi-niBk` | pain |
 
-## Lesson 29 — a bare final y
+## Lesson 37 — a bare final y
 
 `y` as a coda with the `i`-ending vowel keys spells just `y` and ends the word: the `ui` keys give the space and nothing else.
 
-706 words qualify, 40 here, most common first.  `drills/29-final-y.txt`.
+706 words qualify, 40 here, most common first.  `drills/37-final-y.txt`.
 
 | word | strokes | division |
 |---|---|---|

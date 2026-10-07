@@ -41,6 +41,10 @@ enum Item {
     Second(Second),
     Vowel(Vowel),
     Rule(u8),
+    /// One onset cluster: the onset shape and the Series 2 pattern that rewrite each other.
+    /// Each is its own item, as each is a spelling to learn, where the rule that covers
+    /// them is nothing the hand does.
+    Cluster(Outer, Second),
 }
 
 struct Lesson {
@@ -173,12 +177,57 @@ const LESSONS: &[Lesson] = &[
                lower case, even after a full stop.",
         items: &[Rule(rules::MIRRORED), Second(Second::RX)],
     },
+    // The onset clusters, one at a time, commonest first.  Each is an onset and a second
+    // character that spell something together that neither spells apart.
     Lesson {
-        name: "clusters", title: "the onset clusters",
-        note: "An onset and a second character that spell a cluster together: `h+r` is \
-               `str`, `h+l` is `spl`, `h+p` is `spr`, `h+c` is `scr`, `sh+c` is `sch`, \
-               `z+c` is `sk`, `s+s` is `sci`, `y+i` is `j`, `c+c` is `qu`.",
-        items: &[Rule(rules::CLUSTER)],
+        name: "cluster-j", title: "the cluster j",
+        note: "The first of the onset clusters, an onset and a second character that \
+               spell something together that neither spells apart.  `y` with the second \
+               character `i` is `j`: `just`, `job`, `project`.  After `y` the Series 2 \
+               `i` is always `j`, and never a vowel.",
+        items: &[Cluster(Outer::ZN, Second::I)],
+    },
+    Lesson {
+        name: "cluster-qu", title: "the cluster qu",
+        note: "`c` with the second character `c` is `qu`: `quality`, `question`, `require`.",
+        items: &[Cluster(Outer::CP, Second::XIU)],
+    },
+    Lesson {
+        name: "cluster-str", title: "the cluster str",
+        note: "`h` with the second character `r` is `str`: `street`, `strong`, \
+               `construction`.  The cluster needs the `r` as a consonant, so with a coda \
+               and nothing on the right, where the `r` is the mirrored `a`, it is off.",
+        items: &[Cluster(Outer::FC, Second::R)],
+    },
+    Lesson {
+        name: "cluster-scr", title: "the cluster scr",
+        note: "`h` with the second character `c` is `scr`: `screen`, `script`, `subscribe`.",
+        items: &[Cluster(Outer::FC, Second::XIU)],
+    },
+    Lesson {
+        name: "cluster-sk", title: "the cluster sk",
+        note: "`z` with the second character `c` is `sk`: `skill`, `skin`, `sky`.",
+        items: &[Cluster(Outer::Z, Second::XIU)],
+    },
+    Lesson {
+        name: "cluster-sch", title: "the cluster sch",
+        note: "`sh` with the second character `c` is `sch`: `schedule`, `scheme`, `scholar`.",
+        items: &[Cluster(Outer::C, Second::XIU)],
+    },
+    Lesson {
+        name: "cluster-spl", title: "the cluster spl",
+        note: "`h` with the second character `l` is `spl`: `display`, `split`, `splash`.",
+        items: &[Cluster(Outer::FC, Second::RI)],
+    },
+    Lesson {
+        name: "cluster-sci", title: "the cluster sci",
+        note: "`s` with the second character `s` is `sci`: `science`, `conscious`.",
+        items: &[Cluster(Outer::S, Second::RX)],
+    },
+    Lesson {
+        name: "cluster-spr", title: "the cluster spr",
+        note: "`h` with the second character `p` is `spr`: `spring`, `spread`, `spray`.",
+        items: &[Cluster(Outer::FC, Second::IU)],
     },
     Lesson {
         name: "h-after-p-w-r", title: "w reads as h after p, w and r",
@@ -207,6 +256,7 @@ struct Allowed {
     second: u16,
     vowel: u16,
     rules: u8,
+    clusters: Vec<(Outer, Second)>,
 }
 
 fn index<T: PartialEq>(all: &[T], item: T) -> usize {
@@ -220,6 +270,7 @@ impl Allowed {
             Second(s) => self.second |= 1 << index(&Second::ALL, s),
             Vowel(v) => self.vowel |= 1 << index(&Vowel::ALL, v),
             Rule(r) => self.rules |= r,
+            Cluster(o, s) => self.clusters.push((o, s)),
         }
     }
 
@@ -233,7 +284,8 @@ impl Allowed {
             && self.has_outer(p.coda)
             && (p.second == Second::Empty || self.second & (1 << index(&Second::ALL, p.second)) != 0)
             && (p.vowel == Vowel::Empty || self.vowel & (1 << index(&Vowel::ALL, p.vowel)) != 0)
-            && used & !self.rules == 0
+            && used & !self.rules & !rules::CLUSTER == 0
+            && (used & rules::CLUSTER == 0 || self.clusters.contains(&(p.onset, p.second)))
     }
 }
 
@@ -253,6 +305,7 @@ impl Item {
             Second(s) => vec![format!("s2:{}", s.michela())],
             Vowel(v) => vec![format!("s3:{}", v.michela())],
             Rule(r) => vec![format!("rule:{}", rule_name(r))],
+            Cluster(o, s) => vec![cluster_key(o, s)],
         }
     }
 }
@@ -271,7 +324,13 @@ fn rule_name(flag: u8) -> &'static str {
     }
 }
 
-/// The pattern keys a stroke gives a sample to, rules included.
+/// The key of one onset cluster, as `cluster:FC+R`.
+fn cluster_key(onset: Outer, second: Second) -> String {
+    format!("cluster:{}+{}", onset.michela(), second.michela())
+}
+
+/// The pattern keys a stroke gives a sample to, rules included.  A cluster is keyed by
+/// which cluster it is rather than by the rule.
 fn stroke_keys(chord: Chord) -> Vec<String> {
     let p = Patterns::of(chord).expect("a written stroke has patterns");
     let t = translate(chord).expect("a written stroke translates");
@@ -289,12 +348,15 @@ fn stroke_keys(chord: Chord) -> Vec<String> {
         keys.push(format!("s4:{}", p.coda.michela()));
     }
     for flag in [
-        rules::MIRRORED, rules::CLUSTER, rules::XI_H, rules::DIPHTHONG, rules::FREE,
-        rules::BARE_Y, rules::CAPITALISE,
+        rules::MIRRORED, rules::XI_H, rules::DIPHTHONG, rules::FREE, rules::BARE_Y,
+        rules::CAPITALISE,
     ] {
         if t.rules & flag != 0 {
             keys.push(format!("rule:{}", rule_name(flag)));
         }
+    }
+    if t.rules & rules::CLUSTER != 0 {
+        keys.push(cluster_key(p.onset, p.second));
     }
     keys
 }

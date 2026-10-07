@@ -16,8 +16,10 @@ import Foundation
 /// least as long as what it typed.
 ///
 /// The keys are `s1:FC` for an onset, `s2:R` a second character, `s3:uia` a vowel,
-/// `s4:N` a coda, `rule:mirrored` a composition rule, and `cmd:undo` a command; the same
-/// keys `sync-layouts.py` records in the layout history.  Everything else -- the window,
+/// `s4:N` a coda, `rule:mirrored` a composition rule, `cluster:FC+R` one onset cluster
+/// (`str`), and `cmd:undo` a command; the same keys `sync-layouts.py` records in the
+/// layout history, but for the clusters, which the exported tables do not list and which
+/// change only with the rules.  Everything else -- the window,
 /// the gate, the sticky `everReached` -- is `ChordSamples`, shared with the chord model
 /// for the reasons given there.
 
@@ -128,7 +130,7 @@ public struct Retention: Codable, Equatable, Sendable {
     /// and whole strokes are counted but not reviewed.
     static func tracks(_ key: String) -> Bool {
         key.hasPrefix("s1:") || key.hasPrefix("s2:") || key.hasPrefix("s3:")
-            || key.hasPrefix("s4:") || key.hasPrefix("rule:")
+            || key.hasPrefix("s4:") || key.hasPrefix("rule:") || key.hasPrefix("cluster:")
     }
 
     /// How many days this box waits.
@@ -477,8 +479,13 @@ struct OrsySamples: Codable, Equatable {
         switch stroke.outcome {
         case .text(let t):
             var keys = t.patterns.keys
-            for (name, flag) in OrsyTheory.Rules.byName where t.rules & flag != 0 {
+            // A cluster is keyed by which cluster it is, as each is its own ladder item.
+            for (name, flag) in OrsyTheory.Rules.byName
+            where t.rules & flag != 0 && flag != OrsyTheory.Rules.cluster {
                 keys.append("rule:\(name)")
+            }
+            if t.rules & OrsyTheory.Rules.cluster != 0 {
+                keys.append("cluster:\(t.patterns.onset)+\(t.patterns.second)")
             }
             keys.append(OrsySkillModel.strokeKey(left: stroke.left, right: stroke.right))
             return keys

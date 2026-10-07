@@ -257,6 +257,9 @@ public final class OrsyTheory {
         "Z+XIU": "sk", "S+RX": "sci", "ZN+I": "j", "CP+XIU": "qu",
     ]
 
+    /// What an onset cluster spells, by its skill key's name: `FC+R` is `str`.
+    public static func cluster(_ name: String) -> String? { onsetOverride[name] }
+
     /// Translate one stroke, or nil if it is not a valid syllable.
     public func translate(left: UInt16, right: UInt16) -> OrsyTranslation? {
         guard let p = patterns(left: left, right: right) else { return nil }
