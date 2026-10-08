@@ -53,6 +53,7 @@ VOWEL = {
     "a": "a", "e": "e", "i": "i", "u": "u", "ie": "o",
     "ua": "a", "ue": "e", "ui": "i", "uia": "u", "uie": "o",
     "ea": "°", "ia": "*", "iea": "_",
+    "uea": "",
 }
 ENDING_VOWELS = {"ua", "ue", "ui", "uia", "uie", "iea", "ia"}
 
@@ -80,10 +81,16 @@ VOWEL_ONLY_SECOND = {"X", "RXI"}
 # Series 3 free combinations.  Struck alone they emit a placeholder glyph and
 # close the word; struck with Series 2 they spell the digraph that Series 2
 # cannot reach on its own.  The flags are (alone, with-S2, with-S2 closes).
+#
+# `uea` is Orsy's: a pattern Midi4Text leaves unused, taken for the plain `ou`
+# that Midi4Text lacks, so that `ou` after a Series 2 consonant has both forms
+# as `ea` does.  What it does struck alone is not decided, so for now it is
+# not a syllable (alone is None).
 FREE = {
     "ea": ("\u00b0", "ea", False),
     "iea": ("_", "ea", True),
     "ia": ("*", "ou", True),
+    "uea": (None, "ou", False),
 }
 
 # Inter-series 2nd+3rd: a Series 2 vowel fused with the Series 3 vowel.
@@ -105,6 +112,8 @@ def _nucleus(s1, s2, s3, s4):
     if s3 in FREE:
         alone, joined, closes = FREE[s3]
         if s2 == "":
+            if alone is None:
+                raise Untranslatable(f"{s3!r} needs Series 2")
             return alone, False, True, False
         return joined, False, closes, False
     s2_can_be_vowel = (s1, s2) not in ALWAYS_ONSET

@@ -463,6 +463,17 @@
         "Bk"
       ],
       "bits": 904
+    },
+    {
+      "michela": "uea",
+      "vowel": "ou",
+      "ends_word": false,
+      "keys": [
+        "e",
+        "i",
+        "Sp"
+      ],
+      "bits": 392
     }
   ],
   "inner_left": [

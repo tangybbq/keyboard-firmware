@@ -135,11 +135,13 @@ const LESSONS: &[Lesson] = &[
     },
     Lesson {
         name: "ea-ou", title: "ea and ou",
-        note: "`ea` is `e+Sp` (e plus a); `ou` is `e+i+Sp+Bk` (o plus u), and only ever \
-               ends a word.  These are the free combinations: they spell the digraph only \
-               with a second character, which is why they come after those; `ea` \
-               alone is a placeholder glyph.",
-        items: &[Vowel(Vowel::Ea), Vowel(Vowel::Iea), Vowel(Vowel::Ia), Rule(rules::FREE)],
+        note: "`ea` is `e+Sp` (e plus a) and `ou` is `e+i+Sp` (o plus u), each with `Bk` \
+               to end the word like any vowel.  These are the free combinations: they \
+               spell the digraph only with a second character, which is why they come \
+               after those.  With no second character, `ea` and `ou` are the split \
+               forms already learned, Series 2 `e` or `o` with the right hand's `a` or \
+               `u`.",
+        items: &[Vowel(Vowel::Ea), Vowel(Vowel::Iea), Vowel(Vowel::Uea), Vowel(Vowel::Ia), Rule(rules::FREE)],
     },
     Lesson {
         name: "v-m-k", title: "v, m and k",

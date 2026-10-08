@@ -131,18 +131,18 @@ key 2069 KeyPress(H, Mods(0x0))
 key 2069 KeyRelease
 key 2069 KeyPress(E, Mods(0x0))
 key 2069 KeyRelease
-stroke 2204 [o+s+Bk-e+i+Sp] spread=70 dead
-stroke 2311 [o+s+Bk-Sp] spread=42 text "pla" before=1 after=0
-key 2311 KeyPress(Space, Mods(0x0))
-key 2311 KeyRelease
-key 2311 KeyPress(P, Mods(0x0))
-key 2311 KeyRelease
-key 2311 KeyPress(L, Mods(0x0))
-key 2311 KeyRelease
-key 2311 KeyPress(A, Mods(0x0))
-key 2311 KeyRelease
-stroke 2404 [-n+i+Bk] spread=28 text "in" before=1 after=1
-key 2404 KeyPress(I, Mods(0x0))
-key 2404 KeyRelease
-key 2404 KeyPress(N, Mods(0x0))
-key 2404 KeyRelease
+stroke 2176 [o+s+Bk-Bk] spread=42 dead
+stroke 2283 [o+s+Bk-Sp] spread=42 text "pla" before=1 after=0
+key 2283 KeyPress(Space, Mods(0x0))
+key 2283 KeyRelease
+key 2283 KeyPress(P, Mods(0x0))
+key 2283 KeyRelease
+key 2283 KeyPress(L, Mods(0x0))
+key 2283 KeyRelease
+key 2283 KeyPress(A, Mods(0x0))
+key 2283 KeyRelease
+stroke 2376 [-n+i+Bk] spread=28 text "in" before=1 after=1
+key 2376 KeyPress(I, Mods(0x0))
+key 2376 KeyRelease
+key 2376 KeyPress(N, Mods(0x0))
+key 2376 KeyRelease

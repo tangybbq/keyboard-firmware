@@ -407,12 +407,15 @@ pub enum Vowel {
     Iea,
     /// `e+i+Sp+Bk`: `ou`, closing the word.
     Ia,
+    /// `e+i+Sp`: `ou`, with Series 2 held only.  The plain form of `Ia`, which
+    /// Midi4Text lacks; Orsy names it with a Michela pattern Midi4Text leaves unused.
+    Uea,
 }
 
 impl Vowel {
     /// Every pattern, in the order of the mapping file.
-    pub const ALL: [Vowel; 13] = [
-        Vowel::A, Vowel::E, Vowel::I, Vowel::Ie, Vowel::U, Vowel::Ea, Vowel::Ua, Vowel::Ue, Vowel::Ui, Vowel::Uie, Vowel::Uia, Vowel::Iea, Vowel::Ia,
+    pub const ALL: [Vowel; 14] = [
+        Vowel::A, Vowel::E, Vowel::I, Vowel::Ie, Vowel::U, Vowel::Ea, Vowel::Ua, Vowel::Ue, Vowel::Ui, Vowel::Uie, Vowel::Uia, Vowel::Iea, Vowel::Ia, Vowel::Uea,
     ];
 
     /// The keys that strike this pattern.
@@ -432,6 +435,7 @@ impl Vowel {
             Vowel::Uia => 0x380,
             Vowel::Iea => 0x308,
             Vowel::Ia => 0x388,
+            Vowel::Uea => 0x188,
         }
     }
 
@@ -452,6 +456,7 @@ impl Vowel {
             Vowel::Uia => "uia",
             Vowel::Iea => "iea",
             Vowel::Ia => "ia",
+            Vowel::Uea => "uea",
         }
     }
 
@@ -472,6 +477,7 @@ impl Vowel {
             Vowel::Uia => "u",
             Vowel::Iea => "ea",
             Vowel::Ia => "ou",
+            Vowel::Uea => "ou",
         }
     }
 
@@ -712,15 +718,9 @@ mod tests {
         for v in Vowel::ALL {
             if v.ends_word() {
                 assert_ne!(v.bits() & 0x200, 0, "{v:?}");
-                let plain = Vowel::lookup(v.bits() & !0x200);
-                // `ia` (ou) has no plain form, as it only ever closes.
-                if v == Vowel::Ia {
-                    assert_eq!(plain, None);
-                } else {
-                    let plain = plain.expect("plain form");
-                    assert_eq!(plain.text(), v.text(), "{v:?}");
-                    assert!(!plain.ends_word());
-                }
+                let plain = Vowel::lookup(v.bits() & !0x200).expect("plain form");
+                assert_eq!(plain.text(), v.text(), "{v:?}");
+                assert!(!plain.ends_word());
             }
         }
     }

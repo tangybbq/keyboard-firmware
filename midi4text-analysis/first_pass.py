@@ -53,6 +53,10 @@ SERIES3 = {
     "ua": ("a", True), "ue": ("e", True), "ui": ("i", True),
     "uie": ("o", True), "uia": ("u", True), "iea": ("ea", True),
     "ia": ("ou", True),
+    # Not a Midi4Text pattern: `uea` is one it leaves unused, taken in Orsy for the
+    # plain `ou`, which Midi4Text has only in the ending form.  Like the others built
+    # on `e+Sp`, it spells only with Series 2 held.
+    "uea": ("ou", False),
 }
 
 # The identities with a plain form.  The chord VOWEL_IDENTITY gives them is
@@ -133,7 +137,7 @@ def main():
 
     print("\nINNER FOUR, right hand -- Series 3, the vowel")
     print("  Seven identities; add Bk, the Space thumb, to end the word.")
-    print("  ou has only the ending form: it never binds forward.\n")
+    print("  ea and ou on the right spell only with Series 2 held.\n")
     print(f"  {'vowel':>6}  {'plain':<7} {'+ space':<8} note")
     seen = set()
     for ident, chord in VOWEL_IDENTITY.items():

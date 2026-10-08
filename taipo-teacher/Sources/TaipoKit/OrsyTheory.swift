@@ -217,6 +217,10 @@ public final class OrsyTheory {
             return s2.isEmpty
                 ? Nucleus(text: "*", silentE: false, closes: true, consumed: false, rule: Rules.free)
                 : Nucleus(text: "ou", silentE: false, closes: true, consumed: false, rule: Rules.free)
+        case "uea":
+            // The plain partner of `ia`, which Midi4Text lacks.  Alone it is not a
+            // syllable yet; `translate` turns it away before it gets here.
+            return Nucleus(text: "ou", silentE: false, closes: false, consumed: false, rule: Rules.free)
         default: break
         }
         let ends = vowelByName[s3]?.endsWord ?? false
@@ -272,6 +276,9 @@ public final class OrsyTheory {
             guard let onset = outerByName[s1]?.onset else { return nil }
             s1Onset = onset
         }
+        // The plain `ou` spells only with Series 2 held; what it does alone is not
+        // decided, so for now it is not a syllable.
+        if s3 == "uea" && s2.isEmpty { return nil }
 
         let n = nucleus(s1, s2, s3, s4)
         var used = n.rule

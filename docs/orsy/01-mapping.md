@@ -167,7 +167,7 @@ OUTER FIVE   a (pinky), o/s (ring), t/n (middle)
 
 INNER FOUR, right hand -- Series 3, the vowel
   Seven identities; add Bk, the Space thumb, to end the word.
-  ou has only the ending form: it never binds forward.
+  ea and ou on the right spell only with Series 2 held.
 
    vowel  plain   + space  note
        e  e       eBk      Dosh key
@@ -176,7 +176,7 @@ INNER FOUR, right hand -- Series 3, the vowel
        o  ei      eiBk     
        u  iSp     iSpBk    
       ea  eSp     eSpBk    = e + a
-      ou  -       eiSpBk   = o + u
+      ou  eiSp    eiSpBk   = o + u
 
 INNER FOUR, left hand -- Series 2, the second character
   Mostly consonants, not vowels.  Where Series 2 does mean a vowel,
@@ -245,10 +245,13 @@ large strokes.
   The simulation used a simplified ranking, so the figures are indicative rather than
   settled.
 
-- **`ea` and `ou` struck with no second character.** The right hand's `e+Sp`, `e+Sp+Bk`
-  and `e+i+Sp+Bk` spell `ea` and `ou` only when Series 2 holds something. With Series 2
-  empty they are Midi4Text's placeholder glyphs `°`, `_` and `*`, which mean nothing in
-  Orsy: the firmware types `_` and `*` and skips `°`. A word with no second character
+- **`ea` and `ou` struck with no second character.** The right hand's `e+Sp`, `e+Sp+Bk`,
+  `e+i+Sp` and `e+i+Sp+Bk` spell `ea` and `ou` only when Series 2 holds something. With
+  Series 2 empty the first three Midi4Text has are its placeholder glyphs `°`, `_` and `*`,
+  which mean nothing in Orsy: the firmware types `_` and `*` and skips `°`.  The plain
+  `ou`, `e+i+Sp`, is Orsy's own, added 8 October 2026 because Midi4Text had only the
+  ending form, so that `ou` after a second consonant could not bind forward (`scious` but
+  not `scious|ness`); it saves a stroke on 28 words.  Alone it is not yet a syllable. A word with no second character
   writes the digraph across the hands instead, the Series 2 `e` or `o` then the Series 3
   `a` or `u` (`eat`, `out`), as the manual does and as `ee`, `oo`, `oa` and `oi` are
   written.

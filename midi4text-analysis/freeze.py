@@ -97,8 +97,7 @@ def main():
             "bits": bits(cmap[shape]),
         })
 
-    # Only the Series 3 patterns the theory can actually produce.  'ou' has no
-    # plain form, since it always closes the word, so that chord stays spare.
+    # Only the Series 3 patterns the theory can actually produce.
     for pat, (ident, ending) in F.SERIES3.items():
         c = F.VOWEL_IDENTITY[ident] + (F.END_MARKER if ending else "")
         out["inner_right"].append({

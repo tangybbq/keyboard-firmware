@@ -25,11 +25,11 @@ Strokes are written left hand, hyphen, right hand, in the keys' own names (`a o 
 | 13 | g on pinky and lower middle | 187 |
 | 14 | h as an onset, st as a coda | 244 |
 | 15 | x on the middle pair and lower ring | 70 |
-| 16 | the second character: r and l | 506 |
+| 16 | the second character: r and l | 505 |
 | 17 | the second character: i, t and m | 709 |
-| 18 | the second character: o and e | 519 |
+| 18 | the second character: o and e | 514 |
 | 19 | the second character: w, c, u, p and n | 189 |
-| 20 | ea and ou | 56 |
+| 20 | ea and ou | 62 |
 | 21 | v, m and k | 1632 |
 | 22 | ind/nd, inc/ng and int/nt | 1203 |
 | 23 | ch, sh, gh, z and ck | 731 |
@@ -757,7 +757,7 @@ Dosh has PrintScreen here.
 
 The left hand's inner four are the second character of the syllable, mostly consonants.  `r` is `Sp` alone and `l` is `Bk` alone.  Only in a syllable, though: struck with nothing else on the board, the left inner shapes are commands, and these two are undo and join, which takes away the space before the next word.
 
-506 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
+505 words qualify, 40 here, most common first.  `drills/16-second-r-l.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -855,7 +855,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 `o` is `e+i` and `e` is `e` alone, each as for the vowel.  Before a vowel on the right, `e` makes the pair: `see`, `year`, `their`.  With nothing on the right it closes the word on a syllable of its own: `peop|le`, `sta|te`.  Struck with nothing else, `e` capitalises the next word.  The second character `s` waits for the silent-e lesson, where its words are.
 
-519 words qualify, 40 here, most common first.  `drills/18-second-o-e.txt`.
+514 words qualify, 40 here, most common first.  `drills/18-second-o-e.txt`.
 
 | word | strokes | division |
 |---|---|---|
@@ -898,7 +898,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | road | `aei-aoSpBk` | road |
 | four | `otei-aiSpBk` | four |
 | court | `oei-aiSp -t` | cour·t |
-| groups | `at- aei-osiSp -s` | g·roup·s |
+| needs | `ne-aoe -s` | need·s |
 
 ## Lesson 19 — the second character: w, c, u, p and n
 
@@ -951,15 +951,16 @@ The left hand's inner four are the second character of the syllable, mostly cons
 
 ## Lesson 20 — ea and ou
 
-`ea` is `e+Sp` (e plus a); `ou` is `e+i+Sp+Bk` (o plus u), and only ever ends a word.  These are the free combinations: they spell the digraph only with a second character, which is why they come after those; `ea` alone is a placeholder glyph.
+`ea` is `e+Sp` (e plus a) and `ou` is `e+i+Sp` (o plus u), each with `Bk` to end the word like any vowel.  These are the free combinations: they spell the digraph only with a second character, which is why they come after those.  With no second character, `ea` and `ou` are the split forms already learned, Series 2 `e` or `o` with the right hand's `a` or `u`.
 
-56 words qualify, 40 here, most common first.  `drills/20-ea-ou.txt`.
+62 words qualify, 40 here, most common first.  `drills/20-ea-ou.txt`.
 
 | word | strokes | division |
 |---|---|---|
 | group | `atSp-oseiSpBk` | group |
 | great | `atSp-teSpBk` | great |
 | thread | `onSp-aoeSpBk` | thread |
+| groups | `atSp-oseiSp -s` | group·s |
 | clear | `oBk-aeSpBk` | clear |
 | created | `oSp-teSp -aoeBk` | creat·ed |
 | instead | `-ni siBk-aoeSpBk` | in·stead |
@@ -971,6 +972,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | anonymous | `-nSp -nei aneBk-seiSpBk` | an·on·ymous |
 | creation | `oSp-teSp i-neiBk` | creat·ion |
 | greatest | `atSp-teSp -tneBk` | great·est |
+| trouble | `tSp-eiSp aosBk-eBk` | trou·ble |
 | treated | `tSp-teSp -aoeBk` | treat·ed |
 | clearance | `oBk-aeSp -nSp o-eBk` | clear·an·ce |
 | threads | `onSp-aoeSp -s` | thread·s |
@@ -986,6 +988,7 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | breath | `aosSp-oneSpBk` | breath |
 | precious | `osSp-oe i-seiSpBk` | prec·ious |
 | threaded | `onSp-aoeSp -aoeBk` | thread·ed |
+| clouds | `oBk-aoeiSp -s` | cloud·s |
 | curious | `o-aiSp i-seiSpBk` | cur·ious |
 | gorgeous | `at-aei ate-seiSpBk` | gor·geous |
 | delicious | `ao-ste -oi i-seiSpBk` | del·ic·ious |
@@ -994,9 +997,6 @@ The left hand's inner four are the second character of the syllable, mostly cons
 | steal | `siBk-steSpBk` | steal |
 | scout | `seiSp-teiSpBk` | scout |
 | creatures | `oSp-teSp -aiSp -seBk` | creat·ur·es |
-| cleared | `oBk-aeSp -aoeBk` | clear·ed |
-| infectious | `-ni ot-oe ti-seiSpBk` | in·fec·tious |
-| trout | `tSp-teiSpBk` | trout |
 
 ## Lesson 21 — v, m and k
 
@@ -1259,7 +1259,7 @@ The first of the onset clusters, an onset and a second character that spell some
 | join | `ani-ei -niBk` | jo·in |
 | june | `ani- iSp-n` | j·une |
 | major | `atn-Sp ani-aeiBk` | ma·jor |
-| journal | `ani-ei -aiSp n-stSpBk` | jo·ur·nal |
+| journal | `ani-aeiSp n-stSpBk` | jour·nal |
 | projects | `osSp-ei ani-oe t-s` | pro·jec·ts |
 | japan | `ani-osSp -nSpBk` | jap·an |
 | object | `-aosei ani-oe -t` | ob·jec·t |
@@ -1280,8 +1280,8 @@ The first of the onset clusters, an onset and a second character that spell some
 | jean | `ani-neSpBk` | jean |
 | jewish | `ani-sne -aostiBk` | jew·ish |
 | objective | `-aosei ani-oe ti-aot` | ob·jec·tive |
-| journals | `ani-ei -aiSp n-stSp -s` | jo·ur·nal·s |
-| journey | `ani-ei -aiSp n-aneBk` | jo·ur·ney |
+| journals | `ani-aeiSp n-stSp -s` | jour·nal·s |
+| journey | `ani-aeiSp n-aneBk` | jour·ney |
 | jacket | `ani-aosnSp -teBk` | jack·et |
 | injuries | `-ni ani-aiSp i-seBk` | in·jur·ies |
 | blackjack | `aosBk-aosnSp ani-aosnSpBk` | black·jack |
@@ -1500,7 +1500,7 @@ The first of the onset clusters, an onset and a second character that spell some
 | scientific | `seSp-ne t-oti -oiBk` | scien·tif·ic |
 | scientists | `seSp-ne t-tni -s` | scien·tist·s |
 | scientist | `seSp-ne t-tniBk` | scien·tist |
-| consciousness | `o-nei seSp-ei -siSp n-se -s` | con·scio·us·nes·s |
+| consciousness | `o-nei seSp-seiSp n-se -s` | con·scious·nes·s |
 | conscious | `o-nei seSp-seiSpBk` | con·scious |
 | conscience | `o-nei seSp-ne o-eBk` | con·scien·ce |
 

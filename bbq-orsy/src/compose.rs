@@ -33,7 +33,7 @@ use crate::tables::{Outer, Patterns, Second, Vowel};
 /// Bump it when a change here alters what some stroke spells or how it
 /// binds; a host that has learned strokes under the old rules has to know.
 /// Table changes are fingerprinted on their own and need no bump.
-pub const RULES_VERSION: u32 = 5;
+pub const RULES_VERSION: u32 = 6;
 
 /// The composition rules a stroke used, as flags in [`Translation::rules`].
 ///
@@ -208,6 +208,9 @@ fn nucleus(s1: Outer, s2: Second, s3: Vowel, s4: Outer) -> Nucleus {
             }
             .by(rules::FREE);
         }
+        // The plain partner of `Ia`, which Midi4Text lacks.  Alone it is not a
+        // syllable yet; `translate` turns it away before it gets here.
+        Vowel::Uea => return Nucleus::new("ou", false, false, false).by(rules::FREE),
         _ => (),
     }
 
@@ -274,6 +277,11 @@ pub fn translate(chord: Chord) -> Option<Translation> {
     let Patterns { onset: s1, second: s2, vowel: s3, coda: s4 } = Patterns::of(chord)?;
     // The coda-only shapes have no onset reading.
     let s1_onset = s1.onset()?;
+    // The plain `ou` spells only with Series 2 held; what it does alone is not
+    // decided, so for now it is not a syllable.
+    if s3 == Vowel::Uea && s2 == Second::Empty {
+        return None;
+    }
 
     let n = nucleus(s1, s2, s3, s4);
     let mut used = n.rule;
@@ -440,6 +448,10 @@ mod tests {
         // Alone, the free combinations are placeholder glyphs.
         check(chord(Outer::Empty, Second::Empty, Vowel::Ea, Outer::Empty), "\u{b0}", true, true);
         check(chord(Outer::Empty, Second::Empty, Vowel::Ia, Outer::Empty), "*", true, true);
+        // The plain `ou`, with Series 2 held, binds forward; alone it is nothing yet.
+        check(chord(Outer::S, Second::RX, Vowel::Uea, Outer::S), "scious", true, false);
+        check(chord(Outer::FP, Second::R, Vowel::Uea, Outer::FP), "trout", true, false);
+        assert!(translate(chord(Outer::FP, Second::Empty, Vowel::Uea, Outer::FP)).is_none());
     }
 
     /// A bare final y takes its space from the `ui` keys.
