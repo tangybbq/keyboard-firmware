@@ -45,7 +45,9 @@ struct OrsyDrillView: View {
                     value: Double(ladder.unlockedCount), total: Double(max(1, ladder.items.count))
                 )
                 .frame(width: 90)
-                if let lesson = ladder.lesson {
+                // The lesson being worked through; once the ladder is finished, the last
+                // lesson's name only suggested it was still going on.
+                if !ladder.complete, let lesson = ladder.lesson {
                     Text(lesson.title).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()

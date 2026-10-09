@@ -107,6 +107,9 @@ public struct OrsyLadder: Sendable {
     /// The unlocked items due a look today that a line can ask for, most overdue first.
     /// Empty when the ladder was not told what day it is.
     public let due: [OrsyLadderItem]
+    /// The unlocked items a line can ask for whose last look was a lapse, in the ladder's
+    /// order.  Empty when the ladder was not told what day it is.
+    public let lapsed: [OrsyLadderItem]
     public let options: Options
     public let lessons: [OrsyWords.Lesson]
 
@@ -197,6 +200,10 @@ public struct OrsyLadder: Sendable {
         let dueFirst = due.sorted { $0.late != $1.late ? $0.late > $1.late : $0.index < $1.index }
             .map(\.index)
         self.due = dueFirst.map { out[$0] }
+        self.lapsed =
+            today.map { day in
+                eligible.sorted().filter { skill.lapsed(out[$0].key, on: day) }.map { out[$0] }
+            } ?? []
         var chosen = Array(dueFirst.prefix(options.focus))
         for i in eligible
         where chosen.count < options.focus && !skill.reached(out[i].key) && !chosen.contains(i) {
@@ -221,9 +228,16 @@ public struct OrsyLadder: Sendable {
         self.focus = chosen.map { out[$0] }
     }
 
+    /// Where the ladder stands, and what the reviews want.
+    ///
+    /// A finished ladder says so rather than giving the count, which at 97 of 97 read as
+    /// the last lesson still going on; what is left to do then is the reviews and the
+    /// lapses, so those are what the line counts.
     public func headline() -> String {
+        let place = complete ? "complete" : "\(unlockedCount) of \(items.count)"
         let reviews = due.isEmpty ? "" : " · \(due.count) to review"
-        return "Orsy — \(unlockedCount) of \(items.count)" + reviews
+        let lapses = lapsed.isEmpty ? "" : " · \(lapsed.count) lapsed"
+        return "Orsy — \(place)" + reviews + lapses
     }
 
     public func title() -> String {

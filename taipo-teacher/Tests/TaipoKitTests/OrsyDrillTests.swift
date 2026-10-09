@@ -210,12 +210,27 @@ final class OrsyDrillTests: XCTestCase {
         let ladder = OrsyLadder(words: words, theory: theory, skill: model, today: today)
         XCTAssertTrue(ladder.due.isEmpty)
         XCTAssertTrue(ladder.focus.contains { $0.key == "s3:i" }, "\(ladder.focus)")
+        XCTAssertEqual(ladder.lapsed.map(\.key), ["s3:i"])
+        XCTAssertTrue(ladder.headline().hasSuffix(" · 1 lapsed"), ladder.headline())
         // Without the day, it is ranked by its confidence and loses the place.
         let undated = OrsyLadder(words: words, theory: theory, skill: model)
         XCTAssertFalse(undated.focus.contains { $0.key == "s3:i" })
     }
 
-    /// A line works the reading the ladder is waiting on: with the coda `s` known and the
+    /// A finished ladder says it is finished, not which lesson it stopped on.
+    func testCompleteLadderHeadline() throws {
+        let (_, theory, words) = try fixtures()
+        var skills = [String: PatternSkill]()
+        for key in words.lessons.flatMap({ $0.items.flatMap { $0 } }) {
+            skills[key] = PatternSkill(name: key, count: 50, medianMs: 400, deleted: 0)
+        }
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let ladder = OrsyLadder(words: words, theory: theory, skill: model)
+        XCTAssertTrue(ladder.complete)
+        XCTAssertEqual(ladder.headline(), "Orsy — complete")
+    }
+
+        /// A line works the reading the ladder is waiting on: with the coda `s` known and the
     /// onset not, every line has a word with an onset `s`.
     func testLinesDrillTheWeakReading() throws {
         let (_, theory, words) = try fixtures()
