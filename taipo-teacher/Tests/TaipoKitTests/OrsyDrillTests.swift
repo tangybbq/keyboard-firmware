@@ -211,7 +211,7 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertTrue(ladder.due.isEmpty)
         XCTAssertTrue(ladder.focus.contains { $0.key == "s3:i" }, "\(ladder.focus)")
         XCTAssertEqual(ladder.lapsed.map(\.key), ["s3:i"])
-        XCTAssertTrue(ladder.headline().hasSuffix(" · 1 lapsed"), ladder.headline())
+        XCTAssertTrue(ladder.headline().hasSuffix(" · 0 of 1 lapse practised"), ladder.headline())
         // Without the day, it is ranked by its confidence and loses the place.
         let undated = OrsyLadder(words: words, theory: theory, skill: model)
         XCTAssertFalse(undated.focus.contains { $0.key == "s3:i" })
@@ -245,6 +245,8 @@ final class OrsyDrillTests: XCTestCase {
             today: today)
         XCTAssertEqual(Set(ladder.focus.map(\.key)), ["s3:e", "s3:a"])
         XCTAssertEqual(ladder.lapsed.count, 3, "rested is still lapsed")
+        XCTAssertEqual(ladder.rested, 1)
+        XCTAssertTrue(ladder.headline().hasSuffix(" · 1 of 3 lapses practised"), ladder.headline())
     }
 
     /// A finished ladder says it is finished, not which lesson it stopped on.

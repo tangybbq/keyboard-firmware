@@ -111,6 +111,8 @@ public struct OrsyLadder: Sendable {
     /// The unlocked items a line can ask for whose last look was a lapse, in the ladder's
     /// order.  Empty when the ladder was not told what day it is.
     public let lapsed: [OrsyLadderItem]
+    /// How many of `lapsed` have had the day's practice and given up their focus place.
+    public let rested: Int
     public let options: Options
     public let lessons: [OrsyWords.Lesson]
 
@@ -201,10 +203,12 @@ public struct OrsyLadder: Sendable {
         let dueFirst = due.sorted { $0.late != $1.late ? $0.late > $1.late : $0.index < $1.index }
             .map(\.index)
         self.due = dueFirst.map { out[$0] }
-        self.lapsed =
+        let lapsed =
             today.map { day in
                 eligible.sorted().filter { skill.lapsed(out[$0].key, on: day) }.map { out[$0] }
             } ?? []
+        self.lapsed = lapsed
+        self.rested = today.map { day in lapsed.filter { skill.rested($0.key, on: day) }.count } ?? 0
         var chosen = Array(dueFirst.prefix(options.focus))
         for i in eligible
         where chosen.count < options.focus && !skill.reached(out[i].key) && !chosen.contains(i) {
@@ -234,10 +238,16 @@ public struct OrsyLadder: Sendable {
     /// A finished ladder says so rather than giving the count, which at 97 of 97 read as
     /// the last lesson still going on; what is left to do then is the reviews and the
     /// lapses, so those are what the line counts.
+    ///
+    /// The lapses are counted with how many have been practised, not alone: an item stays
+    /// lapsed until a later day's look, so the bare count could only grow through the
+    /// day, and said nothing about the practice being done.
     public func headline() -> String {
         let place = complete ? "complete" : "\(unlockedCount) of \(items.count)"
         let reviews = due.isEmpty ? "" : " · \(due.count) to review"
-        let lapses = lapsed.isEmpty ? "" : " · \(lapsed.count) lapsed"
+        let noun = lapsed.count == 1 ? "lapse" : "lapses"
+        let lapses =
+            lapsed.isEmpty ? "" : " · \(rested) of \(lapsed.count) \(noun) practised"
         return "Orsy — \(place)" + reviews + lapses
     }
 
