@@ -251,6 +251,27 @@ final class OrsySkillTests: XCTestCase {
         XCTAssertEqual(untimed.box, 1)
     }
 
+    /// After a lapse, a run of clean uses that day rests the item; a slip starts the run
+    /// over, and it stays lapsed until a later day's look.
+    func testRetentionRestsAfterPractice() {
+        var r = Retention(reached: 0)
+        for n in 0..<3 { r.note(day: 1, gap: 900, bad: n == 0) { 1000 } }
+        XCTAssertTrue(r.lapsed)
+        XCTAssertFalse(r.rested(on: 1))
+        for _ in 0..<(Retention.restUses - 1) { r.note(day: 1, gap: 900, bad: false) { 1000 } }
+        r.note(day: 1, gap: 900, bad: true) { 1000 }
+        XCTAssertFalse(r.rested(on: 1), "a slip starts the run over")
+        for _ in 0..<Retention.restUses { r.note(day: 1, gap: 900, bad: false) { 1000 } }
+        XCTAssertTrue(r.rested(on: 1))
+        XCTAssertTrue(r.lapsed, "still lapsed: only a later look clears it")
+        XCTAssertEqual(r.box, 0)
+        XCTAssertFalse(r.rested(on: 2), "a rest lasts the day")
+        // The next day's look grades as usual.
+        for _ in 0..<3 { r.note(day: 2, gap: 900, bad: false) { 1000 } }
+        XCTAssertFalse(r.lapsed)
+        XCTAssertEqual(r.box, 1)
+    }
+
     /// A day with fewer looks than a full set is graded on what it had once it is over,
     /// and is still due while it is going on.
     func testRetentionPartialDay() {

@@ -217,6 +217,36 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertFalse(undated.focus.contains { $0.key == "s3:i" })
     }
 
+    /// The day's lapses take turns: one practised clean since its lapse gives its place
+    /// to one that has not been.
+    func testRestedLapseGivesUpItsPlace() throws {
+        let (_, theory, words) = try fixtures()
+        let today = 100
+        var skills = [String: PatternSkill]()
+        for key in words.lessons[0].items.flatMap({ $0 }) {
+            skills[key] = PatternSkill(
+                name: key, count: 50, medianMs: 400, deleted: 0,
+                retention: Retention(reached: today - 1, box: 1))
+        }
+        // Three items slipped at today's look; `i` has the lowest confidence.
+        func lapse(_ key: String, medianMs: UInt32, practice: Int) {
+            var r = Retention(reached: today - 1)
+            for n in 0..<3 { r.note(day: today, gap: 400, bad: n == 0) { 400 } }
+            for _ in 0..<practice { r.note(day: today, gap: 400, bad: false) { 400 } }
+            skills[key] = PatternSkill(
+                name: key, count: 50, medianMs: medianMs, deleted: 0, retention: r)
+        }
+        lapse("s3:i", medianMs: 3000, practice: Retention.restUses)
+        lapse("s3:e", medianMs: 1500, practice: 0)
+        lapse("s3:a", medianMs: 1400, practice: 0)
+        let model = OrsySkillModel(skills: skills, sessions: 1, strokes: 100)
+        let ladder = OrsyLadder(
+            words: words, theory: theory, skill: model, options: .init(introduce: false),
+            today: today)
+        XCTAssertEqual(Set(ladder.focus.map(\.key)), ["s3:e", "s3:a"])
+        XCTAssertEqual(ladder.lapsed.count, 3, "rested is still lapsed")
+    }
+
     /// A finished ladder says it is finished, not which lesson it stopped on.
     func testCompleteLadderHeadline() throws {
         let (_, theory, words) = try fixtures()

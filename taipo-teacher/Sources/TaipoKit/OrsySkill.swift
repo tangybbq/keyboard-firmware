@@ -85,6 +85,16 @@ public struct PatternSkill: Equatable, Sendable {
 /// session, or after a pause past the cut-off) is judged on whether it was taken back
 /// alone.
 ///
+/// **A lapse is practised that day, but not for the whole of it.**  The ladder gives a
+/// lapsed item a focus place, and the next look that could clear it is tomorrow's, so
+/// on its own that held the place all day: on 2026-10-09 twelve items lapsed, the two
+/// slowest of them, the codas `nd` and `ck`, had both places, and the other ten waited
+/// for a tomorrow that would lapse some of them again.  So the uses after a lapse, on
+/// the day of it, are counted while they stay clean, and `restUses` of them in a row --
+/// two lines of a focus item's three words -- is enough practice for one day.  The item
+/// is still lapsed, and tomorrow's look is what moves it; this only lets it give up the
+/// place.  A slip in the run starts it over.
+///
 /// Worked out as the logs are folded, like the rest, from the day each file is named
 /// for; the cache stays a cache because the day comes from the file, not the clock.  The
 /// clock is only asked at the end, by `due(on:)`: a day that ended with fewer than
@@ -96,6 +106,9 @@ public struct Retention: Codable, Equatable, Sendable {
     static let coldUses = 3
     /// How much slower than warmed up a look may be before it is a lapse.
     static let slowFactor: UInt64 = 2
+    /// How many clean uses in a row, after a lapse and on the day of it, let it give up
+    /// its focus place.
+    static let restUses = 6
 
     /// Which box, as an index into `intervals`.
     public private(set) var box = 0
@@ -105,6 +118,8 @@ public struct Retention: Codable, Equatable, Sendable {
     public private(set) var lapses = 0
     /// Whether the last look was a lapse.
     public private(set) var lapsed = false
+    /// Clean uses in a row since the lapse, on the day of it.
+    public private(set) var practised = 0
 
     /// The day whose first uses are being gathered, and what they were.
     var day: Int?
@@ -148,6 +163,11 @@ public struct Retention: Codable, Equatable, Sendable {
         return late >= 0 ? late : nil
     }
 
+    /// Whether the item lapsed on `today` and has been practised enough since.
+    public func rested(on today: Int) -> Bool {
+        lapsed && since == today && practised >= Self.restUses
+    }
+
     /// This record with any earlier day's unfinished look graded.
     public func settled(on today: Int) -> Retention {
         var out = self
@@ -158,6 +178,10 @@ public struct Retention: Codable, Equatable, Sendable {
     /// One use on `day`.  `warm` is the item's median as it stands, asked for only when
     /// a new day's look begins.
     mutating func note(day: Int, gap: UInt32?, bad: Bool, warm: () -> UInt32) {
+        if lapsed && day == since {
+            practised = bad ? 0 : practised + 1
+            return
+        }
         // The day it was reached or last lapsed is not a look: the hand is warm from
         // the practice that did it.
         guard day > since else { return }
@@ -185,6 +209,7 @@ public struct Retention: Codable, Equatable, Sendable {
             since = day
             lapses += 1
             lapsed = true
+            practised = 0
         } else if day - since >= interval {
             box = min(box + 1, Self.intervals.count - 1)
             since = day
@@ -287,6 +312,11 @@ public struct OrsySkillModel: Sendable {
     /// Whether a pattern's last look was a lapse, as of `today`.
     public func lapsed(_ name: String, on today: Int) -> Bool {
         skills[name]?.retention?.settled(on: today).lapsed ?? false
+    }
+
+    /// Whether a pattern lapsed today and has had today's practice for it.
+    public func rested(_ name: String, on today: Int) -> Bool {
+        skills[name]?.retention?.rested(on: today) ?? false
     }
 
     public func parts(_ name: String) -> SkillModel.Parts {
