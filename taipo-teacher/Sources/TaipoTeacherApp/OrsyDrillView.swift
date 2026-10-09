@@ -249,11 +249,22 @@ struct OrsyDrillView: View {
                 diagram: ChordDiagram(layouts: layouts),
                 left: unit.left, right: unit.right,
                 text: unit.text.trimmingCharacters(in: .whitespaces),
+                cluster: clusterHint(unit),
                 showHands: drawHands(unit, stumbled: drill.stumbled),
                 showKeys: monitor.orsyHintKeys)
         } else {
             Color.clear.frame(width: StrokeHint.width, height: 1)
         }
+    }
+
+    /// An onset cluster written as its two halves, `sch = sh+c`: the keys of the whole
+    /// stroke do not show which two shapes it is made of, and those are what to remember.
+    private func clusterHint(_ unit: OrsyDrillUnit) -> String? {
+        guard let theory = monitor.orsyTheory,
+            let t = theory.translate(left: unit.left, right: unit.right),
+            let parts = theory.clusterParts(t)
+        else { return nil }
+        return "\(parts.cluster) = \(parts.onset)+\(parts.second)"
     }
 
     /// Whether the picture is drawn for this stroke.
@@ -395,6 +406,8 @@ struct StrokeHint: View {
     let left: UInt16
     let right: UInt16
     let text: String
+    /// An onset cluster in the stroke, written as the two shapes it is made of.
+    let cluster: String?
     /// Whether the keys are drawn.
     let showHands: Bool
     /// Whether the stroke is named in writing.
@@ -432,6 +445,11 @@ struct StrokeHint: View {
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                if let cluster {
+                    Text(cluster)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.teal)
+                }
             }
         }
         .frame(width: Self.width, alignment: .leading)

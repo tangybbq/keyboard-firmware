@@ -264,6 +264,20 @@ public final class OrsyTheory {
     /// What an onset cluster spells, by its skill key's name: `FC+R` is `str`.
     public static func cluster(_ name: String) -> String? { onsetOverride[name] }
 
+    /// The onset cluster a stroke spells, with what its two halves spell on their own:
+    /// `sch` is the onset `sh` and the Series 2 `c`.  Nil when the stroke has no cluster.
+    public func clusterParts(_ t: OrsyTranslation)
+        -> (cluster: String, onset: String, second: String)?
+    {
+        let p = t.patterns
+        guard t.rules & Rules.cluster != 0,
+            let cluster = Self.onsetOverride["\(p.onset)+\(p.second)"],
+            let onset = outerByName[p.onset]?.onset,
+            let second = secondByName[p.second]?.spells
+        else { return nil }
+        return (cluster, onset, second)
+    }
+
     /// Translate one stroke, or nil if it is not a valid syllable.
     public func translate(left: UInt16, right: UInt16) -> OrsyTranslation? {
         guard let p = patterns(left: left, right: right) else { return nil }

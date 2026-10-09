@@ -103,4 +103,17 @@ final class OrsyTheoryTests: XCTestCase {
         XCTAssertEqual(j.spaceBefore, true)
         XCTAssertEqual(j.spaceAfter, false)
     }
+
+    /// A cluster comes apart into what its onset and Series 2 spell alone.
+    func testClusterParts() throws {
+        let t = try theory()
+        let quit = try XCTUnwrap(t.translate(left: 0x18a, right: 0x084))
+        let parts = try XCTUnwrap(t.clusterParts(quit))
+        XCTAssertEqual([parts.cluster, parts.onset, parts.second], ["qu", "c", "c"])
+        let jim = try XCTUnwrap(t.translate(left: 0x0c1, right: 0x0c5))
+        let j = try XCTUnwrap(t.clusterParts(jim))
+        XCTAssertEqual([j.cluster, j.onset, j.second], ["j", "y", "i"])
+        // time has no cluster.
+        XCTAssertNil(t.clusterParts(try XCTUnwrap(t.translate(left: 0x084, right: 0x045))))
+    }
 }
