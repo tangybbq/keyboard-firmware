@@ -215,6 +215,8 @@ impl Tester {
                     down = true;
                     if key == Keyboard::DeleteBackspace {
                         out.push('\u{8}');
+                    } else if key == Keyboard::ReturnEnter {
+                        out.push('\n');
                     } else {
                         let shifted = mods.contains(Mods::SHIFT);
                         out.push(char_for_key(key, shifted).expect("printable"));
@@ -346,8 +348,8 @@ fn test_pending_reported() {
     t.stroke(ten());
     assert_eq!(t.pending(), [(false, false)]);
     t.stroke((commands::DOSH_ONESHOT, dosh_chord('.')));
-    assert_eq!(t.pending(), [(true, false)]);
-    t.stroke((commands::JOIN, 0));
+    assert_eq!(t.pending(), [(false, true)]);
+    t.stroke((commands::CAP_NEXT, 0));
     assert_eq!(t.pending(), [(true, true)]);
 }
 
@@ -436,21 +438,73 @@ fn test_punctuation() {
 }
 
 /// The one-shot escape plays the right hand's chord through the Dosh table,
-/// and the layout stays in Orsy.
+/// and the layout stays in Orsy.  What it types is raw: the space a word
+/// owes is dropped, and nothing is capitalised, so a full stop is the one
+/// in a file name.  Orsy's own marks are for prose.
 #[test]
 fn test_dosh_oneshot() {
     let mut t = Tester::new();
     t.stroke(ten());
     assert_eq!(t.typed(), "ten");
-    t.stroke((commands::DOSH_ONESHOT, dosh_chord(',')));
-    assert_eq!(t.typed(), ",");
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord('-')));
+    assert_eq!(t.typed(), "-");
     t.stroke(ten());
-    assert_eq!(t.typed(), " ten");
-    // Sentence-ending punctuation capitalises the next word.
+    assert_eq!(t.typed(), "ten");
     t.stroke((commands::DOSH_ONESHOT, dosh_chord('.')));
     assert_eq!(t.typed(), ".");
     t.stroke(ten());
-    assert_eq!(t.typed(), " Ten");
+    assert_eq!(t.typed(), "ten");
+}
+
+/// A closing bracket through the escape owes the next word a space, and an
+/// opening bracket or a digit takes the space owed, before the escaped key
+/// is typed.
+#[test]
+fn test_dosh_oneshot_brackets() {
+    let mut t = Tester::new();
+    t.stroke(ten());
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord('(')));
+    t.stroke(ten_());
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord(')')));
+    t.stroke(ten());
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord('4')));
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord('2')));
+    assert_eq!(t.typed(), "ten (ten) ten 42");
+}
+
+/// Undo takes back a character typed through the escape, and a backspace
+/// through it erases that character from the record, not the word before.
+#[test]
+fn test_dosh_oneshot_undo() {
+    let mut t = Tester::new();
+    t.stroke(ten());
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord('(')));
+    assert_eq!(t.typed(), "ten (");
+    t.stroke((commands::UNDO, 0));
+    assert_eq!(t.typed(), "\u{8}\u{8}");
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord('-')));
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord_for(Keyboard::DeleteBackspace)));
+    assert_eq!(t.typed(), "-\u{8}");
+    // The hyphen's stroke is empty now, so undo takes back nothing for it,
+    // and then the word.
+    t.stroke((commands::UNDO, 0));
+    assert_eq!(t.typed(), "");
+    t.stroke((commands::UNDO, 0));
+    assert_eq!(t.typed(), "\u{8}\u{8}\u{8}");
+}
+
+/// Enter through the escape ends the line: the next word gets no space,
+/// and undo does not reach back past it.
+#[test]
+fn test_dosh_oneshot_enter() {
+    let mut t = Tester::new();
+    t.stroke(ten());
+    t.stroke((commands::DOSH_ONESHOT, dosh_chord_for(Keyboard::ReturnEnter)));
+    t.stroke(ten());
+    assert_eq!(t.typed(), "ten\nten");
+    t.stroke((commands::UNDO, 0));
+    t.stroke((commands::UNDO, 0));
+    assert_eq!(t.typed(), "\u{8}\u{8}\u{8}");
 }
 
 /// The escaped chord is typed by the release that finishes the stroke, with
@@ -566,7 +620,7 @@ fn test_fn_left_oneshot() {
     t.fn_stroke(FN_LEFT, (0, dosh_chord(',')));
     assert_eq!(t.typed(), ",");
     t.stroke(ten());
-    assert_eq!(t.typed(), " ten");
+    assert_eq!(t.typed(), "ten");
 }
 
 /// Right Fn does the same for the left hand, through the same table.
@@ -575,11 +629,11 @@ fn test_fn_right_oneshot() {
     let mut t = Tester::new();
     t.stroke(ten());
     assert_eq!(t.typed(), "ten");
-    t.fn_stroke(FN_RIGHT, (dosh_chord('.'), 0));
-    assert_eq!(t.typed(), ".");
-    // And it counts as sentence-ending punctuation.
+    t.fn_stroke(FN_RIGHT, (dosh_chord(')'), 0));
+    assert_eq!(t.typed(), ")");
+    // And it follows the same spacing.
     t.stroke(ten());
-    assert_eq!(t.typed(), " Ten");
+    assert_eq!(t.typed(), " ten");
 }
 
 /// Fn is one of the chord's keys, so where it falls in the chord does not

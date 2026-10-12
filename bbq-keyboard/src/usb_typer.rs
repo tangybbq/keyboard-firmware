@@ -177,6 +177,14 @@ pub fn key_for_char(ch: char) -> Option<(Keyboard, Mods)> {
     Some((((code & 0xFF) as u8).into(), mods))
 }
 
+/// The printable character a keypress types, if it types one: the reverse of
+/// [`key_for_char`] over printable ASCII.  Shift is the only modifier a
+/// character is typed with; any other makes it a command.  Keys with no
+/// printable character -- the arrows, the function keys, enter -- have none.
+pub fn char_for_key(key: Keyboard, mods: Mods) -> Option<char> {
+    (' '..='~').find(|ch| key_for_char(*ch) == Some((key, mods)))
+}
+
 /// An ActionHandler is something that is able to take actions.
 pub trait ActionHandler {
     // For now, suppress the warning.

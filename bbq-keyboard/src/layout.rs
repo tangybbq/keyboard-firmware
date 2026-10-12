@@ -13,6 +13,8 @@ use self::qwerty::QwertyManager;
 #[cfg(feature = "steno")]
 use self::steno::RawStenoHandler;
 use self::taipo::{TaipoManager, TaipoVariant};
+#[cfg(feature = "orsy")]
+use crate::usb_typer::char_for_key;
 
 #[cfg(feature = "std")]
 pub mod export;
@@ -637,20 +639,32 @@ impl LayoutManager {
 
                 // What the Dosh chord does to the text the output stage is
                 // keeping track of: a backspace erases a character of it,
-                // and sentence-ending punctuation capitalises the next word.
+                // and anything else typed is added to it, with its spacing.
+                // Its modifiers are whatever one-shot the engine is holding.
                 let action = dosh::DOSH_ACTIONS
                     .iter()
                     .find(|e| e.code == code)
                     .map(|e| &e.action);
+                let mods = self.taipo.oneshot();
                 match action {
-                    Some(taipo::Action::Simple(crate::Keyboard::DeleteBackspace)) => {
+                    Some(taipo::Action::Simple(crate::Keyboard::DeleteBackspace))
+                        if mods.is_empty() =>
+                    {
                         self.orsy.backspace();
                     }
-                    Some(
-                        taipo::Action::Simple(crate::Keyboard::Dot)
-                        | taipo::Action::Shifted(crate::Keyboard::Keyboard1)
-                        | taipo::Action::Shifted(crate::Keyboard::ForwardSlash),
-                    ) => self.orsy.cap_next(),
+                    Some(taipo::Action::Simple(k)) => {
+                        self.orsy.escaped(char_for_key(*k, mods), actions).await;
+                    }
+                    Some(taipo::Action::Shifted(k)) => {
+                        let ch = char_for_key(*k, mods | crate::Mods::SHIFT);
+                        self.orsy.escaped(ch, actions).await;
+                    }
+                    Some(taipo::Action::Text(text)) => {
+                        for ch in text.chars() {
+                            self.orsy.escaped(Some(ch), actions).await;
+                        }
+                    }
+                    // A modifier, or a change of table: nothing is typed.
                     _ => (),
                 }
             }

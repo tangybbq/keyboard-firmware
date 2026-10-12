@@ -179,10 +179,21 @@ impl OrsyManager {
         None
     }
 
-    /// Capitalise the next word, for the layout manager to ask for after
-    /// sentence-ending punctuation played through the Dosh escape.
-    pub fn cap_next(&mut self) {
-        self.output.cap_next();
+    /// A key typed through the Dosh escape, as the character it types, or
+    /// `None` for a key that types none.  A printable character gets the
+    /// spacing [`Output::escaped`] gives it, and anything else -- a new
+    /// line, a tab, a cursor key, a chord with a modifier -- makes the output
+    /// stage forget what it knows of the text.  The keyboard types the key
+    /// itself, after any space sent here.
+    pub async fn escaped<ACT: LayoutActions>(&mut self, ch: Option<char>, actions: &ACT) {
+        match ch {
+            Some(ch @ ' '..='~') => {
+                let mut ops = Ops::new();
+                self.output.escaped(ch, &mut ops);
+                Self::send(&ops, actions).await;
+            }
+            _ => self.output.forget(),
+        }
     }
 
     /// A character was erased by a backspace played through the Dosh
@@ -283,7 +294,12 @@ impl OrsyManager {
             // there is.
             StrokeOutcome::Dead => (),
         }
+        Self::send(&ops, actions).await;
+        None
+    }
 
+    /// Type what the output stage asked for.
+    async fn send<ACT: LayoutActions>(ops: &Ops, actions: &ACT) {
         for op in ops.as_slice() {
             let (key, mods) = match op {
                 Op::Backspace => (Keyboard::DeleteBackspace, Mods::empty()),
@@ -297,7 +313,6 @@ impl OrsyManager {
             actions.send_key(KeyAction::KeyPress(key, mods)).await;
             actions.send_key(KeyAction::KeyRelease).await;
         }
-        None
     }
 }
 

@@ -226,6 +226,11 @@ impl TaipoManager {
         self.variant
     }
 
+    /// The modifiers the next key will be typed with, held by a one-shot.
+    pub fn oneshot(&self) -> Mods {
+        self.oneshot
+    }
+
     /// Whether the Orsy chord has been typed since this was last asked.
     #[cfg(feature = "orsy")]
     pub fn take_orsy_request(&mut self) -> bool {
