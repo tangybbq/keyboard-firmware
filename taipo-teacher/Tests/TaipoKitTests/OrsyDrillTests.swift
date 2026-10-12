@@ -505,6 +505,33 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(String(output.recent), "ten ten")
     }
 
+    /// A character through the Dosh escape gets the firmware's spacing: most bind and drop
+    /// the space owed, a closing bracket owes one, an opening bracket or a digit takes it,
+    /// and each is a stroke to undo.  The `escaped_*` tests in the Rust.
+    func testEscapedCharacters() throws {
+        let (_, theory, _) = try fixtures()
+        let ten = try XCTUnwrap(theory.translate(left: 0x004, right: 0x248))
+        var output = OrsyOutput()
+        _ = output.stroke(ten)
+        XCTAssertEqual(output.escaped("."), ".")
+        XCTAssertEqual(output.stroke(ten), "ten")
+        XCTAssertEqual(output.escaped("("), " (")
+        XCTAssertEqual(output.stroke(ten), "ten")
+        XCTAssertEqual(output.escaped(")"), ")")
+        XCTAssertEqual(output.stroke(ten), " ten")
+        XCTAssertEqual(output.escaped("4"), " 4")
+        XCTAssertEqual(output.escaped("2"), "2")
+        XCTAssertEqual(String(output.recent), "ten.ten (ten) ten 42")
+        XCTAssertEqual(output.undo(), 1)
+        XCTAssertEqual(output.undo(), 2)
+        XCTAssertEqual(output.stroke(ten), " ten")
+        // A key that types no text forgets the record and the space owed.
+        output.forget()
+        XCTAssertEqual(output.stroke(ten), "ten")
+        XCTAssertEqual(output.undo(), 3)
+        XCTAssertEqual(output.undo(), 0)
+    }
+
     /// Capitalise-previous retypes the word before in place.  `cap_previous` in the Rust.
     func testCapPrevious() throws {
         let (_, theory, _) = try fixtures()

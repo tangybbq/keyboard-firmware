@@ -76,10 +76,6 @@ struct OrsyOutput {
         return " "
     }
 
-    /// Capitalise the next letter.  Not a stroke of its own, unlike `.capNext` through
-    /// `prefix`: for a sentence-ender played through the Dosh escape.
-    mutating func capNext() { pendingCap = true }
-
     /// A command that types nothing but changes how the next stroke is typed, recorded as
     /// a stroke so that undo takes back only the command.
     mutating func prefix(_ prefix: OrsyPrefix) {
@@ -156,9 +152,42 @@ struct OrsyOutput {
         }
     }
 
-    /// Something typed through the Dosh escape.  The firmware's output stage does not see
-    /// it at all -- it is neither on the record nor undoable -- and neither does this.
-    mutating func typed(_ text: String) {}
+    /// A character typed through the Dosh escape, returning the space owed before it when
+    /// it takes one; the keyboard types the character itself.  Most bind on both sides and
+    /// drop the space owed, the closing brackets owe the next word one, and the opening
+    /// brackets and the digits take it before them.  Recorded as a stroke, so undo and
+    /// erase stay in step.
+    mutating func escaped(_ ch: Character) -> String {
+        var record = before(0)
+        var out = ""
+        switch ch {
+        case ")", "]", "}":
+            pendingSpace = true
+            allCaps = false
+        case "(", "[", "{", "0"..."9":
+            if pendingSpace { out = " " }
+            pendingSpace = false
+        case " ":
+            pendingSpace = false
+            allCaps = false
+        default:
+            pendingSpace = false
+        }
+        out.append(ch)
+        recent.append(contentsOf: out)
+        record.chars = out.count
+        strokes.append(record)
+        return out
+    }
+
+    /// A key through the Dosh escape that types no text: the record no longer says what
+    /// is around the cursor, so it is forgotten, and no space is owed.
+    mutating func forget() {
+        recent.removeAll()
+        strokes.removeAll()
+        pendingSpace = false
+        allCaps = false
+    }
 }
 
 /// A command that types nothing but changes the next stroke.  `Prefix` in the Rust.
@@ -417,9 +446,11 @@ public final class OrsyDrillSession {
                 output.erase()
                 takeBack(1)
             } else if let types = entry?.action.types {
-                output.typed(types)
-                if [".", "!", "?"].contains(types) { output.capNext() }
-                append(types, stroke: stroke, translation: nil, wanted: wantedStroke)
+                let text = types.map { output.escaped($0) }.joined()
+                append(text, stroke: stroke, translation: nil, wanted: wantedStroke)
+            } else if entry?.action.kind == "key" {
+                output.forget()
+                events.append(.ignored)
             } else {
                 events.append(.ignored)
             }
