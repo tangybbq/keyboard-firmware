@@ -9,7 +9,7 @@
 //!   translation's flags come straight from the word-boundary rule: an
 //!   ending-form vowel allows a space after, a plain vowel does not, and a
 //!   fragment with no vowel takes no space before.
-//! - **Capitals.**  [`Output::cap_next`] capitalises the first letter of the
+//! - **Capitals.**  [`Prefix::CapNext`] capitalises the first letter of the
 //!   next stroke, and [`Prefix::AllCaps`] every letter of the next word;
 //!   [`Prefix::Uncap`] cancels either.  [`Output::cap_previous`] walks back
 //!   over the recent text and capitalises words already typed, and
@@ -239,15 +239,6 @@ impl Output {
     /// closed.  For an indicator.
     pub fn in_word(&self) -> bool {
         !self.pending_space && self.recent_len > 0 && self.recent[self.recent_len - 1] != ' '
-    }
-
-    /// Capitalise the next letter typed.
-    ///
-    /// Not a stroke of its own, unlike [`Prefix::CapNext`]: for the layout
-    /// manager, which asks for it after a sentence-ender played through the
-    /// Dosh escape.
-    pub fn cap_next(&mut self) {
-        self.pending_cap = true;
     }
 
     /// Capitalise the previous `n` words of the recent text.
@@ -561,16 +552,6 @@ mod tests {
         out.mark(find("-"), &mut ops);
         assert_eq!(stroke(&mut out, c(TEN)), "ten");
         assert_eq!(out.recent(), "ten-ten");
-    }
-
-    /// Cap next capitalises the first letter of the next stroke, once.
-    #[test]
-    fn cap_next() {
-        let mut out = Output::new();
-        stroke(&mut out, c(TEN));
-        out.cap_next();
-        assert_eq!(stroke(&mut out, c(TEN)), " Ten");
-        assert_eq!(stroke(&mut out, c(TEN)), " ten");
     }
 
     /// Join drops the space the next word is owed, and is undone on its own.
@@ -924,7 +905,7 @@ mod tests {
     fn forget() {
         let mut out = Output::new();
         stroke(&mut out, c(TEN));
-        out.cap_next();
+        out.prefix(Prefix::CapNext);
         out.forget();
         assert!(!out.in_word());
         assert_eq!(stroke(&mut out, c(TEN)), "Ten");
