@@ -229,9 +229,9 @@ device; and the practice tab scores nothing in Orsy mode until Phase C.
   which is the spec's unanswered question — whether a five-key chord forms as fast as a
   two-key one — measured for free on every stroke; divisions per word against the
   optimum. The alternation strip is meaningless for two-hand strokes and is hidden in Orsy.
-- The capital after `.` `?` `!`, native or played through the one-shot, and every command
-  that touches the text -- undo, space, join and the capitals -- go through the drill's
-  output stage so the target stays in step with the keyboard.
+- The native marks, the characters played through the one-shot, and every command that
+  touches the text -- undo, space, join and the capitals -- go through the drill's output
+  stage so the target stays in step with the keyboard.
 
 Done, in a first form. `orsy-words.json` (the word table and the lesson plan, written
 by the `lessons` example), `OrsyLadder`, `OrsyLadderMaker`, `OrsyDrillSession` with the

@@ -223,6 +223,13 @@ Much smaller than the steno typer, because nothing is ever retranslated.
 - **Escaped backspaces.** A backspace played through the Dosh one-shot erases a character
   the stage did not type away, so it is taken off the record and off the last stroke's
   count.
+- **Escaped characters.** Anything else the one-shot types is reported to the stage, which
+  records it as a stroke and gives it spacing. The escape gives the raw character -- the
+  native marks are the ones for prose -- so most bind on both sides and drop the space
+  owed, and none capitalises: an escaped `.` is the one in a file name. The closing
+  brackets, which have no native mark, owe the next word a space; the opening brackets and
+  the digits take the space owed before them. A key that types no text, or one under a
+  one-shot modifier, makes the stage forget its record and the space owed.
 
 ## Mode integration
 
