@@ -326,6 +326,60 @@ impl Output {
         }
     }
 
+    /// A character typed through the Dosh escape.  The keyboard types the
+    /// character itself; all that goes into `ops` is the space owed before
+    /// it, when it takes one.
+    ///
+    /// The escape is for what Orsy has no stroke for, and for marks wanted
+    /// raw, without the spacing Orsy's own give them -- a full stop in a
+    /// file name -- so most characters bind on both sides: the space owed
+    /// is dropped, and what follows runs on.  The closing brackets, which
+    /// Orsy has no mark for, attach as a mark does and owe the next word a
+    /// space.  The opening brackets and the digits take the space owed
+    /// before them and owe none after.  A space ends the word, as the space
+    /// command does.
+    ///
+    /// Recorded like a stroke, so that undo takes it back with the space
+    /// it typed, and a backspace through the escape erases it from the
+    /// record rather than whatever came before it.
+    pub fn escaped(&mut self, ch: char, ops: &mut Ops) {
+        let record = self.before(0);
+        let mut count = 1u8;
+        match ch {
+            ')' | ']' | '}' => {
+                self.pending_space = true;
+                self.all_caps = false;
+            }
+            '(' | '[' | '{' | '0'..='9' => {
+                if self.pending_space {
+                    self.emit(' ', ops);
+                    count += 1;
+                }
+                self.pending_space = false;
+            }
+            ' ' => {
+                self.pending_space = false;
+                self.all_caps = false;
+            }
+            _ => self.pending_space = false,
+        }
+        self.note(ch);
+        self.record(Stroke { chars: count, ..record });
+    }
+
+    /// Something was played through the Dosh escape that this stage cannot
+    /// follow: a new line or a tab, a key that moves the cursor, a chord
+    /// with a modifier.  The record of the text no longer says what is
+    /// around the cursor, so it is forgotten, and undo reaches no further
+    /// back.  No space is owed, and the word is closed; a pending capital
+    /// is kept, for the line after a full stop.
+    pub fn forget(&mut self) {
+        self.recent_len = 0;
+        self.strokes_len = 0;
+        self.pending_space = false;
+        self.all_caps = false;
+    }
+
     /// Take back the last stroke, and put the spacing and the pending
     /// capital back as they were before it: a word retyped after undoing it
     /// gets the capital a sentence-ender or cap-next gave it the first time.
@@ -353,6 +407,11 @@ impl Output {
 
     fn emit(&mut self, ch: char, ops: &mut Ops) {
         ops.push(Op::Char(ch));
+        self.note(ch);
+    }
+
+    /// Add a character to the recent text, without sending it.
+    fn note(&mut self, ch: char) {
         if self.recent_len == RECENT {
             self.recent.copy_within(1.., 0);
             self.recent_len -= 1;
@@ -771,5 +830,107 @@ mod tests {
         }
         assert_eq!(out.recent().len(), RECENT);
         assert!(out.recent().ends_with(" ten"));
+    }
+
+    /// Type a character through the escape and return what the stage sent.
+    fn escaped(out: &mut Output, ch: char) -> String {
+        let mut ops = Ops::new();
+        out.escaped(ch, &mut ops);
+        ops.text()
+    }
+
+    /// Most escaped characters bind on both sides: the space owed after a
+    /// word is dropped, and the next word runs on.
+    #[test]
+    fn escaped_binds() {
+        for ch in ['-', '.', ',', '/', '\'', '"', 'x'] {
+            let mut out = Output::new();
+            stroke(&mut out, c(TEN));
+            assert_eq!(escaped(&mut out, ch), "");
+            assert_eq!(stroke(&mut out, c(TEN)), "ten");
+            assert_eq!(out.recent(), format!("ten{ch}ten"));
+        }
+    }
+
+    /// A closing bracket attaches, and owes the next word a space, even
+    /// after a word left open.
+    #[test]
+    fn escaped_closes() {
+        let mut out = Output::new();
+        stroke(&mut out, c(TE_));
+        assert_eq!(escaped(&mut out, ')'), "");
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+        assert_eq!(out.recent(), "ten) ten");
+    }
+
+    /// An opening bracket or a digit takes the space owed before it, and
+    /// owes none after; a second digit runs on from the first.
+    #[test]
+    fn escaped_opens() {
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        assert_eq!(escaped(&mut out, '('), " ");
+        assert_eq!(stroke(&mut out, c(TEN)), "ten");
+        assert_eq!(out.recent(), "ten (ten");
+
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        assert_eq!(escaped(&mut out, '4'), " ");
+        assert_eq!(escaped(&mut out, '2'), "");
+        assert_eq!(out.recent(), "ten 42");
+        // Nothing owed, nothing taken.
+        let mut out = Output::new();
+        stroke(&mut out, c(TE_));
+        assert_eq!(escaped(&mut out, '('), "");
+    }
+
+    /// An escaped space is the space command's: no second one is owed.
+    #[test]
+    fn escaped_space() {
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        assert_eq!(escaped(&mut out, ' '), "");
+        assert_eq!(stroke(&mut out, c(TEN)), "ten");
+        assert_eq!(out.recent(), "ten ten");
+    }
+
+    /// An escaped character is a stroke to undo, which takes back the space
+    /// it typed and owes it again; a backspace through the escape erases
+    /// it from the record, and not the word before it.
+    #[test]
+    fn escaped_undo_and_erase() {
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        escaped(&mut out, '(');
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        assert_eq!(ops.text(), "\u{8}\u{8}");
+        assert_eq!(stroke(&mut out, c(TEN)), " ten");
+
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        escaped(&mut out, '-');
+        out.erase();
+        assert_eq!(out.recent(), "ten");
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        out.undo(&mut ops);
+        assert_eq!(ops.text(), "\u{8}\u{8}\u{8}");
+    }
+
+    /// Forgetting drops the space owed and the record, and with it undo,
+    /// but keeps a pending capital.
+    #[test]
+    fn forget() {
+        let mut out = Output::new();
+        stroke(&mut out, c(TEN));
+        out.cap_next();
+        out.forget();
+        assert!(!out.in_word());
+        assert_eq!(stroke(&mut out, c(TEN)), "Ten");
+        let mut ops = Ops::new();
+        out.undo(&mut ops);
+        out.undo(&mut ops);
+        assert_eq!(ops.text(), "\u{8}\u{8}\u{8}");
     }
 }
