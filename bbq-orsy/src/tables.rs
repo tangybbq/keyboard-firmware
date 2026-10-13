@@ -605,9 +605,13 @@ pub mod punctuation {
     /// by any tidiness of the shapes: the apostrophe and the hyphen are wanted far more
     /// than the exclamation mark and the colon, and neither of them can be had from the
     /// escape without breaking the word it belongs to.
+    ///
+    /// The full stop and the comma keep the rows Dosh gives them: Dosh's full stop is on
+    /// the top row (`i`+`Sp`) and its comma on the bottom (`h`+`Sp`), so here the full stop
+    /// is on `n` and the comma on `t`.
     pub static ALL: &[Mark] = &[
-        Mark { bits: 0x204, text: ".", space_after: true, capitalises: true },   // Bk+t
-        Mark { bits: 0x240, text: ",", space_after: true, capitalises: false },  // Bk+n
+        Mark { bits: 0x240, text: ".", space_after: true, capitalises: true },   // Bk+n
+        Mark { bits: 0x204, text: ",", space_after: true, capitalises: false },  // Bk+t
         Mark { bits: 0x220, text: "'", space_after: false, capitalises: false }, // Bk+s
         Mark { bits: 0x202, text: "?", space_after: true, capitalises: true },   // Bk+o
         Mark { bits: 0x201, text: "-", space_after: false, capitalises: false }, // Bk+a

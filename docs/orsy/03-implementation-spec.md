@@ -96,12 +96,13 @@ can reach any of them, and the family is two keys on the hand that already ends 
 Every mark attaches to what came before it, closed or not. They differ on the far side:
 most owe the next word a space, while the apostrophe and the hyphen bind straight on to it,
 so `don` `'` `t` is one word. The five commonest take the five one-key shapes, which is all
-there are; the rest take two.
+there are; the rest take two. The full stop and the comma keep the rows Dosh gives them, the
+full stop on the top row and the comma on the bottom.
 
 | stroke | mark | |
 |---|---|---|
-| `Bk` + `t` | `.` | owes a space, capitalises |
-| `Bk` + `n` | `,` | owes a space |
+| `Bk` + `n` | `.` | owes a space, capitalises |
+| `Bk` + `t` | `,` | owes a space |
 | `Bk` + `s` | `'` | binds forward |
 | `Bk` + `o` | `?` | owes a space, capitalises |
 | `Bk` + `a` | `-` | binds forward |

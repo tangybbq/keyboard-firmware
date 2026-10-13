@@ -140,7 +140,7 @@
     "jolt3": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 19, 15, 255, 255, 255, 24, 25, 26, 28, 29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 39, 43, 47, 255, 255, 255]
   },
   "orsy": {
-    "fingerprint": "0x50cab7eaeb6dfbc7",
+    "fingerprint": "0x26e532008c442137",
     "rules_version": 6,
     "outer_mask": 103,
     "inner_mask": 904,
@@ -220,8 +220,8 @@
       { "name": "uncap_previous", "hand": "left", "bits": 384, "keys": ["i", "Sp"] }
     ],
     "punctuation": [
-      { "text": ".", "bits": 516, "keys": ["t", "Bk"], "space_after": true, "capitalises": true },
-      { "text": ",", "bits": 576, "keys": ["n", "Bk"], "space_after": true, "capitalises": false },
+      { "text": ".", "bits": 576, "keys": ["n", "Bk"], "space_after": true, "capitalises": true },
+      { "text": ",", "bits": 516, "keys": ["t", "Bk"], "space_after": true, "capitalises": false },
       { "text": "'", "bits": 544, "keys": ["s", "Bk"], "space_after": false, "capitalises": false },
       { "text": "?", "bits": 514, "keys": ["o", "Bk"], "space_after": true, "capitalises": true },
       { "text": "-", "bits": 513, "keys": ["a", "Bk"], "space_after": false, "capitalises": false },

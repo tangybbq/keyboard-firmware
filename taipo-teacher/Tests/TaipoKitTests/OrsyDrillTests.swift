@@ -641,8 +641,8 @@ final class OrsyDrillTests: XCTestCase {
     func testPunctuationSkillKeys() throws {
         let (_, theory, _) = try fixtures()
         let stroke = Stroke(
-            timeMs: 100, left: 0, right: 0x204, firstKeyMs: 70, lastKeyMs: 80,
-            outcome: theory.outcome(left: 0, right: 0x204))
+            timeMs: 100, left: 0, right: 0x240, firstKeyMs: 70, lastKeyMs: 80,
+            outcome: theory.outcome(left: 0, right: 0x240))
         XCTAssertEqual(OrsySamples.keys(stroke), ["punct:."])
     }
 
