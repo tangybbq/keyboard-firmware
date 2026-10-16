@@ -312,6 +312,29 @@ impl Writer {
         if let Some((_, parts)) = DIVISIONS.iter().find(|(w, _)| *w == word) {
             return self.write_parts(parts, allowed);
         }
+        self.search(word, true, allowed)
+    }
+
+    /// The rest of a word after a mark that binds forward -- the `t` of
+    /// `don't`, the `m` of `I'm` -- in the fewest strokes, as
+    /// [`write`](Self::write) would spell it but for the first stroke, which
+    /// may lean back onto what came before rather than take a space.  The
+    /// coda-only strokes are what make a lone `t` writable here at all.
+    pub fn write_rest(&self, rest: &str) -> Option<Vec<Chord>> {
+        if rest.is_empty() || !rest.bytes().all(|b| b.is_ascii_lowercase()) {
+            return None;
+        }
+        self.search(rest, false, |_, _| true)
+    }
+
+    /// The search behind both: `opening` says the first stroke starts a word,
+    /// and so must take a space before it.
+    fn search(
+        &self,
+        word: &str,
+        opening: bool,
+        allowed: impl Fn(Chord, u8) -> bool,
+    ) -> Option<Vec<Chord>> {
         let n = word.len();
         // best[i]: the cheapest way to spell the first i letters, as
         // (strokes, Series 2 onsets, doubled consonants, keys, inner keys,
@@ -338,7 +361,7 @@ impl Writer {
                 let entry = entries.iter().find(|e| {
                     // The first stroke of a word takes a space before it; the
                     // last closes the word; the ones between bind forward.
-                    (i > 0 || e.space_before)
+                    (i > 0 || !opening || e.space_before)
                         && e.space_after == last
                         && allowed(e.chord, e.rules)
                 });
@@ -598,5 +621,22 @@ mod tests {
             p.second != Second::I && p.vowel != Vowel::I && p.vowel != Vowel::Ui
         };
         assert_eq!(w.write_with("time", no_i), None);
+    }
+
+    /// After an apostrophe the first stroke may lean back: a lone `t` is not a
+    /// word, but it is the end of `don't`.
+    #[test]
+    fn rest_of_a_word() {
+        let w = Writer::new();
+        assert_eq!(w.write("t"), None);
+        for (rest, text) in [("t", "t"), ("m", "m"), ("s", "s"), ("d", "d"), ("re", "re"), ("ve", "ve")] {
+            let strokes = w.write_rest(rest).unwrap_or_else(|| panic!("{rest}"));
+            assert_eq!(strokes.len(), 1, "{rest}");
+            let t = translate(strokes[0]).unwrap();
+            assert_eq!(t.text(), text);
+            assert!(t.space_after, "{rest} closes the word");
+        }
+        assert_eq!(w.write_rest(""), None);
+        assert_eq!(w.write_rest("T"), None);
     }
 }
