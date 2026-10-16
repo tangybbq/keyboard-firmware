@@ -43,6 +43,24 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(the.patterns, ["s1:FZ", "s3:ue"])
     }
 
+    /// The word ladder's list is prose spelled as prose is: `I` in one stroke with the
+    /// capitalising coda, and contractions with the apostrophe as a stroke of their own.
+    func testLadderWords() throws {
+        let (_, theory, words) = try fixtures()
+        XCTAssertGreaterThan(words.ladder.count, 9000)
+        XCTAssertEqual(words.ladder.prefix(6).map(\.text), ["the", "to", "and", "you", "a", "I"])
+        let capitalI = try XCTUnwrap(words.word("I"))
+        XCTAssertEqual(capitalI.strokes.count, 1)
+        XCTAssertEqual(theory.translate(left: capitalI.strokes[0].0, right: capitalI.strokes[0].1)?.text, "I")
+        XCTAssertNotNil(words.word("i"), "the table's own lower-case i is still there")
+        let dont = try XCTUnwrap(words.word("don't"))
+        XCTAssertEqual(OrsyDrillTarget(text: "don't", words: words, theory: theory).units.map(\.text), ["don", "'", "t"])
+        XCTAssertEqual(dont.strokes.count, 3)
+        XCTAssertFalse(
+            words.ladder.contains { $0.text == "cant" }, "the letters alone are not a word to learn")
+        XCTAssertFalse(words.ladder.contains { $0.text == "something" }, "held out, as in the drills")
+    }
+
     /// With nothing typed the first lesson is out, one item per reading, and the focus is
     /// its weakest items.
     func testLadderStartsAtTheFirstLesson() throws {

@@ -42,6 +42,30 @@ public struct OrsyWords: Decodable {
     public let lessons: [Lesson]
     /// Most frequent first.
     public let words: [Word]
+    /// The word ladder's words, as prose spells them and most used in prose first: `I`
+    /// with its capital and the contractions with their apostrophes, which `words` has
+    /// not got.  See `ladder_order` in the generator.  Empty in a table without one.
+    public let ladder: [Word]
+    /// Every word either list has, for looking one up by its text.
+    private let byText: [String: Word]
+
+    enum CodingKeys: String, CodingKey {
+        case lessons, words, ladder, extra
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        lessons = try c.decode([Lesson].self, forKey: .lessons)
+        words = try c.decode([Word].self, forKey: .words)
+        // The ladder is an order over both lists, by text; its own words come in `extra`.
+        let extra = try c.decodeIfPresent([Word].self, forKey: .extra) ?? []
+        var byText = [String: Word]()
+        for word in words + extra where byText[word.text] == nil { byText[word.text] = word }
+        self.byText = byText
+        ladder = (try c.decodeIfPresent([String].self, forKey: .ladder) ?? []).compactMap {
+            byText[$0]
+        }
+    }
 
     public static func load(from url: URL) throws -> OrsyWords {
         try JSONDecoder().decode(OrsyWords.self, from: Data(contentsOf: url))
@@ -53,8 +77,8 @@ public struct OrsyWords: Decodable {
         return try load(from: url)
     }
 
-    /// The word, if the table has it.
+    /// The word, if the table or the ladder has it.
     public func word(_ text: String) -> Word? {
-        words.first { $0.text == text }
+        byText[text]
     }
 }
