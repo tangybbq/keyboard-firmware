@@ -119,6 +119,20 @@ final class OrsyWordSkillTests: XCTestCase {
         XCTAssertEqual(words.map(\.ms), [nil, 1000, nil])
     }
 
+    /// The capitalising coda's `I` is its own word, one stroke; the same letter after
+    /// the cap-next command is `i` with a capital put on it, and counts as `i`.
+    func testACapitalTheStrokeMakesIsKept() throws {
+        let capitalI = try stroke(0, 0x2c7, at: 2000)
+        XCTAssertEqual(capitalI.translation?.text, "I")
+        let capNext = try stroke(0x008, 0, at: 3000)
+        XCTAssertEqual(capNext.outcome, .capNext)
+        let words = try track(
+            try strokes("the", at: 1000) + [capitalI, capNext] + strokes("i", at: 3500)
+                + strokes("of", at: 4000))
+        XCTAssertEqual(words.map(\.text), ["the", "I", "i", "of"])
+        XCTAssertEqual(words.map(\.ms), [nil, 1000, 1500, 500])
+    }
+
     /// The space command closes the word before it, so it is part of that word's time.
     func testTheSpaceCommandIsPartOfTheWordItCloses() throws {
         // `the` is closed already, so the space is struck as well, not instead.

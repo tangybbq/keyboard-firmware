@@ -23,7 +23,10 @@ import Foundation
 
 /// A word as the output stage left it on the screen, and what it cost.
 struct TypedWord: Equatable {
-    /// In lower case: a capital after a full stop is the same word.
+    /// As the strokes spelled it.  A capital the output stage added -- after a full stop,
+    /// or for the cap-next command -- is left off, since that is the same word in another
+    /// place; one a stroke made itself is kept, as the capitalising coda makes `I` in one
+    /// stroke and that is a different thing to practise from `i`.
     var text: String
     /// From the end of the word before to the end of this one, when it can be timed.
     var ms: UInt32?
@@ -91,7 +94,7 @@ struct OrsyWordTracker {
         let ms = stroke.timeMs
         switch stroke.outcome {
         case .text(let t):
-            type(output.stroke(t), at: ms, tainted: tainted)
+            type(output.stroke(t), own: t.text, at: ms, tainted: tainted)
         case .punct(let mark):
             type(output.mark(mark), at: ms, tainted: tainted)
         case .space:
@@ -133,7 +136,7 @@ struct OrsyWordTracker {
             guard case .word(let w) = entry, !w.tainted, !w.text.isEmpty else { continue }
             let ms: UInt32? =
                 w.paused ? nil : w.startMs.flatMap { w.endMs >= $0 ? w.endMs - $0 : nil }
-            finished.append(TypedWord(text: w.text.lowercased(), ms: ms, clean: w.clean))
+            finished.append(TypedWord(text: w.text, ms: ms, clean: w.clean))
         }
         entries.removeAll()
         dirtyNext = false
@@ -141,9 +144,18 @@ struct OrsyWordTracker {
     }
 
     /// Characters on the screen, letters into words and the rest between them.
+    ///
+    /// `own` is the stroke's own text, without the capitals the output stage put on it,
+    /// which is what the word is recorded as; the screen has the same characters
+    /// otherwise, and the same number of them.
     private mutating func type(
-        _ text: String, at ms: UInt32, tainted: Bool, closing: Bool = false
+        _ text: String, own: String? = nil, at ms: UInt32, tainted: Bool, closing: Bool = false
     ) {
+        var text = text
+        if let own {
+            let space = text.hasPrefix(" ") ? " " : ""
+            if text.count == own.count + space.count { text = space + own }
+        }
         for ch in text {
             if ch.isLetter || ch == "'" {
                 if case .word(var w) = entries.last {
