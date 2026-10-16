@@ -235,8 +235,14 @@ public struct OrsyDrillTarget {
                 continue
             }
             for (left, right) in entry.strokes {
-                guard let t = theory.translate(left: left, right: right) else { continue }
-                let typed = output.stroke(t)
+                // A division can hold a mark as well as syllables: the apostrophe of
+                // `don't` is a stroke of its own between `don` and `t`.
+                let typed: String
+                switch theory.outcome(left: left, right: right) {
+                case .text(let t): typed = output.stroke(t)
+                case .punct(let mark): typed = output.mark(mark)
+                default: continue
+                }
                 units.append(OrsyDrillUnit(left: left, right: right, text: typed, offset: offset))
                 offset += typed.count
             }

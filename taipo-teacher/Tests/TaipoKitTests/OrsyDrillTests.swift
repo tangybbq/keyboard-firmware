@@ -709,6 +709,24 @@ final class OrsyDrillTests: XCTestCase {
         XCTAssertEqual(session.stats.textStrokes, 2)
     }
 
+    /// A division can hold a mark: `don't` is `don`, the apostrophe, and a coda-only
+    /// `t`, and the hint walks through all three.
+    func testAMarkInsideAWord() throws {
+        let (layouts, theory, _) = try fixtures()
+        let json = #"{"lessons": [], "words": [{"w": "don't", "s": [[3, 712], [0, 544], [0, 4]], "p": []}]}"#
+        let words = try JSONDecoder().decode(OrsyWords.self, from: Data(json.utf8))
+        let target = OrsyDrillTarget(text: "don't", words: words, theory: theory)
+        XCTAssertEqual(target.units.map(\.text), ["don", "'", "t"])
+        XCTAssertEqual(target.units.map(\.offset), [0, 3, 4])
+        let session = OrsyDrillSession(target: target, theory: theory, layouts: layouts)
+        for (i, unit) in target.units.enumerated() {
+            XCTAssertEqual(session.wantedStroke, unit)
+            session.feed(stroke(theory, unit.left, unit.right, at: 1000 + UInt32(i) * 500))
+        }
+        XCTAssertTrue(session.finished)
+        XCTAssertEqual(session.stats.wrong, 0)
+    }
+
     /// A wrong stroke is diagnosed by Series, and undo takes it back.
     func testWrongStrokeIsDiagnosedAndUndone() throws {
         let (layouts, theory, words) = try fixtures()
