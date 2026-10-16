@@ -182,7 +182,8 @@ struct SkillCollector {
                 if let changedPatterns = history.changedPatterns(since: session.layout, layouts: layouts) {
                     orsy.fold(
                         strokes, lines: lines, judge: OrsyJudge.make(layouts),
-                        changed: changedPatterns, options: orsyOptions, day: day)
+                        changed: changedPatterns, options: orsyOptions, day: day,
+                        layouts: layouts)
                 } else {
                     orsy.skipped += 1
                 }
@@ -236,7 +237,9 @@ struct SkillCollector {
         }
         return OrsySkillModel(
             skills: skills, sessions: orsy.sessions, skipped: orsy.skipped,
-            strokes: orsy.strokes, dead: orsy.dead, options: options)
+            strokes: orsy.strokes, dead: orsy.dead,
+            words: orsy.words.reduce(into: [:]) { $0[$1.key] = WordSkill(text: $1.key, samples: $1.value) },
+            options: options)
     }
 
     /// The finished measurements for one variant.

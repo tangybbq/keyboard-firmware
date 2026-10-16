@@ -229,13 +229,17 @@ public struct OrsySkillModel: Sendable {
     public let strokes: Int
     /// Strokes that were neither a syllable nor a command.
     public let dead: Int
+    /// Every word typed, by its text in lower case.  See `WordSkill`.
+    public let words: [String: WordSkill]
     public let options: SkillModel.Options
 
     public init(
         skills: [String: PatternSkill], sessions: Int, skipped: Int = 0, strokes: Int,
-        dead: Int = 0, options: SkillModel.Options = OrsySkillModel.defaultOptions
+        dead: Int = 0, words: [String: WordSkill] = [:],
+        options: SkillModel.Options = OrsySkillModel.defaultOptions
     ) {
         self.skills = skills
+        self.words = words
         self.sessions = sessions
         self.skipped = skipped
         self.strokes = strokes
@@ -244,6 +248,9 @@ public struct OrsySkillModel: Sendable {
     }
 
     public func skill(_ name: String) -> PatternSkill? { skills[name] }
+
+    /// What the logs say about a word, if it has been typed.
+    public func word(_ text: String) -> WordSkill? { words[text] }
 
     /// The key measuring one whole stroke, as against the patterns in it.
     ///
@@ -426,6 +433,8 @@ struct OrsySamples: Codable, Equatable {
     var patterns: [String: ChordSamples] = [:]
     /// The review box of every reached pattern the ladder teaches.
     var retention: [String: Retention] = [:]
+    /// Every word typed, by its text in lower case.
+    var words: [String: WordSamples] = [:]
     var sessions = 0
     var skipped = 0
     var strokes = 0
@@ -438,10 +447,12 @@ struct OrsySamples: Codable, Equatable {
     /// now, and is passed over the way a changed chord is.
     /// `lines` is where each drill line began, as (what it asked for, first stroke).
     /// `day` is the day the session was typed on, for the review boxes; without one they
-    /// are left as they are.
+    /// are left as they are.  `layouts` is for reading the strokes played through the Dosh
+    /// escape, which the words need; without it those are passed over.
     mutating func fold(
         _ all: [Stroke], lines: [(text: String, from: Int)] = [], judge: OrsyJudge? = nil,
-        changed: Set<String>, options: SkillModel.Options, day: Int? = nil
+        changed: Set<String>, options: SkillModel.Options, day: Int? = nil,
+        layouts: Layouts? = nil
     ) {
         guard !all.isEmpty else { return }
         sessions += 1
@@ -501,6 +512,18 @@ struct OrsySamples: Codable, Equatable {
                 }
             }
             previousMs = stroke.timeMs
+        }
+
+        // The words, from all of it: a word typed in Monkeytype is as fast as it is, and
+        // the drill's lines are only one place the words come up.  A word that ran over
+        // a stroke whose meaning has changed is passed over, as the patterns are.
+        var tracker = OrsyWordTracker(pauseMs: options.pauseMs, layouts: layouts)
+        for stroke in all {
+            tracker.feed(stroke, tainted: Self.keys(stroke).contains(where: changed.contains))
+        }
+        tracker.forget()
+        for word in tracker.finished {
+            words[word.text, default: WordSamples()].note(ms: word.ms, clean: word.clean)
         }
     }
 
