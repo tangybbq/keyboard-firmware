@@ -39,3 +39,6 @@ words/count_1w.txt
 
 # Word list fetched by words/drills.py
 words/english_10k.json
+
+# MonkeyType's English quotes, fetched for the Orsy word ladder (bbq-orsy/examples/lessons.rs)
+words/english_quotes.json

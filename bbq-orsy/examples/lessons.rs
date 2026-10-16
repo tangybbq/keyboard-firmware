@@ -23,15 +23,26 @@
 //! pattern keys, so the trainer's ladder and this file cannot disagree about
 //! the order.
 //!
-//!     cargo run --release --example lessons [--words FILE] [--out DIR] \
-//!         [--table FILE] [--limit N]
+//! It also writes the word ladder's order, which is a different list: the
+//! words as prose spells them, ranked by how often MonkeyType's English
+//! quotes use them, then the rest of the word list.  See [`ladder_order`].
+//! The quotes are fetched, not checked in:
+//!
+//!     curl -o words/english_quotes.json \
+//!         https://raw.githubusercontent.com/monkeytypegame/monkeytype/master/frontend/static/quotes/english.json
+//!
+//!     cargo run --release --example lessons [--words FILE] [--quotes FILE] \
+//!         [--out DIR] [--table FILE] [--limit N]
 
 use std::collections::HashSet;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
 
-use bbq_orsy::tables::{Outer, Second, Vowel};
+use std::collections::HashMap;
+
+use bbq_orsy::chord::OUTER_MASK;
+use bbq_orsy::tables::{punctuation, Outer, Second, Vowel};
 use bbq_orsy::{rules, translate, Chord, Patterns, Writer};
 
 /// Something a lesson teaches.
@@ -381,9 +392,186 @@ struct Entry {
     strokes: Vec<Chord>,
 }
 
+/// The word ladder's order: the words prose is made of, most frequent first.
+///
+/// The word list the drills use is MonkeyType's `english_10k`, which is web text: `page`,
+/// `search` and `click` in the first three hundred, and no contractions at all, since the
+/// lists drop the apostrophe and with it the word.  Measured over MonkeyType's own English
+/// quotes, which keep them, contractions are 3% of running words and `it's`, `don't` and
+/// `I'm` rank 41st, 45th and 50th; `count_1w` cannot say so either, since it only counts
+/// `dont` where someone wrote it without the apostrophe.  The quotes are prose, and they
+/// are what MonkeyType's quote mode gives to type.
+///
+/// So the ladder ranks words by how often the quotes use them, as far as there are enough
+/// of them to rank by (`MIN_QUOTED`), and continues in the word list's order after that.
+/// Spelled as prose spells them: `I` with its capital, a proper noun capitalised where the
+/// quotes nearly always capitalise it mid-sentence, and the contractions with their
+/// apostrophes.  Not the possessives, which are a word and `'s` rather than a word of
+/// their own.  A word-list entry that is only a contraction with its apostrophe gone --
+/// `cant` -- gives way to the contraction.
+///
+/// The compounds the drills hold out stay out of it too, for the same reason.
+fn ladder_order(
+    quotes: &serde_json::Value, listed: &[String], held_out: &HashSet<&str>,
+) -> Vec<String> {
+    /// The contraction endings worth a place.  `'s` only after the words it contracts
+    /// `is` or `has` on, since anywhere else it is a possessive.
+    const ENDINGS: &[&str] = &["n't", "'re", "'ve", "'ll", "'m", "'d"];
+    const IS: &[&str] =
+        &["it", "that", "there", "here", "what", "who", "he", "she", "let", "where", "how"];
+    const MIN_QUOTED: usize = 10;
+
+    #[derive(Default)]
+    struct Seen {
+        count: usize,
+        /// Uses not at the start of a sentence, and how many of them had a capital.
+        inside: usize,
+        capitalised: usize,
+    }
+    let mut seen: HashMap<String, Seen> = HashMap::new();
+    let mut order: Vec<String> = Vec::new();
+    for quote in quotes["quotes"].as_array().expect("quotes array") {
+        let text = quote["text"].as_str().unwrap_or("").replace(['\u{2019}', '\u{2018}'], "'");
+        let chars: Vec<char> = text.chars().collect();
+        let mut at = 0;
+        // Whether the next word starts a sentence.
+        let mut opening = true;
+        while at < chars.len() {
+            let ch = chars[at];
+            if !ch.is_ascii_alphabetic() {
+                if matches!(ch, '.' | '!' | '?') {
+                    opening = true;
+                }
+                at += 1;
+                continue;
+            }
+            let start = at;
+            while at < chars.len()
+                && (chars[at].is_ascii_alphabetic()
+                    || (chars[at] == '\''
+                        && chars.get(at + 1).is_some_and(|c| c.is_ascii_alphabetic())))
+            {
+                at += 1;
+            }
+            let token: String = chars[start..at].iter().collect();
+            let lower = token.to_ascii_lowercase();
+            let wanted = match lower.matches('\'').count() {
+                0 => true,
+                1 => {
+                    ENDINGS.iter().any(|e| lower.ends_with(e))
+                        || lower.strip_suffix("'s").is_some_and(|base| IS.contains(&base))
+                }
+                _ => false,
+            };
+            if wanted {
+                // `I` is always a capital, so it is its own key; anything else is keyed in
+                // lower case and its capital decided below.
+                let key = if token == "I" || token.starts_with("I'") { token.clone() } else { lower };
+                let entry = seen.entry(key.clone()).or_default();
+                if entry.count == 0 {
+                    order.push(key);
+                }
+                entry.count += 1;
+                if !opening {
+                    entry.inside += 1;
+                    entry.capitalised += token.starts_with(|c: char| c.is_ascii_uppercase()) as usize;
+                }
+            }
+            opening = false;
+        }
+    }
+    // Most used first; first seen breaks ties, so the order is the same every run.
+    let first: HashMap<&str, usize> =
+        order.iter().enumerate().map(|(i, w)| (w.as_str(), i)).collect();
+    let mut ranked: Vec<&String> =
+        order.iter().filter(|w| seen[w.as_str()].count >= MIN_QUOTED).collect();
+    ranked.sort_by_key(|w| (std::cmp::Reverse(seen[w.as_str()].count), first[w.as_str()]));
+
+    let mut out = Vec::new();
+    let mut taken: HashSet<String> = HashSet::new();
+    for key in ranked {
+        let s = &seen[key.as_str()];
+        let spelled = if key.starts_with('I') {
+            key.clone()
+        } else if s.inside >= 3 && s.capitalised * 10 >= s.inside * 9 {
+            let mut c = key.chars();
+            c.next().map(|f| f.to_ascii_uppercase().to_string() + c.as_str()).unwrap_or_default()
+        } else {
+            key.clone()
+        };
+        if !held_out.contains(key.as_str()) && taken.insert(spelled.to_ascii_lowercase()) {
+            out.push(spelled);
+        }
+    }
+    // A contraction's letters alone, which the word list has where it means the
+    // contraction: `cant` for `can't`.  Not where the letters are a word in their own
+    // right as well.
+    const WORDS_TOO: &[&str] = &["its", "well", "were", "ill", "hell", "shell", "wed", "id", "lets"];
+    let stripped: HashSet<String> = out
+        .iter()
+        .filter(|w| w.contains('\''))
+        .map(|w| w.replace('\'', "").to_ascii_lowercase())
+        .filter(|w| !WORDS_TOO.contains(&w.as_str()))
+        .collect();
+    for word in listed {
+        let lower = word.to_ascii_lowercase();
+        if !word.bytes().all(|b| b.is_ascii_alphabetic())
+            || stripped.contains(&lower)
+            || held_out.contains(lower.as_str())
+        {
+            continue;
+        }
+        if taken.insert(lower) {
+            out.push(word.clone());
+        }
+    }
+    out
+}
+
+/// A ladder word's strokes, where the table's division will not do: a capital, from the
+/// capitalising coda on the first stroke, and an apostrophe, as the mark between the
+/// strokes either side.  None for a word with a capital the coda cannot give -- the first
+/// stroke has a coda of its own, or the capital is not the first letter -- since the
+/// cap-next command would make it a stroke longer and the drill's hint cannot show a
+/// stroke that types nothing.
+fn ladder_strokes(writer: &Writer, word: &str) -> Option<Vec<Chord>> {
+    let (head, rest) = match word.split_once('\'') {
+        Some((head, rest)) => (head, Some(rest)),
+        None => (word, None),
+    };
+    if head.chars().skip(1).any(|c| c.is_ascii_uppercase()) {
+        return None;
+    }
+    let mut strokes = writer.write(&head.to_ascii_lowercase())?;
+    if head.starts_with(|c: char| c.is_ascii_uppercase()) {
+        let first = strokes[0];
+        if first.right & OUTER_MASK != 0 {
+            return None;
+        }
+        let capped = Chord::new(first.left, first.right | Outer::SCZ.bits());
+        let (plain, cap) = (translate(first)?, translate(capped)?);
+        let mut want = plain.text();
+        want[..1].make_ascii_uppercase();
+        if cap.text() != want
+            || cap.space_before != plain.space_before
+            || cap.space_after != plain.space_after
+        {
+            return None;
+        }
+        strokes[0] = capped;
+    }
+    if let Some(rest) = rest {
+        let apostrophe = punctuation::ALL.iter().find(|m| m.text == "'")?;
+        strokes.push(Chord::new(0, apostrophe.bits));
+        strokes.extend(writer.write_rest(&rest.to_ascii_lowercase())?);
+    }
+    Some(strokes)
+}
+
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut words_path = root.join("words/english_10k.json");
+    let mut quotes_path = root.join("words/english_quotes.json");
     let mut out = root.join("docs/orsy");
     let mut table = root.join("taipo-teacher/Sources/TaipoKit/orsy-words.json");
     let mut limit = 40usize;
@@ -392,6 +580,7 @@ fn main() {
         let mut value = || args.next().expect("value");
         match arg.as_str() {
             "--words" => words_path = PathBuf::from(value()),
+            "--quotes" => quotes_path = PathBuf::from(value()),
             "--out" => out = PathBuf::from(value()),
             "--table" => table = PathBuf::from(value()),
             "--limit" => limit = value().parse().expect("number"),
@@ -500,10 +689,64 @@ fn main() {
             })
         })
         .collect();
+    // The word ladder: its order, and the words in it the table does not have.
+    let quotes: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(&quotes_path).unwrap_or_else(|_| {
+            panic!("{}: fetch it as the module comment says", quotes_path.display())
+        }),
+    )
+    .expect("quotes json");
+    let listed_as: Vec<String> = list["words"]
+        .as_array()
+        .expect("words array")
+        .iter()
+        .filter_map(|w| w.as_str().map(str::to_string))
+        .collect();
+    let in_table: HashSet<&str> =
+        table_words.iter().filter_map(|w| w["w"].as_str()).collect();
+    let mut ladder = Vec::new();
+    let mut extra = Vec::new();
+    let mut unladdered = Vec::new();
+    let held: HashSet<&str> = held_out.iter().map(String::as_str).collect();
+    for word in ladder_order(&quotes, &listed_as, &held) {
+        if in_table.contains(word.as_str()) {
+            ladder.push(word);
+            continue;
+        }
+        let Some(strokes) = ladder_strokes(&writer, &word) else {
+            unladdered.push(word);
+            continue;
+        };
+        let mut keys: Vec<String> = strokes
+            .iter()
+            .flat_map(|c| match punctuation::lookup(c.right).filter(|_| c.left == 0) {
+                Some(mark) => vec![format!("punct:{}", mark.text)],
+                None => stroke_keys(*c),
+            })
+            .collect();
+        keys.sort();
+        keys.dedup();
+        extra.push(serde_json::json!({
+            "w": word,
+            "s": strokes.iter().map(|c| [c.left, c.right]).collect::<Vec<_>>(),
+            "p": keys,
+        }));
+        ladder.push(word);
+    }
+    eprintln!(
+        "word ladder: {} words, {} spelled for it alone, {} unwritable: {}",
+        ladder.len(),
+        extra.len(),
+        unladdered.len(),
+        unladdered.iter().take(12).cloned().collect::<Vec<_>>().join(" ")
+    );
+
     let table_json = serde_json::json!({
         "generator": "bbq-orsy/examples/lessons.rs; regenerate with `cargo run --release --example lessons`",
         "lessons": plan,
         "words": table_words,
+        "ladder": ladder,
+        "extra": extra,
     });
     fs::write(&table, serde_json::to_string(&table_json).expect("json") + "\n")
         .expect("write the word table");
