@@ -160,9 +160,56 @@ public final class DeviceMonitor: ObservableObject {
     /// The ladder options the switches above add up to.
     var orsyOptions: OrsyLadder.Options { OrsyLadder.Options(introduce: orsyIntroduce) }
 
+    /// Which Orsy ladder the drill runs.
+    public enum OrsyPractice: String, CaseIterable, Identifiable, Sendable {
+        /// The patterns and rules, in the lesson plan's order.
+        case patterns = "Patterns"
+        /// Whole words, most used first, for speed.
+        case words = "Words"
+        public var id: String { rawValue }
+    }
+
+    @Published public var orsyPractice: OrsyPractice = DeviceMonitor.storedOrsyPractice() {
+        didSet {
+            guard orsyPractice != oldValue else { return }
+            UserDefaults.standard.set(orsyPractice.rawValue, forKey: Self.orsyPracticeKey)
+            guard mode == .orsy else { return }
+            rebuildOrsyProgramme()
+        }
+    }
+
+    /// The word ladder's target speed, in words a minute.
+    ///
+    /// A preference rather than something the model works out: how fast is fast enough
+    /// is the writer's call, and raising it once the ladder is well along is how it keeps
+    /// pulling the speed up.  Changing it costs nothing, since a word's best time is kept
+    /// and the gate is asked again against the new target.
+    @Published public var orsyWpm: Double = DeviceMonitor.storedOrsyWpm() {
+        didSet {
+            guard orsyWpm != oldValue else { return }
+            UserDefaults.standard.set(orsyWpm, forKey: Self.orsyWpmKey)
+            guard mode == .orsy, orsyPractice == .words else { return }
+            rebuildOrsyProgramme()
+        }
+    }
+
+    var orsyWordOptions: OrsyWordLadder.Options { OrsyWordLadder.Options(wpm: orsyWpm) }
+
     private static let orsyHintKey = "orsyHint"
     private static let orsyHintKeysKey = "orsyHintKeys"
     private static let orsyIntroduceKey = "orsyIntroduce"
+    private static let orsyPracticeKey = "orsyPractice"
+    private static let orsyWpmKey = "orsyWpm"
+
+    static func storedOrsyPractice() -> OrsyPractice {
+        UserDefaults.standard.string(forKey: orsyPracticeKey).flatMap(OrsyPractice.init(rawValue:))
+            ?? .patterns
+    }
+
+    static func storedOrsyWpm() -> Double {
+        let stored = UserDefaults.standard.double(forKey: orsyWpmKey)
+        return stored > 0 ? stored : 25
+    }
 
     static func storedOrsyIntroduce() -> Bool {
         UserDefaults.standard.object(forKey: orsyIntroduceKey) as? Bool ?? true
@@ -227,6 +274,8 @@ public final class DeviceMonitor: ObservableObject {
     @Published public private(set) var orsyDrill: OrsyDrillSession?
     /// Where the Orsy ladder has got to, and what the logs say about each pattern.
     @Published public private(set) var orsyLadder: OrsyLadder?
+    /// Where the word ladder has got to, when that is the practice.
+    @Published public private(set) var orsyWordLadder: OrsyWordLadder?
     @Published public private(set) var orsySkill: OrsySkillModel?
     /// The Orsy word table and theory, loaded with the tables.
     private(set) var orsyWords: OrsyWords?
@@ -402,6 +451,7 @@ public final class DeviceMonitor: ObservableObject {
     public func discardOrsyPractice() {
         orsySkill = nil
         orsyLadder = nil
+        orsyWordLadder = nil
         programme = []
         drillIndex = 0
         lineIndex = 0
@@ -570,6 +620,10 @@ public final class DeviceMonitor: ObservableObject {
         guard practicing, let layouts, let words = orsyWords, let theory = orsyTheory else {
             return
         }
+        if orsyPractice == .words {
+            rebuildOrsyWords(layouts: layouts, words: words)
+            return
+        }
         let directory = logDirectory
         let options = self.orsyOptions
         let seed = UInt64(Date().timeIntervalSince1970)
@@ -583,9 +637,37 @@ public final class DeviceMonitor: ObservableObject {
             let drill = OrsyLadderMaker(words: words, made: skill.madeStrokes)
                 .drill(ladder, lines: Self.ladderBlock, seed: seed)
             await MainActor.run { [weak self] in
-                guard let self, self.practicing, self.mode == .orsy else { return }
+                guard let self, self.practicing, self.mode == .orsy,
+                    self.orsyPractice == .patterns
+                else { return }
                 self.orsySkill = skill
                 self.orsyLadder = ladder
+                self.orsyWordLadder = nil
+                self.skippedSessions = skill.skipped
+                guard !drill.lines.isEmpty else { return }
+                self.adopt([drill])
+            }
+        }
+    }
+
+    /// The word ladder's programme.
+    private func rebuildOrsyWords(layouts: Layouts, words: OrsyWords) {
+        let directory = logDirectory
+        let options = self.orsyWordOptions
+        let seed = UInt64(Date().timeIntervalSince1970)
+        Task.detached(priority: .userInitiated) {
+            let skill = SkillStore.orsyModel(
+                logDirectory: directory, cache: SkillStore.defaultURL(forLogsIn: directory),
+                layouts: layouts)
+            let ladder = OrsyWordLadder(words: words, skill: skill, options: options)
+            let drill = OrsyWordLadderMaker().drill(ladder, lines: Self.ladderBlock, seed: seed)
+            await MainActor.run { [weak self] in
+                guard let self, self.practicing, self.mode == .orsy,
+                    self.orsyPractice == .words, self.orsyWordOptions == options
+                else { return }
+                self.orsySkill = skill
+                self.orsyWordLadder = ladder
+                self.orsyLadder = nil
                 self.skippedSessions = skill.skipped
                 guard !drill.lines.isEmpty else { return }
                 self.adopt([drill])
@@ -599,6 +681,10 @@ public final class DeviceMonitor: ObservableObject {
         guard practicing, !refreshing, let layouts, let words = orsyWords,
             let theory = orsyTheory
         else { return }
+        if orsyPractice == .words {
+            refreshOrsyWords(layouts: layouts, words: words)
+            return
+        }
         refreshing = true
         let directory = logDirectory
         let options = self.orsyOptions
@@ -623,9 +709,44 @@ public final class DeviceMonitor: ObservableObject {
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 defer { self.refreshing = false }
-                guard self.practicing, self.mode == .orsy else { return }
+                guard self.practicing, self.mode == .orsy, self.orsyPractice == .patterns
+                else { return }
                 self.orsySkill = skill
                 self.orsyLadder = built
+                self.skippedSessions = skill.skipped
+                if let material, !material.lines.isEmpty { self.adopt([material]) }
+            }
+        }
+    }
+
+    /// The word ladder's half of `refreshOrsySkill`: new material when a word comes out
+    /// or the focus moves, the measurements every line.
+    private func refreshOrsyWords(layouts: Layouts, words: OrsyWords) {
+        refreshing = true
+        let directory = logDirectory
+        let options = self.orsyWordOptions
+        let previous = orsyWordLadder
+        let seed = UInt64(Date().timeIntervalSince1970)
+        Task.detached(priority: .utility) {
+            let skill = SkillStore.orsyModel(
+                logDirectory: directory, cache: SkillStore.defaultURL(forLogsIn: directory),
+                layouts: layouts)
+            let built = OrsyWordLadder(words: words, skill: skill, options: options)
+            let moved =
+                previous.map {
+                    built.unlockedCount != $0.unlockedCount
+                        || built.focus.map(\.text) != $0.focus.map(\.text)
+                } ?? false
+            let material =
+                moved ? OrsyWordLadderMaker().drill(built, lines: Self.ladderBlock, seed: seed) : nil
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                defer { self.refreshing = false }
+                guard self.practicing, self.mode == .orsy, self.orsyPractice == .words,
+                    self.orsyWordOptions == options
+                else { return }
+                self.orsySkill = skill
+                self.orsyWordLadder = built
                 self.skippedSessions = skill.skipped
                 if let material, !material.lines.isEmpty { self.adopt([material]) }
             }
@@ -733,6 +854,7 @@ public final class DeviceMonitor: ObservableObject {
         drillTitle = nil
         orsyDrill = nil
         orsyLadder = nil
+        orsyWordLadder = nil
         orsySkill = nil
     }
 

@@ -13,10 +13,16 @@ struct OrsyDrillView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let drill = monitor.orsyDrill {
-                if let ladder = monitor.orsyLadder {
+                if monitor.orsyPractice == .words, let ladder = monitor.orsyWordLadder {
+                    wordHeading(ladder)
+                } else if monitor.orsyPractice == .patterns, let ladder = monitor.orsyLadder {
                     heading(ladder)
                 } else {
-                    Text("Orsy").font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                    HStack {
+                        Text("Orsy").font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                        Spacer()
+                        practiceSwitch
+                    }
                 }
                 HStack(alignment: .top, spacing: 20) {
                     target(drill)
@@ -51,12 +57,90 @@ struct OrsyDrillView: View {
                     Text(lesson.title).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
+                practiceSwitch
                 newSwitch
                 hintSwitch
             }
             ForEach(ladder.focus, id: \.key) { item in
                 focusRow(item, due: ladder.due.contains(item))
             }
+        }
+    }
+
+    /// Patterns or words.  Plain buttons, as `hintSwitch` uses.
+    private var practiceSwitch: some View {
+        HStack(spacing: 8) {
+            ForEach(DeviceMonitor.OrsyPractice.allCases) { choice in
+                Button { monitor.orsyPractice = choice } label: {
+                    Text(choice.rawValue)
+                        .font(.caption.weight(monitor.orsyPractice == choice ? .semibold : .regular))
+                        .foregroundStyle(
+                            monitor.orsyPractice == choice ? Color.accentColor : Color.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .help(
+            "Patterns is the ladder of rules, in the lesson plan's order.  Words drills "
+            + "whole words, most used first, and adds the next as they reach the target speed.")
+    }
+
+    // MARK: - The word ladder
+
+    private func wordHeading(_ ladder: OrsyWordLadder) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 10) {
+                Text(ladder.headline())
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.secondary)
+                if let next = ladder.next {
+                    Text("next: \(next.text)").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                practiceSwitch
+                Stepper(value: $monitor.orsyWpm, in: 10...150, step: 5) {
+                    Text(String(format: "%.0f wpm", monitor.orsyWpm))
+                        .font(.caption.monospacedDigit())
+                }
+                .help(
+                    "The target speed.  A word passes once its median over twenty clean "
+                    + "uses has been under it; raising it later keeps the ladder pulling.")
+                hintSwitch
+            }
+            ForEach(ladder.focus, id: \.text) { item in
+                wordRow(item)
+            }
+        }
+    }
+
+    /// One word being worked on: how often it has been typed, how fast it is now against
+    /// the time it is allowed, and how often it needs a second go.
+    private func wordRow(_ item: OrsyWordLadder.Item) -> some View {
+        let s = item.skill
+        return HStack(spacing: 8) {
+            Text(item.text)
+                .font(.system(size: 12, design: .monospaced))
+                .frame(width: 80, alignment: .leading)
+            Text(item.passed ? "passed" : (s == nil ? "new" : ""))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .leading)
+            ZStack(alignment: .leading) {
+                Capsule().fill(.quaternary).frame(width: 54, height: 4)
+                Capsule().fill(Color.accentColor)
+                    .frame(width: 54 * max(0, min(1, item.confidence)), height: 4)
+            }
+            measure("\(s?.count ?? 0)", unit: "typed", met: (s?.count ?? 0) >= 15)
+            measure(
+                (s?.medianMs.map { "\($0)" } ?? "—") + "/\(item.targetMs)", unit: "ms",
+                met: (s?.medianMs ?? .max) <= item.targetMs)
+            measure(
+                item.wpm.map { String(format: "%.0f", $0) } ?? "—", unit: "wpm",
+                met: (s?.medianMs ?? .max) <= item.targetMs)
+            measure(
+                s.map { String(format: "%.0f", $0.errorRate * 100) } ?? "0", unit: "% back",
+                met: (s?.errorRate ?? 0) <= 0.1)
         }
     }
 
