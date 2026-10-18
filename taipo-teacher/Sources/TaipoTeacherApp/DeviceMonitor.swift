@@ -178,37 +178,39 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
-    /// The word ladder's target speed, in words a minute.
+    /// The word ladder's target, as the time a stroke is allowed.
     ///
     /// A preference rather than something the model works out: how fast is fast enough
-    /// is the writer's call, and raising it once the ladder is well along is how it keeps
+    /// is the writer's call, and lowering it once the ladder is well along is how it keeps
     /// pulling the speed up.  Changing it costs nothing, since a word's best time is kept
     /// and the gate is asked again against the new target.
-    @Published public var orsyWpm: Double = DeviceMonitor.storedOrsyWpm() {
+    @Published public var orsyStrokeMs: UInt32 = DeviceMonitor.storedOrsyStrokeMs() {
         didSet {
-            guard orsyWpm != oldValue else { return }
-            UserDefaults.standard.set(orsyWpm, forKey: Self.orsyWpmKey)
+            guard orsyStrokeMs != oldValue else { return }
+            UserDefaults.standard.set(Int(orsyStrokeMs), forKey: Self.orsyStrokeMsKey)
             guard mode == .orsy, orsyPractice == .words else { return }
             rebuildOrsyProgramme()
         }
     }
 
-    var orsyWordOptions: OrsyWordLadder.Options { OrsyWordLadder.Options(wpm: orsyWpm) }
+    var orsyWordOptions: OrsyWordLadder.Options {
+        OrsyWordLadder.Options(strokeMs: orsyStrokeMs)
+    }
 
     private static let orsyHintKey = "orsyHint"
     private static let orsyHintKeysKey = "orsyHintKeys"
     private static let orsyIntroduceKey = "orsyIntroduce"
     private static let orsyPracticeKey = "orsyPractice"
-    private static let orsyWpmKey = "orsyWpm"
+    private static let orsyStrokeMsKey = "orsyStrokeMs"
 
     static func storedOrsyPractice() -> OrsyPractice {
         UserDefaults.standard.string(forKey: orsyPracticeKey).flatMap(OrsyPractice.init(rawValue:))
             ?? .patterns
     }
 
-    static func storedOrsyWpm() -> Double {
-        let stored = UserDefaults.standard.double(forKey: orsyWpmKey)
-        return stored > 0 ? stored : 25
+    static func storedOrsyStrokeMs() -> UInt32 {
+        let stored = UserDefaults.standard.integer(forKey: orsyStrokeMsKey)
+        return stored > 0 ? UInt32(stored) : OrsyWordLadder.Options().strokeMs
     }
 
     static func storedOrsyIntroduce() -> Bool {

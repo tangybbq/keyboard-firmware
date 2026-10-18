@@ -99,13 +99,19 @@ struct OrsyDrillView: View {
                 }
                 Spacer()
                 practiceSwitch
-                Stepper(value: $monitor.orsyWpm, in: 10...150, step: 5) {
-                    Text(String(format: "%.0f wpm", monitor.orsyWpm))
-                        .font(.caption.monospacedDigit())
+                Stepper(value: $monitor.orsyStrokeMs, in: 300...3000, step: 100) {
+                    Text(
+                        String(
+                            format: "%dms a stroke ≈ %.0f wpm", monitor.orsyStrokeMs,
+                            OrsyWordLadder.equivalentWpm(strokeMs: monitor.orsyStrokeMs))
+                    )
+                    .font(.caption.monospacedDigit())
                 }
                 .help(
-                    "The target speed.  A word passes once its median over twenty clean "
-                    + "uses has been under it; raising it later keeps the ladder pulling.")
+                    "The target, per stroke: a word is allowed this for each stroke of its "
+                    + "division, from the end of the word before.  It passes once its median "
+                    + "over twenty clean uses has been under that; lowering this later keeps "
+                    + "the ladder pulling.  The wpm is what it comes to at 1.55 strokes a word.")
                 hintSwitch
             }
             ForEach(ladder.focus, id: \.text) { item in
@@ -133,7 +139,8 @@ struct OrsyDrillView: View {
             }
             measure("\(s?.count ?? 0)", unit: "typed", met: (s?.count ?? 0) >= 15)
             measure(
-                (s?.medianMs.map { "\($0)" } ?? "—") + "/\(item.targetMs)", unit: "ms",
+                (item.strokeMs.map { "\($0)" } ?? "—") + "/\(monitor.orsyStrokeMs)",
+                unit: item.strokes == 1 ? "ms" : "ms ×\(item.strokes)",
                 met: (s?.medianMs ?? .max) <= item.targetMs)
             measure(
                 item.wpm.map { String(format: "%.0f", $0) } ?? "—", unit: "wpm",

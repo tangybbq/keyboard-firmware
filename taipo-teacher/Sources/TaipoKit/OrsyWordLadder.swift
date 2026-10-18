@@ -13,10 +13,16 @@ import Foundation
 ///
 /// **The gate is speed**, unlike the pattern ladder's, which is reach: there the job was
 /// learning what each pattern does, here it is doing it quickly.  A word has passed once
-/// its best windowed median (`WordSkill.bestMs`) is under its target, which is the time
-/// the target speed allows for its characters and the space after it.  The best rather
+/// its best windowed median (`WordSkill.bestMs`) is under its target.  The best rather
 /// than the current median, so a slow sitting cannot lock words again; the current one
 /// still decides which words are worked on.
+///
+/// **The target is per stroke**, the time per stroke times the strokes in the word's
+/// division, since the time goes into the strokes and not the letters.  It was the time a
+/// typing speed allows the characters, and that asked a two-stroke word for the speed of
+/// a one-stroke word the same length: `all`, the first two-stroke word out, was allowed
+/// the 1920ms that `the` was, while it ran at 1140ms a stroke against `the`'s 790 and the
+/// first forty words' median of nearly 2000.
 ///
 /// **Up to `inFlight` words below the target at once**, as the other ladders allow a few
 /// unlearned items, so one stubborn word never stops the ladder.  The focus set is the
@@ -34,23 +40,43 @@ public struct OrsyWordLadder: Sendable {
         /// How many words a line works on.  One more than `inFlight`, for polishing the
         /// slowest word already passed.
         public var focus: Int
-        /// The target speed, in words of five characters a minute.
-        public var wpm: Double
+        /// The time a stroke is allowed, from the stroke before; a word is allowed this
+        /// for each stroke of its division.  1500ms is about 26 wpm at the table's 1.55
+        /// strokes a word (`equivalentWpm`), where the ladder's first target, 25 wpm on
+        /// characters, had been.
+        public var strokeMs: UInt32
 
-        public init(initial: Int = 10, inFlight: Int = 3, focus: Int = 4, wpm: Double = 25) {
+        public init(
+            initial: Int = 10, inFlight: Int = 3, focus: Int = 4, strokeMs: UInt32 = 1500
+        ) {
             self.initial = initial
             self.inFlight = inFlight
             self.focus = focus
-            self.wpm = wpm
+            self.strokeMs = strokeMs
         }
+    }
+
+    /// Strokes per five-character word over English, the top 20,000 words weighted by
+    /// frequency, as `bbq_orsy::Writer` divides them.  Only for saying what a stroke time
+    /// comes to in words a minute.
+    public static let strokesPerWord = 1.55
+
+    /// What a time per stroke comes to in words a minute, on average.
+    public static func equivalentWpm(strokeMs: UInt32) -> Double {
+        60_000 / Double(max(1, strokeMs)) / strokesPerWord
     }
 
     /// One word, with what the logs say about it against its target.
     public struct Item: Equatable, Sendable {
         public let text: String
-        /// The time the target speed allows it, from the end of the word before.
+        /// The strokes in its division.
+        public let strokes: Int
+        /// The time it is allowed, from the end of the word before.
         public let targetMs: UInt32
         public let skill: WordSkill?
+
+        /// How long it takes a stroke now.
+        public var strokeMs: UInt32? { skill?.medianMs.map { $0 / UInt32(max(1, strokes)) } }
 
         /// It has been under the target, cleanly, over a full window.
         public var passed: Bool { skill?.bestMs.map { $0 <= targetMs } ?? false }
@@ -94,11 +120,10 @@ public struct OrsyWordLadder: Sendable {
         self.words = ladder
         self.skill = skill
         self.options = options
-        func item(_ word: OrsyWords.Word) -> Item {
-            Item(
-                text: word.text, targetMs: Self.targetMs(word.text, wpm: options.wpm),
-                skill: skill.word(word.text))
-        }
+        var byText = [String: OrsyWords.Word]()
+        for word in ladder where byText[word.text] == nil { byText[word.text] = word }
+        self.byText = byText
+        func item(_ word: OrsyWords.Word) -> Item { Self.item(word, skill: skill, options: options) }
         var count = min(options.initial, ladder.count)
         var below = ladder.prefix(count).filter { !item($0).passed }.count
         while count < ladder.count, below < options.inFlight {
@@ -115,23 +140,33 @@ public struct OrsyWordLadder: Sendable {
         self.focus = ranked.prefix(options.focus).map(\.1)
     }
 
-    /// The time the target speed allows a word: its characters and the space after it.
-    public static func targetMs(_ text: String, wpm: Double) -> UInt32 {
-        UInt32((Double(text.count + 1) / 5 * 60_000 / max(1, wpm)).rounded())
+    private let byText: [String: OrsyWords.Word]
+
+    /// The time a word is allowed: the time per stroke for each stroke of its division.
+    public static func targetMs(_ word: OrsyWords.Word, strokeMs: UInt32) -> UInt32 {
+        UInt32(max(1, word.strokes.count)) * strokeMs
     }
 
-    public func item(_ text: String) -> Item {
-        Item(text: text, targetMs: Self.targetMs(text, wpm: options.wpm), skill: skill.word(text))
+    static func item(_ word: OrsyWords.Word, skill: OrsySkillModel, options: Options) -> Item {
+        Item(
+            text: word.text, strokes: word.strokes.count,
+            targetMs: targetMs(word, strokeMs: options.strokeMs), skill: skill.word(word.text))
+    }
+
+    /// One of the ladder's words, with how it stands; nil for a word not on it.
+    public func item(_ text: String) -> Item? {
+        byText[text].map { Self.item($0, skill: skill, options: options) }
     }
 
     /// How many unlocked words are still under the target.
-    public var below: Int { unlocked.filter { !item($0.text).passed }.count }
+    public var below: Int {
+        unlocked.filter { !Self.item($0, skill: skill, options: options).passed }.count
+    }
 
     /// Where the ladder stands.
     public func headline() -> String {
         let place = "\(unlockedCount) of \(words.count) words"
-        let wpm = String(format: "%.0f", options.wpm)
-        return "Orsy words — \(place) · \(below) below \(wpm) wpm"
+        return "Orsy words — \(place) · \(below) below \(options.strokeMs)ms a stroke"
     }
 
     public func title() -> String {
