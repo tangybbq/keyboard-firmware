@@ -19,11 +19,12 @@ use embassy_sync::{
 };
 use embassy_time::{Duration, Timer};
 use heapless::Deque;
+use minder::keylog::RECORD_SIZE;
 use minder::{Event, Reply, Request, VERSION, cap};
 use sha2::{Digest, Sha256};
 use zephyr::printkln;
 
-use crate::minder_usb;
+use crate::{keylog, minder_usb};
 
 unsafe extern "C" {
     fn jolt_boot_id() -> u64;
@@ -105,6 +106,13 @@ impl EventQueue {
             self.waker.wait().await;
         }
     }
+}
+
+/// Queue an event to be reported to the host on its next `GetEvent`.
+///
+/// Never blocks, and never fails; if the queue is full the oldest event is dropped.
+pub fn push_event(event: Event) {
+    EVENTS.push(event);
 }
 
 /// How a pending `GetEvent` ended.
@@ -216,11 +224,21 @@ impl Minder {
                         Reply::NoEvent
                     }
                 },
-                Ok(Request::SetLogging { .. })
-                | Ok(Request::GetEventLog { .. })
-                | Ok(Request::EventLogAck { .. }) => Reply::Error {
-                    text: "No key log".into(),
-                },
+                Ok(Request::SetLogging { enabled, watermark }) => {
+                    keylog::set_logging(enabled, watermark);
+                    if enabled {
+                        // A host attaching mid-session has no idea which mode, chord table or
+                        // row position the engine is in.  Say so straight away, so the first
+                        // records it gets are interpretable.
+                        keylog::log_state();
+                    }
+                    Reply::Ok
+                }
+                Ok(Request::GetEventLog { max_bytes }) => self.event_log(max_bytes),
+                Ok(Request::EventLogAck { through_seq }) => {
+                    keylog::ack(through_seq);
+                    Reply::Ok
+                }
                 Ok(Request::TestEvent { count, delay_ms }) => {
                     TEST_EVENT_REQ.signal((count, delay_ms));
                     Reply::Ok
@@ -259,6 +277,27 @@ impl Minder {
         }
     }
 
+    /// Copy a batch of key log records out for the host.
+    ///
+    /// Capped well inside `SIZE_LIMIT`, which bounds a whole CBOR message rather than just
+    /// its payload; the rest of the reply's fields and the CBOR framing have to fit too.
+    fn event_log(&mut self, max_bytes: u32) -> Reply {
+        const MAX_RECORDS: usize = 900;
+        let mut buf = [0u8; MAX_RECORDS * RECORD_SIZE];
+
+        let want = (max_bytes as usize).min(buf.len());
+        let batch = keylog::drain(&mut buf, want);
+
+        Reply::EventLog {
+            boot_id: self.boot_id,
+            seq: batch.seq,
+            dropped: batch.dropped,
+            anchor_ms: batch.anchor_ms,
+            records: buf[..batch.count * RECORD_SIZE].to_vec().into(),
+            remaining: batch.remaining,
+        }
+    }
+
     /// Given a hello pack, generate our detailed response.
     ///
     /// The host's version is not checked.  Capabilities are what it should branch on, and
@@ -273,6 +312,7 @@ impl Minder {
                 cap::EVENTS.to_string(),
                 cap::TEST_EVENTS.to_string(),
                 cap::FLASH.to_string(),
+                cap::KEY_LOG.to_string(),
             ]),
         }
     }

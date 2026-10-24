@@ -35,6 +35,10 @@ use zephyr::{
 };
 use zephyr_panic as _;
 
+use ::minder::keylog::Marker;
+use bbq_keyboard::layout::taipo::TaipoVariant;
+
+mod keylog;
 mod leds;
 mod matrix;
 mod minder;
@@ -230,6 +234,8 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
             if ev.is_press() {
                 with_leds(|leds| leds.refresh()).await;
             }
+            // Logged before the layout sees it.  A no-op until a host turns logging on.
+            keylog::log_key(ev.key(), ev.is_press());
             manager.handle_event(ev, &ACTION).await;
         }
         manager.tick(&ACTION, 1).await;
@@ -278,6 +284,7 @@ impl Action {
 
 impl LayoutActions for Action {
     async fn set_mode(&self, mode: LayoutMode) {
+        keylog::log_marker(Marker::Mode, mode.marker());
         with_leds(|leds| leds.set_mode(mode)).await;
         printkln!("Set mode: {:?}", mode);
     }
@@ -308,11 +315,21 @@ impl LayoutActions for Action {
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {
+        match submode {
+            MinorMode::Dosh => keylog::log_marker(Marker::Variant, TaipoVariant::Dosh.marker()),
+        }
         printkln!("Set submode: {:?}", submode);
     }
 
     async fn clear_sub_mode(&self, submode: MinorMode) {
+        match submode {
+            MinorMode::Dosh => keylog::log_marker(Marker::Variant, TaipoVariant::Taipo.marker()),
+        }
         printkln!("Clear submode: {:?}", submode);
+    }
+
+    async fn set_row_position(&self, lower: bool) {
+        keylog::log_marker(Marker::RowShift, lower as u8);
     }
 
     async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
