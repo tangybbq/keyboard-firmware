@@ -49,6 +49,7 @@ impl Matrix {
         let pull = &mut self.rows;
         for col in push {
             col.set(true);
+            // SAFETY: a busy-wait; no preconditions.
             unsafe {
                 k_busy_wait(5);
             }

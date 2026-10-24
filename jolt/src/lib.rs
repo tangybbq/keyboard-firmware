@@ -84,6 +84,8 @@ extern "C" fn rust_main() {
         None => printkln!("Board info decode failed @ {:#x}", addr),
     }
 
+    // SAFETY: `usb_setup` touches only usb.c's own state, and this is its one call, made before the
+    // executor starts the tasks that send reports.
     let ret = unsafe { usb_setup() };
     if ret != 0 {
         panic!("usb_setup failed: {}", ret);
@@ -101,6 +103,8 @@ extern "C" fn rust_main() {
 
 fn get_board_info() -> Option<bbq_keyboard::boardinfo::BoardInfo> {
     let addr = board_info_addr();
+    // SAFETY: the address is the `reg` of the chosen board-info node, a 256-byte block in the
+    // memory-mapped flash, which is always readable.
     unsafe { bbq_keyboard::boardinfo::BoardInfo::decode_from_memory(addr as *const u8) }
 }
 
@@ -187,7 +191,7 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
         }
         manager.tick(&ACTION, 1).await;
         count += 1;
-        if count % 30000 == 0 {
+        if count.is_multiple_of(30000) {
             printkln!("Keyboard task running: count={}", count);
         }
         ticker.next().await;
@@ -504,6 +508,7 @@ struct WrapTimer;
 
 impl Timable for WrapTimer {
     fn get_ticks(&self) -> u64 {
+        // SAFETY: reads the cycle counter; no preconditions.
         unsafe { k_cycle_get_64() }
     }
 }
@@ -567,6 +572,9 @@ fn extract_gpios(values: &[Value], out: &mut Vec<GpioPin>) {
                     if *name != "gpio0" {
                         panic!("Unexpected GPIO controller name: {}", name);
                     }
+                    // SAFETY: the device and its `GpioStatic` are gpio0's, both static, and the
+                    // pin and flags are devicetree cells for that controller, so they fit its
+                    // `gpio_pin_t` and `gpio_dt_flags_t`.
                     out.push(unsafe {
                         GpioPin::raw_new(
                             zephyr::devicetree::labels::gpio0::get_instance_raw(),
