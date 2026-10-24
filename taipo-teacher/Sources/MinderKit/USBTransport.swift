@@ -16,6 +16,9 @@ import IOUSBHost
 ///
 /// See `docs/spikes/swift-usb/` for the standalone program that established both.
 public final class MinderDevice {
+    /// The serial number of the keyboard this is talking to, if it reported one.
+    public let serial: String?
+
     private let interface: IOUSBHostInterface
     private let outPipe: IOUSBHostPipe
     private let inPipe: IOUSBHostPipe
@@ -42,8 +45,8 @@ public final class MinderDevice {
         }
     }
 
-    /// Open the first matching keyboard, or the one with this serial.
-    public init(serial: String? = nil) throws {
+    /// The keyboards' vendor interfaces, as IOKit lists them.  Nil if the lookup failed.
+    private static func matchingInterfaces() -> io_iterator_t? {
         let matching = IOServiceMatching("IOUSBHostInterface") as NSMutableDictionary
         matching[kIOPropertyMatchKey] = [
             "idVendor": 0xc0de,
@@ -53,25 +56,53 @@ public final class MinderDevice {
 
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS
+        else { return nil }
+        return iterator
+    }
+
+    /// The serial numbers of the keyboards plugged in, in the order IOKit lists them.
+    ///
+    /// Only the registry is asked, nothing is opened, so this is cheap and can be called
+    /// while another process -- or this one -- holds a keyboard's interface.  A keyboard
+    /// that reports no serial is left out, as there would be no way to ask for it.
+    public static func connectedSerials() -> [String] {
+        guard let iterator = matchingInterfaces() else { return [] }
+        defer { IOObjectRelease(iterator) }
+
+        var serials: [String] = []
+        while case let service = IOIteratorNext(iterator), service != 0 {
+            defer { IOObjectRelease(service) }
+            if let serial = serialNumber(of: service), !serials.contains(serial) {
+                serials.append(serial)
+            }
+        }
+        return serials
+    }
+
+    /// Open the first matching keyboard, or the one with this serial.
+    public init(serial: String? = nil) throws {
+        guard let iterator = Self.matchingInterfaces()
         else { throw DeviceError.notFound(serial: serial) }
         defer { IOObjectRelease(iterator) }
 
-        var opened: IOUSBHostInterface?
+        var opened: (IOUSBHostInterface, String?)?
         while case let service = IOIteratorNext(iterator), service != 0 {
             defer { IOObjectRelease(service) }
             // Check the serial before opening: it lives on the parent device node, and
             // asking the registry is far less work than going through IOUSBHost for it.
-            if let serial, MinderDevice.serialNumber(of: service) != serial {
+            let found = MinderDevice.serialNumber(of: service)
+            if let serial, found != serial {
                 continue
             }
             guard let candidate = try? IOUSBHostInterface(
                 __ioService: service, options: [], queue: nil, interestHandler: nil)
             else { continue }
-            opened = candidate
+            opened = (candidate, found)
             break
         }
-        guard let interface = opened else { throw DeviceError.notFound(serial: serial) }
+        guard let (interface, found) = opened else { throw DeviceError.notFound(serial: serial) }
         self.interface = interface
+        self.serial = found
 
         // Find the bulk pair by probing.  The descriptors would be tidier, but the C
         // descriptor walk from Swift is a lot of unsafe pointer work for two addresses
