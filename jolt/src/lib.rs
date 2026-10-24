@@ -253,6 +253,8 @@ impl Action {
             LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
             #[cfg(feature = "qwerty")]
             LayoutMode::NKRO => &leds::manager::NKRO_INDICATOR,
+            #[cfg(feature = "orsy")]
+            LayoutMode::Orsy => &leds::manager::ORSY_INDICATOR,
         }
     }
 
@@ -267,6 +269,8 @@ impl Action {
             LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
             #[cfg(feature = "qwerty")]
             LayoutMode::NKRO => &leds::manager::NKRO_SELECT_INDICATOR,
+            #[cfg(feature = "orsy")]
+            LayoutMode::Orsy => &leds::manager::ORSY_SELECT_INDICATOR,
         }
     }
 

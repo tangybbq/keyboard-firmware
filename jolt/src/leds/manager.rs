@@ -160,6 +160,25 @@ pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+/// Orsy lights white, as on jolt-embassy-rp.
+#[cfg(feature = "orsy")]
+pub static ORSY_INDICATOR: Indication = Indication(&[Step {
+    color: RGB8::new(16, 16, 16),
+    count: 100,
+}]);
+
+#[cfg(feature = "orsy")]
+pub static ORSY_SELECT_INDICATOR: Indication = Indication(&[
+    Step {
+        color: RGB8::new(16, 16, 16),
+        count: 1,
+    },
+    Step {
+        color: OFF,
+        count: 1,
+    },
+]);
+
 #[cfg(feature = "steno")]
 pub static STENO_NOSPACE_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(20, 0, 0),

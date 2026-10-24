@@ -40,13 +40,15 @@ optional = true
 
 [features]
 # rust_cargo_application() passes no cargo features, so the default is the
-# build; change it here for a different set of layouts.
-default = ["qwerty", "steno"]
+# build; change it here for a different set of layouts.  Taipo and Orsy, as
+# on jolt-embassy-rp; add qwerty and steno for its `just build-full`.
+default = ["orsy"]
 
 # The optional layouts.  Taipo is always built; leaving these out gives a
 # firmware with no way to reach the other modes at all.
 qwerty = ["bbq-keyboard/qwerty"]
 steno = ["bbq-keyboard/steno", "dep:bbq-steno"]
+orsy = ["bbq-keyboard/orsy"]
 
 [build-dependencies]
 zephyr-build = "0.1.0"
