@@ -6,4 +6,4 @@ project(keyboard_firmware)
 rust_cargo_application()
 
 target_include_directories(app PRIVATE src)
-target_sources(app PRIVATE src/usb.c src/usbd_support.c src/platform.c)
+target_sources(app PRIVATE src/usb.c src/usbd_support.c src/platform.c src/minder_usb.c)

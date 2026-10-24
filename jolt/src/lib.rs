@@ -37,6 +37,8 @@ use zephyr_panic as _;
 
 mod leds;
 mod matrix;
+mod minder;
+mod minder_usb;
 
 unsafe extern "C" {
     fn usb_setup(serial: *const u8, serial_len: usize) -> i32;
@@ -117,7 +119,7 @@ extern "C" fn rust_main() {
 
     let executor = EXECUTOR.init(Executor::new());
     executor.run(|spawner| {
-        spawner.spawn(main(spawner).unwrap());
+        spawner.spawn(main(spawner, unique).unwrap());
     })
 }
 
@@ -159,7 +161,7 @@ fn board_info_addr() -> usize {
 }
 
 #[embassy_executor::task]
-async fn main(spawner: Spawner) -> () {
+async fn main(spawner: Spawner, unique: &'static str) -> () {
     let mut cols = Vec::new();
     extract_gpios(
         zephyr::devicetree::aliases::matrix::RAW_COL_GPIOS,
@@ -181,6 +183,9 @@ async fn main(spawner: Spawner) -> () {
     *LEDS.lock().await = Some(leds::manager::LedManager::new(leds::LedSet::get_all()));
 
     spawner.spawn(usb_sender_task().unwrap());
+    spawner.spawn(minder::minder_task(unique).unwrap());
+    spawner.spawn(minder::test_event_task().unwrap());
+    spawner.spawn(minder::reset_task().unwrap());
     #[cfg(feature = "steno")]
     spawner.spawn(steno_event_task(&ACTION).unwrap());
     // Spawn a task to manage the keyboard matrix.
