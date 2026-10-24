@@ -5,5 +5,6 @@
 
 struct usbd_context *jolt_usbd_init_device(usbd_msg_cb_t msg_cb);
 struct usbd_context *jolt_usbd_setup_device(usbd_msg_cb_t msg_cb);
+int jolt_usbd_set_serial(const char *serial, size_t len);
 
 #endif

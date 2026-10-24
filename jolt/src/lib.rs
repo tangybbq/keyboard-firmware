@@ -1,7 +1,7 @@
 #![no_std]
 
 extern crate alloc;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 #[cfg(feature = "steno")]
 use bbq_keyboard::{
     Event, EventQueue, Timable,
@@ -14,9 +14,7 @@ use bbq_keyboard::{
 };
 #[cfg(feature = "steno")]
 use bbq_steno::Stroke;
-use core::cell::UnsafeCell;
-#[cfg(feature = "steno")]
-use core::ffi::c_int;
+use core::{cell::UnsafeCell, ffi::c_int};
 use embassy_executor::Spawner;
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
@@ -41,7 +39,8 @@ mod leds;
 mod matrix;
 
 unsafe extern "C" {
-    fn usb_setup() -> i32;
+    fn usb_setup(serial: *const u8, serial_len: usize) -> i32;
+    fn jolt_device_id(id: *mut u8, len: usize) -> c_int;
     fn usb_send_report(report: *const u8, len: u16) -> i32;
 }
 
@@ -97,10 +96,14 @@ extern "C" fn rust_main() {
         Some(info) => printkln!("Board info @ {:#x}: {:?}", addr, info),
         None => printkln!("Board info decode failed @ {:#x}", addr),
     }
+    let board_info = board_info.expect("Board info not present");
+
+    let unique = get_unique(&board_info.name);
+    printkln!("Unique ID: {}", unique);
 
     // SAFETY: `usb_setup` touches only usb.c's own state, and this is its one call, made before the
-    // executor starts the tasks that send reports.
-    let ret = unsafe { usb_setup() };
+    // executor starts the tasks that send reports.  It copies the serial number before returning.
+    let ret = unsafe { usb_setup(unique.as_ptr(), unique.len()) };
     if ret != 0 {
         panic!("usb_setup failed: {}", ret);
     }
@@ -123,6 +126,29 @@ fn get_board_info() -> Option<bbq_keyboard::boardinfo::BoardInfo> {
     // SAFETY: the address is the `reg` of the chosen board-info node, a 256-byte block in the
     // memory-mapped flash, which is always readable.
     unsafe { bbq_keyboard::boardinfo::BoardInfo::decode_from_memory(addr as *const u8) }
+}
+
+/// The keyboard's identity, as jolt-embassy-rp's `get_unique` forms it: the board name, a dash,
+/// and the device's 64-bit unique ID as 16 letters `a`..`p`, low nibble first.  It is the USB
+/// serial number, which TaipoTeacher tells keyboards apart by, so a keyboard has to give the same
+/// string under both firmwares.
+fn get_unique(name: &str) -> &'static str {
+    let mut id = [0u8; 8];
+    // SAFETY: `id` is writable for its whole length, which is what is passed.
+    let ret = unsafe { jolt_device_id(id.as_mut_ptr(), id.len()) };
+    if ret != id.len() as c_int {
+        panic!("Device ID unavailable: {}", ret);
+    }
+
+    let mut unique = String::with_capacity(name.len() + 1 + 16);
+    unique.push_str(name);
+    unique.push('-');
+    let mut tmp = u64::from_le_bytes(id);
+    for _ in 0..16 {
+        unique.push((b'a' + (tmp & 0x0f) as u8) as char);
+        tmp >>= 4;
+    }
+    unique.leak()
 }
 
 fn board_info_addr() -> usize {

@@ -1,6 +1,8 @@
 #include "usbd_support.h"
 
+#include <errno.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <zephyr/device.h>
 #include <zephyr/usb/bos.h>
@@ -21,7 +23,35 @@ USBD_DEVICE_DEFINE(jolt_usbd,
 USBD_DESC_LANG_DEFINE(jolt_lang);
 USBD_DESC_MANUFACTURER_DEFINE(jolt_mfr, CONFIG_SAMPLE_USBD_MANUFACTURER);
 USBD_DESC_PRODUCT_DEFINE(jolt_product, CONFIG_SAMPLE_USBD_PRODUCT);
-IF_ENABLED(CONFIG_HWINFO, (USBD_DESC_SERIAL_NUMBER_DEFINE(jolt_sn)));
+
+/*
+ * The serial number is jolt-embassy-rp's `unique` string (board name, '-', and
+ * the device ID as 16 letters), which TaipoTeacher tells keyboards apart by.
+ * USBD_DESC_SERIAL_NUMBER_DEFINE can only give hwinfo's hex form, so this is
+ * the node it would define, with a buffer jolt_usbd_set_serial() fills before
+ * the device is set up.  The stack reads `ptr` and `bLength` when the host asks.
+ */
+#define JOLT_SERIAL_MAX 40
+static uint8_t jolt_sn_ascii[JOLT_SERIAL_MAX];
+static struct usbd_desc_node jolt_sn = {
+	.str = {
+		.utype = USBD_DUT_STRING_SERIAL_NUMBER,
+		.ascii7 = true,
+	},
+	.ptr = jolt_sn_ascii,
+	.bDescriptorType = USB_DESC_STRING,
+};
+
+int jolt_usbd_set_serial(const char *serial, size_t len)
+{
+	if (len == 0 || len > sizeof(jolt_sn_ascii)) {
+		return -EINVAL;
+	}
+
+	memcpy(jolt_sn_ascii, serial, len);
+	jolt_sn.bLength = 2 + 2 * len;
+	return 0;
+}
 
 USBD_DESC_CONFIG_DEFINE(jolt_fs_cfg_desc, "FS Configuration");
 USBD_DESC_CONFIG_DEFINE(jolt_hs_cfg_desc, "HS Configuration");
@@ -88,9 +118,7 @@ struct usbd_context *jolt_usbd_setup_device(usbd_msg_cb_t msg_cb)
 		return NULL;
 	}
 
-	IF_ENABLED(CONFIG_HWINFO, (
-		err = usbd_add_descriptor(&jolt_usbd, &jolt_sn);
-	))
+	err = usbd_add_descriptor(&jolt_usbd, &jolt_sn);
 	if (err) {
 		LOG_ERR("Failed to initialize SN descriptor (%d)", err);
 		return NULL;

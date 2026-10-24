@@ -110,9 +110,15 @@ static void msg_cb(struct usbd_context *const usbd_ctx,
 	}
 }
 
-int usb_setup(void)
+int usb_setup(const char *serial, size_t serial_len)
 {
 	int ret;
+
+	ret = jolt_usbd_set_serial(serial, serial_len);
+	if (ret != 0) {
+		LOG_ERR("Bad serial number: %d", ret);
+		return ret;
+	}
 
 	hid_dev = DEVICE_DT_GET_ONE(zephyr_hid_device);
 	if (!device_is_ready(hid_dev)) {
