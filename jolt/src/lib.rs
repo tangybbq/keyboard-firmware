@@ -9,7 +9,7 @@ use bbq_keyboard::{
     usb_typer::{ActionHandler, enqueue_action},
 };
 use bbq_steno::Stroke;
-use core::ffi::c_int;
+use core::{cell::UnsafeCell, ffi::c_int};
 use embassy_executor::Spawner;
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
@@ -50,10 +50,22 @@ struct HidReport {
     bytes: [u8; 8],
 }
 
+/// The report the USB stack is sending.  `hid_device_submit_report` does not copy the report: the
+/// buffer has to stay put, and pointer aligned, until `input_report_done`.  So the one report in
+/// flight lives here rather than in `usb_sender_task`, which is the only writer and writes only
+/// while it holds the `HID_IN_FLIGHT` permit that the done callback gives back.
+#[repr(C, align(4))]
+struct InFlightReport(UnsafeCell<[u8; 8]>);
+
+// SAFETY: the only access is from `usb_sender_task`, serialized with the USB stack's reads by the
+// `HID_IN_FLIGHT` permit, as described on the type.
+unsafe impl Sync for InFlightReport {}
+
 static HID_READY: AtomicBool = AtomicBool::new(false);
 static HID_GENERATION: AtomicUsize = AtomicUsize::new(0);
 static HID_REPORTS: Channel<CriticalSectionRawMutex, HidReport, HID_QUEUE_DEPTH> = Channel::new();
 static HID_IN_FLIGHT: GreedySemaphore<CriticalSectionRawMutex> = GreedySemaphore::new(0);
+static HID_IN_FLIGHT_REPORT: InFlightReport = InFlightReport(UnsafeCell::new([0; 8]));
 static STENO_COMMANDS: Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH> =
     Channel::new();
 static STENO_EVENTS: Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH> = Channel::new();
@@ -331,7 +343,13 @@ async fn usb_sender_task() -> () {
             continue;
         }
 
-        let ret = unsafe { usb_send_report(report.bytes.as_ptr(), report.bytes.len() as u16) };
+        let buf = HID_IN_FLIGHT_REPORT.0.get();
+        // SAFETY: holding the permit means no report is in flight, so the USB stack is not
+        // reading the buffer, and this task is its only writer.
+        unsafe { *buf = report.bytes };
+        // SAFETY: `buf` is 8 aligned bytes in a static, and nothing writes them again until
+        // `input_report_done` returns the permit.
+        let ret = unsafe { usb_send_report(buf.cast::<u8>(), 8) };
         if ret != 0 {
             HID_IN_FLIGHT.release(1);
             printkln!("usb_send_report failed: {}", ret);
