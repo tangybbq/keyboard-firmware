@@ -30,7 +30,6 @@ use zephyr::{
 use zephyr_panic as _;
 
 mod leds;
-mod mapping;
 mod matrix;
 
 unsafe extern "C" {
@@ -151,13 +150,12 @@ static EXECUTOR: StaticCell<Executor> = StaticCell::new();
 
 #[embassy_executor::task]
 async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
-    let board_info = get_board_info();
-    let board_name = board_info.as_ref().map(|b| b.name.as_str()).unwrap_or("proto4");
-    let (two_row, key_mapping): (bool, &'static [u8]) = match board_name {
-        "proto4" => (true, &mapping::PROTO4_MAPPING),
-        "jolt3" => (false, &mapping::JOLT3_LEFT_MAPPING),
-        other => panic!("Unknown board name: {}", other),
-    };
+    let board_info = get_board_info().expect("Board info not present");
+    let board_name = board_info.name.as_str();
+    // The scan code tables are shared with jolt-embassy-rp and the host tools, and panic on a
+    // name they do not know.
+    let xlate = bbq_keyboard::translate::get_translation(board_name);
+    let two_row = is_two_row(board_name);
     printkln!("Board: {}, two_row: {}", board_name, two_row);
 
     let mut count = 0u64;
@@ -167,12 +165,7 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
     loop {
         let mut events = Vec::new();
         matrix.scan(|code, pressed| {
-            let mapped = key_mapping
-                .get(code as usize)
-                .copied()
-                .unwrap_or_else(|| {
-                    panic!("Invalid code from matrix: {}", code);
-                });
+            let mapped = xlate(code);
             if mapped == 255 {
                 // Dead key position — no physical switch here.
                 return;
@@ -196,6 +189,15 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
         }
         ticker.next().await;
     }
+}
+
+/// Is this one of the boards with two rows of finger keys?  These have fewer keys, and select modes
+/// differently.  The same per-board answer as `two_row` in jolt-embassy-rp's `board.rs`.
+fn is_two_row(board_name: &str) -> bool {
+    matches!(
+        board_name,
+        "proto4" | "mesa1" | "mesa2" | "mesa2b" | "mesa3" | "mesa3b"
+    )
 }
 
 enum StenoCommand {

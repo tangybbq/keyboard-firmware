@@ -21,7 +21,6 @@
 	chosen {
 		zephyr,matrix = &kbd_matrix;
 		bbq,led-strip = &ws2812;
-		bbq,two-row;
 
 		/* The console is RTT, and uart0 is on the matrix pins; see below. */
 		/delete-property/ zephyr,console;
