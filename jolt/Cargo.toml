@@ -12,16 +12,17 @@ crate-type = ["staticlib"]
 
 [dependencies]
 zephyr = { version = "0.1.0", features = ["time-driver", "executor-zephyr"] }
+zephyr-panic = "0.1.0"
 static_cell = "2.1"
 heapless = "0.8"
 smart-leds = "0.4.0"
 
-embassy-executor = { version = "0.7.0", features = ["log", "task-arena-size-2048"] }
-embassy-sync = "0.6.2"
+embassy-executor = { version = "0.10.0", features = ["log"] }
+embassy-sync = "0.8.0"
 
 # The zephyr timer is able to adapt to a mismatch of the time base, however it
 # is more efficient if the timer here matches the zephyr::time::SYS_FREQUENCY.
-embassy-time = { version = "0.4.0", features = ["tick-hz-10_000"] }
+embassy-time = { version = "0.5.1", features = ["tick-hz-10_000"] }
 # log = "0.4.22"
 
 [dependencies.bbq-keyboard]

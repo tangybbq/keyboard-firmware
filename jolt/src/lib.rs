@@ -27,6 +27,7 @@ use zephyr::{
     raw::k_cycle_get_64,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
+use zephyr_panic as _;
 
 mod leds;
 mod mapping;
@@ -82,7 +83,7 @@ extern "C" fn rust_main() {
 
     let executor = EXECUTOR.init(Executor::new());
     executor.run(|spawner| {
-        spawner.spawn(main(spawner)).unwrap();
+        spawner.spawn(main(spawner).unwrap());
     })
 }
 
@@ -122,11 +123,11 @@ async fn main(spawner: Spawner) -> () {
     led_manager.clear_global(0);
     *LEDS.lock().await = Some(led_manager);
 
-    spawner.spawn(usb_sender_task()).unwrap();
-    spawner.spawn(steno_event_task(&ACTION)).unwrap();
-    spawner.spawn(led_task()).unwrap();
+    spawner.spawn(usb_sender_task().unwrap());
+    spawner.spawn(steno_event_task(&ACTION).unwrap());
+    spawner.spawn(led_task().unwrap());
     // Spawn a task to manage the keyboard matrix.
-    spawner.spawn(keyboard_task(rows, cols)).unwrap();
+    spawner.spawn(keyboard_task(rows, cols).unwrap());
 }
 
 /// A single executor to run most of the system. Runs in the main thread.
@@ -381,7 +382,7 @@ fn steno_thread(
 ) -> ! {
     let executor = EXECUTOR_LOW.init(Executor::new());
     executor.run(|spawner| {
-        spawner.spawn(steno_lookup_task(commands, events)).unwrap();
+        spawner.spawn(steno_lookup_task(commands, events).unwrap());
     })
 }
 
