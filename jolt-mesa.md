@@ -25,6 +25,13 @@ Decisions taken on 2026-09-09 (developer), still standing: build against
 wanted lang-rust revision is restored with jj afterwards; a board that is
 a daily driver stays on the embassy firmware until the key log is ported.
 
+Decisions taken on 2026-10-24 (developer): a second mesa3, with JTAG, is
+the test board for phases 2–5; both built boards are believed to be
+`mesa3b`; the lang-rust pin stays on the `jj new main@upstream` routine,
+and the Zephyr `optional.yaml` bump is sent after the release, as upstream
+is in a code freeze for about another week; the build script is
+`b-mesa3.sh`.
+
 ---
 
 ## Requirements (from the developer, verbatim)
@@ -53,6 +60,11 @@ a daily driver stays on the embassy firmware until the key log is ported.
   of this in the Jolt directory to work. Can you come up with a plan and
   figure out what's needed to get the Jolt Zefir code working on the Mesa 3
   keyboards?
+- (Answers to the revision's open questions.)  I do have a second mesa 3 to
+  use for testing. I have jtag for it as well. I think these are both
+  mesa3b. For now, lets stick with the jj new, and we can push the update
+  after the release (upstream is in a code freeze for another week,
+  roughly). Perhaps make a b-mesa3.sh to build for this.
 
 ---
 
@@ -250,9 +262,9 @@ the recipe the scratch build proved, made permanent.
    `zephyr/src/device/led_strip.rs`, since the cargo errors it would
    otherwise produce do not point at the cause.  Delete the lang-rust
    `jolt-base` bookmark and `jolt-base.md`, and update its `TASKS.md`.
-   Better: a one-line Zephyr PR moving the `optional.yaml` pin to a lang-rust
-   commit at or after `6823b69` removes the routine for everyone (open
-   question 2).
+   After the Zephyr release, a one-line PR moving the `optional.yaml` pin to
+   a lang-rust commit at or after `6823b69` removes the routine for
+   everyone.
 5. **proto4**: not on the critical path any more.  Leave `b-proto4.sh`
    broken on `&pwm_leds`, and say so in its header comment, until open
    question 1 is answered.
@@ -277,17 +289,13 @@ Goal: a mesa3 types, in Dosh, through `jolt`.
    manufacturer "TangyBBQ", product "Jolt Keyboard".  This comes before the
    key log because the `hidutil` remap and `keyminder` match on it.  The
    serial string's format waits for phase 5, which needs `unique` anyway.
-4. One build script taking the shield name (`b.sh mesa3`), carrying the
-   phase 1 lang-rust check; `b-proto4.sh` and `b-jolt3-mez-2040.sh` become
-   thin callers or go.
-5. Bring-up output: RTT needs a J-Link on the Tiny 2040's SWD pads.  If the
-   mesa3 has no debug header, add an optional `CONFIG_USBD_CDC_ACM_CLASS`
-   console for bring-up (an overlay snippet, off by default), since a
-   panic with no output looks exactly like a dead board.
-6. Test on hardware: every key, the mode key (`mesa3`) or both Fn keys
-   (`mesa3b`), Dosh after reset, Orsy once phase 3 lands.  Until then the
-   board comes up in the full build's modes, which is fine for "does every key
-   type".
+4. `b-mesa3.sh`, shaped like `b-proto4.sh`, carrying the phase 1 lang-rust
+   check.
+5. Bring-up output is RTT over the test board's JTAG (`CONFIG_RTT_CONSOLE`,
+   already in `prj.conf`).
+6. Test on hardware: every key, both Fn keys (`mesa3b`), Dosh after reset,
+   Orsy once phase 3 lands.  Until then the board comes up in the full
+   build's modes, which is fine for "does every key type".
 
 ## Phase 3 — the embassy firmware's layout set
 
@@ -375,7 +383,7 @@ response says what was built, what was tested, and what could not be.
    Clippy.  lang-rust check in the build script.  *(4 commits; lang-rust
    cleanup is in that repository.)*  → a `jolt` build exits 0.
 2. `translate` in place of `mapping.rs`.  `mesa3` shield.  USB identity.
-   `b.sh`.  *(4 commits.)*  → a mesa3 types.
+   `b-mesa3.sh`.  *(4 commits.)*  → a mesa3 types.
 3. Taipo + orsy features and cfg gating.  *(1–2 commits.)*
 4. `led_strip.rs` backend.  Indicator-driven manager.  jolt3 workaround
    removal.  *(3 commits.)*
@@ -387,22 +395,14 @@ response says what was built, what was tested, and what could not be.
 
 # Open questions
 
-1. **Which mesa3 is the test board?**  The plan assumes a mesa3 that is not
-   the daily driver takes phases 2–5, and the daily one switches in phase 6.
-   If there is only one, the alternative is the mesa1 for phases 2–5, which
-   means a `mesa1` shield as well: 30 keys, `COL_1..6` driven on GP 27 28 29
-   7 6 5, `ROW_A..E` sensed on GP 4 3 2 1 0, `translate::mesa1`.  That is a
-   small extra commit.  Also: which names do the built boards carry, `mesa3`
-   or `mesa3b`?  Both are served by one shield either way.
-2. **The lang-rust pin**: keep the `west update` then `jj new main@upstream`
-   routine, or send Zephyr the one-line `optional.yaml` bump so a plain
-   `west update` lands on a working module?
-3. **proto4 and the Tiny 2040 onboard PWM LED**: define the `pwm_leds` node in
+Answered 2026-10-24: the test board is a second mesa3 with JTAG, both
+boards are believed to be `mesa3b`, and the pin stays on `jj new` until
+after the Zephyr release.  Still open:
+
+1. **proto4 and the Tiny 2040 onboard PWM LED**: define the `pwm_leds` node in
    a shared `bbqboards` dtsi so `b-proto4.sh` builds again, upstream the
    board patch, or drop the onboard LED from `jolt` as the embassy firmware
    already has?  Nothing on the mesa path needs it.
-4. **Is there SWD access on the mesa3's Tiny 2040?**  That decides whether
-   phase 2.5's CDC ACM console is needed or only nice to have.
-5. **What happens to `jolt-embassy-rp`** once the mesas run on `jolt`: kept as
+2. **What happens to `jolt-embassy-rp`** once the mesas run on `jolt`: kept as
    the reference and the jolt3's firmware, or retired?  This decides whether
    consumer control is done twice.
