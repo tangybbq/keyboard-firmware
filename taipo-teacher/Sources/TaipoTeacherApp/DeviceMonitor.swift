@@ -33,6 +33,11 @@ public final class DeviceMonitor: ObservableObject {
     @Published public private(set) var lastScrub: String?
     /// Where the logs are being written.
     public let logDirectory = LogWriter.defaultDirectory
+    /// The keyboards plugged in, by serial number, as of the last look.
+    @Published public private(set) var keyboards: [String] = []
+    /// The keyboard to collect from, or nil for whichever is found first.  Remembered across
+    /// launches, so a second keyboard kept for testing does not have to be chosen again.
+    @Published public private(set) var chosenKeyboard: String?
     /// The drill in progress, if the practice screen is showing.
     @Published public private(set) var drill: DrillSession?
 
@@ -397,9 +402,29 @@ public final class DeviceMonitor: ObservableObject {
         }
     }
 
+    /// A value the device thread reads and the main actor writes, for the same reason as
+    /// `Flag`.
+    private final class Locked<Value>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value: Value
+        init(_ value: Value) { self.value = value }
+        var current: Value {
+            get { lock.lock(); defer { lock.unlock() }; return value }
+            set { lock.lock(); value = newValue; lock.unlock() }
+        }
+    }
+
     private let queue = DispatchQueue(label: "org.davidb.taipo-teacher.device")
     private let runningFlag = Flag(false)
     private let pausedFlag = Flag(false)
+    /// `chosenKeyboard`, for the device thread.
+    private let chosen = Locked<String?>(nil)
+    /// Set when the choice changes, so the reconnect does not wait out its backoff.
+    private let switchRequested = Flag(false)
+    /// What `keyboards` was last set to.  Only ever touched from `queue`, like `log`.
+    nonisolated(unsafe) private var seenKeyboards: [String] = []
+
+    private static let chosenKeyboardKey = "keyboardSerial"
     private(set) var layouts: Layouts?
     /// Only ever touched from `queue`, which is a single serial queue, so this is safe
     /// outside the actor.  Saying so explicitly rather than letting the isolation be
@@ -407,6 +432,9 @@ public final class DeviceMonitor: ObservableObject {
     nonisolated(unsafe) private let log = LogWriter()
 
     public init() {
+        chosenKeyboard = UserDefaults.standard.string(forKey: Self.chosenKeyboardKey)
+        chosen.current = chosenKeyboard
+
         // Collecting starts with the app, not with a window: the point of the menu bar is
         // that it runs whether or not anything is on screen.
         start()
@@ -505,6 +533,47 @@ public final class DeviceMonitor: ObservableObject {
 
     public func stop() {
         runningFlag.current = false
+    }
+
+    /// Collect from this keyboard, or from whichever is found first if nil.
+    ///
+    /// A session on some other keyboard ends at its next poll, and the reconnect goes
+    /// straight to the one chosen.  A chosen keyboard that is not plugged in is waited for
+    /// rather than substituted: typing on one keyboard logged as practice on another is the
+    /// thing the choice is there to prevent.
+    public func chooseKeyboard(_ serial: String?) {
+        guard serial != chosenKeyboard else { return }
+        chosenKeyboard = serial
+        UserDefaults.standard.set(serial, forKey: Self.chosenKeyboardKey)
+        chosen.current = serial
+        switchRequested.current = true
+        status = .connecting
+    }
+
+    /// What the keyboard menu offers: every keyboard plugged in, and the chosen one even if
+    /// it is not, so the choice can be seen and undone.
+    public nonisolated static func keyboardChoices(connected: [String], chosen: String?)
+        -> [String]
+    {
+        guard let chosen, !connected.contains(chosen) else { return connected }
+        return connected + [chosen]
+    }
+
+    /// Look at which keyboards are plugged in, and publish it if that has changed.
+    ///
+    /// Only on a change: the same list assigned again still fires `objectWillChange`, and
+    /// `secureInput` found that each one costs a redraw of everything watching.
+    private nonisolated func refreshKeyboards() {
+        let now = MinderDevice.connectedSerials()
+        guard now != seenKeyboards else { return }
+        seenKeyboards = now
+        Task { @MainActor [weak self] in self?.keyboards = now }
+    }
+
+    /// Whether a session on the keyboard with this serial should carry on.
+    private nonisolated func wanted(_ serial: String?) -> Bool {
+        guard let want = chosen.current else { return true }
+        return want == serial
     }
 
     /// Whether the practice screen is on show.
@@ -924,13 +993,16 @@ public final class DeviceMonitor: ObservableObject {
     /// is restarted -- a collector that quietly stops collecting is worse than one that
     /// never started.
     private nonisolated func reconnectLoop() {
-        var lastBootID: UInt64?
+        // Per keyboard: a boot id is only a restart against the same keyboard's last one.
+        var lastBootIDs: [String: UInt64] = [:]
         while isRunning {
-            let boot = runSession(previousBootID: lastBootID)
-            if let boot { lastBootID = boot }
-            // Backoff, in short steps, so quitting does not wait it out.
+            if let (device, boot) = runSession(previousBootIDs: lastBootIDs) {
+                lastBootIDs[device] = boot
+            }
+            // Backoff, in short steps, so quitting -- or choosing another keyboard -- does
+            // not wait it out.
             for _ in 0..<20 {
-                guard isRunning else { break }
+                guard isRunning, !switchRequested.current else { break }
                 Thread.sleep(forTimeInterval: 0.1)
             }
         }
@@ -938,15 +1010,17 @@ public final class DeviceMonitor: ObservableObject {
         Task { @MainActor [weak self] in self?.recording = false }
     }
 
-    /// One connection's worth of collecting.  Returns the boot id it saw.
-    @discardableResult
-    private nonisolated func runSession(previousBootID: UInt64?) -> UInt64? {
+    /// One connection's worth of collecting.  Returns the keyboard and the boot id it saw.
+    private nonisolated func runSession(previousBootIDs: [String: UInt64]) -> (String, UInt64)? {
+        switchRequested.current = false
+        refreshKeyboards()
+
         let device: MinderDevice
         let hello: HelloInfo
         let layouts: Layouts
         do {
             layouts = try Layouts.bundled()
-            device = try MinderDevice()
+            device = try MinderDevice(serial: chosen.current)
             device.drain()
             guard case .hello(let info) = try device.call(.hello(version: MinderVersion.current))
             else { throw MinderDevice.DeviceError.notFound(serial: nil) }
@@ -977,13 +1051,15 @@ public final class DeviceMonitor: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.status = .failed("firmware has no key log")
             }
-            return hello.bootID
+            return hello.bootID.map { (hello.info, $0) }
         }
 
         // A different boot id means the keyboard restarted: whatever it was buffering is
         // gone, and the timeline it was writing has a hole in it.  Say so in the file
-        // rather than letting the deltas imply continuity that is not there.
-        if let previous = previousBootID, previous != hello.bootID {
+        // rather than letting the deltas imply continuity that is not there.  Only against
+        // the same keyboard's last boot: another keyboard's is a different timeline, which
+        // the session header already says.
+        if let previous = previousBootIDs[hello.info], previous != hello.bootID {
             self.log.noteReset()
         }
         self.log.beginSession(
@@ -1017,7 +1093,13 @@ public final class DeviceMonitor: ObservableObject {
             // Unknown to start with, so the first pass always publishes and a session that
             // begins where the last one left off cannot inherit a stale flag.
             var wasSecure: Bool?
-            while self.isRunning {
+            // Keyboards come and go while this one is connected, and the menu should say so.
+            var lookedAt = Date()
+            while self.isRunning && self.wanted(device.serial) {
+                if Date().timeIntervalSince(lookedAt) > 2 {
+                    self.refreshKeyboards()
+                    lookedAt = Date()
+                }
                 // Pausing stops the device recording, not just this end: the point of a
                 // pause is that nothing is being kept, and the records live on the
                 // keyboard until they are fetched.
@@ -1064,12 +1146,12 @@ public final class DeviceMonitor: ObservableObject {
                 self?.status = .failed("\(error)")
                 self?.recording = false
             }
-            return hello.bootID
+            return hello.bootID.map { (hello.info, $0) }
         }
 
         _ = try? device.call(.setLogging(enabled: false, watermark: 0))
         Task { @MainActor [weak self] in self?.recording = false }
-        return hello.bootID
+        return hello.bootID.map { (hello.info, $0) }
     }
 
     private nonisolated var isPaused: Bool { pausedFlag.current }

@@ -45,6 +45,23 @@ struct MenuContents: View {
         Text(monitor.status.summary)
         Text(monitor.activity)
 
+        // Only once there is a choice to make, or one has been made.  Flat checkmarked
+        // items rather than a submenu, for the reason given below.
+        if monitor.keyboards.count > 1 || monitor.chosenKeyboard != nil {
+            Divider()
+            Text("Collect from")
+            Toggle("Whichever is found first", isOn: choice(nil))
+            ForEach(
+                DeviceMonitor.keyboardChoices(
+                    connected: monitor.keyboards, chosen: monitor.chosenKeyboard),
+                id: \.self
+            ) { serial in
+                Toggle(
+                    monitor.keyboards.contains(serial) ? serial : "\(serial) (not plugged in)",
+                    isOn: choice(serial))
+            }
+        }
+
         Divider()
         Button(monitor.paused ? "Resume recording" : "Pause recording") {
             monitor.paused.toggle()
@@ -73,6 +90,14 @@ struct MenuContents: View {
         Divider()
         Button("Quit") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
+    }
+
+    /// A keyboard's menu item, checked while it is the one chosen.  Choosing the checked
+    /// one again does nothing; choosing another is the way to change.
+    private func choice(_ serial: String?) -> Binding<Bool> {
+        Binding(
+            get: { monitor.chosenKeyboard == serial },
+            set: { if $0 { monitor.chooseKeyboard(serial) } })
     }
 }
 
