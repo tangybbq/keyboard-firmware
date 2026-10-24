@@ -12,13 +12,14 @@ Read this whole document before starting.  The facts in "What was found"
 were read out of the tree, the `~/zephyrproject` workspace and build
 attempts, not remembered; the derivation is given so it can be re-checked.
 
-Status (2026-10-24): **phase 1 done, phase 2 steps 1–4 done;
-`./jolt/b-mesa3.sh` builds a `zephyr.uf2` that has not been flashed.**  The
+Status (2026-10-24): **phases 1 and 3 done, phase 2 steps 1–4 done;
+`./jolt/b-mesa3.sh` builds a Taipo + Orsy `zephyr.uf2` that has not been
+flashed.**  The
 first version of this plan (2026-09-09) was blocked on the
 `zephyr-lang-rust` binding PRs; they have all merged.  Phase 1 also turned
 up, and fixed, a HID report buffer that could be overwritten before the
 USB stack was done with it (latent on the RP2040; see `3f1fa04`).  Next:
-the hardware test in phase 2 step 6, then phase 3.
+the hardware test in phase 2 step 6, then phase 4.
 
 Decisions taken on 2026-09-09 (developer), still standing: build against
 `zephyr-lang-rust` `upstream/main`; `west update` runs periodically and the
