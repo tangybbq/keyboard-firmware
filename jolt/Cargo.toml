@@ -28,7 +28,7 @@ embassy-time = { version = "0.5.1", features = ["tick-hz-10_000"] }
 [dependencies.bbq-keyboard]
 version = "0.1.0"
 default-features = false
-features = ["proto3", "log", "qwerty", "steno"]
+features = ["proto3", "log"]
 path = "../bbq-keyboard"
 
 [dependencies.bbq-steno]
@@ -36,6 +36,17 @@ version = "0.1.0"
 default-features = false
 features = ["log"]
 path = "../bbq-steno"
+optional = true
+
+[features]
+# rust_cargo_application() passes no cargo features, so the default is the
+# build; change it here for a different set of layouts.
+default = ["qwerty", "steno"]
+
+# The optional layouts.  Taipo is always built; leaving these out gives a
+# firmware with no way to reach the other modes at all.
+qwerty = ["bbq-keyboard/qwerty"]
+steno = ["bbq-keyboard/steno", "dep:bbq-steno"]
 
 [build-dependencies]
 zephyr-build = "0.1.0"

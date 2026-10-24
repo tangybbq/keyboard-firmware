@@ -4,6 +4,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
+#[cfg(feature = "steno")]
 use bbq_steno::dict::State;
 use smart_leds::RGB8;
 
@@ -53,11 +54,13 @@ pub static OFF_INDICATOR: Indication = Indication(&[Step {
     count: 10,
 }]);
 
+#[cfg(feature = "steno")]
 pub static STENO_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(0, 0, 24),
     count: 100,
 }]);
 
+#[cfg(feature = "steno")]
 pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(0, 0, 24),
@@ -69,11 +72,13 @@ pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+#[cfg(feature = "steno")]
 pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 8, 0),
     count: 100,
 }]);
 
+#[cfg(feature = "steno")]
 pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(16, 8, 0),
@@ -85,11 +90,13 @@ pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+#[cfg(feature = "steno")]
 pub static STENO_DIRECT_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(16, 8, 0),
     count: 100,
 }]);
 
+#[cfg(feature = "steno")]
 pub static STENO_DIRECT_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(16, 8, 0),
@@ -101,11 +108,13 @@ pub static STENO_DIRECT_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+#[cfg(feature = "qwerty")]
 pub static NKRO_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(32, 0, 32),
     count: 100,
 }]);
 
+#[cfg(feature = "qwerty")]
 pub static NKRO_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(32, 0, 32),
@@ -133,11 +142,13 @@ pub static TAIPO_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+#[cfg(feature = "qwerty")]
 pub static QWERTY_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(0, 16, 0),
     count: 100,
 }]);
 
+#[cfg(feature = "qwerty")]
 pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
     Step {
         color: RGB8::new(0, 16, 0),
@@ -149,21 +160,25 @@ pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
     },
 ]);
 
+#[cfg(feature = "steno")]
 pub static STENO_NOSPACE_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(20, 0, 0),
     count: 100,
 }]);
 
+#[cfg(feature = "steno")]
 pub static STENO_NOSPACE_CAP_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(20, 20, 0),
     count: 100,
 }]);
 
+#[cfg(feature = "steno")]
 pub static STENO_CAP_INDICATOR: Indication = Indication(&[Step {
     color: RGB8::new(0, 20, 0),
     count: 100,
 }]);
 
+#[cfg(feature = "steno")]
 pub fn get_steno_state(state: &State) -> &'static Indication {
     let space = state.space || state.force_space || state.stitch;
     if !state.cap && space {

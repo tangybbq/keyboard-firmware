@@ -2,14 +2,21 @@
 
 extern crate alloc;
 use alloc::vec::Vec;
+#[cfg(feature = "steno")]
 use bbq_keyboard::{
-    Event, EventQueue, KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods, Timable,
+    Event, EventQueue, Timable,
     dict::Dict,
-    layout::{LayoutActions, LayoutManager},
     usb_typer::{ActionHandler, enqueue_action},
 };
+use bbq_keyboard::{
+    KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods,
+    layout::{LayoutActions, LayoutManager},
+};
+#[cfg(feature = "steno")]
 use bbq_steno::Stroke;
-use core::{cell::UnsafeCell, ffi::c_int};
+use core::cell::UnsafeCell;
+#[cfg(feature = "steno")]
+use core::ffi::c_int;
 use embassy_executor::Spawner;
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
@@ -19,12 +26,13 @@ use embassy_sync::{
 };
 use embassy_time::{Duration, Ticker};
 use static_cell::StaticCell;
+#[cfg(feature = "steno")]
+use zephyr::raw::k_cycle_get_64;
 use zephyr::{
     device::gpio::GpioPin,
     devicetree::Value,
     embassy::Executor,
     printkln,
-    raw::k_cycle_get_64,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 use zephyr_panic as _;
@@ -38,9 +46,13 @@ unsafe extern "C" {
 }
 
 const HID_QUEUE_DEPTH: usize = 32;
+#[cfg(feature = "steno")]
 const STENO_COMMAND_DEPTH: usize = 16;
+#[cfg(feature = "steno")]
 const STENO_EVENT_DEPTH: usize = 16;
+#[cfg(feature = "steno")]
 const STENO_THREAD_STACK_SIZE: usize = 8192;
+#[cfg(feature = "steno")]
 const STENO_THREAD_PRIO: c_int = 5;
 
 #[repr(C)]
@@ -65,9 +77,12 @@ static HID_GENERATION: AtomicUsize = AtomicUsize::new(0);
 static HID_REPORTS: Channel<CriticalSectionRawMutex, HidReport, HID_QUEUE_DEPTH> = Channel::new();
 static HID_IN_FLIGHT: GreedySemaphore<CriticalSectionRawMutex> = GreedySemaphore::new(0);
 static HID_IN_FLIGHT_REPORT: InFlightReport = InFlightReport(UnsafeCell::new([0; 8]));
+#[cfg(feature = "steno")]
 static STENO_COMMANDS: Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH> =
     Channel::new();
+#[cfg(feature = "steno")]
 static STENO_EVENTS: Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH> = Channel::new();
+#[cfg(feature = "steno")]
 static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
 static LEDS: Mutex<CriticalSectionRawMutex, Option<leds::manager::LedManager>> = Mutex::new(None);
 static ACTION: Action = Action::new();
@@ -90,9 +105,12 @@ extern "C" fn rust_main() {
         panic!("usb_setup failed: {}", ret);
     }
 
-    let steno = steno_thread(&STENO_COMMANDS, &STENO_EVENTS);
-    steno.set_priority(STENO_THREAD_PRIO);
-    let _steno = steno.start();
+    #[cfg(feature = "steno")]
+    {
+        let steno = steno_thread(&STENO_COMMANDS, &STENO_EVENTS);
+        steno.set_priority(STENO_THREAD_PRIO);
+        let _steno = steno.start();
+    }
 
     let executor = EXECUTOR.init(Executor::new());
     executor.run(|spawner| {
@@ -139,6 +157,7 @@ async fn main(spawner: Spawner) -> () {
     *LEDS.lock().await = Some(led_manager);
 
     spawner.spawn(usb_sender_task().unwrap());
+    #[cfg(feature = "steno")]
     spawner.spawn(steno_event_task(&ACTION).unwrap());
     spawner.spawn(led_task().unwrap());
     // Spawn a task to manage the keyboard matrix.
@@ -200,23 +219,58 @@ fn is_two_row(board_name: &str) -> bool {
     )
 }
 
+#[cfg(feature = "steno")]
 enum StenoCommand {
     Lookup(Stroke),
 }
 
 struct Action {
+    /// The current mode, for the steno raw-mode indicator, which only shows in steno.
+    #[cfg(feature = "steno")]
     current_mode: AtomicUsize,
+    #[cfg(feature = "steno")]
     raw_mode: AtomicBool,
 }
 
 impl Action {
     const fn new() -> Self {
         Self {
-            current_mode: AtomicUsize::new(LayoutMode::Qwerty as usize),
+            #[cfg(feature = "steno")]
+            current_mode: AtomicUsize::new(LayoutMode::Taipo as usize),
+            #[cfg(feature = "steno")]
             raw_mode: AtomicBool::new(false),
         }
     }
 
+    fn mode_indicator(&self, mode: LayoutMode) -> &'static leds::manager::Indication {
+        match mode {
+            #[cfg(feature = "steno")]
+            LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
+            #[cfg(feature = "steno")]
+            LayoutMode::Steno => get_steno_indicator(self.raw_mode.load(Ordering::Acquire)),
+            LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
+            #[cfg(feature = "qwerty")]
+            LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
+            #[cfg(feature = "qwerty")]
+            LayoutMode::NKRO => &leds::manager::NKRO_INDICATOR,
+        }
+    }
+
+    fn mode_select_indicator(&self, mode: LayoutMode) -> &'static leds::manager::Indication {
+        match mode {
+            #[cfg(feature = "steno")]
+            LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
+            #[cfg(feature = "steno")]
+            LayoutMode::Steno => get_steno_select_indicator(self.raw_mode.load(Ordering::Acquire)),
+            LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
+            #[cfg(feature = "qwerty")]
+            LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
+            #[cfg(feature = "qwerty")]
+            LayoutMode::NKRO => &leds::manager::NKRO_SELECT_INDICATOR,
+        }
+    }
+
+    #[cfg(feature = "steno")]
     async fn handle_steno_event(&self, event: Event) {
         match event {
             Event::RawMode(raw) => {
@@ -239,25 +293,14 @@ impl Action {
 
 impl LayoutActions for Action {
     async fn set_mode(&self, mode: LayoutMode) {
+        #[cfg(feature = "steno")]
         self.current_mode.store(mode as usize, Ordering::Release);
-        with_leds(|leds| {
-            leds.set_base(
-                0,
-                get_mode_indicator(mode, self.raw_mode.load(Ordering::Acquire)),
-            )
-        })
-        .await;
+        with_leds(|leds| leds.set_base(0, self.mode_indicator(mode))).await;
         printkln!("Set mode: {:?}", mode);
     }
 
     async fn set_mode_select(&self, mode: LayoutMode) {
-        with_leds(|leds| {
-            leds.set_base(
-                0,
-                get_mode_select_indicator(mode, self.raw_mode.load(Ordering::Acquire)),
-            )
-        })
-        .await;
+        with_leds(|leds| leds.set_base(0, self.mode_select_indicator(mode))).await;
         printkln!("Set mode select: {:?}", mode);
     }
 
@@ -295,6 +338,7 @@ impl LayoutActions for Action {
         printkln!("Clear submode: {:?}", submode);
     }
 
+    #[cfg(feature = "steno")]
     async fn send_raw_steno(&self, steno: Stroke) {
         if STENO_COMMANDS
             .try_send(StenoCommand::Lookup(steno))
@@ -363,6 +407,7 @@ async fn usb_sender_task() -> () {
     }
 }
 
+#[cfg(feature = "steno")]
 #[embassy_executor::task]
 async fn steno_event_task(action: &'static Action) -> () {
     loop {
@@ -371,6 +416,7 @@ async fn steno_event_task(action: &'static Action) -> () {
     }
 }
 
+#[cfg(feature = "steno")]
 #[embassy_executor::task]
 async fn steno_lookup_task(
     commands: &'static Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH>,
@@ -399,6 +445,7 @@ async fn steno_lookup_task(
     }
 }
 
+#[cfg(feature = "steno")]
 #[zephyr::thread(stack_size = STENO_THREAD_STACK_SIZE)]
 fn steno_thread(
     commands: &'static Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH>,
@@ -453,6 +500,7 @@ fn modifier_bits(mods: Mods) -> u8 {
     bits
 }
 
+#[cfg(feature = "steno")]
 async fn type_joined(action: bbq_steno::dict::Joined) {
     match action {
         bbq_steno::dict::Joined::Type { remove, append } => {
@@ -468,6 +516,7 @@ async fn type_joined(action: bbq_steno::dict::Joined) {
     }
 }
 
+#[cfg(feature = "steno")]
 fn submit_key_action(key: KeyAction) {
     match key {
         KeyAction::KeyPress(key, mods) => {
@@ -488,8 +537,10 @@ fn submit_key_action(key: KeyAction) {
     }
 }
 
+#[cfg(feature = "steno")]
 struct SubmitActionHandler;
 
+#[cfg(feature = "steno")]
 impl ActionHandler for SubmitActionHandler {
     async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
         for event in events {
@@ -498,16 +549,20 @@ impl ActionHandler for SubmitActionHandler {
     }
 }
 
+#[cfg(feature = "steno")]
 struct StenoEventSender(&'static Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH>);
 
+#[cfg(feature = "steno")]
 impl EventQueue for StenoEventSender {
     fn push(&mut self, val: Event) {
         let _ = self.0.try_send(val);
     }
 }
 
+#[cfg(feature = "steno")]
 struct WrapTimer;
 
+#[cfg(feature = "steno")]
 impl Timable for WrapTimer {
     fn get_ticks(&self) -> u64 {
         // SAFETY: reads the cycle counter; no preconditions.
@@ -525,26 +580,7 @@ where
     }
 }
 
-fn get_mode_indicator(mode: LayoutMode, raw: bool) -> &'static leds::manager::Indication {
-    match mode {
-        LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
-        LayoutMode::Steno => get_steno_indicator(raw),
-        LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
-        LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
-        LayoutMode::NKRO => &leds::manager::NKRO_INDICATOR,
-    }
-}
-
-fn get_mode_select_indicator(mode: LayoutMode, raw: bool) -> &'static leds::manager::Indication {
-    match mode {
-        LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
-        LayoutMode::Steno => get_steno_select_indicator(raw),
-        LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
-        LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
-        LayoutMode::NKRO => &leds::manager::NKRO_SELECT_INDICATOR,
-    }
-}
-
+#[cfg(feature = "steno")]
 fn get_steno_indicator(raw: bool) -> &'static leds::manager::Indication {
     if raw {
         &leds::manager::STENO_RAW_INDICATOR
@@ -553,6 +589,7 @@ fn get_steno_indicator(raw: bool) -> &'static leds::manager::Indication {
     }
 }
 
+#[cfg(feature = "steno")]
 fn get_steno_select_indicator(raw: bool) -> &'static leds::manager::Indication {
     if raw {
         &leds::manager::STENO_RAW_SELECT_INDICATOR
