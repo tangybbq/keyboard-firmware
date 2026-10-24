@@ -10,7 +10,8 @@ export CCACHE_DISABLE=1
 
 # The agent shell does not automatically load direnv, so bootstrap the Zephyr
 # environment from the checked-in project config when needed.
-if ! command -v west >/dev/null 2>&1 || [[ -z "${ZEPHYR_BASE:-}" ]]; then
+if ! command -v west >/dev/null 2>&1 || [[ -z "${ZEPHYR_BASE:-}" ]] ||
+	[[ "$(uname -s)" == Darwin && -z "${BINDGEN_EXTRA_CLANG_ARGS:-}" ]]; then
 	source "$script_dir/../.envrc"
 fi
 
