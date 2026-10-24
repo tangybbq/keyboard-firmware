@@ -24,7 +24,7 @@ use embassy_sync::{
     mutex::Mutex,
     semaphore::{GreedySemaphore, Semaphore},
 };
-use embassy_time::{Duration, Ticker};
+use embassy_time::Ticker;
 use static_cell::StaticCell;
 #[cfg(feature = "steno")]
 use zephyr::raw::k_cycle_get_64;
@@ -85,7 +85,7 @@ static STENO_EVENTS: Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH> 
 #[cfg(feature = "steno")]
 static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
 static LEDS: Mutex<CriticalSectionRawMutex, Option<leds::manager::LedManager>> = Mutex::new(None);
-static ACTION: Action = Action::new();
+static ACTION: Action = Action;
 
 #[unsafe(no_mangle)]
 extern "C" fn rust_main() {
@@ -152,14 +152,11 @@ async fn main(spawner: Spawner) -> () {
     printkln!("Cols: {:?}", rows);
     printkln!("Rows: {:?}", cols);
 
-    let mut led_manager = leds::manager::LedManager::new(leds::LedSet::get_all());
-    led_manager.clear_global(0);
-    *LEDS.lock().await = Some(led_manager);
+    *LEDS.lock().await = Some(leds::manager::LedManager::new(leds::LedSet::get_all()));
 
     spawner.spawn(usb_sender_task().unwrap());
     #[cfg(feature = "steno")]
     spawner.spawn(steno_event_task(&ACTION).unwrap());
-    spawner.spawn(led_task().unwrap());
     // Spawn a task to manage the keyboard matrix.
     spawner.spawn(keyboard_task(rows, cols).unwrap());
 }
@@ -199,6 +196,9 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
         });
         for ev in events {
             // printkln!("Event: {:?}", ev);
+            if ev.is_press() {
+                with_leds(|leds| leds.refresh()).await;
+            }
             manager.handle_event(ev, &ACTION).await;
         }
         manager.tick(&ACTION, 1).await;
@@ -224,68 +224,18 @@ enum StenoCommand {
     Lookup(Stroke),
 }
 
-struct Action {
-    /// The current mode, for the steno raw-mode indicator, which only shows in steno.
-    #[cfg(feature = "steno")]
-    current_mode: AtomicUsize,
-    #[cfg(feature = "steno")]
-    raw_mode: AtomicBool,
-}
+struct Action;
 
 impl Action {
-    const fn new() -> Self {
-        Self {
-            #[cfg(feature = "steno")]
-            current_mode: AtomicUsize::new(LayoutMode::Taipo as usize),
-            #[cfg(feature = "steno")]
-            raw_mode: AtomicBool::new(false),
-        }
-    }
-
-    fn mode_indicator(&self, mode: LayoutMode) -> &'static leds::manager::Indication {
-        match mode {
-            #[cfg(feature = "steno")]
-            LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_INDICATOR,
-            #[cfg(feature = "steno")]
-            LayoutMode::Steno => get_steno_indicator(self.raw_mode.load(Ordering::Acquire)),
-            LayoutMode::Taipo => &leds::manager::TAIPO_INDICATOR,
-            #[cfg(feature = "qwerty")]
-            LayoutMode::Qwerty => &leds::manager::QWERTY_INDICATOR,
-            #[cfg(feature = "qwerty")]
-            LayoutMode::NKRO => &leds::manager::NKRO_INDICATOR,
-            #[cfg(feature = "orsy")]
-            LayoutMode::Orsy => &leds::manager::ORSY_INDICATOR,
-        }
-    }
-
-    fn mode_select_indicator(&self, mode: LayoutMode) -> &'static leds::manager::Indication {
-        match mode {
-            #[cfg(feature = "steno")]
-            LayoutMode::StenoDirect => &leds::manager::STENO_DIRECT_SELECT_INDICATOR,
-            #[cfg(feature = "steno")]
-            LayoutMode::Steno => get_steno_select_indicator(self.raw_mode.load(Ordering::Acquire)),
-            LayoutMode::Taipo => &leds::manager::TAIPO_SELECT_INDICATOR,
-            #[cfg(feature = "qwerty")]
-            LayoutMode::Qwerty => &leds::manager::QWERTY_SELECT_INDICATOR,
-            #[cfg(feature = "qwerty")]
-            LayoutMode::NKRO => &leds::manager::NKRO_SELECT_INDICATOR,
-            #[cfg(feature = "orsy")]
-            LayoutMode::Orsy => &leds::manager::ORSY_SELECT_INDICATOR,
-        }
-    }
-
+    /// The steno raw mode and the dictionary's cap and space state each had an LED indication,
+    /// which the modifier indicator has no room for, as on jolt-embassy-rp; they are only logged.
     #[cfg(feature = "steno")]
     async fn handle_steno_event(&self, event: Event) {
         match event {
             Event::RawMode(raw) => {
-                self.raw_mode.store(raw, Ordering::Release);
-                if self.current_mode.load(Ordering::Acquire) == LayoutMode::Steno as usize {
-                    with_leds(|leds| leds.set_base(0, get_steno_indicator(raw))).await;
-                }
                 printkln!("Steno raw mode: {}", raw);
             }
             Event::StenoState(state) => {
-                with_leds(|leds| leds.set_base(1, leds::manager::get_steno_state(&state))).await;
                 printkln!("Steno state: {:?}", state);
             }
             other => {
@@ -297,14 +247,12 @@ impl Action {
 
 impl LayoutActions for Action {
     async fn set_mode(&self, mode: LayoutMode) {
-        #[cfg(feature = "steno")]
-        self.current_mode.store(mode as usize, Ordering::Release);
-        with_leds(|leds| leds.set_base(0, self.mode_indicator(mode))).await;
+        with_leds(|leds| leds.set_mode(mode)).await;
         printkln!("Set mode: {:?}", mode);
     }
 
+    /// Nothing to show: there is no mode LED to flash for the selection.
     async fn set_mode_select(&self, mode: LayoutMode) {
-        with_leds(|leds| leds.set_base(0, self.mode_select_indicator(mode))).await;
         printkln!("Set mode select: {:?}", mode);
     }
 
@@ -329,17 +277,20 @@ impl LayoutActions for Action {
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {
-        let indicator = match &submode {
-            // The Zephyr port has no LED plan for the Taipo variant yet.
-            MinorMode::Dosh => &leds::manager::OFF_INDICATOR,
-        };
-        with_leds(|leds| leds.set_base(1, indicator)).await;
         printkln!("Set submode: {:?}", submode);
     }
 
     async fn clear_sub_mode(&self, submode: MinorMode) {
-        with_leds(|leds| leds.set_base(1, &leds::manager::OFF_INDICATOR)).await;
         printkln!("Clear submode: {:?}", submode);
+    }
+
+    async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
+        with_leds(|leds| leds.set_mods(oneshot, sticky)).await;
+    }
+
+    #[cfg(feature = "orsy")]
+    async fn set_orsy_pending(&self, cap: bool, in_word: bool) {
+        with_leds(|leds| leds.set_orsy_pending(cap, in_word)).await;
     }
 
     #[cfg(feature = "steno")]
@@ -349,18 +300,6 @@ impl LayoutActions for Action {
             .is_err()
         {
             printkln!("Dropping steno stroke: {}", steno);
-        }
-    }
-}
-
-#[embassy_executor::task]
-async fn led_task() -> ! {
-    let mut ticker = Ticker::every(Duration::from_millis(100));
-    loop {
-        ticker.next().await;
-        let mut leds = LEDS.lock().await;
-        if let Some(leds) = leds.as_mut() {
-            leds.tick();
         }
     }
 }
@@ -581,24 +520,6 @@ where
     let mut leds = LEDS.lock().await;
     if let Some(manager) = leds.as_mut() {
         f(manager);
-    }
-}
-
-#[cfg(feature = "steno")]
-fn get_steno_indicator(raw: bool) -> &'static leds::manager::Indication {
-    if raw {
-        &leds::manager::STENO_RAW_INDICATOR
-    } else {
-        &leds::manager::STENO_INDICATOR
-    }
-}
-
-#[cfg(feature = "steno")]
-fn get_steno_select_indicator(raw: bool) -> &'static leds::manager::Indication {
-    if raw {
-        &leds::manager::STENO_RAW_SELECT_INDICATOR
-    } else {
-        &leds::manager::STENO_SELECT_INDICATOR
     }
 }
 

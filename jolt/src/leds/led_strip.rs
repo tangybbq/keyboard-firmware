@@ -52,6 +52,10 @@ impl LedGroup for LedStripGroup {
         LATEST.lock(|latest| *latest.borrow_mut() = Some(frame));
         WAKE.give();
     }
+
+    fn needs_refresh(&self) -> bool {
+        true
+    }
 }
 
 impl LedStripGroup {

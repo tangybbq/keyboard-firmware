@@ -1,321 +1,134 @@
-//! LED indication management.
+//! The modifier indicator.
+//!
+//! This is jolt-embassy-rp's `leds/manager.rs`, and shows the same thing in the same colors; the
+//! reasoning behind the colors is there, and the two should be kept in step.  Which LED shows
+//! what, when, is `bbq_keyboard::indicator`, shared by both firmwares; this module is only the
+//! colors.
+//!
+//! In short: every LED on the board is one Taipo modifier, in `Mods` bit order (control, shift,
+//! alt, GUI), showing the mode's background while that modifier is not held, lit in that
+//! modifier's color while it is one-shot, and with white added while it is latched.  Taipo is
+//! dark underneath; Orsy lights all four white, and shows its pending capital (green, second LED)
+//! and being within a word (blue, third LED) in place of the white.
+//!
+//! Only the steady display is here.  The mode flash (`ModeDisplay::Flash`) needs the layout loop
+//! to wake at the flash's end, which jolt's 1 ms loop does not schedule yet, and no board uses it.
 
 extern crate alloc;
 
 use alloc::vec::Vec;
-
-#[cfg(feature = "steno")]
-use bbq_steno::dict::State;
+use bbq_keyboard::LayoutMode;
+use bbq_keyboard::Mods;
+use bbq_keyboard::indicator::{Indicator, Level, ModeDisplay};
 use smart_leds::RGB8;
 
 use super::LedSet;
 
 const OFF: RGB8 = RGB8::new(0, 0, 0);
 
-pub struct Indication(&'static [Step]);
+/// Each LED's color while its modifier is held, in the order they appear on the board.  Latched
+/// adds [`LATCH`] to this.
+static MOD_LEDS: [RGB8; 4] = [
+    RGB8::new(0, 3, 0),  // green: control
+    RGB8::new(8, 0, 0),  // red: shift
+    RGB8::new(0, 0, 24), // blue: alt
+    RGB8::new(3, 3, 0),  // yellow: GUI
+];
 
-struct Step {
-    color: RGB8,
-    count: usize,
-}
+/// Added to a lit LED while its modifier is latched.
+const LATCH: RGB8 = RGB8::new(4, 4, 4);
 
-pub static INIT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(8, 0, 0),
-        count: 1,
-    },
-    Step {
-        color: RGB8::new(0, 8, 0),
-        count: 1,
-    },
-    Step {
-        color: RGB8::new(0, 0, 8),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 3,
-    },
-]);
+/// An LED showing the mode: in Orsy, every LED that has no modifier to show.
+const MODE: RGB8 = RGB8::new(1, 1, 1);
 
-pub static UNDEF_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(1, 1, 1),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 30,
-    },
-]);
+/// Orsy: the next letter will be a capital.  Green, on the second LED.
+const CAP_NEXT: RGB8 = RGB8::new(0, 2, 0);
 
-pub static OFF_INDICATOR: Indication = Indication(&[Step {
-    color: OFF,
-    count: 10,
-}]);
-
-#[cfg(feature = "steno")]
-pub static STENO_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(0, 0, 24),
-    count: 100,
-}]);
-
-#[cfg(feature = "steno")]
-pub static STENO_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(0, 0, 24),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 1,
-    },
-]);
-
-#[cfg(feature = "steno")]
-pub static STENO_RAW_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(16, 8, 0),
-    count: 100,
-}]);
-
-#[cfg(feature = "steno")]
-pub static STENO_RAW_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(16, 8, 0),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 1,
-    },
-]);
-
-#[cfg(feature = "steno")]
-pub static STENO_DIRECT_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(16, 8, 0),
-    count: 100,
-}]);
-
-#[cfg(feature = "steno")]
-pub static STENO_DIRECT_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(16, 8, 0),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 1,
-    },
-]);
-
-#[cfg(feature = "qwerty")]
-pub static NKRO_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(32, 0, 32),
-    count: 100,
-}]);
-
-#[cfg(feature = "qwerty")]
-pub static NKRO_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(32, 0, 32),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 1,
-    },
-]);
-
-pub static TAIPO_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(16, 8, 24),
-    count: 100,
-}]);
-
-pub static TAIPO_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(16, 8, 24),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 1,
-    },
-]);
-
-#[cfg(feature = "qwerty")]
-pub static QWERTY_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(0, 16, 0),
-    count: 100,
-}]);
-
-#[cfg(feature = "qwerty")]
-pub static QWERTY_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(0, 16, 0),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 1,
-    },
-]);
-
-/// Orsy lights white, as on jolt-embassy-rp.
-#[cfg(feature = "orsy")]
-pub static ORSY_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(16, 16, 16),
-    count: 100,
-}]);
-
-#[cfg(feature = "orsy")]
-pub static ORSY_SELECT_INDICATOR: Indication = Indication(&[
-    Step {
-        color: RGB8::new(16, 16, 16),
-        count: 1,
-    },
-    Step {
-        color: OFF,
-        count: 1,
-    },
-]);
-
-#[cfg(feature = "steno")]
-pub static STENO_NOSPACE_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(20, 0, 0),
-    count: 100,
-}]);
-
-#[cfg(feature = "steno")]
-pub static STENO_NOSPACE_CAP_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(20, 20, 0),
-    count: 100,
-}]);
-
-#[cfg(feature = "steno")]
-pub static STENO_CAP_INDICATOR: Indication = Indication(&[Step {
-    color: RGB8::new(0, 20, 0),
-    count: 100,
-}]);
-
-#[cfg(feature = "steno")]
-pub fn get_steno_state(state: &State) -> &'static Indication {
-    let space = state.space || state.force_space || state.stitch;
-    if !state.cap && space {
-        &OFF_INDICATOR
-    } else if !state.cap && !space {
-        &STENO_NOSPACE_INDICATOR
-    } else if state.cap && space {
-        &STENO_CAP_INDICATOR
-    } else {
-        &STENO_NOSPACE_CAP_INDICATOR
-    }
-}
+/// Orsy: within a word.  Blue, on the third LED.
+const IN_WORD: RGB8 = RGB8::new(0, 0, 16);
 
 pub struct LedManager {
     leds: LedSet,
-    states: Vec<LedState>,
-}
 
-struct LedState {
-    base: &'static [Step],
-    global: Option<&'static [Step]>,
-    oneshot: Option<&'static [Step]>,
-    count: usize,
-    phase: usize,
-    last_color: RGB8,
+    /// What is currently displayed, kept so [`Self::refresh`] can rewrite it.
+    colors: Vec<RGB8>,
+
+    /// The mode and modifier state, and what each LED should show for it.
+    indicator: Indicator,
 }
 
 impl LedManager {
-    pub fn new(leds: LedSet) -> Self {
-        let len = leds.len();
-        let states = (0..len)
-            .map(|index| {
-                if index == 0 {
-                    LedState::new(UNDEF_INDICATOR.0, Some(INIT_INDICATOR.0))
-                } else {
-                    LedState::new(UNDEF_INDICATOR.0, None)
-                }
-            })
-            .collect();
+    pub fn new(mut leds: LedSet) -> Self {
+        // Written once here rather than waiting for the first modifier: after a soft reset the
+        // ws2812s hold whatever the last run left in them.
+        let colors: Vec<RGB8> = core::iter::repeat_n(OFF, leds.len()).collect();
+        leds.update(&colors);
 
-        Self { leds, states }
-    }
-
-    pub fn clear_global(&mut self, index: usize) {
-        if let Some(state) = self.states.get_mut(index) {
-            state.clear_global();
+        LedManager {
+            leds,
+            colors,
+            indicator: Indicator::new(ModeDisplay::Steady),
         }
     }
 
-    pub fn set_base(&mut self, index: usize, indicator: &Indication) {
-        if let Some(state) = self.states.get_mut(index) {
-            state.set_base(indicator);
-        }
+    /// Show the layout mode.
+    ///
+    /// The layout tells us the mode on its first tick as well as on every change, so the board is
+    /// honest about its mode without waiting for a key.
+    pub fn set_mode(&mut self, mode: LayoutMode) {
+        self.indicator.set_mode(mode);
+        self.render();
     }
 
-    /// Update the LEDs based on the active state machines.
-    pub fn tick(&mut self) {
-        let colors: Vec<_> = self.states.iter_mut().map(|state| state.tick()).collect();
-        self.leds.update(&colors);
+    /// Show the modifier state.
+    ///
+    /// `oneshot` is every modifier held and `sticky` the subset of those that survives a
+    /// keypress.
+    pub fn set_mods(&mut self, oneshot: Mods, sticky: Mods) {
+        self.indicator.set_mods(oneshot, sticky);
+        self.render();
+    }
+
+    /// Show what Orsy's output stage has pending for the next stroke.
+    #[cfg(feature = "orsy")]
+    pub fn set_orsy_pending(&mut self, cap: bool, in_word: bool) {
+        self.indicator.set_orsy_pending(cap, in_word);
+        self.render();
+    }
+
+    /// Redraw from the mode and modifier state.
+    fn render(&mut self) {
+        for (slot, (color, held)) in self.colors.iter_mut().zip(&MOD_LEDS).enumerate() {
+            *color = match self.indicator.level(slot) {
+                Level::Off => OFF,
+                Level::Mode => MODE,
+                Level::Held => *held,
+                Level::Latched => add(*held, LATCH),
+                Level::CapNext => CAP_NEXT,
+                Level::InWord => IN_WORD,
+            };
+        }
+        self.leds.update(&self.colors);
+    }
+
+    /// Rewrite the LEDs with what they are already showing, if they need it.
+    ///
+    /// Nothing here animates, so this is only insurance: a ws2812 that has taken a bad bit holds
+    /// it until it is written again, and a stuck modifier light is a lie about what the next
+    /// keypress will do.  That only matters while someone is typing, so this is called on each
+    /// key press rather than on a timer.
+    pub fn refresh(&mut self) {
+        if self.leds.needs_refresh() {
+            self.leds.update(&self.colors);
+        }
     }
 }
 
-impl LedState {
-    fn new(base: &'static [Step], global: Option<&'static [Step]>) -> Self {
-        Self {
-            base,
-            global,
-            oneshot: None,
-            count: 0,
-            phase: 0,
-            last_color: OFF,
-        }
-    }
-
-    fn tick(&mut self) -> RGB8 {
-        let mut steps = self.base;
-        if let Some(global) = self.global {
-            steps = global;
-        }
-        if let Some(oneshot) = self.oneshot {
-            steps = oneshot;
-        }
-
-        if self.count == 0 {
-            if self.phase >= steps.len() {
-                self.phase = 0;
-
-                if self.oneshot.is_some() {
-                    self.oneshot = None;
-                    self.phase = 1000;
-                    return self.tick();
-                }
-            }
-
-            let color = steps[self.phase].color;
-            self.count = steps[self.phase].count;
-            self.phase += 1;
-            self.last_color = color;
-            color
-        } else {
-            self.count -= 1;
-            self.last_color
-        }
-    }
-
-    fn clear_global(&mut self) {
-        self.global = None;
-        if self.oneshot.is_none() {
-            self.count = 0;
-            self.phase = 0;
-        }
-    }
-
-    fn set_base(&mut self, indicator: &Indication) {
-        self.base = indicator.0;
-        if self.oneshot.is_none() && self.global.is_none() {
-            self.count = 0;
-            self.phase = 0;
-        }
-    }
+/// Add two colors, clamping rather than wrapping.
+fn add(a: RGB8, b: RGB8) -> RGB8 {
+    RGB8::new(
+        a.r.saturating_add(b.r),
+        a.g.saturating_add(b.g),
+        a.b.saturating_add(b.b),
+    )
 }
