@@ -12,14 +12,13 @@ Read this whole document before starting.  The facts in "What was found"
 were read out of the tree, the `~/zephyrproject` workspace and build
 attempts, not remembered; the derivation is given so it can be re-checked.
 
-Status (2026-10-24): **phases 1, 3 and 4 done, and phase 2 apart from the
-key test; basic tests on the test mesa3b passed with the phase 3 image.  The
-phase 4 image (LEDs) has not been on hardware.**  The first version of this
-plan (2026-09-09) was blocked on the `zephyr-lang-rust` binding PRs; they
-have all merged.  Phase 1 also turned up, and fixed, a HID report buffer
-that could be overwritten before the USB stack was done with it (latent on
-the RP2040; see `3f1fa04`), and phase 4 got the jolt3 building again.
-Next: the LED test, then phase 5.
+Status (2026-10-24): **phases 1 to 5 built; phases 1–4 tried on the test
+mesa3b, phase 5 (minder and the key log) not yet.**  The first version of
+this plan (2026-09-09) was blocked on the `zephyr-lang-rust` binding PRs;
+they have all merged.  Phase 1 also turned up, and fixed, a HID report
+buffer that could be overwritten before the USB stack was done with it
+(latent on the RP2040; see `3f1fa04`), and phase 4 got the jolt3 building
+again.  Next: phase 5 against keyminder and TaipoTeacher, then phase 6.
 
 Decisions taken on 2026-09-09 (developer), still standing: build against
 `zephyr-lang-rust` `upstream/main`; `west update` runs periodically and the
