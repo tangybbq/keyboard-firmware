@@ -1,0 +1,5 @@
+# Copyright (c) 2026 Linaro Limited
+# SPDX-License-Identifier: Apache-2.0
+
+config SHIELD_MESA3
+	def_bool $(shields_list_contains,mesa3)

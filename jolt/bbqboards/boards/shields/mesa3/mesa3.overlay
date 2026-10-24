@@ -1,0 +1,98 @@
+/* Device tree overlay for the mesa3 keyboard
+ *
+ * One shield for three boards: the mesa3, the mesa3b (its Rev B, with an Fn
+ * key on each hand) and the mesa2 Rev B (the unibody the mesa3 was cut from).
+ * They are electrically identical -- the same Tiny 2040 pins, the same
+ * matrix, the same four ws2812 LEDs on GP26 -- and differ only in which of
+ * the matrix's two spare slots carry a key.  The firmware tells them apart by
+ * the board-info name and picks the translation table from it; see `mod
+ * mesa3` in jolt-embassy-rp/src/board.rs and `MESA3`, `MESA3B` and `MESA2B`
+ * in bbq-keyboard/src/translate.rs.
+ *
+ * The mesa3's right half is passive: switches, diodes and an RJ-45.  The left
+ * MCU scans the whole matrix, so there is no inter-board link.
+ */
+
+/ {
+	aliases {
+		matrix = &kbd_matrix;
+	};
+
+	chosen {
+		zephyr,matrix = &kbd_matrix;
+		bbq,led-strip = &ws2812;
+		bbq,two-row;
+
+		/* The console is RTT, and uart0 is on the matrix pins; see below. */
+		/delete-property/ zephyr,console;
+		/delete-property/ zephyr,shell-uart;
+	};
+
+	/* The names are swapped here, and that is deliberate.  The diodes
+	 * conduct from the board's rows to its columns, so the scanner drives
+	 * the board's *rows* (ROW_A, ROW_B on the left, ROW_C, ROW_D on the
+	 * right) and senses its *columns* (COL_1..COL_5, shared by the halves
+	 * over the RJ-45, COL_5 the thumbs).  The scanner drives `col-gpios`
+	 * and senses `row-gpios`, so the board's rows go in `col-gpios`.  The
+	 * mesa2 is the same.
+	 *
+	 * The columns are listed in column order, COL_1 first, though they sit
+	 * on GP7 down to GP4.  That keeps the scan codes at ROW_x * 5 + COL_n,
+	 * which is what the translation tables are written against.
+	 */
+	kbd_matrix: kbd-matrix {
+		compatible = "bbq,keyboard-matrix";
+		row-gpios = <&gpio0 7 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,  /* COL_1 */
+			    <&gpio0 6 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,  /* COL_2 */
+			    <&gpio0 5 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,  /* COL_3 */
+			    <&gpio0 4 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,  /* COL_4 */
+			    <&gpio0 29 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>; /* COL_5 */
+		col-gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>, /* ROW_A */
+			    <&gpio0 27 GPIO_ACTIVE_HIGH>, /* ROW_B */
+			    <&gpio0 0 GPIO_ACTIVE_HIGH>,  /* ROW_C */
+			    <&gpio0 1 GPIO_ACTIVE_HIGH>;  /* ROW_D */
+		idle-mode = "scan";
+	};
+};
+
+/* The Tiny 2040 board puts uart0 on GP0/GP1, which are ROW_C and ROW_D here,
+ * and its ADC on GP26-GP29, which are the LED data line and three matrix
+ * pins. */
+&uart0 {
+	status = "disabled";
+};
+
+&adc {
+	status = "disabled";
+};
+
+&pinctrl {
+	ws2812_pio0_default: ws2812_pio0_default {
+		ws2812 {
+			pinmux = <PIO0_P26>;
+		};
+	};
+};
+
+&pio0 {
+	status = "okay";
+
+	pio-ws2812 {
+		compatible = "worldsemi,ws2812-rpi_pico-pio";
+		status = "okay";
+		pinctrl-0 = <&ws2812_pio0_default>;
+		pinctrl-names = "default";
+		bit-waveform = <3>, <3>, <4>;
+
+		ws2812: ws2812 {
+			status = "okay";
+			gpios = <&gpio0 26 GPIO_ACTIVE_HIGH>;
+			chain-length = <4>;
+			color-mapping = <LED_COLOR_ID_GREEN
+					 LED_COLOR_ID_RED
+					 LED_COLOR_ID_BLUE>;
+			reset-delay = <280>;
+			frequency = <800000>;
+		};
+	};
+};
