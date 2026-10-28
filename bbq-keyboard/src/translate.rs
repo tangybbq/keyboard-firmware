@@ -15,7 +15,7 @@
 /// is here so that host tools can walk every board without hardcoding the
 /// list.
 pub const BOARDS: &[&str] = &[
-    "proto3", "proto4", "mesa1", "mesa2", "mesa2b", "mesa3", "mesa3b",
+    "proto3", "proto4", "mesa1", "mesa2", "mesa2b", "mesa3", "mesa3b", "mesa3w",
     "jolt1", "jolt2", "jolt3",
 ];
 
@@ -28,6 +28,10 @@ pub fn get_translation(board: &str) -> fn(u8) -> u8 {
         "mesa2b" => mesa2b,
         "mesa3" => mesa3,
         "mesa3b" => mesa3b,
+        // The mesa3w is a new left board, an nRF52840 module in place of the Tiny 2040, wired
+        // to the same matrix with the same Fn keys and the mesa3's right half unchanged.  The
+        // grid was kept identical on purpose, so that one table serves both.
+        "mesa3w" => mesa3b,
         "jolt1" => id,
         "jolt2" => jolt2,
         "jolt3" => jolt3,
@@ -483,6 +487,17 @@ mod tests {
                 code => mesa3(code),
             };
             assert_eq!(mesa3b(code), want, "scan code {code}");
+        }
+    }
+
+    /// The mesa3w's matrix is the mesa3b's: the wireless left board was laid out to keep every
+    /// key in its (column, row), so its table is the mesa3b's rather than a copy of it.
+    #[test]
+    fn test_mesa3w_is_the_mesa3b() {
+        let mesa3b = get_translation("mesa3b");
+        let mesa3w = get_translation("mesa3w");
+        for code in 0..=255u8 {
+            assert_eq!(mesa3w(code), mesa3b(code), "scan code {code}");
         }
     }
 }
