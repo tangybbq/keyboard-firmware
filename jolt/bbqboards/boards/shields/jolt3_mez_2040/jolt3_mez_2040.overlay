@@ -4,6 +4,8 @@
  * it has very little on-board.
  */
 
+#include <bbq/rp2040-board-info.dtsi>
+
 / {
 	aliases {
 		matrix = &kbd_matrix;

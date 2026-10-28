@@ -5,6 +5,8 @@
  * attach to the GPIOs.
  */
 
+#include <bbq/rp2040-board-info.dtsi>
+
 / {
 	aliases {
 		matrix = &kbd_matrix;

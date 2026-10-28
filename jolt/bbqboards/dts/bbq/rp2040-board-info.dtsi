@@ -1,0 +1,17 @@
+/*
+ * Where the board-info CBOR block lives on an RP2040 board: the last 256
+ * bytes below 2 MiB of the XIP-mapped flash, the same address
+ * jolt-embassy-rp's memory.x and bbq-tool/sides.sh use, so a board keeps its
+ * identity across the two firmwares.
+ *
+ * Per SoC rather than in app.overlay, as an nRF52840 has no flash there.
+ * app.overlay chooses whichever node the shield defines.
+ */
+
+/ {
+	board_info: board-info@101fff00 {
+		compatible = "bbq,board-info";
+		reg = <0x101fff00 0x100>;
+		status = "okay";
+	};
+};

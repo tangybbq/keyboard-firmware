@@ -13,6 +13,8 @@
  * MCU scans the whole matrix, so there is no inter-board link.
  */
 
+#include <bbq/rp2040-board-info.dtsi>
+
 / {
 	aliases {
 		matrix = &kbd_matrix;
