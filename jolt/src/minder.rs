@@ -22,7 +22,10 @@ use heapless::Deque;
 use minder::keylog::RECORD_SIZE;
 use minder::{Event, Reply, Request, VERSION, cap};
 use sha2::{Digest, Sha256};
-use zephyr::printkln;
+use zephyr::{
+    devicetree::{Value, Word},
+    printkln,
+};
 
 use crate::{keylog, minder_usb};
 
@@ -320,14 +323,15 @@ impl Minder {
     /// Calculate the hash of a region.  Sync.
     fn hash(&self, offset: u32, size: u32) -> Reply {
         // Validate that the offset and size is in a valid region.
-        if offset < FLASH_START {
+        let (flash_start, flash_size) = data_region();
+        if offset < flash_start {
             return Reply::Error {
                 text: "Out of bounds".into(),
             };
         }
 
         if let Some(end) = offset.checked_add(size) {
-            if end > FLASH_START + FLASH_SIZE {
+            if end > flash_start + flash_size {
                 return Reply::Error {
                     text: "Out of bounds".into(),
                 };
@@ -368,7 +372,7 @@ impl Minder {
         }
 
         // The offset needs to be adjusted by the start of the flash device.
-        let Some(offset) = offset.checked_sub(FLASH_BASE) else {
+        let Some(offset) = offset.checked_sub(flash_device().0) else {
             return Reply::Error {
                 text: "Flash offset out of bounds".into(),
             };
@@ -393,14 +397,28 @@ impl Minder {
     }
 }
 
-/// Where the flash is mapped.
-const FLASH_BASE: u32 = 0x1000_0000;
-
-/// The flash's erase block.
+/// The flash's erase block: 4 KiB on both the RP2040's QSPI flash and the nRF52840.
 const ERASE_SIZE: usize = 4096;
 
-/// The start address of valid flash.
-const FLASH_START: u32 = 0x10100000;
+/// Where the flash device is mapped, and its size, from the chosen `zephyr,flash`: 8 MiB at
+/// `0x1000_0000` on a Tiny 2040, 1 MiB at 0 on an nRF52840.
+fn flash_device() -> (u32, u32) {
+    match zephyr::devicetree::chosen::zephyr_flash::RAW_REG {
+        [Value::Words([Word::Number(base), Word::Number(size), ..])] => (*base, *size),
+        _ => panic!("chosen zephyr,flash does not provide a usable reg property"),
+    }
+}
 
-/// The size of the valid flash.
-const FLASH_SIZE: u32 = 8 * 1024 * 1024 - 0x100000;
+/// How far into the flash device `Hash` may start.
+///
+/// The first MiB is the firmware's, and above it is where data such as the steno dictionaries
+/// is written, as on jolt-embassy-rp.  An nRF52840 has only the one MiB, so there `Hash` reads
+/// nothing.
+const DATA_OFFSET: u32 = 0x10_0000;
+
+/// The part of the flash `Hash` may read, as its start address and size.
+fn data_region() -> (u32, u32) {
+    let (base, size) = flash_device();
+    let offset = DATA_OFFSET.min(size);
+    (base + offset, size - offset)
+}

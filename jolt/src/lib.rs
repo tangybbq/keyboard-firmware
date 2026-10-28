@@ -581,20 +581,33 @@ fn extract_gpios(values: &[Value], out: &mut Vec<GpioPin>) {
             for elt in *words {
                 if let zephyr::devicetree::Word::Gpio(name, args) = elt {
                     printkln!("GPIO: {} {:?}", name, args);
-                    if *name != "gpio0" {
-                        panic!("Unexpected GPIO controller name: {}", name);
-                    }
-                    // SAFETY: the device and its `GpioStatic` are gpio0's, both static, and the
-                    // pin and flags are devicetree cells for that controller, so they fit its
-                    // `gpio_pin_t` and `gpio_dt_flags_t`.
-                    out.push(unsafe {
-                        GpioPin::raw_new(
-                            zephyr::devicetree::labels::gpio0::get_instance_raw(),
-                            zephyr::devicetree::labels::gpio0::get_static_raw(),
-                            args[0],
-                            args[1],
-                        )
-                    });
+                    // The RP2040 has one GPIO controller; the nRF52840 has two ports, and the
+                    // mesa3w's matrix uses both.
+                    let pin = match *name {
+                        // SAFETY: the device and its `GpioStatic` are gpio0's, both static, and
+                        // the pin and flags are devicetree cells for that controller, so they
+                        // fit its `gpio_pin_t` and `gpio_dt_flags_t`.
+                        "gpio0" => unsafe {
+                            GpioPin::raw_new(
+                                zephyr::devicetree::labels::gpio0::get_instance_raw(),
+                                zephyr::devicetree::labels::gpio0::get_static_raw(),
+                                args[0],
+                                args[1],
+                            )
+                        },
+                        // SAFETY: as for gpio0, with gpio1's device and `GpioStatic`.
+                        #[cfg(dt = "labels::gpio1")]
+                        "gpio1" => unsafe {
+                            GpioPin::raw_new(
+                                zephyr::devicetree::labels::gpio1::get_instance_raw(),
+                                zephyr::devicetree::labels::gpio1::get_static_raw(),
+                                args[0],
+                                args[1],
+                            )
+                        },
+                        other => panic!("Unexpected GPIO controller name: {}", other),
+                    };
+                    out.push(pin);
                 }
             }
         }

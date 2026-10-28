@@ -5,11 +5,16 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <hardware/structs/rosc.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/flash.h>
 #include <zephyr/drivers/hwinfo.h>
 #include <zephyr/sys/reboot.h>
+
+#if defined(CONFIG_SOC_SERIES_RP2040)
+#include <hardware/structs/rosc.h>
+#else
+#include <zephyr/random/random.h>
+#endif
 
 /*
  * The device's unique ID.  On the RP2040 this is the flash's 64-bit unique ID,
@@ -22,18 +27,25 @@ int jolt_device_id(uint8_t *id, size_t len)
 }
 
 /*
- * A number that differs from one boot to the next, for minder's boot_id.  The
- * ROSC's random bit, as embassy-rp's RoscRng reads it: it only has to differ
- * from the last run, not be unpredictable.  The RP2040 has no Zephyr entropy
- * driver, and Zephyr's clock setup leaves the ROSC running.
+ * A number that differs from one boot to the next, for minder's boot_id.  It
+ * only has to differ from the last run, not be unpredictable.
+ *
+ * On the RP2040, the ROSC's random bit, as embassy-rp's RoscRng reads it: the
+ * RP2040 has no Zephyr entropy driver, and Zephyr's clock setup leaves the
+ * ROSC running.  Elsewhere, Zephyr's random source, which on the nRF52840 is
+ * seeded from its hardware RNG (CONFIG_ENTROPY_GENERATOR).
  */
 uint64_t jolt_boot_id(void)
 {
 	uint64_t id = 0;
 
+#if defined(CONFIG_SOC_SERIES_RP2040)
 	for (int i = 0; i < 64; i++) {
 		id = (id << 1) | (rosc_hw->randombit & 1U);
 	}
+#else
+	sys_rand_get(&id, sizeof(id));
+#endif
 
 	return id;
 }
