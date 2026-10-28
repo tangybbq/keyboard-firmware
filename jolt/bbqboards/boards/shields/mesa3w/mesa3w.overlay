@@ -1,0 +1,88 @@
+/* Device tree overlay for the mesa3w keyboard, on the xiao_ble board
+ *
+ * The mesa3w is a new left board for the mesa3: a Seeed XIAO nRF52840 Plus in
+ * place of the Tiny 2040, with the mesa3's passive right half unchanged over
+ * the RJ-45.  It keeps the mesa3b's matrix, every key in the same (column,
+ * row), so the firmware translates it with the mesa3b's table; the board-info
+ * name, "mesa3w", is what tells them apart.  The pin map is mesa3w-left's
+ * PCB, through the XIAO Plus pad table.
+ *
+ * The module's own USB-C is the keyboard's, and its 3.3 V LDO the rail, so
+ * nothing here configures power.  Four white LEDs on D7..D10 (P1.12..P1.15),
+ * anodes on 3V3 and sunk through 560 ohms, are not driven yet.
+ */
+
+/ {
+	aliases {
+		matrix = &kbd_matrix;
+	};
+
+	chosen {
+		zephyr,matrix = &kbd_matrix;
+
+		/* The board's console is a CDC ACM port on the USB controller,
+		 * which would be a second USB device beside jolt's.  The console
+		 * is RTT, over the Tag-Connect. */
+		/delete-property/ zephyr,console;
+		/delete-property/ zephyr,shell-uart;
+		/delete-property/ zephyr,uart-mcumgr;
+		/delete-property/ zephyr,bt-mon-uart;
+		/delete-property/ zephyr,bt-c2h-uart;
+	};
+
+	/* The last 4 KiB page of the storage partition, which is cut short to
+	 * make room, so that settings (Bluetooth bonds, later) can never erase
+	 * it.  Below the UF2 bootloader, and outside the application. */
+	board_info: board-info@f3000 {
+		compatible = "bbq,board-info";
+		reg = <0xf3000 0x100>;
+		status = "okay";
+	};
+
+	/* The names are swapped here, and that is deliberate, as on the mesa3.
+	 * The diodes conduct from the board's rows to its columns, so the
+	 * scanner drives the board's *rows* and senses its *columns*; it
+	 * drives `col-gpios` and senses `row-gpios`, so the board's rows go in
+	 * `col-gpios`.  Both in board order, ROW_A and COL_1 first, which keeps
+	 * the scan codes at ROW_x * 5 + COL_n as the translation table expects.
+	 *
+	 * The XIAO runs at 3.3 V, so the silicon diodes leave the sensing plenty
+	 * of margin with standard drive; plan-mesa3w.md's 3.0 V worries were
+	 * for the nPM1100 design this board replaced.
+	 */
+	kbd_matrix: kbd-matrix {
+		compatible = "bbq,keyboard-matrix";
+		row-gpios = <&gpio0 2 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,  /* COL_1, D0 */
+			    <&gpio0 3 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>,  /* COL_2, D1 */
+			    <&gpio0 28 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>, /* COL_3, D2 */
+			    <&gpio0 29 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>, /* COL_4, D3 */
+			    <&gpio0 15 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>; /* COL_5, D11 */
+		col-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>,  /* ROW_A, D4 */
+			    <&gpio0 5 GPIO_ACTIVE_HIGH>,  /* ROW_B, D5 */
+			    <&gpio1 7 GPIO_ACTIVE_HIGH>,  /* ROW_C, D19 */
+			    <&gpio1 11 GPIO_ACTIVE_HIGH>; /* ROW_D, D6 */
+		idle-mode = "scan";
+	};
+};
+
+&storage_partition {
+	reg = <0x000ec000 0x00007000>;
+};
+
+/* The board puts uart0 on D6/D7, i2c1 on D4/D5 and spi2 on D8..D10: ROW_D,
+ * ROW_A, ROW_B and three of the four LEDs here. */
+&uart0 {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "disabled";
+};
+
+&spi2 {
+	status = "disabled";
+};
+
+&board_cdc_acm_uart {
+	status = "disabled";
+};

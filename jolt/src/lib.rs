@@ -252,7 +252,7 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
 fn is_two_row(board_name: &str) -> bool {
     matches!(
         board_name,
-        "proto4" | "mesa1" | "mesa2" | "mesa2b" | "mesa3" | "mesa3b"
+        "proto4" | "mesa1" | "mesa2" | "mesa2b" | "mesa3" | "mesa3b" | "mesa3w"
     )
 }
 
