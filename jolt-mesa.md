@@ -373,6 +373,35 @@ stays flashable as the way back; the flash layout (board info at
 
 ---
 
+## The mesa3w (2026-10-28)
+
+A second target, on its way: a new left board for the mesa3 carrying a
+Seeed XIAO nRF52840 Plus in place of the Tiny 2040, the mesa3's passive
+right half unchanged over the RJ-45.  `~/Documents/Keyboards/plan-mesa3w.md`
+describes an earlier E73 + nPM1100 design; the board actually laid out
+(`mesa3/mesa3w-left/`) uses the XIAO, whose own USB-C, LDO and Li-po charger
+replace all of that.  It keeps the mesa3b's matrix, so it translates with
+the mesa3b's table under its own board-info name, `mesa3w`.
+
+USB first, Bluetooth after.  What is in (`12dfdff`..`6ae5f8e`):
+
+- `shields/mesa3w` on Zephyr's `xiao_ble`, and `b-mesa3w.sh`.  The matrix
+  spans both GPIO ports; the board's `uart0`, `i2c1` and `spi2` sit on the
+  rows and LEDs and are disabled; its CDC ACM console (a second USB device
+  on the controller) is off via `BOARD_SERIAL_BACKEND_CDC_ACM`, console RTT.
+- The board-info node moved out of `app.overlay` into each shield, as the
+  RP2040's address is past the end of the nRF52840's flash.  The mesa3w's is
+  `0xf3000`, the last page of the storage partition, cut short for it.
+- `jolt` no longer assumes an RP2040: `gpio1`, the boot id from Zephyr's
+  random source, and minder's flash region from `zephyr,flash`.
+- `sides.sh` makes `data/mesa3w.{bin,elf,hex,uf2}` at `0xf3000`.
+
+Not yet: the four white LEDs (D7..D10, active low, want a single-colour
+PWM backend for the indicator), Bluetooth HID, the battery (and Seeed's
+advice to drive `P0.14` low when sensing it), and sleep.
+
+---
+
 # Commit plan
 
 One commit per numbered step unless the compiler forces two together, which
