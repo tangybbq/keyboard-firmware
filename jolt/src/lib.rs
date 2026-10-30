@@ -96,6 +96,8 @@ static ACTION: Action = Action;
 static LAYOUT: StaticCell<Mutex<CriticalSectionRawMutex, TimedLayout>> = StaticCell::new();
 /// Tells `layout_task` that a key event may have moved the layout's deadline.
 static LAYOUT_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+/// How many times `layout_task` has woken, for `keyboard_task` to report.
+static LAYOUT_WAKES: AtomicUsize = AtomicUsize::new(0);
 
 #[unsafe(no_mangle)]
 extern "C" fn rust_main() {
@@ -224,13 +226,32 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
         Instant::now().as_millis(),
     )));
     spawner.spawn(layout_task(layout).unwrap());
+    // What the last active stretch cost, reported at the next wake.
+    let mut active_scans = 0usize;
+    let mut active_layout_wakes = 0usize;
     loop {
         // With no key down there is nothing to scan until one goes down.
+        let idle_start = Instant::now();
+        let layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed);
         matrix.key_wait().await;
+
+        // A check that the keyboard sleeps when idle: while the matrix waited, nothing should have
+        // woken the layout.  One line per wake from idle, so at most one per burst of typing.
+        let idle_layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed) - layout_wakes;
+        printkln!(
+            "Matrix wake: idle {} ms, {} layout wakes; last active {} scans, {} layout wakes",
+            idle_start.elapsed().as_millis(),
+            idle_layout_wakes,
+            active_scans,
+            active_layout_wakes,
+        );
+        let layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed);
+        active_scans = 0;
 
         let mut ticker = Ticker::every(embassy_time::Duration::from_millis(1));
         let mut idle_scans = 0;
         while idle_scans < IDLE_SCANS {
+            active_scans += 1;
             let mut events = Vec::new();
             matrix.scan(|code, pressed| {
                 let mapped = xlate(code);
@@ -269,6 +290,7 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
             }
             ticker.next().await;
         }
+        active_layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed) - layout_wakes;
     }
 }
 
@@ -299,7 +321,9 @@ async fn layout_task(layout: &'static Mutex<CriticalSectionRawMutex, TimedLayout
             }
         };
 
-        match select(due, LAYOUT_WAKE.wait()).await {
+        let woke = select(due, LAYOUT_WAKE.wait()).await;
+        LAYOUT_WAKES.fetch_add(1, Ordering::Relaxed);
+        match woke {
             Either::First(()) => {
                 layout
                     .lock()
