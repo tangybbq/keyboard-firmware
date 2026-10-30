@@ -86,3 +86,18 @@
 &board_cdc_acm_uart {
 	status = "disabled";
 };
+
+/* The module's battery divider runs VBAT -> 1M -> P0.31 -> 510k -> P0.14, so
+ * P0.14 is the divider's ground.  Left at reset, P0.14 floats, nothing pulls
+ * the divider down, and P0.31 and P0.14 both rise toward VBAT: up to 4.2 V
+ * from the cell or the charger, past the 3.6 V (VDD + 0.3 V) limit on either
+ * pin.  Driving it low keeps P0.31 at a third of VBAT, about 1.4 V, at a cost
+ * of under 3 uA through the divider.  A battery-voltage driver taking this pin
+ * as its power-gpios would replace this hog. */
+&gpio0 {
+	read-bat-enable {
+		gpio-hog;
+		gpios = <14 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+};
