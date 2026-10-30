@@ -11,8 +11,8 @@
 //! dark underneath; Orsy lights all four white, and shows its pending capital (green, second LED)
 //! and being within a word (blue, third LED) in place of the white.
 //!
-//! Only the steady display is here.  The mode flash (`ModeDisplay::Flash`) needs the layout loop
-//! to wake at the flash's end, which jolt's 1 ms loop does not schedule yet, and no board uses it.
+//! Only the steady display is here.  The mode flash (`ModeDisplay::Flash`) needs `layout_task` to
+//! wake at the flash's end, which it does not schedule yet, and no board uses it.
 
 extern crate alloc;
 

@@ -10,19 +10,21 @@ use bbq_keyboard::{
 };
 use bbq_keyboard::{
     KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods,
-    layout::{LayoutActions, LayoutManager},
+    layout::{LayoutActions, LayoutManager, TimedLayout},
 };
 #[cfg(feature = "steno")]
 use bbq_steno::Stroke;
 use core::{cell::UnsafeCell, ffi::c_int};
 use embassy_executor::Spawner;
+use embassy_futures::select::{Either, select};
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
     channel::Channel,
     mutex::Mutex,
     semaphore::{GreedySemaphore, Semaphore},
+    signal::Signal,
 };
-use embassy_time::Ticker;
+use embassy_time::{Instant, Ticker, Timer};
 use static_cell::StaticCell;
 #[cfg(feature = "steno")]
 use zephyr::raw::k_cycle_get_64;
@@ -91,6 +93,9 @@ static STENO_EVENTS: Channel<CriticalSectionRawMutex, Event, STENO_EVENT_DEPTH> 
 static EXECUTOR_LOW: StaticCell<Executor> = StaticCell::new();
 static LEDS: Mutex<CriticalSectionRawMutex, Option<leds::manager::LedManager>> = Mutex::new(None);
 static ACTION: Action = Action;
+static LAYOUT: StaticCell<Mutex<CriticalSectionRawMutex, TimedLayout>> = StaticCell::new();
+/// Tells `layout_task` that a key event may have moved the layout's deadline.
+static LAYOUT_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
 #[unsafe(no_mangle)]
 extern "C" fn rust_main() {
@@ -193,14 +198,14 @@ async fn main(spawner: Spawner, unique: &'static str) -> () {
     #[cfg(feature = "steno")]
     spawner.spawn(steno_event_task(&ACTION).unwrap());
     // Spawn a task to manage the keyboard matrix.
-    spawner.spawn(keyboard_task(rows, cols).unwrap());
+    spawner.spawn(keyboard_task(spawner, rows, cols).unwrap());
 }
 
 /// A single executor to run most of the system. Runs in the main thread.
 static EXECUTOR: StaticCell<Executor> = StaticCell::new();
 
 #[embassy_executor::task]
-async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
+async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
     let board_info = get_board_info().expect("Board info not present");
     let board_name = board_info.name.as_str();
     // The scan code tables are shared with jolt-embassy-rp and the host tools, and panic on a
@@ -212,7 +217,11 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
     let mut count = 0u64;
     let mut matrix = matrix::Matrix::new(rows, cols);
     let mut ticker = Ticker::every(embassy_time::Duration::from_millis(1));
-    let mut manager = LayoutManager::new(two_row);
+    let layout = LAYOUT.init(Mutex::new(TimedLayout::new(
+        LayoutManager::new(two_row),
+        Instant::now().as_millis(),
+    )));
+    spawner.spawn(layout_task(layout).unwrap());
     loop {
         let mut events = Vec::new();
         matrix.scan(|code, pressed| {
@@ -236,14 +245,61 @@ async fn keyboard_task(rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
             }
             // Logged before the layout sees it.  A no-op until a host turns logging on.
             keylog::log_key(ev.key(), ev.is_press());
-            manager.handle_event(ev, &ACTION).await;
+            // Every event has to signal: one that doesn't can leave `layout_task` asleep past a
+            // chord's deadline.
+            layout
+                .lock()
+                .await
+                .handle_event(ev, Instant::now().as_millis(), &ACTION)
+                .await;
+            LAYOUT_WAKE.signal(());
         }
-        manager.tick(&ACTION, 1).await;
         count += 1;
         if count.is_multiple_of(30000) {
             printkln!("Keyboard task running: count={}", count);
         }
         ticker.next().await;
+    }
+}
+
+/// Run the layout's timers.
+///
+/// The layout only needs time to pass while a timer is running, which is only while a chord is
+/// being built.  So this sleeps until the layout's deadline, or indefinitely if there is none.  A
+/// key event can create, move or remove the deadline, so every event signals `LAYOUT_WAKE`, and
+/// the loop throws away what it was waiting on and asks again.  The deadline is only read under
+/// the lock, never carried across a wait, so the loop can't act on an old one.  A spurious wake
+/// does no harm: the timers only fire once their time is up.  This is jolt-embassy-rp's
+/// `layout_loop`, without the LEDs' mode flash.
+#[embassy_executor::task]
+async fn layout_task(layout: &'static Mutex<CriticalSectionRawMutex, TimedLayout>) -> () {
+    // Announces the initial mode.
+    layout
+        .lock()
+        .await
+        .wake(Instant::now().as_millis(), &ACTION)
+        .await;
+
+    loop {
+        let deadline = layout.lock().await.deadline();
+        let due = async {
+            match deadline {
+                Some(deadline) => Timer::at(Instant::from_millis(deadline)).await,
+                None => core::future::pending().await,
+            }
+        };
+
+        match select(due, LAYOUT_WAKE.wait()).await {
+            Either::First(()) => {
+                layout
+                    .lock()
+                    .await
+                    .wake(Instant::now().as_millis(), &ACTION)
+                    .await;
+            }
+            // An event may have moved the deadline; go round and read it again.
+            Either::Second(()) => (),
+        }
     }
 }
 
