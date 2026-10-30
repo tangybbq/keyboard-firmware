@@ -204,6 +204,10 @@ async fn main(spawner: Spawner, unique: &'static str) -> () {
 /// A single executor to run most of the system. Runs in the main thread.
 static EXECUTOR: StaticCell<Executor> = StaticCell::new();
 
+/// How many scans in a row, 1 ms apart, with no key down before the matrix goes back to waiting
+/// for a key.  Waiting is cheap to start, so this needn't be long; as on jolt-embassy-rp.
+const IDLE_SCANS: u32 = 500;
+
 #[embassy_executor::task]
 async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
     let board_info = get_board_info().expect("Board info not present");
@@ -214,51 +218,57 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
     let two_row = is_two_row(board_name);
     printkln!("Board: {}, two_row: {}", board_name, two_row);
 
-    let mut count = 0u64;
     let mut matrix = matrix::Matrix::new(rows, cols);
-    let mut ticker = Ticker::every(embassy_time::Duration::from_millis(1));
     let layout = LAYOUT.init(Mutex::new(TimedLayout::new(
         LayoutManager::new(two_row),
         Instant::now().as_millis(),
     )));
     spawner.spawn(layout_task(layout).unwrap());
     loop {
-        let mut events = Vec::new();
-        matrix.scan(|code, pressed| {
-            let mapped = xlate(code);
-            if mapped == 255 {
-                // Dead key position — no physical switch here.
-                return;
+        // With no key down there is nothing to scan until one goes down.
+        matrix.key_wait().await;
+
+        let mut ticker = Ticker::every(embassy_time::Duration::from_millis(1));
+        let mut idle_scans = 0;
+        while idle_scans < IDLE_SCANS {
+            let mut events = Vec::new();
+            matrix.scan(|code, pressed| {
+                let mapped = xlate(code);
+                if mapped == 255 {
+                    // Dead key position — no physical switch here.
+                    return;
+                }
+                let ev = if pressed {
+                    KeyEvent::Press(mapped)
+                } else {
+                    KeyEvent::Release(mapped)
+                };
+                events.push(ev);
+                // printkln!("Key {} {}", mapped, if pressed { "pressed" } else { "released" });
+            });
+            for ev in events {
+                // printkln!("Event: {:?}", ev);
+                if ev.is_press() {
+                    with_leds(|leds| leds.refresh()).await;
+                }
+                // Logged before the layout sees it.  A no-op until a host turns logging on.
+                keylog::log_key(ev.key(), ev.is_press());
+                // Every event has to signal: one that doesn't can leave `layout_task` asleep past a
+                // chord's deadline.
+                layout
+                    .lock()
+                    .await
+                    .handle_event(ev, Instant::now().as_millis(), &ACTION)
+                    .await;
+                LAYOUT_WAKE.signal(());
             }
-            let ev = if pressed {
-                KeyEvent::Press(mapped)
+            if matrix.pressed() == 0 {
+                idle_scans += 1;
             } else {
-                KeyEvent::Release(mapped)
-            };
-            events.push(ev);
-            // printkln!("Key {} {}", mapped, if pressed { "pressed" } else { "released" });
-        });
-        for ev in events {
-            // printkln!("Event: {:?}", ev);
-            if ev.is_press() {
-                with_leds(|leds| leds.refresh()).await;
+                idle_scans = 0;
             }
-            // Logged before the layout sees it.  A no-op until a host turns logging on.
-            keylog::log_key(ev.key(), ev.is_press());
-            // Every event has to signal: one that doesn't can leave `layout_task` asleep past a
-            // chord's deadline.
-            layout
-                .lock()
-                .await
-                .handle_event(ev, Instant::now().as_millis(), &ACTION)
-                .await;
-            LAYOUT_WAKE.signal(());
+            ticker.next().await;
         }
-        count += 1;
-        if count.is_multiple_of(30000) {
-            printkln!("Keyboard task running: count={}", count);
-        }
-        ticker.next().await;
     }
 }
 

@@ -11,7 +11,8 @@ license = "Apache-2.0 or MIT"
 crate-type = ["staticlib"]
 
 [dependencies]
-zephyr = { version = "0.1.0", features = ["time-driver", "executor-zephyr"] }
+# async-drivers is for the matrix's wait on a key interrupt.
+zephyr = { version = "0.1.0", features = ["time-driver", "executor-zephyr", "async-drivers"] }
 zephyr-panic = "0.1.0"
 static_cell = "2.1"
 heapless = "0.8"

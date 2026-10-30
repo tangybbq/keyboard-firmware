@@ -4,8 +4,9 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
+use embassy_futures::select::select_slice;
 use zephyr::device::gpio::GpioPin;
 use zephyr::raw::GPIO_PULL_DOWN;
 use zephyr::raw::ZR_GPIO_INPUT;
@@ -18,6 +19,8 @@ pub struct Matrix {
     rows: Vec<GpioPin>,
     cols: Vec<GpioPin>,
     state: Vec<Debouncer>,
+    /// How many keys are down, by their debounced state.
+    pressed: usize,
     // side: Side,
 }
 
@@ -26,9 +29,49 @@ impl Matrix {
         let state = (0..rows.len() * cols.len())
             .map(|_| Debouncer::new())
             .collect();
-        let mut result = Matrix { rows, cols, state };
+        let mut result = Matrix {
+            rows,
+            cols,
+            state,
+            pressed: 0,
+        };
         Self::pin_setup(&mut result.cols, &mut result.rows);
         result
+    }
+
+    /// How many keys are down, as of the last scan.
+    pub fn pressed(&self) -> usize {
+        self.pressed
+    }
+
+    /// Wait for a key to go down.
+    ///
+    /// Drives every column and waits for any row to go high, so that nothing needs scanning while
+    /// no key is down.  Returns with the columns inactive again, ready to scan.  A return is not
+    /// proof of a press (it may be a bounce, or noise), so the caller scans to find out.
+    pub async fn key_wait(&mut self) {
+        for col in self.cols.iter_mut() {
+            col.set(true);
+        }
+        // SAFETY: a busy-wait; no preconditions.
+        unsafe {
+            k_busy_wait(5);
+        }
+
+        // SAFETY: each wait is on a different input pin, and nothing else waits on these.  The
+        // waits that lose the select are dropped with it, which disarms their interrupts.
+        let waits: Vec<_> = self
+            .rows
+            .iter_mut()
+            .map(|row| unsafe { row.wait_for_high() })
+            .collect();
+        let mut waits = Box::into_pin(waits.into_boxed_slice());
+        select_slice(waits.as_mut()).await;
+        drop(waits);
+
+        for col in self.cols.iter_mut() {
+            col.set(false);
+        }
     }
 
     /// Perform a single scan of the matrix, calling `act` for every key that changes.
@@ -57,9 +100,11 @@ impl Matrix {
                 let (code, state) = states.next().unwrap();
                 match state.react(row.get()) {
                     KeyAction::Press => {
+                        self.pressed += 1;
                         act((code + bias) as u8, true);
                     }
                     KeyAction::Release => {
+                        self.pressed -= 1;
                         act((code + bias) as u8, false);
                     }
                     _ => (),
