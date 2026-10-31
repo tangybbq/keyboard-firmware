@@ -396,9 +396,123 @@ USB first, Bluetooth after.  What is in (`12dfdff`..`6ae5f8e`):
   random source, and minder's flash region from `zephyr,flash`.
 - `sides.sh` makes `data/mesa3w.{bin,elf,hex,uf2}` at `0xf3000`.
 
-Not yet: the four white LEDs (D7..D10, active low, want a single-colour
-PWM backend for the indicator), Bluetooth HID, the battery (and Seeed's
-advice to drive `P0.14` low when sensing it), and sleep.
+Since then the four white LEDs drive the indicator through a single-colour
+PWM backend (`2290a4b`..`c4d48c4`), and the layout and matrix are tickless
+(`be54c68`, `5c3d879`).  Not yet: Bluetooth HID (planned below), the
+battery (and Seeed's advice to drive `P0.14` low when sensing it), and
+sleep.
+
+---
+
+## Bluetooth on the mesa3w (planned 2026-10-30)
+
+The goal is a keyboard that pairs with several computers and types to one
+of them at a time, chosen from the keyboard.  The first cut pairs with one,
+but everything is shaped for several from the start.  Decisions taken on
+2026-10-30 (developer): one active connection at a time, not several; the
+command chords below; Taipo is ignored (too few keys on these boards), so
+the commands are in the Dosh table only.
+
+### The Bluetooth side
+
+- **Zephyr's stack and its own controller**, all of it switched on in
+  `mesa3w.conf`: the mesa3's Tiny 2040 has no radio, and nothing Bluetooth
+  is built for it.  The Rust side is `#[cfg(CONFIG_BT)]`.
+- **Upstream's HID Service**, `subsys/bluetooth/services/hids`
+  (`bt_hids_register`, `bt_hids_send_report`; added this year, marked
+  experimental, v0.1.0).  It lacks Boot Protocol Mode, which only a BIOS
+  wants.  It takes the same `HID_KEYBOARD_REPORT_DESC()` that `usb.c`
+  gives the USB stack, with one Input Report, Report ID 0, and one Output
+  Report for the LEDs (ignored, as on USB).  The fallback, should it prove
+  too rough, is a local copy of `samples/bluetooth/peripheral_hids`'s
+  `hog.c`.
+- **Bonds in settings**, on the storage partition (`0xec000`, seven pages;
+  board info sits above it at `0xf3000`).
+- **Just Works pairing, LE Secure Connections**, as ZMK does by default.
+  Passkey entry (typing the host's six digits on the keyboard) needs the
+  layout's output intercepted, and waits.
+- `ble.c` beside `usb.c`, calling Rust back through `ble_ready_callback`
+  and `ble_report_done_callback` as `usb.c` does.  minder and the key log
+  stay on USB only.
+
+### Profiles
+
+A profile is one host.  **Each profile has its own Bluetooth identity**
+(`bt_id_create`, `CONFIG_BT_ID_MAX`), the approach of Zephyr's
+`peripheral_identity` sample, so each host sees a keyboard with an address
+of its own:
+
+- Only the active profile's identity advertises, so a host whose profile
+  is not selected cannot find its keyboard, and two hosts never compete
+  for the link.
+- Clearing a profile unpairs its identity and resets it (`bt_id_reset`),
+  which gives it a new address.  The host's old bond is then simply dead,
+  rather than fighting the new pairing.  ZMK instead keeps one identity
+  and a peer address per profile, which is why it tells users to forget
+  the keyboard on the host as well.
+- The default identity, 0, cannot be reset, so profile *n* is identity
+  *n* and identity 0 is unused.  `CONFIG_BT_ID_MAX` is profiles + 1.
+- A bonded profile advertises to reconnect its host; an unbonded one
+  advertises for pairing.  The active profile is remembered in settings.
+
+Four profiles in the end, one per LED.  The first cut has one, with the
+count a constant so that the rest is a change of number.
+
+### Which transport a report goes to
+
+Reports are still built once and queued once; the sender picks the
+transport.  In **auto**, the default, a report goes to USB when a host has
+configured the HID interface (`HID_READY`), and to Bluetooth otherwise, so a
+charger-only cable leaves the keyboard on Bluetooth.  The commands below
+can force USB or Bluetooth.  A change of transport bumps the report
+generation, dropping what was queued, and sends an all-up report to the
+old transport so that no key is left held.
+
+`bt_hids_send_report` copies the report into the notification, so the
+USB path's one-report-in-flight static buffer is not needed.  A few
+notifications are allowed in flight, so that a chord's press and release,
+or an Orsy word, go out in one connection event rather than one per event.
+
+### The command chords
+
+One prefix chord, `a+o+t` (`0x007`), arms a one-chord command layer, on
+either hand.  It has no other meaning in Dosh.  The next chord, on either
+hand, is looked up in a small command table instead of `DOSH_ACTIONS`:
+
+| Next chord | Action |
+|---|---|
+| `e` / `t` / `o` / `a` (bottom row, index first) | Select profile 1–4: reconnect if bonded, otherwise advertise for pairing |
+| the same, plus the `Sp` thumb (`0x108` ...) | Clear that profile's bond |
+| `i` / `n` / `s` (top row, index first) | Output: auto / USB / Bluetooth |
+| both thumbs | Cancel |
+
+Any other chord disarms the layer and is then typed as usual, so arming it
+by accident (a sloppy `a+o+t+e`, say) costs nothing.  From Orsy, the user
+switches to Dosh first (`e+i+Sp+Bk`).  The LEDs show the layer armed, and
+afterwards which profile is active.
+
+In `bbq-keyboard`, behind a `bluetooth` cargo feature so `jolt-embassy-rp`
+does not get the chord: `Action::HostCommands` as the prefix's entry, the
+armed state in the Taipo engine next to the variant handling, a
+`HostCommand` table, and `LayoutActions::host_command()` with an empty
+default.  The Dosh fingerprint changes with the feature on, so
+`layouts.json` is regenerated and synced (`sync-layouts.py`).
+
+### Steps
+
+1. **Refactor**: move the HID report path out of `lib.rs` (`hid.rs`): the
+   queue, the generation, the sender and the report builders.  No change
+   in behaviour.
+2. **Bluetooth HID, one profile**: stack, settings, the HID Service and
+   advertising in `mesa3w.conf` and `ble.c`; reports go to Bluetooth when
+   USB is not configured.  Tested by pairing a host with the board on its
+   battery.
+3. **The command layer in `bbq-keyboard`**, with tests.
+4. **Commands in `jolt`**: select and clear the profile, choose the
+   output, the LED feedback.
+5. **Later**: profiles 2–4, the Battery Service, connection parameters
+   and peripheral latency for idle current (see `plan-mesa3w.md`'s
+   current budget), passkey entry.
 
 ---
 
