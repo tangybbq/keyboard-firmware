@@ -238,6 +238,15 @@ static K_WORK_DEFINE(select_work, select_handler);
 /* The profiles `ble_clear_profile` has been asked to clear, a bit each. */
 static atomic_t clear_mask;
 
+static void log_bond(const struct bt_bond_info *info, void *data)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(&info->addr, addr, sizeof(addr));
+	LOG_INF("Profile %u bonded to %s", *(uint8_t *)data, addr);
+}
+
+/* Log a profile's address, and the hosts it is bonded to. */
 static void log_profile_addr(const char *what, uint8_t profile)
 {
 	bt_addr_le_t addrs[CONFIG_BT_ID_MAX];
@@ -250,6 +259,7 @@ static void log_profile_addr(const char *what, uint8_t profile)
 	}
 	bt_addr_le_to_str(&addrs[profile], addr, sizeof(addr));
 	LOG_INF("Profile %u %s %s", profile, what, addr);
+	bt_foreach_bond(profile, log_bond, &profile);
 }
 
 /* Forget each profile in `clear_mask`: resetting its identity unpairs it,
