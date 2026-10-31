@@ -10,7 +10,7 @@ use bbq_keyboard::{
 };
 use bbq_keyboard::{
     KeyAction, KeyEvent, LayoutMode, MinorMode, Mods,
-    layout::{LayoutActions, LayoutManager, TimedLayout},
+    layout::{LayoutActions, LayoutManager, TimedLayout, host::HostCommand},
 };
 #[cfg(feature = "steno")]
 use bbq_steno::Stroke;
@@ -37,6 +37,7 @@ use ::minder::keylog::Marker;
 use bbq_keyboard::layout::taipo::TaipoVariant;
 
 mod hid;
+mod host;
 mod keylog;
 mod leds;
 mod matrix;
@@ -180,6 +181,7 @@ async fn main(spawner: Spawner, unique: &'static str) -> () {
     *LEDS.lock().await = Some(leds::manager::LedManager::new(leds::LedSet::get_all()));
 
     spawner.spawn(hid::sender_task().unwrap());
+    spawner.spawn(host::feedback_task().unwrap());
     spawner.spawn(minder::minder_task(unique).unwrap());
     spawner.spawn(minder::test_event_task().unwrap());
     spawner.spawn(minder::reset_task().unwrap());
@@ -394,6 +396,14 @@ impl LayoutActions for Action {
 
     async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
         with_leds(|leds| leds.set_mods(oneshot, sticky)).await;
+    }
+
+    async fn set_host_armed(&self, armed: bool) {
+        with_leds(|leds| leds.set_host_armed(armed)).await;
+    }
+
+    async fn host_command(&self, command: HostCommand) {
+        host::command(command);
     }
 
     #[cfg(feature = "orsy")]

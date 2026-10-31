@@ -14,6 +14,10 @@
 //! A single-color LED (the mesa3w's white ones) shows the same levels by brightness alone; see
 //! [`brightness`].
 //!
+//! Over all of that, jolt alone shows the host commands (`bbq_keyboard::layout::host`): every LED
+//! lit while the layer is armed, and then for a moment the LED a command was about, or every LED
+//! red when it could not be done.  See [`Feedback`].
+//!
 //! Only the steady display is here.  The mode flash (`ModeDisplay::Flash`) needs `layout_task` to
 //! wake at the flash's end, which it does not schedule yet, and no board uses it.
 
@@ -50,6 +54,34 @@ const CAP_NEXT: RGB8 = RGB8::new(0, 2, 0);
 /// Orsy: within a word.  Blue, on the third LED.
 const IN_WORD: RGB8 = RGB8::new(0, 0, 16);
 
+/// Every LED while the host command layer is armed.
+const HOST_ARMED: Shade = Shade {
+    color: RGB8::new(0, 0, 8),
+    brightness: 30,
+};
+
+/// The LED a host command was about, alone.
+const HOST_TAKEN: Shade = Shade {
+    color: RGB8::new(8, 8, 8),
+    brightness: 100,
+};
+
+/// Every LED, when a host command could not be carried out.
+const HOST_REFUSED: Shade = Shade {
+    color: RGB8::new(8, 0, 0),
+    brightness: 100,
+};
+
+/// What a host command did, shown for a moment after it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Feedback {
+    /// The command was taken, and was about this LED: a profile (from 0) or an output (auto, USB,
+    /// Bluetooth from 0, as on the top row).
+    Taken(usize),
+    /// It could not be done: a profile the board does not have, or Bluetooth on a board without.
+    Refused,
+}
+
 /// What a level looks like on a single-color LED, as a brightness in percent.
 ///
 /// Brightness is all such an LED has, and its position already says which modifier it is, so
@@ -76,6 +108,12 @@ pub struct LedManager {
 
     /// The mode and modifier state, and what each LED should show for it.
     indicator: Indicator,
+
+    /// The host command layer is armed.  Shown over everything else.
+    host_armed: bool,
+
+    /// A host command's result, while it is being shown; over the indicator.
+    feedback: Option<Feedback>,
 }
 
 impl LedManager {
@@ -89,6 +127,8 @@ impl LedManager {
             leds,
             shades,
             indicator: Indicator::new(ModeDisplay::Steady),
+            host_armed: false,
+            feedback: None,
         }
     }
 
@@ -117,8 +157,47 @@ impl LedManager {
         self.render();
     }
 
-    /// Redraw from the mode and modifier state.
+    /// Show the host command layer armed, or not.
+    pub fn set_host_armed(&mut self, armed: bool) {
+        self.host_armed = armed;
+        self.render();
+    }
+
+    /// Show a host command's result, or stop showing it.
+    pub fn set_feedback(&mut self, feedback: Option<Feedback>) {
+        self.feedback = feedback;
+        self.render();
+    }
+
+    /// Redraw from the host command state, or else the mode and modifier state.
     fn render(&mut self) {
+        if self.host_armed {
+            self.shades.fill(HOST_ARMED);
+            self.leds.update(&self.shades);
+            return;
+        }
+        match self.feedback {
+            Some(Feedback::Taken(slot)) => {
+                for (index, shade) in self.shades.iter_mut().enumerate() {
+                    *shade = if index == slot {
+                        HOST_TAKEN
+                    } else {
+                        Shade::default()
+                    };
+                }
+                self.leds.update(&self.shades);
+                return;
+            }
+            Some(Feedback::Refused) => {
+                self.shades.fill(HOST_REFUSED);
+                self.leds.update(&self.shades);
+                return;
+            }
+            None => (),
+        }
+
+        // Only the first four LEDs have a modifier; the rest are dark, whatever an overlay left.
+        self.shades.fill(Shade::default());
         for (slot, (shade, held)) in self.shades.iter_mut().zip(&MOD_LEDS).enumerate() {
             let level = self.indicator.level(slot);
             *shade = Shade {

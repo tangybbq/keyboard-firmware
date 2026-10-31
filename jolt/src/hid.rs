@@ -1,9 +1,10 @@
 //! The HID keyboard reports: built from the layout's key actions, queued, and sent to the host.
 //!
 //! A report goes to USB when a host has configured the HID interface, and otherwise, on a board
-//! with a radio, to the Bluetooth host if one is connected.  See `jolt-mesa.md`, "Bluetooth on the
-//! mesa3w".
+//! with a radio, to the Bluetooth host if one is connected.  A host command can hold reports to
+//! either one instead.  See `jolt-mesa.md`, "Bluetooth on the mesa3w".
 
+use bbq_keyboard::layout::host::Output;
 use bbq_keyboard::{KeyAction, Keyboard, Mods};
 use core::cell::UnsafeCell;
 use embassy_sync::{
@@ -15,7 +16,7 @@ use embassy_sync::{
 use embassy_time::Timer;
 use zephyr::{
     printkln,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
 };
 
 unsafe extern "C" {
@@ -38,6 +39,15 @@ const BLE_SEND_BUSY: i32 = 1;
 /// How long to wait before trying a report again when the Bluetooth stack had no buffer for it.
 #[cfg(CONFIG_BT)]
 const BLE_RETRY_MS: u64 = 5;
+
+/// The values of `OUTPUT`.
+const OUTPUT_AUTO: u8 = 0;
+const OUTPUT_USB: u8 = 1;
+const OUTPUT_BLUETOOTH: u8 = 2;
+
+/// Where reports go, as last chosen by a host command; auto until one does.  Not kept across a
+/// reset, so a board stuck on a transport that is not there comes back by restarting.
+static OUTPUT: AtomicU8 = AtomicU8::new(OUTPUT_AUTO);
 
 #[repr(C)]
 struct HidReport {
@@ -123,19 +133,39 @@ impl Transport {
     }
 }
 
-/// The transport a report goes to now, if any is ready for one: USB first.
+/// The transport a report goes to now, if the one chosen is ready for it: in auto, USB first.
 fn route() -> Option<Transport> {
-    if Transport::Usb.is_ready() {
-        return Some(Transport::Usb);
-    }
+    let usb = Transport::Usb.is_ready().then_some(Transport::Usb);
     #[cfg(CONFIG_BT)]
-    if Transport::Ble.is_ready() {
-        return Some(Transport::Ble);
+    let ble = Transport::Ble.is_ready().then_some(Transport::Ble);
+    #[cfg(not(CONFIG_BT))]
+    let ble = None;
+
+    match OUTPUT.load(Ordering::Acquire) {
+        OUTPUT_USB => usb,
+        OUTPUT_BLUETOOTH => ble,
+        _ => usb.or(ble),
     }
-    None
 }
 
-/// A transport came or went.  The reports already queued were meant for the old route, so they
+/// Choose where reports go.  False, and nothing changed, for Bluetooth on a board without it:
+/// holding the reports for a transport that cannot come would leave the keyboard dead.
+pub fn set_output(output: Output) -> bool {
+    let value = match output {
+        Output::Auto => OUTPUT_AUTO,
+        Output::Usb => OUTPUT_USB,
+        #[cfg(CONFIG_BT)]
+        Output::Bluetooth => OUTPUT_BLUETOOTH,
+        #[cfg(not(CONFIG_BT))]
+        Output::Bluetooth => return false,
+    };
+    if OUTPUT.swap(value, Ordering::AcqRel) != value {
+        transport_changed();
+    }
+    true
+}
+
+/// A transport came or went, or the choice of one changed.  The reports already queued were meant for the old route, so they
 /// are dropped, and an all-up report is queued in their place: the sender gives it to the old
 /// transport as well when that is still there, so that its host is not left with a key held.
 fn transport_changed() {
