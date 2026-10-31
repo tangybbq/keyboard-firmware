@@ -4,26 +4,22 @@ extern crate alloc;
 use alloc::{string::String, vec::Vec};
 #[cfg(feature = "steno")]
 use bbq_keyboard::{
-    Event, EventQueue, Timable,
+    Event, EventQueue, Keyboard, Timable,
     dict::Dict,
     usb_typer::{ActionHandler, enqueue_action},
 };
 use bbq_keyboard::{
-    KeyAction, KeyEvent, Keyboard, LayoutMode, MinorMode, Mods,
+    KeyAction, KeyEvent, LayoutMode, MinorMode, Mods,
     layout::{LayoutActions, LayoutManager, TimedLayout},
 };
 #[cfg(feature = "steno")]
 use bbq_steno::Stroke;
-use core::{cell::UnsafeCell, ffi::c_int};
+use core::ffi::c_int;
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
-use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex,
-    channel::Channel,
-    mutex::Mutex,
-    semaphore::{GreedySemaphore, Semaphore},
-    signal::Signal,
-};
+#[cfg(feature = "steno")]
+use embassy_sync::channel::Channel;
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex, signal::Signal};
 use embassy_time::{Instant, Ticker, Timer};
 use static_cell::StaticCell;
 #[cfg(feature = "steno")]
@@ -33,13 +29,14 @@ use zephyr::{
     devicetree::Value,
     embassy::Executor,
     printkln,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 use zephyr_panic as _;
 
 use ::minder::keylog::Marker;
 use bbq_keyboard::layout::taipo::TaipoVariant;
 
+mod hid;
 mod keylog;
 mod leds;
 mod matrix;
@@ -49,10 +46,8 @@ mod minder_usb;
 unsafe extern "C" {
     fn usb_setup(serial: *const u8, serial_len: usize) -> i32;
     fn jolt_device_id(id: *mut u8, len: usize) -> c_int;
-    fn usb_send_report(report: *const u8, len: u16) -> i32;
 }
 
-const HID_QUEUE_DEPTH: usize = 32;
 #[cfg(feature = "steno")]
 const STENO_COMMAND_DEPTH: usize = 16;
 #[cfg(feature = "steno")]
@@ -62,28 +57,6 @@ const STENO_THREAD_STACK_SIZE: usize = 8192;
 #[cfg(feature = "steno")]
 const STENO_THREAD_PRIO: c_int = 5;
 
-#[repr(C)]
-struct HidReport {
-    generation: usize,
-    bytes: [u8; 8],
-}
-
-/// The report the USB stack is sending.  `hid_device_submit_report` does not copy the report: the
-/// buffer has to stay put, and pointer aligned, until `input_report_done`.  So the one report in
-/// flight lives here rather than in `usb_sender_task`, which is the only writer and writes only
-/// while it holds the `HID_IN_FLIGHT` permit that the done callback gives back.
-#[repr(C, align(4))]
-struct InFlightReport(UnsafeCell<[u8; 8]>);
-
-// SAFETY: the only access is from `usb_sender_task`, serialized with the USB stack's reads by the
-// `HID_IN_FLIGHT` permit, as described on the type.
-unsafe impl Sync for InFlightReport {}
-
-static HID_READY: AtomicBool = AtomicBool::new(false);
-static HID_GENERATION: AtomicUsize = AtomicUsize::new(0);
-static HID_REPORTS: Channel<CriticalSectionRawMutex, HidReport, HID_QUEUE_DEPTH> = Channel::new();
-static HID_IN_FLIGHT: GreedySemaphore<CriticalSectionRawMutex> = GreedySemaphore::new(0);
-static HID_IN_FLIGHT_REPORT: InFlightReport = InFlightReport(UnsafeCell::new([0; 8]));
 #[cfg(feature = "steno")]
 static STENO_COMMANDS: Channel<CriticalSectionRawMutex, StenoCommand, STENO_COMMAND_DEPTH> =
     Channel::new();
@@ -193,7 +166,7 @@ async fn main(spawner: Spawner, unique: &'static str) -> () {
 
     *LEDS.lock().await = Some(leds::manager::LedManager::new(leds::LedSet::get_all()));
 
-    spawner.spawn(usb_sender_task().unwrap());
+    spawner.spawn(hid::usb_sender_task().unwrap());
     spawner.spawn(minder::minder_task(unique).unwrap());
     spawner.spawn(minder::test_event_task().unwrap());
     spawner.spawn(minder::reset_task().unwrap());
@@ -385,23 +358,7 @@ impl LayoutActions for Action {
     }
 
     async fn send_key(&self, key: KeyAction) {
-        match key {
-            KeyAction::KeyPress(key, mods) => {
-                submit_report(keypress_report(key, mods));
-            }
-            KeyAction::ModOnly(mods) => {
-                submit_report([modifier_bits(mods), 0, 0, 0, 0, 0, 0, 0]);
-            }
-            KeyAction::KeyRelease => {
-                submit_report([0; 8]);
-            }
-            KeyAction::KeySet(keys) => {
-                submit_report(keyset_report(&keys));
-            }
-            KeyAction::Stall => {
-                printkln!("USB stall action");
-            }
-        }
+        hid::send_key_action(key);
     }
 
     async fn set_sub_mode(&self, submode: MinorMode) {
@@ -438,52 +395,6 @@ impl LayoutActions for Action {
             .is_err()
         {
             printkln!("Dropping steno stroke: {}", steno);
-        }
-    }
-}
-
-fn submit_report(report: [u8; 8]) {
-    let report = HidReport {
-        generation: HID_GENERATION.load(Ordering::Acquire),
-        bytes: report,
-    };
-
-    if HID_REPORTS.try_send(report).is_err() {
-        printkln!("Dropping HID report: queue full");
-    }
-}
-
-#[embassy_executor::task]
-async fn usb_sender_task() -> () {
-    loop {
-        let report = HID_REPORTS.receive().await;
-
-        if report.generation != HID_GENERATION.load(Ordering::Acquire)
-            || !HID_READY.load(Ordering::Acquire)
-        {
-            continue;
-        }
-
-        let permit = HID_IN_FLIGHT.acquire(1).await.unwrap();
-        permit.disarm();
-
-        if report.generation != HID_GENERATION.load(Ordering::Acquire)
-            || !HID_READY.load(Ordering::Acquire)
-        {
-            HID_IN_FLIGHT.release(1);
-            continue;
-        }
-
-        let buf = HID_IN_FLIGHT_REPORT.0.get();
-        // SAFETY: holding the permit means no report is in flight, so the USB stack is not
-        // reading the buffer, and this task is its only writer.
-        unsafe { *buf = report.bytes };
-        // SAFETY: `buf` is 8 aligned bytes in a static, and nothing writes them again until
-        // `input_report_done` returns the permit.
-        let ret = unsafe { usb_send_report(buf.cast::<u8>(), 8) };
-        if ret != 0 {
-            HID_IN_FLIGHT.release(1);
-            printkln!("usb_send_report failed: {}", ret);
         }
     }
 }
@@ -538,82 +449,18 @@ fn steno_thread(
     })
 }
 
-#[unsafe(no_mangle)]
-extern "C" fn usb_iface_ready_callback(ready: bool) {
-    HID_READY.store(ready, Ordering::Release);
-    HID_GENERATION.fetch_add(1, Ordering::AcqRel);
-    HID_IN_FLIGHT.set(if ready { 1 } else { 0 });
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn usb_input_report_done_callback() {
-    if HID_READY.load(Ordering::Acquire) {
-        HID_IN_FLIGHT.release(1);
-    }
-}
-
-fn keypress_report(key: Keyboard, mods: Mods) -> [u8; 8] {
-    [modifier_bits(mods), 0, key as u8, 0, 0, 0, 0, 0]
-}
-
-fn keyset_report(keys: &[Keyboard]) -> [u8; 8] {
-    let mut report = [0u8; 8];
-    for (index, key) in keys.iter().take(6).enumerate() {
-        report[index + 2] = *key as u8;
-    }
-    report
-}
-
-fn modifier_bits(mods: Mods) -> u8 {
-    let mut bits = 0u8;
-    if mods.contains(Mods::CONTROL) {
-        bits |= 0x01;
-    }
-    if mods.contains(Mods::SHIFT) {
-        bits |= 0x02;
-    }
-    if mods.contains(Mods::ALT) {
-        bits |= 0x04;
-    }
-    if mods.contains(Mods::GUI) {
-        bits |= 0x08;
-    }
-    bits
-}
-
 #[cfg(feature = "steno")]
 async fn type_joined(action: bbq_steno::dict::Joined) {
     match action {
         bbq_steno::dict::Joined::Type { remove, append } => {
             for _ in 0..remove {
-                submit_key_action(KeyAction::KeyPress(
+                hid::send_key_action(KeyAction::KeyPress(
                     Keyboard::DeleteBackspace,
                     Mods::empty(),
                 ));
-                submit_key_action(KeyAction::KeyRelease);
+                hid::send_key_action(KeyAction::KeyRelease);
             }
             enqueue_action(&mut SubmitActionHandler, &append).await;
-        }
-    }
-}
-
-#[cfg(feature = "steno")]
-fn submit_key_action(key: KeyAction) {
-    match key {
-        KeyAction::KeyPress(key, mods) => {
-            submit_report(keypress_report(key, mods));
-        }
-        KeyAction::ModOnly(mods) => {
-            submit_report([modifier_bits(mods), 0, 0, 0, 0, 0, 0, 0]);
-        }
-        KeyAction::KeyRelease => {
-            submit_report([0; 8]);
-        }
-        KeyAction::KeySet(keys) => {
-            submit_report(keyset_report(&keys));
-        }
-        KeyAction::Stall => {
-            printkln!("USB stall action");
         }
     }
 }
@@ -625,7 +472,7 @@ struct SubmitActionHandler;
 impl ActionHandler for SubmitActionHandler {
     async fn enqueue_actions<I: Iterator<Item = KeyAction>>(&mut self, events: I) {
         for event in events {
-            submit_key_action(event);
+            hid::send_key_action(event);
         }
     }
 }
