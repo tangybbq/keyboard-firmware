@@ -454,6 +454,14 @@ of its own:
   *n* and identity 0 is unused.  `CONFIG_BT_ID_MAX` is profiles + 1.
 - A bonded profile advertises to reconnect its host; an unbonded one
   advertises for pairing.  The active profile is remembered in settings.
+- A host can be bonded on only one profile: the controller's resolving
+  list cannot hold one peer against two local identities.  Zephyr's
+  default refuses a bond with a host bonded elsewhere, and as peripheral
+  it may refuse too late, so the host keeps a dead entry.  With
+  `CONFIG_BT_ID_UNPAIR_MATCHING_BONDS` the new bond replaces the old one
+  instead, so pairing a host on another profile moves it there.  The
+  match is on the host's address or IRK, within this keyboard; names play
+  no part, and a second keyboard's bonds are its own.
 
 Four profiles in the end, one per LED.  The first cut has one, with the
 count a constant so that the rest is a change of number.

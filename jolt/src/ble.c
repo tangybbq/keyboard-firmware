@@ -12,6 +12,8 @@
  * its pairing is refused and the link dropped, so that it can neither replace
  * the bond nor hold the one connection.  The host itself may pair again over
  * its old bond.  Clearing the profile is how it is given to a new host.
+ * A host pairing on a second profile loses its bond on the first
+ * (CONFIG_BT_ID_UNPAIR_MATCHING_BONDS): one host, one profile.
  *
  * Advertising and the profile commands all run on `ble_workq`, one at a time,
  * and off the system workqueue, as clearing a profile writes the flash.
