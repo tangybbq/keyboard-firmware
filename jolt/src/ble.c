@@ -21,6 +21,8 @@
  */
 
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gap.h>
@@ -104,9 +106,6 @@ static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_UUID16_ALL, BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL)),
 };
 
-static const struct bt_data sd[] = {
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
-};
 
 static void hids_set_report(struct bt_conn *conn, enum bt_hids_report_type report_type,
 			    uint8_t report_id, const uint8_t *data, uint16_t len)
@@ -168,6 +167,20 @@ static void advertise(void)
 		return;
 	}
 
+	/* The name carries the profile, "Jolt Keyboard 2", so that a host's list
+	 * says which of the keyboard's entries is which.  A host reads the name
+	 * from the advertisement, and once connected from the GAP Device Name,
+	 * which is bt_set_name()'s. */
+	static char name[CONFIG_BT_DEVICE_NAME_MAX + 1];
+
+	snprintf(name, sizeof(name), "%s %u", CONFIG_BT_DEVICE_NAME, active_profile);
+	if (bt_set_name(name) != 0) {
+		LOG_WRN("Setting the name failed");
+	}
+
+	const struct bt_data sd[] = {
+		BT_DATA(BT_DATA_NAME_COMPLETE, name, strlen(name)),
+	};
 	struct bt_le_adv_param param = BT_LE_ADV_PARAM_INIT(
 		BT_LE_ADV_OPT_CONN, BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL);
 	param.id = active_profile;
@@ -180,7 +193,7 @@ static void advertise(void)
 		LOG_ERR("Advertising failed to start: %d", err);
 		return;
 	}
-	LOG_INF("Advertising profile %u", active_profile);
+	LOG_INF("Advertising profile %u as \"%s\"", active_profile, name);
 }
 
 static void advertise_handler(struct k_work *work)
