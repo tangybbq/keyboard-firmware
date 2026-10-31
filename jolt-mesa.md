@@ -500,7 +500,12 @@ hand, is looked up in a small command table instead of `DOSH_ACTIONS`:
 Any other chord disarms the layer and is then typed as usual, so arming it
 by accident costs nothing.  From Orsy, the user
 switches to Dosh first (`e+i+Sp+Bk`).  The LEDs show the layer armed, and
-afterwards which profile is active.
+afterwards the profile a select or clear was about.  An output command
+shows where typing now goes (developer, 2026-10-31): the profile's LED for
+Bluetooth, the first and fourth for USB, all four red for nowhere; and the
+same shows whenever the route arrives by itself (USB in or out, a host
+connecting).  Holding the output to USB turns Bluetooth off, connection
+and advertising, so the host does not show a keyboard sending it nothing.
 
 In `bbq-keyboard` (`layout/host.rs`): `Action::HostCommands` as the
 prefix's entry, the armed state in the Taipo engine next to the variant
