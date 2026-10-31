@@ -2,7 +2,7 @@
 
 use zephyr::device::led::Led;
 
-use super::LedGroup;
+use super::{LedGroup, Shade};
 
 pub struct PwmLed {
     red: Led,
@@ -15,8 +15,8 @@ impl LedGroup for PwmLed {
         1
     }
 
-    fn update(&mut self, values: &[smart_leds::RGB8]) {
-        if let Some(value) = values.first() {
+    fn update(&mut self, values: &[Shade]) {
+        if let Some(Shade { color: value }) = values.first() {
             self.red.set_brightness(scale(value.r)).unwrap();
             self.green.set_brightness(scale(value.g)).unwrap();
             self.blue.set_brightness(scale(value.b)).unwrap();

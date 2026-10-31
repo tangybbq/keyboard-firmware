@@ -18,7 +18,7 @@ use zephyr::{
     time::Forever,
 };
 
-use super::LedGroup;
+use super::{LedGroup, Shade};
 
 /// The longest strip supported.  The boards in use have four.
 const MAX_PIXELS: usize = 8;
@@ -46,9 +46,8 @@ impl LedGroup for LedStripGroup {
         self.len
     }
 
-    fn update(&mut self, values: &[RGB8]) {
-        let mut frame = Vec::new();
-        frame.extend_from_slice(values).unwrap();
+    fn update(&mut self, values: &[Shade]) {
+        let frame = values.iter().map(|shade| shade.color).collect();
         LATEST.lock(|latest| *latest.borrow_mut() = Some(frame));
         WAKE.give();
     }

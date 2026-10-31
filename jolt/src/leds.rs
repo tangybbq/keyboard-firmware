@@ -12,13 +12,23 @@ mod led_strip;
 #[cfg(dt = "chosen::bbq_pwm_leds")]
 mod pwm;
 
-/// Represents a driver for 1 or more RGB LEDs.
+/// What one LED shows, for each kind of LED that might be showing it.
+///
+/// The manager decides what each LED shows without knowing what kind of LED it is, so it gives
+/// every kind its own form of the same thing, and each group takes the one it can display.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Shade {
+    /// On an RGB LED.
+    pub color: RGB8,
+}
+
+/// Represents a driver for 1 or more LEDs.
 pub trait LedGroup: Send + 'static {
-    /// How many RGB LED units are in this grouping.
+    /// How many LED units are in this grouping.
     fn len(&self) -> usize;
 
     /// Set the group of LEDs to the given value.
-    fn update(&mut self, values: &[RGB8]);
+    fn update(&mut self, values: &[Shade]);
 
     /// Whether the LEDs have to be rewritten now and then with what they already show.
     ///
@@ -46,7 +56,7 @@ impl LedSet {
     }
 
     /// Update all of the LEDs.
-    pub fn update(&mut self, values: &[RGB8]) {
+    pub fn update(&mut self, values: &[Shade]) {
         let mut base = 0;
 
         for group in &mut self.all {

@@ -22,7 +22,7 @@ use bbq_keyboard::Mods;
 use bbq_keyboard::indicator::{Indicator, Level, ModeDisplay};
 use smart_leds::RGB8;
 
-use super::LedSet;
+use super::{LedSet, Shade};
 
 const OFF: RGB8 = RGB8::new(0, 0, 0);
 
@@ -51,7 +51,7 @@ pub struct LedManager {
     leds: LedSet,
 
     /// What is currently displayed, kept so [`Self::refresh`] can rewrite it.
-    colors: Vec<RGB8>,
+    shades: Vec<Shade>,
 
     /// The mode and modifier state, and what each LED should show for it.
     indicator: Indicator,
@@ -61,12 +61,12 @@ impl LedManager {
     pub fn new(mut leds: LedSet) -> Self {
         // Written once here rather than waiting for the first modifier: after a soft reset the
         // ws2812s hold whatever the last run left in them.
-        let colors: Vec<RGB8> = core::iter::repeat_n(OFF, leds.len()).collect();
-        leds.update(&colors);
+        let shades: Vec<Shade> = core::iter::repeat_n(Shade::default(), leds.len()).collect();
+        leds.update(&shades);
 
         LedManager {
             leds,
-            colors,
+            shades,
             indicator: Indicator::new(ModeDisplay::Steady),
         }
     }
@@ -98,8 +98,8 @@ impl LedManager {
 
     /// Redraw from the mode and modifier state.
     fn render(&mut self) {
-        for (slot, (color, held)) in self.colors.iter_mut().zip(&MOD_LEDS).enumerate() {
-            *color = match self.indicator.level(slot) {
+        for (slot, (shade, held)) in self.shades.iter_mut().zip(&MOD_LEDS).enumerate() {
+            shade.color = match self.indicator.level(slot) {
                 Level::Off => OFF,
                 Level::Mode => MODE,
                 Level::Held => *held,
@@ -108,7 +108,7 @@ impl LedManager {
                 Level::InWord => IN_WORD,
             };
         }
-        self.leds.update(&self.colors);
+        self.leds.update(&self.shades);
     }
 
     /// Rewrite the LEDs with what they are already showing, if they need it.
@@ -119,7 +119,7 @@ impl LedManager {
     /// key press rather than on a timer.
     pub fn refresh(&mut self) {
         if self.leds.needs_refresh() {
-            self.leds.update(&self.colors);
+            self.leds.update(&self.shades);
         }
     }
 }
