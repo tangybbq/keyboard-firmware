@@ -13,6 +13,14 @@
 //! what lets [`VendorMinder::send`] and [`VendorMinder::recv`] be used separately -- a
 //! `GetEvent` long poll can be left outstanding and another request sent past it, and the
 //! `NoEvent` the poll is owed still arrives first.  See `Minder::main_loop` in the firmware.
+//!
+//! # Links
+//!
+//! A keyboard is reached over USB by its serial number, or over Bluetooth by giving
+//! `ble:` and then part of its name (`ble:` alone takes the first connected keyboard with
+//! the minder service).  Over Bluetooth the same ordering holds; see [`ble`].
+
+pub mod ble;
 
 use std::{io::Write, path::Path, time::Duration};
 
@@ -137,6 +145,18 @@ impl Flasher {
 }
 
 pub struct VendorMinder {
+    link: Link,
+
+    /// How long to wait for a reply.  The long poll needs more than the default.
+    pub read_timeout: Duration,
+}
+
+enum Link {
+    Usb(UsbLink),
+    Ble(ble::BleLink),
+}
+
+struct UsbLink {
     /// The handle of the keyboard we a talking to.
     handle: DeviceHandle<GlobalContext>,
 
@@ -146,14 +166,70 @@ pub struct VendorMinder {
     /// Endpoints to use.
     send: u8,
     recv: u8,
-
-    /// How long to wait for a reply.  The long poll needs more than the default.
-    pub read_timeout: Duration,
 }
 
 impl VendorMinder {
-    /// Attempt to open the keyboard with the given serial number.
+    /// Open the keyboard with the given serial number, or with `ble:` and part of its name,
+    /// over Bluetooth.
     pub fn new(serial: &str) -> Result<Self> {
+        let link = match serial.strip_prefix("ble:") {
+            Some(name) => Link::Ble(ble::BleLink::open(name)?),
+            None => Link::Usb(UsbLink::open(serial)?),
+        };
+        Ok(Self {
+            link,
+            read_timeout: Duration::from_secs(15),
+        })
+    }
+
+    /// Perform a round trip communication.
+    pub fn call<'d, In, Out>(&'d mut self, req: &Out) -> Result<In>
+    where
+        In: Decode<'d, ()>,
+        Out: Encode<()>,
+    {
+        self.send(req)?;
+        self.recv()
+    }
+
+    /// Send a request, without waiting for its reply.
+    ///
+    /// Split out from `call` so the long poll's ordering rule can be exercised: a request sent
+    /// while a `GetEvent` is pending is answered after the `NoEvent` that the poll is owed.
+    pub fn send<Out>(&mut self, req: &Out) -> Result<()>
+    where
+        Out: Encode<()>,
+    {
+        match &mut self.link {
+            Link::Usb(usb) => usb.send(req),
+            Link::Ble(ble) => ble.send(req),
+        }
+    }
+
+    /// Receive a single reply.
+    pub fn recv<'d, In>(&'d mut self) -> Result<In>
+    where
+        In: Decode<'d, ()>,
+    {
+        match &mut self.link {
+            Link::Usb(usb) => Ok(minicbor::decode(usb.recv(self.read_timeout)?)?),
+            Link::Ble(ble) => Ok(ble.recv(self.read_timeout)?.decode()?),
+        }
+    }
+
+    /// Throw away anything the device has already sent.
+    pub fn drain(&mut self) -> Result<()> {
+        match &mut self.link {
+            Link::Usb(usb) => usb.drain(),
+            Link::Ble(ble) => ble.drain(),
+        }
+        Ok(())
+    }
+}
+
+impl UsbLink {
+    /// Attempt to open the keyboard with the given serial number.
+    fn open(serial: &str) -> Result<Self> {
         for dev in rusb::devices()?.iter() {
             let desc = dev.device_descriptor()?;
             if desc.vendor_id() != 0xc0de || desc.product_id() != 0xcafe {
@@ -200,28 +276,13 @@ impl VendorMinder {
                 rbuf: vec![0u8; 4400],
                 send: send.unwrap(),
                 recv: recv.unwrap(),
-                read_timeout: Duration::from_secs(15),
             });
         }
 
         Err(anyhow::anyhow!("Unable to find device with given serial"))
     }
 
-    /// Perform a round trip communication.
-    pub fn call<'d, In, Out>(&'d mut self, req: &Out) -> Result<In>
-    where
-        In: Decode<'d, ()>,
-        Out: Encode<()>,
-    {
-        self.send(req)?;
-        self.recv()
-    }
-
-    /// Send a request, without waiting for its reply.
-    ///
-    /// Split out from `call` so the long poll's ordering rule can be exercised: a request sent
-    /// while a `GetEvent` is pending is answered after the `NoEvent` that the poll is owed.
-    pub fn send<Out>(&mut self, req: &Out) -> Result<()>
+    fn send<Out>(&mut self, req: &Out) -> Result<()>
     where
         Out: Encode<()>,
     {
@@ -247,32 +308,19 @@ impl VendorMinder {
         Ok(())
     }
 
-    /// Receive a single reply.
-    pub fn recv<'d, In>(&'d mut self) -> Result<In>
-    where
-        In: Decode<'d, ()>,
-    {
-        let count = self
-            .handle
-            .read_bulk(self.recv, &mut self.rbuf, self.read_timeout)?;
-        let inbuf = &self.rbuf[..count];
-
-        Ok(minicbor::decode(inbuf)?)
+    /// Receive a single reply's bytes.
+    fn recv(&mut self, timeout: Duration) -> Result<&[u8]> {
+        let count = self.handle.read_bulk(self.recv, &mut self.rbuf, timeout)?;
+        Ok(&self.rbuf[..count])
     }
 
     // Drain any pending data on the bulk endpoint.
-    pub fn drain(&mut self) -> Result<()> {
-        loop {
-            match self
-                .handle
-                .read_bulk(self.recv, &mut self.rbuf, Duration::from_millis(2))
-            {
-                Ok(_) => (),
-                Err(_) => break,
-            }
-        }
-
-        Ok(())
+    fn drain(&mut self) {
+        while self
+            .handle
+            .read_bulk(self.recv, &mut self.rbuf, Duration::from_millis(2))
+            .is_ok()
+        {}
     }
 }
 

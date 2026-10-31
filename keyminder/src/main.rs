@@ -35,7 +35,7 @@ enum Commands {
 
 #[derive(clap::Args, Debug)]
 struct LogArgs {
-    /// Serial number of the keyboard to talk to.
+    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
     #[arg(short, long)]
     serial: String,
     /// File to append to.
@@ -54,14 +54,14 @@ struct LogArgs {
 
 #[derive(clap::Args, Debug)]
 struct ChatArgs {
-    /// Serial number of the keyboard to talk to.
+    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
     #[arg(short, long)]
     serial: String,
 }
 
 #[derive(clap::Args, Debug)]
 struct PollArgs {
-    /// Serial number of the keyboard to talk to.
+    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
     #[arg(short, long)]
     serial: String,
     /// How long the device should hold each poll open, in milliseconds.
@@ -86,7 +86,7 @@ struct PollArgs {
 
 #[derive(clap::Args, Debug)]
 struct DictArgs {
-    /// Serial number of the keyboard to talk to.
+    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
     #[arg(short, long)]
     serial: String,
     /// Which dictionary to update
