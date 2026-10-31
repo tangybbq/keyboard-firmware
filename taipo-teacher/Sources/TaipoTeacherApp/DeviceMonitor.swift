@@ -1035,6 +1035,11 @@ public final class DeviceMonitor: ObservableObject {
             guard case .hello(let info) = try device.call(.hello(version: MinderVersion.current))
             else { throw MinderDevice.DeviceError.notFound(serial: nil) }
             hello = info
+        } catch MinderDevice.DeviceError.notFound {
+            // No keyboard on USB.  Not a failure: it is the normal state while the keyboard
+            // types over Bluetooth, which minder does not reach yet.
+            Task { @MainActor [weak self] in self?.status = .disconnected }
+            return nil
         } catch {
             Task { @MainActor [weak self] in self?.status = .failed("\(error)") }
             return nil
