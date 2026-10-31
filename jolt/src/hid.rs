@@ -35,7 +35,8 @@ unsafe extern "C" {
 const HID_QUEUE_DEPTH: usize = 32;
 
 /// How many Bluetooth reports may be waiting to go out at once.  More than one, so that a chord's
-/// press and release, or an Orsy word, can share a connection event.
+/// press and release, or an Orsy word, can share a connection event.  Kept under the mesa3w's
+/// `CONFIG_BT_ATT_TX_COUNT`: a send with no ATT buffer free waits for one, on this thread.
 #[cfg(CONFIG_BT)]
 const BLE_IN_FLIGHT_MAX: usize = 4;
 
