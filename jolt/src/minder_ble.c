@@ -52,7 +52,8 @@ extern void minder_ble_write_callback(int result);
 #define MINDER_RETRY K_MSEC(5)
 
 /* The service and its characteristics: 9fa708NN-5fd7-4be9-b4c7-0e6e6fcf33f3,
- * NN 00, 01 and 02.  The hosts have the same three. */
+ * NN 00, 01 and 02, as in the minder crate's `ble` module, which the hosts
+ * use. */
 #define MINDER_UUID(n)                                                                             \
 	BT_UUID_128_ENCODE(0x9fa70800 + (n), 0x5fd7, 0x4be9, 0xb4c7, 0x0e6e6fcf33f3)
 

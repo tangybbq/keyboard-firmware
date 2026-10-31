@@ -72,6 +72,22 @@ pub mod cap {
     pub const KEY_LOG: &str = "key-log";
 }
 
+/// Minder over Bluetooth: the GATT service a keyboard with a radio carries beside its HID
+/// Service (jolt's `minder_ble.c`).
+///
+/// The host writes requests to [`REQUEST`] and the keyboard notifies replies on [`REPLY`],
+/// both over an encrypted link.  Each write and each notification is one packet of the
+/// [`HidDecoder`] framing, up to [`PACKET_SIZE`] bytes, so the link needs an ATT MTU of at
+/// least 67.  The UUIDs as integers, so that this crate needs nothing to name them.
+pub mod ble {
+    /// The service: `9fa70800-5fd7-4be9-b4c7-0e6e6fcf33f3`.
+    pub const SERVICE: u128 = 0x9fa70800_5fd7_4be9_b4c7_0e6e6fcf33f3;
+    /// Requests, written by the host, with or without response.
+    pub const REQUEST: u128 = 0x9fa70801_5fd7_4be9_b4c7_0e6e6fcf33f3;
+    /// Replies, notified by the keyboard.
+    pub const REPLY: u128 = 0x9fa70802_5fd7_4be9_b4c7_0e6e6fcf33f3;
+}
+
 #[derive(Debug, Encode, Decode, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Request {
