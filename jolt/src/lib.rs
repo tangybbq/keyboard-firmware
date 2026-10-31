@@ -46,6 +46,8 @@ mod minder_usb;
 unsafe extern "C" {
     fn usb_setup(serial: *const u8, serial_len: usize) -> i32;
     fn jolt_device_id(id: *mut u8, len: usize) -> c_int;
+    #[cfg(CONFIG_BT)]
+    fn ble_setup() -> i32;
 }
 
 #[cfg(feature = "steno")]
@@ -92,6 +94,17 @@ extern "C" fn rust_main() {
     let ret = unsafe { usb_setup(unique.as_ptr(), unique.len()) };
     if ret != 0 {
         panic!("usb_setup failed: {}", ret);
+    }
+
+    // A keyboard without Bluetooth still types over USB, so a failure here is not fatal.
+    #[cfg(CONFIG_BT)]
+    {
+        // SAFETY: as for `usb_setup`: ble.c's own state, set up once, before anything sends a
+        // report.
+        let ret = unsafe { ble_setup() };
+        if ret != 0 {
+            printkln!("ble_setup failed: {}; USB only", ret);
+        }
     }
 
     #[cfg(feature = "steno")]

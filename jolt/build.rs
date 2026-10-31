@@ -14,4 +14,9 @@ fn main() {
     // #[cfg(dt = "aliases::led0")]
     // ```
     zephyr_build::dt_cfgs();
+
+    // And a `cfg` for every boolean Kconfig option that is on, such as `#[cfg(CONFIG_BT)]` for the
+    // Bluetooth code, which only the boards with a radio build.
+    println!("cargo::rustc-check-cfg=cfg(CONFIG_BT)");
+    zephyr_build::export_kconfig_bool_options();
 }
