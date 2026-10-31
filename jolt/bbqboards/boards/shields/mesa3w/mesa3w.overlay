@@ -9,7 +9,7 @@
  *
  * The module's own USB-C is the keyboard's, and its 3.3 V LDO the rail, so
  * nothing here configures power.  Four white LEDs on D7..D10 (P1.12..P1.15),
- * anodes on 3V3 and sunk through 560 ohms, are not driven yet.
+ * anodes on 3V3 and sunk through 560 ohms, are the modifier indicator.
  */
 
 / {
@@ -19,6 +19,7 @@
 
 	chosen {
 		zephyr,matrix = &kbd_matrix;
+		bbq,mono-leds = &mono_leds;
 
 		/* The board's console is a CDC ACM port on the USB controller,
 		 * which would be a second USB device beside jolt's.  The console
@@ -63,6 +64,29 @@
 			    <&gpio1 11 GPIO_ACTIVE_HIGH>; /* ROW_D, D6 */
 		idle-mode = "scan";
 	};
+
+	/* The four white LEDs, in board order, which is the indicator's slot
+	 * order.  The pins sink the LEDs, so they are lit while low; jolt finds
+	 * the children by these names. */
+	mono_leds: mono-leds {
+		compatible = "pwm-leds";
+
+		led-0 {
+			pwms = <&pwm1 0 PWM_MSEC(1) PWM_POLARITY_INVERTED>; /* LED1, D7 */
+		};
+
+		led-1 {
+			pwms = <&pwm1 1 PWM_MSEC(1) PWM_POLARITY_INVERTED>; /* LED2, D8 */
+		};
+
+		led-2 {
+			pwms = <&pwm1 2 PWM_MSEC(1) PWM_POLARITY_INVERTED>; /* LED3, D9 */
+		};
+
+		led-3 {
+			pwms = <&pwm1 3 PWM_MSEC(1) PWM_POLARITY_INVERTED>; /* LED4, D10 */
+		};
+	};
 };
 
 &storage_partition {
@@ -85,6 +109,37 @@
 
 &board_cdc_acm_uart {
 	status = "disabled";
+};
+
+/* The LEDs on D7..D10.  `nordic,invert` idles the pins high, so the LEDs stay
+ * dark until the PWM drives them. */
+&pinctrl {
+	pwm1_default: pwm1_default {
+		group1 {
+			psels = <NRF_PSEL(PWM_OUT0, 1, 12)>,
+				<NRF_PSEL(PWM_OUT1, 1, 13)>,
+				<NRF_PSEL(PWM_OUT2, 1, 14)>,
+				<NRF_PSEL(PWM_OUT3, 1, 15)>;
+			nordic,invert;
+		};
+	};
+
+	pwm1_sleep: pwm1_sleep {
+		group1 {
+			psels = <NRF_PSEL(PWM_OUT0, 1, 12)>,
+				<NRF_PSEL(PWM_OUT1, 1, 13)>,
+				<NRF_PSEL(PWM_OUT2, 1, 14)>,
+				<NRF_PSEL(PWM_OUT3, 1, 15)>;
+			low-power-enable;
+		};
+	};
+};
+
+&pwm1 {
+	pinctrl-0 = <&pwm1_default>;
+	pinctrl-1 = <&pwm1_sleep>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
 };
 
 /* The module's battery divider runs VBAT -> 1M -> P0.31 -> 510k -> P0.14, so
