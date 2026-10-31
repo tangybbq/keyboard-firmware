@@ -42,6 +42,8 @@ mod keylog;
 mod leds;
 mod matrix;
 mod minder;
+#[cfg(CONFIG_BT)]
+mod minder_ble;
 mod minder_usb;
 
 unsafe extern "C" {

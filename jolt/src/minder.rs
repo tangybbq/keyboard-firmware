@@ -7,7 +7,8 @@
 //! from there.
 //!
 //! The loop talks to its host through a [`Link`]: a request comes in on one, and its reply goes
-//! back on the same one.  USB is the only link so far.
+//! back on the same one.  USB is always a link, and on a board with a radio Bluetooth is another
+//! ([`crate::minder_ble`]); a request on either interrupts a `GetEvent` pending on the other.
 
 extern crate alloc;
 
@@ -15,6 +16,8 @@ use alloc::{format, string::ToString, vec, vec::Vec};
 use core::cell::RefCell;
 
 use bbq_keyboard::layout::fingerprint::layout_fingerprint;
+#[cfg(CONFIG_BT)]
+use embassy_futures::select::{Either, select};
 use embassy_futures::select::{Either3, select3};
 use embassy_sync::{
     blocking_mutex::{Mutex, raw::CriticalSectionRawMutex},
@@ -30,6 +33,8 @@ use zephyr::{
     printkln,
 };
 
+#[cfg(CONFIG_BT)]
+use crate::minder_ble;
 use crate::{keylog, minder_usb};
 
 unsafe extern "C" {
@@ -125,6 +130,8 @@ pub fn push_event(event: Event) {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Link {
     Usb,
+    #[cfg(CONFIG_BT)]
+    Ble,
 }
 
 /// A whole request, and the link it came on, which its reply goes back on.
@@ -136,31 +143,42 @@ struct Incoming {
 /// A failed read or write, as the link's own error.
 enum LinkError {
     Usb(minder_usb::Error),
+    #[cfg(CONFIG_BT)]
+    Ble(minder_ble::Error),
 }
 
 impl core::fmt::Debug for LinkError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             LinkError::Usb(err) => write!(f, "USB {:?}", err),
+            #[cfg(CONFIG_BT)]
+            LinkError::Ble(err) => write!(f, "Bluetooth {:?}", err),
         }
     }
 }
 
 /// Receive the next request, from whichever link has one.
 ///
-/// Cancel safe, as each link's read is, which `GetEvent` relies on.
+/// Cancel safe, as each link's read is, which `GetEvent` relies on, and which this relies on
+/// itself in dropping the link that lost.
 async fn read() -> Result<Incoming, LinkError> {
-    let data = minder_usb::read().await.map_err(LinkError::Usb)?;
-    Ok(Incoming {
-        link: Link::Usb,
-        data,
-    })
+    #[cfg(CONFIG_BT)]
+    let (link, data) = match select(minder_usb::read(), minder_ble::read()).await {
+        Either::First(usb) => (Link::Usb, usb.map_err(LinkError::Usb)?),
+        Either::Second(ble) => (Link::Ble, ble),
+    };
+    #[cfg(not(CONFIG_BT))]
+    let (link, data) = (Link::Usb, minder_usb::read().await.map_err(LinkError::Usb)?);
+
+    Ok(Incoming { link, data })
 }
 
 /// Send a reply on a link, and wait for it to have gone.
 async fn write(link: Link, message: &[u8]) -> Result<(), LinkError> {
     match link {
         Link::Usb => minder_usb::write(message).await.map_err(LinkError::Usb),
+        #[cfg(CONFIG_BT)]
+        Link::Ble => minder_ble::write(message).await.map_err(LinkError::Ble),
     }
 }
 
