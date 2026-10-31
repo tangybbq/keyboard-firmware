@@ -5,8 +5,13 @@
  * address of its own; the default identity, 0, cannot be reset, which
  * clearing a profile needs, and is unused.  Only the active profile
  * advertises, and its host gets the keyboard's reports whenever USB is not
- * configured (hid.rs decides).  There is one profile for now.  See
- * jolt-mesa.md, "Bluetooth on the mesa3w".
+ * configured (hid.rs decides).  The active profile is kept in settings, so it
+ * survives a reset.  See jolt-mesa.md, "Bluetooth on the mesa3w".
+ *
+ * A profile with a bond belongs to its host: another host may connect, but
+ * its pairing is refused and the link dropped, so that it can neither replace
+ * the bond nor hold the one connection.  The host itself may pair again over
+ * its old bond.  Clearing the profile is how it is given to a new host.
  *
  * Advertising and the profile commands all run on `ble_workq`, one at a time,
  * and off the system workqueue, as clearing a profile writes the flash.
@@ -33,8 +38,15 @@ LOG_MODULE_REGISTER(jolt_ble, LOG_LEVEL_INF);
 extern void ble_ready_callback(bool ready);
 extern void ble_report_done_callback(uintptr_t epoch);
 
-/* How many profiles: identities 1 to PROFILE_COUNT. */
-#define PROFILE_COUNT 1
+/* How many profiles: identities 1 to PROFILE_COUNT.  CONFIG_BT_ID_MAX is one
+ * more, and CONFIG_BT_MAX_PAIRED the same, a bond each. */
+#define PROFILE_COUNT 4
+
+BUILD_ASSERT(CONFIG_BT_ID_MAX == PROFILE_COUNT + 1, "an identity per profile, and identity 0");
+BUILD_ASSERT(CONFIG_BT_MAX_PAIRED >= PROFILE_COUNT, "a bond per profile");
+
+/* Where the active profile is kept. */
+#define SETTINGS_PROFILE "jolt/ble/profile"
 
 #define BLE_WORKQ_STACK_SIZE 2048
 #define BLE_WORKQ_PRIO 10
@@ -54,8 +66,37 @@ static struct k_work_q ble_workq;
  * is a stack to give them to. */
 static bool ble_up;
 
-/* The profile that advertises and connects.  Only changed on `ble_workq`. */
+/* The profile that advertises and connects.  Only changed on `ble_workq`, and
+ * by settings_load() before that starts. */
 static uint8_t active_profile = 1;
+
+static int settings_set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg)
+{
+	const char *next;
+
+	if (!settings_name_steq(name, "profile", &next) || next != NULL) {
+		return -ENOENT;
+	}
+
+	uint8_t profile;
+
+	if (len != sizeof(profile)) {
+		return -EINVAL;
+	}
+
+	int rc = read_cb(cb_arg, &profile, sizeof(profile));
+
+	if (rc < 0) {
+		return rc;
+	}
+	/* A profile from a build with more of them falls back to the first. */
+	if (profile >= 1 && profile <= PROFILE_COUNT) {
+		active_profile = profile;
+	}
+	return 0;
+}
+
+SETTINGS_STATIC_HANDLER_DEFINE(jolt_ble, "jolt/ble", NULL, settings_set, NULL, NULL);
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -169,6 +210,12 @@ static void select_handler(struct k_work *work)
 		active_profile = profile;
 		LOG_INF("Profile %u selected", profile);
 		bt_conn_foreach(BT_CONN_TYPE_LE, disconnect_conn, NULL);
+
+		int err = settings_save_one(SETTINGS_PROFILE, &profile, sizeof(profile));
+
+		if (err != 0) {
+			LOG_ERR("Saving the profile failed: %d", err);
+		}
 	}
 	advertise();
 }
@@ -260,6 +307,9 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
 	if (err != 0) {
 		LOG_WRN("Security failed: %s level %u: %d %s", bt_conn_dst_str(conn), level, err,
 			bt_security_err_to_str(err));
+		/* A link that cannot be encrypted cannot carry the HID Service,
+		 * and would only keep the profile's host from connecting. */
+		(void)bt_conn_disconnect(conn, BT_HCI_ERR_AUTH_FAIL);
 		return;
 	}
 
@@ -286,6 +336,50 @@ static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 	LOG_WRN("Pairing failed %s: %d %s", bt_conn_dst_str(conn), reason,
 		bt_security_err_to_str(reason));
 }
+
+struct bond_check {
+	const bt_addr_le_t *peer;
+	bool other;
+};
+
+static void check_bond(const struct bt_bond_info *info, void *data)
+{
+	struct bond_check *check = data;
+
+	if (!bt_addr_le_eq(&info->addr, check->peer)) {
+		check->other = true;
+	}
+}
+
+/* Refuse a pairing on a profile bonded to some other host.  The bonded host
+ * pairing again is let through, to replace its own bond. */
+static enum bt_security_err pairing_accept(struct bt_conn *conn,
+					   const struct bt_conn_pairing_feat *const feat)
+{
+	ARG_UNUSED(feat);
+
+	struct bt_conn_info info;
+
+	if (bt_conn_get_info(conn, &info) != 0) {
+		return BT_SECURITY_ERR_UNSPECIFIED;
+	}
+
+	struct bond_check check = {.peer = bt_conn_get_dst(conn), .other = false};
+
+	bt_foreach_bond(info.id, check_bond, &check);
+	if (check.other) {
+		LOG_WRN("Profile %u is bonded to another host; refusing %s", info.id,
+			bt_conn_dst_str(conn));
+		return BT_SECURITY_ERR_PAIR_NOT_ALLOWED;
+	}
+	return BT_SECURITY_ERR_SUCCESS;
+}
+
+/* Only `pairing_accept`: with no passkey callbacks the keyboard still has no
+ * input or output, so pairing stays Just Works. */
+static const struct bt_conn_auth_cb auth_cb = {
+	.pairing_accept = pairing_accept,
+};
 
 static struct bt_conn_auth_info_cb auth_info_cb = {
 	.pairing_complete = pairing_complete,
@@ -341,6 +435,12 @@ int ble_setup(void)
 	err = ensure_identities();
 	if (err != 0) {
 		LOG_ERR("Identity create failed: %d", err);
+		return err;
+	}
+
+	err = bt_conn_auth_cb_register(&auth_cb);
+	if (err != 0) {
+		LOG_ERR("Auth callbacks failed: %d", err);
 		return err;
 	}
 
