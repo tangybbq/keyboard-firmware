@@ -530,8 +530,14 @@ after the prefix is still recorded by the replays with its table meaning.
      driver switching the divider off would let `P0.31` rise to VBAT), and
      a `zephyr,fuel-gauge-composite` over it turning the voltage into a
      charge through Zephyr's stock Li-po curve.  `battery.c` reads it once
-     a minute and logs the charge when it changes.  No charger status yet:
-     on USB the cell reads near full while it charges.
+     a minute and logs the charge when it changes.
+   - The charge status: the BQ25101's open-drain CHG on `P0.17` (pulled
+     up) and the nRF52840's VBUS detector give on battery, charging, and
+     charged.  Charging lifts the voltage, so the level is held under 100%
+     while charging and set to 100% once charged.  The Battery Level
+     Status characteristic, which could carry the state, is left out:
+     hosts show only the level, and Zephyr's code for it reuses one
+     indication's parameters across back-to-back updates.
    - The Battery Service (`CONFIG_BT_BAS`), given each reading.  HOGP
      calls it mandatory; macOS takes the keyboard without it, other hosts
      may not, and it is how a host shows the level.
