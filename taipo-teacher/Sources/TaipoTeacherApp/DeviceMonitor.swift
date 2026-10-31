@@ -508,12 +508,22 @@ public final class DeviceMonitor: ObservableObject {
         _ = done.wait(timeout: .now() + 2.0)
     }
 
+    /// Every symbol the menu bar can show.  A name SF Symbols does not have draws nothing,
+    /// which leaves the item in the menu bar but zero wide, and the app with no way to reach
+    /// it; `keyboard.badge.exclamationmark` did that whenever no keyboard was plugged in.
+    public enum MenuBarSymbol: String, CaseIterable {
+        case failed = "exclamationmark.triangle"
+        case secureInput = "keyboard.badge.eye"
+        case idle = "keyboard"
+        case recording = "keyboard.fill"
+    }
+
     /// What the menu bar shows at a glance.
     public var menuBarSymbol: String {
-        if case .failed = status { return "keyboard.badge.exclamationmark" }
-        if secureInput { return "keyboard.badge.eye" }
-        if paused { return "keyboard" }
-        return recording ? "keyboard.fill" : "keyboard"
+        if case .failed = status { return MenuBarSymbol.failed.rawValue }
+        if secureInput { return MenuBarSymbol.secureInput.rawValue }
+        if paused { return MenuBarSymbol.idle.rawValue }
+        return (recording ? MenuBarSymbol.recording : MenuBarSymbol.idle).rawValue
     }
 
     /// What the app is doing, in a phrase.
