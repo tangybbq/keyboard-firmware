@@ -523,9 +523,21 @@ after the prefix is still recorded by the replays with its table meaning.
    output, the LED feedback.
 5. **Profiles 2–4**: the active profile in settings, and a bonded profile
    refusing other hosts in place of `BT_KEYS_OVERWRITE_OLDEST`.
-6. **Later**: the Battery Service, connection parameters
-   and peripheral latency for idle current (see `plan-mesa3w.md`'s
-   current budget), passkey entry.
+6. **The battery** (2026-10-31), in two commits:
+   - Measuring it, all from Zephyr's drivers in the overlay: a
+     `voltage-divider` sensor on the XIAO's divider (VBAT, 1M, `P0.31` =
+     AIN7, 510k, `P0.14` held low by the existing hog, which stays: a
+     driver switching the divider off would let `P0.31` rise to VBAT), and
+     a `zephyr,fuel-gauge-composite` over it turning the voltage into a
+     charge through Zephyr's stock Li-po curve.  `battery.c` reads it once
+     a minute and logs the charge when it changes.  No charger status yet:
+     on USB the cell reads near full while it charges.
+   - The Battery Service (`CONFIG_BT_BAS`), given each reading.  HOGP
+     calls it mandatory; macOS takes the keyboard without it, other hosts
+     may not, and it is how a host shows the level.
+7. **Later**: connection parameters and peripheral latency for idle
+   current (see `plan-mesa3w.md`'s current budget, and measure on the
+   board with the jumper in place of the switch), passkey entry.
 
 ---
 

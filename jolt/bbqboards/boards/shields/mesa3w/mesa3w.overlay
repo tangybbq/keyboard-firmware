@@ -12,6 +12,10 @@
  * anodes on 3V3 and sunk through 560 ohms, are the modifier indicator.
  */
 
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+#include <zephyr/dt-bindings/battery/battery.h>
+
 / {
 	aliases {
 		matrix = &kbd_matrix;
@@ -147,12 +151,47 @@
  * the divider down, and P0.31 and P0.14 both rise toward VBAT: up to 4.2 V
  * from the cell or the charger, past the 3.6 V (VDD + 0.3 V) limit on either
  * pin.  Driving it low keeps P0.31 at a third of VBAT, about 1.4 V, at a cost
- * of under 3 uA through the divider.  A battery-voltage driver taking this pin
- * as its power-gpios would replace this hog. */
+ * of under 3 uA through the divider.  `vbatt` below deliberately does not take
+ * this pin as its power-gpios: switching the divider off between readings is
+ * exactly what lets the pins rise. */
 &gpio0 {
 	read-bat-enable {
 		gpio-hog;
 		gpios = <14 GPIO_ACTIVE_HIGH>;
 		output-low;
+	};
+};
+
+/* The battery: `vbatt` reads the divider above on P0.31 (AIN7), and `battery`
+ * turns its voltage into a charge through Zephyr's stock Li-po curve, for the
+ * Battery Service (battery.c).  P0.31 sits at a third of VBAT, 1.42 V at
+ * most, inside the 1.8 V that the internal 0.6 V reference gives at gain 1/3.
+ * The divider is 338k seen from the pin, which the SAADC wants 40 us to
+ * sample.
+ */
+/ {
+	vbatt: vbatt {
+		compatible = "voltage-divider";
+		io-channels = <&adc 7>;
+		output-ohms = <510000>;
+		full-ohms = <(1000000 + 510000)>;
+	};
+
+	battery: battery {
+		compatible = "zephyr,fuel-gauge-composite";
+		source-primary = <&vbatt>;
+		device-chemistry = "lithium-ion-polymer";
+		ocv-capacity-table-0 = <BATTERY_OCV_CURVE_LITHIUM_ION_POLYMER_DEFAULT>;
+	};
+};
+
+&adc {
+	channel@7 {
+		reg = <7>;
+		zephyr,gain = "ADC_GAIN_1_3";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 40)>;
+		zephyr,input-positive = <NRF_SAADC_AIN7>;
+		zephyr,resolution = <12>;
 	};
 };
