@@ -547,6 +547,96 @@ after the prefix is still recorded by the replays with its table meaning.
 
 ---
 
+## Minder over Bluetooth (planned 2026-10-31)
+
+The mesa3w is now the daily keyboard, on Bluetooth, and minder only runs
+over USB, so TaipoTeacher sees none of that typing unless the cable is in.
+Minder over Bluetooth brings the key log back, and is what the settable
+base name and a log readable away from RTT both wait for.  Dictionary
+updates come along for free, though USB stays the better way for big ones.
+
+### The service
+
+- A custom service (a 128-bit UUID of our own) with two characteristics:
+  **request**, which the host writes (with or without response), and
+  **reply**, which the keyboard notifies.  Both need an encrypted link, so
+  only a bonded host reaches them; minder can program the flash and reset
+  the keyboard, which is the same trust as the USB cable.
+- Not in the advertisement, which has no room; a host finds it by service
+  discovery on the connected keyboard.
+- It rides on the typing connection, so only the active profile's host
+  has it.
+
+### Framing
+
+- Minder's existing packet framing (`hid_encode`, `HidDecoder`), left
+  from a HID transport: each write and each notification is one packet of
+  up to 64 bytes, its first byte the sequence number with the top bit set
+  on the last.  ATT keeps the boundaries of writes and notifications, so
+  nothing like COBS is needed.  The decoder takes short packets, so the
+  last need not be padded.
+- One packet per ATT operation needs an ATT MTU of at least 67:
+  `CONFIG_BT_L2CAP_TX_MTU=67`, `CONFIG_BT_BUF_ACL_RX_SIZE=71`, and the
+  data length to 71 so a packet is one link-layer PDU.  macOS and Windows
+  both offer far more.  A host offering less is refused with a log line at
+  first, rather than packets sized to the MTU.
+- The 7-bit sequence number caps a message at 128 packets, about 8 KiB;
+  minder's own limit is 4200 bytes, 67 packets.
+
+### Typing first
+
+- Replies share the link with key reports, and Zephyr queues a
+  connection's notifications in order.  A 4 KiB reply is 66 of them;
+  queued at once, a keystroke would wait behind all 66.  So a reply goes
+  out with at most two notifications in flight, paced by the completion
+  callback as `ble_send_report` is, and a key report waits behind two
+  packets at most.
+- Programming the flash: on the nRF52840 the flash driver fits erases
+  between radio events (`SOC_FLASH_NRF_RADIO_SYNC_TICKER`) and holds the
+  calling thread, which is the executor's, so scanning stops while a page
+  erases.  This is already so over USB on the mesa3w.  Dictionary uploads
+  are rare; measure it before doing anything about it.
+
+### One minder loop, two transports
+
+- `main_loop` takes a request from whichever transport has one and
+  replies on that one; a pending `GetEvent` is interrupted by a request on
+  either.  `minder_ble.rs` mirrors `minder_usb.rs` (ready, read, write of
+  whole messages), with the service in `minder_ble.c` beside `ble.c`.
+- When the Bluetooth link goes (disconnect, or the host unsubscribing), a
+  read or write on it fails and a reply owed to it is dropped.
+- The key log is unchanged: on at a host's request, one log, drained by
+  whichever transport asks.  A host with both should use one; MinderKit
+  picks.
+
+### Hosts
+
+1. **keyminder**, through the `btleplug` crate, with an option choosing
+   the keyboard by name.  For testing the firmware side on its own.
+2. **MinderKit**, a `BLETransport` beside `USBTransport`, on CoreBluetooth
+   (`retrieveConnectedPeripherals(withServices:)` finds a keyboard the
+   system already holds).  The open question: whether CoreBluetooth lets
+   an app subscribe to a custom service on a keyboard that macOS's HID
+   holds.  Expected yes, as macOS claims only the HID Service; settle it
+   with a throwaway script before building the transport.
+3. **TaipoTeacher** uses USB when it is there and Bluetooth otherwise, and
+   knows the keyboard by `Hello`'s unique id either way.
+
+### Steps
+
+1. **Refactor**: `main_loop` over a transport, with USB the only one.  No
+   change in behaviour.
+2. **The service and `minder_ble`**: the GATT service, the MTU settings,
+   paced replies, and the loop taking requests from both transports.
+3. **keyminder over Bluetooth**: `Hello`, then a key log fetch, then a
+   `Program` while typing to see the stall.
+4. **MinderKit and TaipoTeacher**: the CoreBluetooth check first, then
+   the transport, then the choice between them.
+5. **Then**: the settable base name (a request writing it to settings,
+   read by `ble.c`), and a RAM ring of log lines fetched by a request.
+
+---
+
 # Commit plan
 
 One commit per numbered step unless the compiler forces two together, which
