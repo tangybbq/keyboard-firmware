@@ -140,7 +140,7 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
 			     enum bt_security_err err)
 {
 	if (err != 0) {
-		LOG_WRN("Security failed: %s level %u: %s", bt_conn_dst_str(conn), level,
+		LOG_WRN("Security failed: %s level %u: %d %s", bt_conn_dst_str(conn), level, err,
 			bt_security_err_to_str(err));
 		return;
 	}
@@ -165,7 +165,8 @@ static void pairing_complete(struct bt_conn *conn, bool bonded)
 
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 {
-	LOG_WRN("Pairing failed %s: %s", bt_conn_dst_str(conn), bt_security_err_to_str(reason));
+	LOG_WRN("Pairing failed %s: %d %s", bt_conn_dst_str(conn), reason,
+		bt_security_err_to_str(reason));
 }
 
 static struct bt_conn_auth_info_cb auth_info_cb = {
