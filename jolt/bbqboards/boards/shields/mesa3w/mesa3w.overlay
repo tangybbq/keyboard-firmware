@@ -183,6 +183,14 @@
 		device-chemistry = "lithium-ion-polymer";
 		ocv-capacity-table-0 = <BATTERY_OCV_CURVE_LITHIUM_ION_POLYMER_DEFAULT>;
 	};
+
+	/* The charger's (BQ25101) CHG, on P0.17 inside the module: open drain,
+	 * low while charging, and also what lights the charge LED.  Open drain
+	 * needs the pull-up, which costs about 250 uA only while charging, on
+	 * USB power. */
+	zephyr,user {
+		charging-gpios = <&gpio0 17 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	};
 };
 
 &adc {
