@@ -323,16 +323,12 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     Entry { code: 0x046, action: Action::Simple(Keyboard::PrintScreen), },
     Entry { code: 0x0a8, action: Action::Simple(Keyboard::Insert), },
 
-    // Selecting the chord table, the same pair as in `TAIPO_ACTIONS`: `rsni`
-    // (the whole top row) selects Taipo, `aote` (the whole bottom row) selects
-    // Dosh.
-    //
-    // `rsni` uses the upper pinky, which Dosh never touches, so it cannot
-    // collide with anything here.  `aote` now uses a key Dosh does type with,
-    // so its safety is only that nothing else claims that chord; `a+o`, `a+t`
-    // and `a+e` are `l`, `q` and `d`, but all four together spell nothing.
+    // Selecting Taipo: `rsni`, the whole top row, as in `TAIPO_ACTIONS`.  It
+    // uses the upper pinky, which Dosh never touches, so it cannot collide
+    // with anything here.  `TAIPO_ACTIONS`' other half, `aote` selecting
+    // Dosh, is not here: from Dosh it could only ever do nothing, and the
+    // chord is the host command prefix below.
     Entry { code: 0x0f0, action: Action::Variant(TaipoVariant::Taipo), },
-    Entry { code: 0x00f, action: Action::Variant(TaipoVariant::Dosh), },
 
     // Switching to Orsy: all four inner keys, `e+i+Sp+Bk`.  Nothing else
     // here uses that chord, and in Orsy it is the command that switches
@@ -340,9 +336,11 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     #[cfg(feature = "orsy")]
     Entry { code: 0x388, action: Action::Orsy, },
 
-    // The host command prefix, `a+o+t`: the next chord selects or clears a
-    // Bluetooth profile or chooses the output.  See the `host` module.
-    Entry { code: 0x007, action: Action::HostCommands, },
+    // The host command prefix, `aote`, the whole bottom row: the next chord
+    // selects or clears a Bluetooth profile or chooses the output.  See the
+    // `host` module.  Four keys, so that it is not hit by accident; `a+o`,
+    // `a+t` and `a+e` are `l`, `q` and `d`, but all four spell nothing.
+    Entry { code: 0x00f, action: Action::HostCommands, },
 ];
 
 #[cfg(test)]
@@ -391,17 +389,17 @@ mod tests {
         }
     }
 
-    /// Both variant selection chords are present.
+    /// The Taipo selection chord is present, and the Dosh one, which here is
+    /// the host command prefix, is not.
     #[test]
     fn test_variant_chords() {
         use crate::layout::taipo::TaipoVariant;
 
-        for (code, want) in [(0x0f0u16, TaipoVariant::Taipo), (0x00f, TaipoVariant::Dosh)] {
-            match action_for(code) {
-                Action::Variant(v) => assert_eq!(*v, want),
-                _ => panic!("code {code:#05x} is not a variant selection"),
-            }
+        match action_for(0x0f0) {
+            Action::Variant(v) => assert_eq!(*v, TaipoVariant::Taipo),
+            _ => panic!("code 0x0f0 is not a variant selection"),
         }
+        assert!(matches!(action_for(0x00f), Action::HostCommands));
     }
 
     /// Every entry is reachable: an empty chord is never looked up.

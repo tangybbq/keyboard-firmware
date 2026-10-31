@@ -3,7 +3,7 @@
 //! Bluetooth.
 //!
 //! They are reached through a prefix chord in the Dosh table,
-//! [`Action::HostCommands`](super::taipo::Action::HostCommands) (`a+o+t`),
+//! [`Action::HostCommands`](super::taipo::Action::HostCommands) (`a+o+t+e`),
 //! which arms a one-chord layer.  The next chord, on either hand, is looked up
 //! in [`HOST_COMMANDS`] instead of the Dosh table.  A chord that is not in it
 //! disarms the layer and is then typed as usual.  The shapes are positional:

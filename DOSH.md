@@ -230,7 +230,7 @@ on the 3-row jolt3 it is the middle key of that column rather than the lower one
 counts — pressed with nothing else down and released with nothing else down — so the table can
 never change in the middle of a chord.
 
-Two chords do the same job, and are in both tables, so either can be reached from either:
+Two chords do the same job, so either table can be reached from the other:
 
 | chord     | keys                 | selects |
 |-----------|----------------------|---------|
@@ -243,6 +243,10 @@ variants are unmapped, so a thumb accidentally included makes the chord do nothi
 `r+s+n+i` is the only Dosh chord that touches the upper pinky, which is what keeps it from ever
 colliding with something Dosh types. `a+o+t+e` is on keys Dosh does use — `a+o`, `a+t` and `a+e`
 are `l`, `q` and `d` — but all four together spell nothing in either table.
+
+Only the Taipo table selects Dosh with `a+o+t+e`. In the Dosh table, where selecting Dosh could
+only do nothing, the same chord is the prefix of the host commands (Bluetooth profiles and the
+output; see `bbq-keyboard/src/layout/host.rs`).
 
 These exist for the boards that have only the 20 Taipo keys — the mesa2 — and so no spare key to
 put the toggle on.

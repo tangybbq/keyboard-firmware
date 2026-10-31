@@ -53,7 +53,7 @@ const VARIANT_TAIPO: u16 = R | S | N | I;
 const VARIANT_DOSH: u16 = A | O | T | E;
 
 /// The Dosh chord that arms the host command layer.
-const HOST_PREFIX: u16 = A | O | T;
+const HOST_PREFIX: u16 = A | O | T | E;
 
 /// Shorthands for the two sides.
 const LEFT: Side = Side::Left;
@@ -2266,11 +2266,8 @@ fn test_variant_chord_is_idempotent() {
     script.chord(LEFT, VARIANT_TAIPO).idle();
     script.chord(LEFT, E | S).types(Keyboard::V);
 
-    script.select_variant(LEFT, true);
-
-    // Already dosh.
-    script.chord(LEFT, VARIANT_DOSH).idle();
-    script.chord(LEFT, E | S).types(Keyboard::M);
+    // Dosh has no half to test: its table gives `VARIANT_DOSH` to the host
+    // command prefix, as selecting dosh from dosh could only do nothing.
 
     script.run();
 }
@@ -2395,7 +2392,7 @@ fn test_variant_chord_two_row() {
 //////////////////////////////////////////////////////////////////////////////
 // The host command layer
 //
-// `a+o+t` in dosh arms a one-chord layer: the next chord, on either hand, is a
+// `a+o+t+e` in dosh arms a one-chord layer: the next chord, on either hand, is a
 // host command if it is one, and is typed as usual if it is not.
 //////////////////////////////////////////////////////////////////////////////
 
@@ -2539,12 +2536,13 @@ fn test_host_layer_keeps_oneshot() {
     script.run();
 }
 
-/// The prefix is dosh's; in the taipo table the shape is still unmapped.
+/// The prefix is dosh's; in the taipo table the shape selects dosh, and arms
+/// nothing.
 #[test]
 fn test_host_prefix_dosh_only() {
     let mut script = Script::taipo();
 
-    script.chord(LEFT, HOST_PREFIX).idle();
+    script.chord(LEFT, HOST_PREFIX).expect(Actions::SetSubMode(MinorMode::Dosh)).idle();
     script.chord(LEFT, E).types(Keyboard::E);
 
     script.run();

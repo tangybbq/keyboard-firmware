@@ -483,8 +483,11 @@ or an Orsy word, go out in one connection event rather than one per event.
 
 ### The command chords
 
-One prefix chord, `a+o+t` (`0x007`), arms a one-chord command layer, on
-either hand.  It has no other meaning in Dosh.  The next chord, on either
+One prefix chord, `a+o+t+e` (`0x00f`), arms a one-chord command layer,
+on either hand.  It was `a+o+t` (`0x007`) at first, which proved too easy
+to hit (developer, 2026-10-31); `a+o+t+e` selects Dosh in the Taipo table,
+which from Dosh does nothing, so the Dosh table gives it to the prefix
+instead.  The next chord, on either
 hand, is looked up in a small command table instead of `DOSH_ACTIONS`:
 
 | Next chord | Action |
@@ -495,7 +498,7 @@ hand, is looked up in a small command table instead of `DOSH_ACTIONS`:
 | both thumbs | Cancel |
 
 Any other chord disarms the layer and is then typed as usual, so arming it
-by accident (a sloppy `a+o+t+e`, say) costs nothing.  From Orsy, the user
+by accident costs nothing.  From Orsy, the user
 switches to Dosh first (`e+i+Sp+Bk`).  The LEDs show the layer armed, and
 afterwards which profile is active.
 
