@@ -103,7 +103,9 @@ async fn worker(
     mut outgoing: async_mpsc::UnboundedReceiver<Vec<u8>>,
     incoming: mpsc::Sender<Vec<u8>>,
 ) {
-    let (_device, request, reply, found) = match open(&want).await {
+    // The adapter is held for as long as the link: on macOS it owns CoreBluetooth's central
+    // manager, and releasing that ends this program's connection to the keyboard.
+    let (_adapter, _device, request, reply, found) = match open(&want).await {
         Ok(opened) => opened,
         Err(err) => {
             let _ = setup.send(Err(err));
@@ -149,7 +151,7 @@ async fn worker(
 }
 
 /// Find the keyboard and its two characteristics, and say what was found.
-async fn open(want: &str) -> Result<(Device, Characteristic, Characteristic, String)> {
+async fn open(want: &str) -> Result<(Adapter, Device, Characteristic, Characteristic, String)> {
     let adapter = Adapter::default()
         .await
         .ok_or_else(|| anyhow!("no Bluetooth adapter"))?;
@@ -188,7 +190,8 @@ async fn open(want: &str) -> Result<(Device, Characteristic, Characteristic, Str
                 PACKET_SIZE
             ));
         }
-        return Ok((device, request, reply, format!("{} (writes up to {} bytes)", name, max)));
+        let found = format!("{} (writes up to {} bytes)", name, max);
+        return Ok((adapter, device, request, reply, found));
     }
 
     Err(anyhow!(
