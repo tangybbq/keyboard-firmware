@@ -513,7 +513,9 @@ after the prefix is still recorded by the replays with its table meaning.
 3. **The command layer in `bbq-keyboard`**, with tests.
 4. **Commands in `jolt`**: select and clear the profile, choose the
    output, the LED feedback.
-5. **Later**: profiles 2–4, the Battery Service, connection parameters
+5. **Profiles 2–4**: the active profile in settings, and a bonded profile
+   refusing other hosts in place of `BT_KEYS_OVERWRITE_OLDEST`.
+6. **Later**: the Battery Service, connection parameters
    and peripheral latency for idle current (see `plan-mesa3w.md`'s
    current budget), passkey entry.
 
