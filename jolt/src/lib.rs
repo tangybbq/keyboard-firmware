@@ -46,6 +46,14 @@ mod minder;
 mod minder_ble;
 mod minder_usb;
 
+// The zephyr crate's time driver hands embassy raw Zephyr ticks, so the two rates have to be the
+// same, or every embassy timer runs fast or slow by their ratio.  Cargo.toml sets embassy's per
+// target.
+const _: () = assert!(
+    embassy_time::TICK_HZ == zephyr::kconfig::CONFIG_SYS_CLOCK_TICKS_PER_SEC as u64,
+    "embassy-time's tick-hz feature is not this board's CONFIG_SYS_CLOCK_TICKS_PER_SEC"
+);
+
 unsafe extern "C" {
     fn usb_setup(serial: *const u8, serial_len: usize) -> i32;
     fn jolt_device_id(id: *mut u8, len: usize) -> c_int;

@@ -26,10 +26,21 @@ embassy-executor = { version = "0.10.0", features = ["log"] }
 embassy-futures = "0.1.2"
 embassy-sync = "0.8.0"
 
-# The zephyr timer is able to adapt to a mismatch of the time base, however it
-# is more efficient if the timer here matches the zephyr::time::SYS_FREQUENCY.
-embassy-time = { version = "0.5.1", features = ["tick-hz-10_000"] }
+# The tick rate is set per target below.
+embassy-time = "0.5.1"
 # log = "0.4.22"
+
+# The zephyr crate's time driver hands embassy raw Zephyr ticks, so embassy's
+# tick rate has to be the board's CONFIG_SYS_CLOCK_TICKS_PER_SEC, which lib.rs
+# checks at compile time.  Cargo cannot see Kconfig, but each SoC builds for its
+# own target: the RP2040 (thumbv6m) ticks at Zephyr's tickless default of 10 kHz,
+# and the nRF52840 (thumbv7em) at its RTC's 32768 Hz.  With one rate for both,
+# the mesa3w's timers ran 3.3 times fast.
+[target.thumbv6m-none-eabi.dependencies]
+embassy-time = { version = "0.5.1", features = ["tick-hz-10_000"] }
+
+[target.thumbv7em-none-eabi.dependencies]
+embassy-time = { version = "0.5.1", features = ["tick-hz-32_768"] }
 
 [dependencies.bbq-keyboard]
 version = "0.1.0"
