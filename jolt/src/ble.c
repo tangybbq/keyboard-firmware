@@ -1,10 +1,15 @@
 /*
  * Bluetooth HID, on the boards with a radio.
  *
- * One profile for now: identity 1 advertises, and the host that pairs with it
- * gets the keyboard's reports whenever USB is not configured.  Profile n will
- * be identity n; the default identity, 0, cannot be reset, which clearing a
- * profile needs.  See jolt-mesa.md, "Bluetooth on the mesa3w".
+ * A profile is one host.  Profile n is Bluetooth identity n, each with an
+ * address of its own; the default identity, 0, cannot be reset, which
+ * clearing a profile needs, and is unused.  Only the active profile
+ * advertises, and its host gets the keyboard's reports whenever USB is not
+ * configured (hid.rs decides).  There is one profile for now.  See
+ * jolt-mesa.md, "Bluetooth on the mesa3w".
+ *
+ * Advertising and the profile commands all run on `ble_workq`, one at a time,
+ * and off the system workqueue, as clearing a profile writes the flash.
  *
  * Pairing is Just Works: no passkey callbacks are registered, so the
  * keyboard reports no input or output capability.
@@ -28,8 +33,11 @@ LOG_MODULE_REGISTER(jolt_ble, LOG_LEVEL_INF);
 extern void ble_ready_callback(bool ready);
 extern void ble_report_done_callback(uintptr_t epoch);
 
-/* The identity profile 1 advertises and bonds on. */
-#define PROFILE_ID 1
+/* How many profiles: identities 1 to PROFILE_COUNT. */
+#define PROFILE_COUNT 1
+
+#define BLE_WORKQ_STACK_SIZE 2048
+#define BLE_WORKQ_PRIO 10
 
 /* `ble_send_report`'s answer when the stack is out of buffers, as against an
  * error: the report is fine and is to be sent again once some have gone out. */
@@ -38,6 +46,16 @@ extern void ble_report_done_callback(uintptr_t epoch);
 /* The same report as on USB: boot keyboard input, with the LED output report,
  * and no report ID. */
 static const uint8_t hid_report_desc[] = HID_KEYBOARD_REPORT_DESC();
+
+static K_THREAD_STACK_DEFINE(ble_workq_stack, BLE_WORKQ_STACK_SIZE);
+static struct k_work_q ble_workq;
+
+/* Set once `ble_setup` has finished, so that the profile commands know there
+ * is a stack to give them to. */
+static bool ble_up;
+
+/* The profile that advertises and connects.  Only changed on `ble_workq`. */
+static uint8_t active_profile = 1;
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -84,13 +102,34 @@ static const struct bt_hids_register_param hids_param = {
 	.cb = &hids_cb,
 };
 
-static void advertise(struct k_work *work)
+static void count_conn(struct bt_conn *conn, void *data)
 {
-	ARG_UNUSED(work);
+	ARG_UNUSED(conn);
+
+	(*(int *)data)++;
+}
+
+static void disconnect_conn(struct bt_conn *conn, void *data)
+{
+	ARG_UNUSED(data);
+
+	(void)bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+}
+
+/* Advertise the active profile, unless there is a connection, or one still
+ * being torn down: `recycled` comes back here once it is gone. */
+static void advertise(void)
+{
+	int conns = 0;
+
+	bt_conn_foreach(BT_CONN_TYPE_LE, count_conn, &conns);
+	if (conns != 0) {
+		return;
+	}
 
 	struct bt_le_adv_param param = BT_LE_ADV_PARAM_INIT(
 		BT_LE_ADV_OPT_CONN, BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL);
-	param.id = PROFILE_ID;
+	param.id = active_profile;
 
 	int err = bt_le_adv_start(&param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err == -EALREADY) {
@@ -100,10 +139,89 @@ static void advertise(struct k_work *work)
 		LOG_ERR("Advertising failed to start: %d", err);
 		return;
 	}
-	LOG_INF("Advertising on identity %d", PROFILE_ID);
+	LOG_INF("Advertising profile %u", active_profile);
 }
 
-static K_WORK_DEFINE(advertise_work, advertise);
+static void advertise_handler(struct k_work *work)
+{
+	ARG_UNUSED(work);
+
+	advertise();
+}
+
+static K_WORK_DEFINE(advertise_work, advertise_handler);
+
+/* The profile last asked for by `ble_select_profile`. */
+static atomic_t select_target;
+
+/* Make `select_target` the active profile.  Selecting the active one again
+ * only makes sure it is advertising, if it is not connected.  Another one
+ * drops the connection, and `recycled` advertises the new one once it is
+ * gone. */
+static void select_handler(struct k_work *work)
+{
+	ARG_UNUSED(work);
+
+	uint8_t profile = atomic_get(&select_target);
+
+	if (profile != active_profile) {
+		(void)bt_le_adv_stop();
+		active_profile = profile;
+		LOG_INF("Profile %u selected", profile);
+		bt_conn_foreach(BT_CONN_TYPE_LE, disconnect_conn, NULL);
+	}
+	advertise();
+}
+
+static K_WORK_DEFINE(select_work, select_handler);
+
+/* The profiles `ble_clear_profile` has been asked to clear, a bit each. */
+static atomic_t clear_mask;
+
+static void log_profile_addr(const char *what, uint8_t profile)
+{
+	bt_addr_le_t addrs[CONFIG_BT_ID_MAX];
+	size_t count = ARRAY_SIZE(addrs);
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_id_get(addrs, &count);
+	if (profile >= count) {
+		return;
+	}
+	bt_addr_le_to_str(&addrs[profile], addr, sizeof(addr));
+	LOG_INF("Profile %u %s %s", profile, what, addr);
+}
+
+/* Forget each profile in `clear_mask`: resetting its identity unpairs it,
+ * drops its connection, and gives it a new address, so that the host's old
+ * bond is simply dead rather than in the way of a new pairing.  A profile
+ * cannot be reset while it advertises. */
+static void clear_handler(struct k_work *work)
+{
+	ARG_UNUSED(work);
+
+	atomic_val_t mask = atomic_clear(&clear_mask);
+
+	for (uint8_t profile = 1; profile <= PROFILE_COUNT; profile++) {
+		if ((mask & BIT(profile)) == 0) {
+			continue;
+		}
+		if (profile == active_profile) {
+			(void)bt_le_adv_stop();
+		}
+
+		int err = bt_id_reset(profile, NULL, NULL);
+
+		if (err < 0) {
+			LOG_ERR("Profile %u clear failed: %d", profile, err);
+			continue;
+		}
+		log_profile_addr("cleared, now", profile);
+	}
+	advertise();
+}
+
+static K_WORK_DEFINE(clear_work, clear_handler);
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -133,7 +251,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
  * free again, so that there is one to connect with, it starts again. */
 static void recycled(void)
 {
-	k_work_submit(&advertise_work);
+	k_work_submit_to_queue(&ble_workq, &advertise_work);
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level,
@@ -174,16 +292,16 @@ static struct bt_conn_auth_info_cb auth_info_cb = {
 	.pairing_failed = pairing_failed,
 };
 
-/* Make sure the profile's identity exists.  Identities are kept in settings,
- * so this only creates one on the first boot, or after the settings were
- * erased. */
-static int ensure_identity(void)
+/* Make sure every profile's identity exists.  Identities are kept in
+ * settings, so this only creates them on the first boot, or after the
+ * settings were erased. */
+static int ensure_identities(void)
 {
 	bt_addr_le_t addrs[CONFIG_BT_ID_MAX];
 	size_t count = ARRAY_SIZE(addrs);
 
 	bt_id_get(addrs, &count);
-	while (count <= PROFILE_ID) {
+	while (count <= PROFILE_COUNT) {
 		int id = bt_id_create(NULL, NULL);
 
 		if (id < 0) {
@@ -192,17 +310,19 @@ static int ensure_identity(void)
 		count = id + 1;
 	}
 
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_id_get(addrs, &count);
-	bt_addr_le_to_str(&addrs[PROFILE_ID], addr, sizeof(addr));
-	LOG_INF("Profile 1 is %s", addr);
+	for (uint8_t profile = 1; profile <= PROFILE_COUNT; profile++) {
+		log_profile_addr("is", profile);
+	}
 	return 0;
 }
 
 int ble_setup(void)
 {
 	int err;
+
+	k_work_queue_start(&ble_workq, ble_workq_stack, K_THREAD_STACK_SIZEOF(ble_workq_stack),
+			   BLE_WORKQ_PRIO, NULL);
+	k_thread_name_set(k_work_queue_thread_get(&ble_workq), "ble_workq");
 
 	err = bt_enable(NULL);
 	if (err != 0) {
@@ -218,7 +338,7 @@ int ble_setup(void)
 		return err;
 	}
 
-	err = ensure_identity();
+	err = ensure_identities();
 	if (err != 0) {
 		LOG_ERR("Identity create failed: %d", err);
 		return err;
@@ -236,7 +356,38 @@ int ble_setup(void)
 		return err;
 	}
 
-	k_work_submit(&advertise_work);
+	ble_up = true;
+	k_work_submit_to_queue(&ble_workq, &advertise_work);
+	return 0;
+}
+
+/* Ask for a profile, numbered from 1, to become the active one.  The work is
+ * done on `ble_workq`; this only says whether there is such a profile. */
+int ble_select_profile(uint8_t profile)
+{
+	if (!ble_up) {
+		return -ENODEV;
+	}
+	if (profile < 1 || profile > PROFILE_COUNT) {
+		return -EINVAL;
+	}
+	atomic_set(&select_target, profile);
+	k_work_submit_to_queue(&ble_workq, &select_work);
+	return 0;
+}
+
+/* Ask for a profile, numbered from 1, to be forgotten.  As for
+ * `ble_select_profile`. */
+int ble_clear_profile(uint8_t profile)
+{
+	if (!ble_up) {
+		return -ENODEV;
+	}
+	if (profile < 1 || profile > PROFILE_COUNT) {
+		return -EINVAL;
+	}
+	atomic_or(&clear_mask, BIT(profile));
+	k_work_submit_to_queue(&ble_workq, &clear_work);
 	return 0;
 }
 
