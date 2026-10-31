@@ -2,7 +2,9 @@
 //!
 //! A report goes to USB when a host has configured the HID interface, and otherwise, on a board
 //! with a radio, to the Bluetooth host if one is connected.  A host command can hold reports to
-//! either one instead.  See `jolt-mesa.md`, "Bluetooth on the mesa3w".
+//! either one instead; holding them to USB also turns Bluetooth off, so that its host does not
+//! show a keyboard connected that sends it nothing.  See `jolt-mesa.md`, "Bluetooth on the
+//! mesa3w".
 
 use bbq_keyboard::layout::host::Output;
 use bbq_keyboard::{KeyAction, Keyboard, Mods};
@@ -23,6 +25,8 @@ unsafe extern "C" {
     fn usb_send_report(report: *const u8, len: u16) -> i32;
     #[cfg(CONFIG_BT)]
     fn ble_send_report(report: *const u8, len: u16, epoch: usize) -> i32;
+    #[cfg(CONFIG_BT)]
+    fn ble_set_enabled(enabled: bool) -> i32;
 }
 
 const HID_QUEUE_DEPTH: usize = 32;
@@ -160,6 +164,12 @@ pub fn set_output(output: Output) -> bool {
         Output::Bluetooth => return false,
     };
     if OUTPUT.swap(value, Ordering::AcqRel) != value {
+        #[cfg(CONFIG_BT)]
+        // SAFETY: ble.c only queues work; it is safe from any thread.  Before Bluetooth is up
+        // it refuses, and there is nothing to turn off.
+        unsafe {
+            ble_set_enabled(value != OUTPUT_USB);
+        }
         transport_changed();
     }
     true

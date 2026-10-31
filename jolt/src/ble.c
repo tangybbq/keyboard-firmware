@@ -18,6 +18,10 @@
  * Advertising and the profile commands all run on `ble_workq`, one at a time,
  * and off the system workqueue, as clearing a profile writes the flash.
  *
+ * With the output held to USB, Bluetooth is off: the connection is dropped
+ * and nothing advertises, so the host does not show a keyboard connected that
+ * sends it nothing.  Auto or Bluetooth turns it back on.
+ *
  * Pairing is Just Works: no passkey callbacks are registered, so the
  * keyboard reports no input or output capability.
  */
@@ -70,6 +74,10 @@ static struct k_work_q ble_workq;
 /* Set once `ble_setup` has finished, so that the profile commands know there
  * is a stack to give them to. */
 static bool ble_up;
+
+/* Whether the keyboard advertises and keeps a connection at all; cleared while
+ * the output is held to USB.  Read on `ble_workq`, set by `ble_set_enabled`. */
+static atomic_t ble_enabled = ATOMIC_INIT(1);
 
 /* The profile that advertises and connects.  Only changed on `ble_workq`, and
  * by settings_load() before that starts. */
@@ -159,11 +167,16 @@ static void disconnect_conn(struct bt_conn *conn, void *data)
 	(void)bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 }
 
-/* Advertise the active profile, unless there is a connection, or one still
- * being torn down: `recycled` comes back here once it is gone. */
+/* Advertise the active profile, unless Bluetooth is off, or there is a
+ * connection, or one still being torn down: `recycled` comes back here once
+ * it is gone. */
 static void advertise(void)
 {
 	int conns = 0;
+
+	if (!atomic_get(&ble_enabled)) {
+		return;
+	}
 
 	bt_conn_foreach(BT_CONN_TYPE_LE, count_conn, &conns);
 	if (conns != 0) {
@@ -295,6 +308,24 @@ static void clear_handler(struct k_work *work)
 }
 
 static K_WORK_DEFINE(clear_work, clear_handler);
+
+/* Turn Bluetooth on or off, as `ble_enabled` now says. */
+static void enable_handler(struct k_work *work)
+{
+	ARG_UNUSED(work);
+
+	if (atomic_get(&ble_enabled)) {
+		LOG_INF("Bluetooth on");
+		advertise();
+		return;
+	}
+
+	LOG_INF("Bluetooth off");
+	(void)bt_le_adv_stop();
+	bt_conn_foreach(BT_CONN_TYPE_LE, disconnect_conn, NULL);
+}
+
+static K_WORK_DEFINE(enable_work, enable_handler);
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -521,6 +552,18 @@ int ble_clear_profile(uint8_t profile)
 	}
 	atomic_or(&clear_mask, BIT(profile));
 	k_work_submit_to_queue(&ble_workq, &clear_work);
+	return 0;
+}
+
+/* Turn Bluetooth off (the connection dropped, no advertising) or back on.  As
+ * for `ble_select_profile`. */
+int ble_set_enabled(bool enabled)
+{
+	if (!ble_up) {
+		return -ENODEV;
+	}
+	atomic_set(&ble_enabled, enabled);
+	k_work_submit_to_queue(&ble_workq, &enable_work);
 	return 0;
 }
 
