@@ -5,6 +5,9 @@
 //! underneath it.  Requests arrive whole rather than as packets (see [`crate::minder_usb`]), the
 //! flash and the reset go through `platform.c`, and the boot id is the ROSC's random bit read
 //! from there.
+//!
+//! The loop talks to its host through a [`Link`]: a request comes in on one, and its reply goes
+//! back on the same one.  USB is the only link so far.
 
 extern crate alloc;
 
@@ -118,6 +121,49 @@ pub fn push_event(event: Event) {
     EVENTS.push(event);
 }
 
+/// A transport the host can reach minder through.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Link {
+    Usb,
+}
+
+/// A whole request, and the link it came on, which its reply goes back on.
+struct Incoming {
+    link: Link,
+    data: Vec<u8>,
+}
+
+/// A failed read or write, as the link's own error.
+enum LinkError {
+    Usb(minder_usb::Error),
+}
+
+impl core::fmt::Debug for LinkError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            LinkError::Usb(err) => write!(f, "USB {:?}", err),
+        }
+    }
+}
+
+/// Receive the next request, from whichever link has one.
+///
+/// Cancel safe, as each link's read is, which `GetEvent` relies on.
+async fn read() -> Result<Incoming, LinkError> {
+    let data = minder_usb::read().await.map_err(LinkError::Usb)?;
+    Ok(Incoming {
+        link: Link::Usb,
+        data,
+    })
+}
+
+/// Send a reply on a link, and wait for it to have gone.
+async fn write(link: Link, message: &[u8]) -> Result<(), LinkError> {
+    match link {
+        Link::Usb => minder_usb::write(message).await.map_err(LinkError::Usb),
+    }
+}
+
 /// How a pending `GetEvent` ended.
 enum GetEvent {
     /// An event arrived.
@@ -125,9 +171,9 @@ enum GetEvent {
     /// The requested timeout expired.
     Timeout,
     /// A new request arrived, whole.
-    Interrupted(Vec<u8>),
+    Interrupted(Incoming),
     /// The read failed.
-    ReadError(minder_usb::Error),
+    ReadError(LinkError),
 }
 
 /// Raise the test events asked for by `Request::TestEvent`.
@@ -177,13 +223,13 @@ impl Minder {
     /// with interrupts masked.  It stays true only while this loop is sequential.
     pub async fn main_loop(mut self) -> ! {
         // A request that arrived while a `GetEvent` was pending.
-        let mut pending: Option<Vec<u8>> = None;
+        let mut pending: Option<Incoming> = None;
 
         loop {
-            let rbuf = match pending.take() {
-                Some(rbuf) => rbuf,
-                None => match minder_usb::read().await {
-                    Ok(rbuf) => rbuf,
+            let Incoming { link, data: rbuf } = match pending.take() {
+                Some(incoming) => incoming,
+                None => match read().await {
+                    Ok(incoming) => incoming,
                     Err(err) => {
                         printkln!("Minder read error: {:?}", err);
                         continue;
@@ -191,7 +237,7 @@ impl Minder {
                 },
             };
             if rbuf.len() >= SIZE_LIMIT {
-                printkln!("Excessively large USB bulk data received, discarding");
+                printkln!("Excessively large minder request on {:?}, discarding", link);
                 continue;
             }
 
@@ -213,11 +259,11 @@ impl Minder {
                 Ok(Request::GetEvent { timeout_ms }) => match self.get_event(timeout_ms).await {
                     GetEvent::Event(event) => Reply::Event { event },
                     GetEvent::Timeout => Reply::NoEvent,
-                    GetEvent::Interrupted(rbuf) => {
+                    GetEvent::Interrupted(incoming) => {
                         // Answer the poll before the request that interrupted it.  Every request
                         // still gets exactly one reply, in order, so the host can tell them apart
                         // without the requests being tagged.
-                        pending = Some(rbuf);
+                        pending = Some(incoming);
                         Reply::NoEvent
                     }
                     GetEvent::ReadError(err) => {
@@ -259,8 +305,8 @@ impl Minder {
                 continue;
             }
 
-            if let Err(err) = minder_usb::write(&wbuf).await {
-                printkln!("Error writing to USB: {:?}", err);
+            if let Err(err) = write(link, &wbuf).await {
+                printkln!("Minder write error: {:?}", err);
             }
         }
     }
@@ -272,7 +318,7 @@ impl Minder {
     async fn get_event(&mut self, timeout_ms: u32) -> GetEvent {
         let timeout = Timer::after(Duration::from_millis(timeout_ms as u64));
 
-        match select3(EVENTS.wait(), minder_usb::read(), timeout).await {
+        match select3(EVENTS.wait(), read(), timeout).await {
             Either3::First(event) => GetEvent::Event(event),
             Either3::Second(Ok(rbuf)) => GetEvent::Interrupted(rbuf),
             Either3::Second(Err(err)) => GetEvent::ReadError(err),
