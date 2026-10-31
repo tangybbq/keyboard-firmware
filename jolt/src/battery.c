@@ -8,9 +8,12 @@
  * charging the cell.  See jolt-mesa.md, "Bluetooth on the mesa3w".
  *
  * The cell changes slowly, so it is read once a minute, on the system
- * workqueue; the read is a single ADC sample.
+ * workqueue; the read is a single ADC sample.  Each change goes to the
+ * Battery Service, which notifies a subscribed host.  The first reading comes
+ * before Bluetooth is up; the service keeps it for the host to read.
  */
 
+#include <zephyr/bluetooth/services/bas.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/fuel_gauge.h>
 #include <zephyr/init.h>
@@ -25,7 +28,7 @@ static const struct device *const gauge = DEVICE_DT_GET(DT_NODELABEL(battery));
 
 static struct k_work_delayable battery_work;
 
-/* The charge last logged, so that only a change is; -1 before the first. */
+/* The charge last reported, so that only a change is; -1 before the first. */
 static int last_charge = -1;
 
 static void battery_handler(struct k_work *work)
@@ -44,6 +47,10 @@ static void battery_handler(struct k_work *work)
 	} else if (charge.relative_state_of_charge_pct != last_charge) {
 		last_charge = charge.relative_state_of_charge_pct;
 		LOG_INF("Battery %d mV, %d%%", voltage.voltage_uv / 1000, last_charge);
+		/* Fails only to notify, before Bluetooth is up; the level is kept. */
+		if (IS_ENABLED(CONFIG_BT_BAS)) {
+			(void)bt_bas_set_battery_level(last_charge);
+		}
 	}
 
 	k_work_reschedule(&battery_work, BATTERY_PERIOD);
