@@ -4,7 +4,8 @@
 //! `bbq_keyboard::layout::host`).  Each shows on the LEDs for a moment what it did: the LED it was
 //! about, or every LED red when it could not be done.  The profile work itself happens in ble.c,
 //! after the command has been taken, so "taken" means the board has such a profile, not that a
-//! host has connected to it.
+//! host has connected to it.  A host connecting shows its profile's LED the same way, whether
+//! it follows a select, a wake, or a link that dropped and came back.
 
 use bbq_keyboard::layout::host::{HostCommand, Output};
 use embassy_futures::select::{Either, select};
@@ -78,6 +79,15 @@ fn select_profile(_profile: u8) -> bool {
 #[cfg(not(CONFIG_BT))]
 fn clear_profile(_profile: u8) -> bool {
     false
+}
+
+/// Show which profile's host has connected, as a select of it does.  ble.c calls this once the
+/// link is encrypted, which is when reports can go to it.
+#[cfg(CONFIG_BT)]
+#[unsafe(no_mangle)]
+extern "C" fn ble_connected_callback(profile: u8) {
+    // Identity 0 does not advertise, so cannot connect; red if it somehow did.
+    FEEDBACK.signal(profile_feedback(profile, profile != 0));
 }
 
 /// Show each command's feedback for `FEEDBACK_MS`, or until the next command's replaces it.
