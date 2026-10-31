@@ -4,10 +4,12 @@
 //! `bbq_keyboard::layout::host`).  Each shows on the LEDs for a moment what it did: the LED it was
 //! about, or every LED red when it could not be done.  The profile work itself happens in ble.c,
 //! after the command has been taken, so "taken" means the board has such a profile, not that a
-//! host has connected to it.  A host connecting shows its profile's LED the same way, whether
-//! it follows a select, a wake, or a link that dropped and came back.
+//! host has connected to it.  An output command shows where typing now goes rather than the
+//! choice made (`hid::route_feedback`), and the sender shows it again whenever it changes by
+//! itself: USB plugged in or out, or a Bluetooth host connecting, whether after a select, a wake,
+//! or a link that dropped and came back.
 
-use bbq_keyboard::layout::host::{HostCommand, Output};
+use bbq_keyboard::layout::host::HostCommand;
 use embassy_futures::select::{Either, select};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::Timer;
@@ -36,11 +38,7 @@ pub fn command(command: HostCommand) {
         HostCommand::ClearProfile(profile) => profile_feedback(profile, clear_profile(profile)),
         HostCommand::Output(output) => {
             if hid::set_output(output) {
-                Feedback::Taken(match output {
-                    Output::Auto => 0,
-                    Output::Usb => 1,
-                    Output::Bluetooth => 2,
-                })
+                hid::route_feedback()
             } else {
                 Feedback::Refused
             }
@@ -81,13 +79,9 @@ fn clear_profile(_profile: u8) -> bool {
     false
 }
 
-/// Show which profile's host has connected, as a select of it does.  ble.c calls this once the
-/// link is encrypted, which is when reports can go to it.
-#[cfg(CONFIG_BT)]
-#[unsafe(no_mangle)]
-extern "C" fn ble_connected_callback(profile: u8) {
-    // Identity 0 does not advertise, so cannot connect; red if it somehow did.
-    FEEDBACK.signal(profile_feedback(profile, profile != 0));
+/// Show feedback that comes from no command: where typing goes, after it changed by itself.
+pub fn show(feedback: Feedback) {
+    FEEDBACK.signal(feedback);
 }
 
 /// Show each command's feedback for `FEEDBACK_MS`, or until the next command's replaces it.

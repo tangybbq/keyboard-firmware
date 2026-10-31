@@ -16,7 +16,9 @@
 //!
 //! Over all of that, jolt alone shows the host commands (`bbq_keyboard::layout::host`): every LED
 //! lit while the layer is armed, and then for a moment the LED a command was about, or every LED
-//! red when it could not be done.  See [`Feedback`].
+//! red when it could not be done.  Where typing goes is shown the same way, after an output
+//! command or when it changes by itself: the profile's LED for Bluetooth, the first and fourth
+//! for USB.  See [`Feedback`].
 //!
 //! Only the steady display is here.  The mode flash (`ModeDisplay::Flash`) needs `layout_task` to
 //! wake at the flash's end, which it does not schedule yet, and no board uses it.
@@ -72,15 +74,21 @@ const HOST_REFUSED: Shade = Shade {
     brightness: 100,
 };
 
-/// What a host command did, shown for a moment after it.
+/// What a host command did, or where typing now goes, shown for a moment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Feedback {
-    /// The command was taken, and was about this LED: a profile (from 0) or an output (auto, USB,
-    /// Bluetooth from 0, as on the top row).
+    /// The command was about this LED, a profile (from 0); or typing goes to that profile's
+    /// Bluetooth host.
     Taken(usize),
-    /// It could not be done: a profile the board does not have, or Bluetooth on a board without.
+    /// Typing goes to USB: the first and fourth LEDs, which no profile shows alone.
+    Usb,
+    /// It could not be done: a profile the board does not have, or Bluetooth on a board without;
+    /// or after an output command, typing goes nowhere, as no host is there for it.
     Refused,
 }
+
+/// The LEDs that show [`Feedback::Usb`].
+const USB_SLOTS: [usize; 2] = [0, 3];
 
 /// What a level looks like on a single-color LED, as a brightness in percent.
 ///
@@ -180,6 +188,17 @@ impl LedManager {
             Some(Feedback::Taken(slot)) => {
                 for (index, shade) in self.shades.iter_mut().enumerate() {
                     *shade = if index == slot {
+                        HOST_TAKEN
+                    } else {
+                        Shade::default()
+                    };
+                }
+                self.leds.update(&self.shades);
+                return;
+            }
+            Some(Feedback::Usb) => {
+                for (index, shade) in self.shades.iter_mut().enumerate() {
+                    *shade = if USB_SLOTS.contains(&index) {
                         HOST_TAKEN
                     } else {
                         Shade::default()

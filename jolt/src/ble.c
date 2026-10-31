@@ -43,8 +43,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(jolt_ble, LOG_LEVEL_INF);
 
-extern void ble_ready_callback(bool ready);
-extern void ble_connected_callback(uint8_t profile);
+extern void ble_ready_callback(bool ready, uint8_t profile);
 extern void ble_report_done_callback(uintptr_t epoch);
 
 /* How many profiles: identities 1 to PROFILE_COUNT.  CONFIG_BT_ID_MAX is one
@@ -348,7 +347,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	LOG_INF("Disconnected %s: 0x%02x %s", bt_conn_dst_str(conn), reason,
 		bt_hci_err_to_str(reason));
-	ble_ready_callback(false);
+	ble_ready_callback(false, 0);
 }
 
 /* Advertising stops when a host connects; once that connection's object is
@@ -374,12 +373,12 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
 	if (level >= BT_SECURITY_L2) {
 		struct bt_conn_info info;
 
-		ble_ready_callback(true);
-		/* Blink the profile's LED: the connection's own identity, as
-		 * `active_profile` belongs to `ble_workq`. */
-		if (bt_conn_get_info(conn, &info) == 0) {
-			ble_connected_callback(info.id);
+		/* The profile is the connection's own identity, as
+		 * `active_profile` belongs to `ble_workq`; hid.rs shows it. */
+		if (bt_conn_get_info(conn, &info) != 0) {
+			info.id = 0;
 		}
+		ble_ready_callback(true, info.id);
 	}
 }
 

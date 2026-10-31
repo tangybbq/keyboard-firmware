@@ -21,6 +21,9 @@ use zephyr::{
     sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
 };
 
+use crate::host;
+use crate::leds::manager::Feedback;
+
 unsafe extern "C" {
     fn usb_send_report(report: *const u8, len: u16) -> i32;
     #[cfg(CONFIG_BT)]
@@ -79,6 +82,9 @@ static HID_IN_FLIGHT_REPORT: InFlightReport = InFlightReport(UnsafeCell::new([0;
 /// A Bluetooth host is connected, over an encrypted link.
 #[cfg(CONFIG_BT)]
 static BLE_READY: AtomicBool = AtomicBool::new(false);
+/// The profile that host is on, numbered from 1, for showing where typing goes; 0 with none.
+#[cfg(CONFIG_BT)]
+static BLE_PROFILE: AtomicU8 = AtomicU8::new(0);
 /// Bluetooth reports sent and not yet gone out, counted down from `BLE_IN_FLIGHT_MAX`.
 #[cfg(CONFIG_BT)]
 static BLE_IN_FLIGHT: GreedySemaphore<CriticalSectionRawMutex> = GreedySemaphore::new(0);
@@ -152,6 +158,26 @@ fn route() -> Option<Transport> {
     }
 }
 
+/// Where typing goes, as the LEDs show it: the profile's LED for Bluetooth, the USB pair for USB,
+/// and every LED red for nowhere.
+fn route_shown(route: Option<Transport>) -> Feedback {
+    match route {
+        Some(Transport::Usb) => Feedback::Usb,
+        #[cfg(CONFIG_BT)]
+        Some(Transport::Ble) => match BLE_PROFILE.load(Ordering::Acquire) {
+            // Identity 0 does not advertise, so cannot connect; red if it somehow did.
+            0 => Feedback::Refused,
+            profile => Feedback::Taken(usize::from(profile) - 1),
+        },
+        None => Feedback::Refused,
+    }
+}
+
+/// Where typing goes now, for a host command to show.
+pub fn route_feedback() -> Feedback {
+    route_shown(route())
+}
+
 /// Choose where reports go.  False, and nothing changed, for Bluetooth on a board without it:
 /// holding the reports for a transport that cannot come would leave the keyboard dead.
 pub fn set_output(output: Output) -> bool {
@@ -186,6 +212,9 @@ fn transport_changed() {
 #[embassy_executor::task]
 pub async fn sender_task() -> () {
     let mut last = None;
+    // Where typing went at the last report, kept apart from `last`, which outlives a route going
+    // away so that its host can be given the all-up when it comes back.
+    let mut shown = None;
     loop {
         let report = HID_REPORTS.receive().await;
 
@@ -193,7 +222,18 @@ pub async fn sender_task() -> () {
             continue;
         }
 
-        let Some(transport) = route() else {
+        // Every change of route queues a report through `transport_changed`, so this sees each
+        // one.  Only a route arriving is shown: one going away by itself, a host leaving, would
+        // flash red at every profile switch.
+        let route = route();
+        if route != shown {
+            shown = route;
+            if route.is_some() {
+                host::show(route_shown(route));
+            }
+        }
+
+        let Some(transport) = route else {
             continue;
         };
         if last != Some(transport) {
@@ -293,7 +333,8 @@ extern "C" fn usb_input_report_done_callback() {
 
 #[cfg(CONFIG_BT)]
 #[unsafe(no_mangle)]
-extern "C" fn ble_ready_callback(ready: bool) {
+extern "C" fn ble_ready_callback(ready: bool, profile: u8) {
+    BLE_PROFILE.store(profile, Ordering::Release);
     BLE_READY.store(ready, Ordering::Release);
     BLE_EPOCH.fetch_add(1, Ordering::AcqRel);
     // As for USB: a new connection has nothing in flight, and a waiting sender has to wake when
