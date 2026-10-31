@@ -9,6 +9,8 @@ pub mod manager;
 
 #[cfg(dt = "chosen::bbq_led_strip")]
 mod led_strip;
+#[cfg(dt = "chosen::bbq_mono_leds")]
+mod mono;
 #[cfg(dt = "chosen::bbq_pwm_leds")]
 mod pwm;
 
@@ -20,6 +22,8 @@ mod pwm;
 pub struct Shade {
     /// On an RGB LED.
     pub color: RGB8,
+    /// On a single-color LED, as a brightness in percent, `0..=100`.
+    pub brightness: u8,
 }
 
 /// Represents a driver for 1 or more LEDs.
@@ -80,6 +84,11 @@ impl LedSet {
 
         #[cfg(dt = "chosen::bbq_led_strip")]
         if let Some(leds) = led_strip::LedStripGroup::get_instance() {
+            all.push(Box::new(leds));
+        }
+
+        #[cfg(dt = "chosen::bbq_mono_leds")]
+        if let Some(leds) = mono::MonoLeds::get_instance() {
             all.push(Box::new(leds));
         }
 

@@ -11,6 +11,9 @@
 //! dark underneath; Orsy lights all four white, and shows its pending capital (green, second LED)
 //! and being within a word (blue, third LED) in place of the white.
 //!
+//! A single-color LED (the mesa3w's white ones) shows the same levels by brightness alone; see
+//! [`brightness`].
+//!
 //! Only the steady display is here.  The mode flash (`ModeDisplay::Flash`) needs `layout_task` to
 //! wake at the flash's end, which it does not schedule yet, and no board uses it.
 
@@ -46,6 +49,24 @@ const CAP_NEXT: RGB8 = RGB8::new(0, 2, 0);
 
 /// Orsy: within a word.  Blue, on the third LED.
 const IN_WORD: RGB8 = RGB8::new(0, 0, 16);
+
+/// What a level looks like on a single-color LED, as a brightness in percent.
+///
+/// Brightness is all such an LED has, and its position already says which modifier it is, so
+/// these only have to tell the levels apart.  Each is about three times the one below, which the
+/// eye sees as roughly even steps: the mode dimmest, as in Orsy it is on the whole time, then
+/// Orsy's pending state, then held, with latched at full, as held to latched is the distinction
+/// the indicator turns on.  The pending capital and being within a word are on different LEDs, so
+/// they can share a level.  Provisional, to be tuned by eye on the board.
+fn brightness(level: Level) -> u8 {
+    match level {
+        Level::Off => 0,
+        Level::Mode => 3,
+        Level::CapNext | Level::InWord => 10,
+        Level::Held => 30,
+        Level::Latched => 100,
+    }
+}
 
 pub struct LedManager {
     leds: LedSet,
@@ -99,13 +120,17 @@ impl LedManager {
     /// Redraw from the mode and modifier state.
     fn render(&mut self) {
         for (slot, (shade, held)) in self.shades.iter_mut().zip(&MOD_LEDS).enumerate() {
-            shade.color = match self.indicator.level(slot) {
-                Level::Off => OFF,
-                Level::Mode => MODE,
-                Level::Held => *held,
-                Level::Latched => add(*held, LATCH),
-                Level::CapNext => CAP_NEXT,
-                Level::InWord => IN_WORD,
+            let level = self.indicator.level(slot);
+            *shade = Shade {
+                color: match level {
+                    Level::Off => OFF,
+                    Level::Mode => MODE,
+                    Level::Held => *held,
+                    Level::Latched => add(*held, LATCH),
+                    Level::CapNext => CAP_NEXT,
+                    Level::InWord => IN_WORD,
+                },
+                brightness: brightness(level),
             };
         }
         self.leds.update(&self.shades);

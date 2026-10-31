@@ -1,6 +1,7 @@
 fn main() {
     println!("cargo::rustc-check-cfg=cfg(dt, values(\"chosen::bbq_pwm_leds\"))");
     println!("cargo::rustc-check-cfg=cfg(dt, values(\"chosen::bbq_led_strip\"))");
+    println!("cargo::rustc-check-cfg=cfg(dt, values(\"chosen::bbq_mono_leds\"))");
     println!("cargo::rustc-check-cfg=cfg(dt, values(\"aliases::pwm_led0\"))");
     println!("cargo::rustc-check-cfg=cfg(dt, values(\"aliases::pwm_led1\"))");
     println!("cargo::rustc-check-cfg=cfg(dt, values(\"aliases::pwm_led2\"))");
