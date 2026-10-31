@@ -16,7 +16,7 @@ impl LedGroup for PwmLed {
     }
 
     fn update(&mut self, values: &[Shade]) {
-        if let Some(Shade { color: value }) = values.first() {
+        if let Some(Shade { color: value, .. }) = values.first() {
             self.red.set_brightness(scale(value.r)).unwrap();
             self.green.set_brightness(scale(value.g)).unwrap();
             self.blue.set_brightness(scale(value.b)).unwrap();
