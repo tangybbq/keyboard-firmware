@@ -166,7 +166,7 @@ async fn main(spawner: Spawner, unique: &'static str) -> () {
 
     *LEDS.lock().await = Some(leds::manager::LedManager::new(leds::LedSet::get_all()));
 
-    spawner.spawn(hid::usb_sender_task().unwrap());
+    spawner.spawn(hid::sender_task().unwrap());
     spawner.spawn(minder::minder_task(unique).unwrap());
     spawner.spawn(minder::test_event_task().unwrap());
     spawner.spawn(minder::reset_task().unwrap());

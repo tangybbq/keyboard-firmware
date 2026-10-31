@@ -26,12 +26,12 @@ struct HidReport {
 
 /// The report the USB stack is sending.  `hid_device_submit_report` does not copy the report: the
 /// buffer has to stay put, and pointer aligned, until `input_report_done`.  So the one report in
-/// flight lives here rather than in `usb_sender_task`, which is the only writer and writes only
+/// flight lives here rather than in `send_usb`, which is the only writer and writes only
 /// while it holds the `HID_IN_FLIGHT` permit that the done callback gives back.
 #[repr(C, align(4))]
 struct InFlightReport(UnsafeCell<[u8; 8]>);
 
-// SAFETY: the only access is from `usb_sender_task`, serialized with the USB stack's reads by the
+// SAFETY: the only access is from `send_usb`, serialized with the USB stack's reads by the
 // `HID_IN_FLIGHT` permit, as described on the type.
 unsafe impl Sync for InFlightReport {}
 
@@ -73,38 +73,58 @@ fn submit_report(report: [u8; 8]) {
     }
 }
 
+/// Where a report can go.  Only USB so far.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Transport {
+    Usb,
+}
+
+/// The transport a report goes to now, if any is ready for one.
+fn route() -> Option<Transport> {
+    if HID_READY.load(Ordering::Acquire) {
+        Some(Transport::Usb)
+    } else {
+        None
+    }
+}
+
 #[embassy_executor::task]
-pub async fn usb_sender_task() -> () {
+pub async fn sender_task() -> () {
     loop {
         let report = HID_REPORTS.receive().await;
 
-        if report.generation != HID_GENERATION.load(Ordering::Acquire)
-            || !HID_READY.load(Ordering::Acquire)
-        {
+        if report.generation != HID_GENERATION.load(Ordering::Acquire) {
             continue;
         }
 
-        let permit = HID_IN_FLIGHT.acquire(1).await.unwrap();
-        permit.disarm();
-
-        if report.generation != HID_GENERATION.load(Ordering::Acquire)
-            || !HID_READY.load(Ordering::Acquire)
-        {
-            HID_IN_FLIGHT.release(1);
-            continue;
+        match route() {
+            Some(Transport::Usb) => send_usb(report).await,
+            None => (),
         }
+    }
+}
 
-        let buf = HID_IN_FLIGHT_REPORT.0.get();
-        // SAFETY: holding the permit means no report is in flight, so the USB stack is not
-        // reading the buffer, and this task is its only writer.
-        unsafe { *buf = report.bytes };
-        // SAFETY: `buf` is 8 aligned bytes in a static, and nothing writes them again until
-        // `input_report_done` returns the permit.
-        let ret = unsafe { usb_send_report(buf.cast::<u8>(), 8) };
-        if ret != 0 {
-            HID_IN_FLIGHT.release(1);
-            printkln!("usb_send_report failed: {}", ret);
-        }
+async fn send_usb(report: HidReport) {
+    let permit = HID_IN_FLIGHT.acquire(1).await.unwrap();
+    permit.disarm();
+
+    if report.generation != HID_GENERATION.load(Ordering::Acquire)
+        || !HID_READY.load(Ordering::Acquire)
+    {
+        HID_IN_FLIGHT.release(1);
+        return;
+    }
+
+    let buf = HID_IN_FLIGHT_REPORT.0.get();
+    // SAFETY: holding the permit means no report is in flight, so the USB stack is not
+    // reading the buffer, and this task is its only writer.
+    unsafe { *buf = report.bytes };
+    // SAFETY: `buf` is 8 aligned bytes in a static, and nothing writes them again until
+    // `input_report_done` returns the permit.
+    let ret = unsafe { usb_send_report(buf.cast::<u8>(), 8) };
+    if ret != 0 {
+        HID_IN_FLIGHT.release(1);
+        printkln!("usb_send_report failed: {}", ret);
     }
 }
 
