@@ -355,7 +355,11 @@ pub fn types_a_character(variant: VariantKey, code: u16) -> bool {
         Action::Simple(k) => char_for_key(*k, false).is_some(),
         Action::Shifted(k) => char_for_key(*k, true).is_some(),
         Action::Text(_) => true,
-        Action::OneShot(_) | Action::Release | Action::Variant(_) | Action::Orsy => false,
+        Action::OneShot(_)
+        | Action::Release
+        | Action::Variant(_)
+        | Action::Orsy
+        | Action::HostCommands => false,
     }
 }
 
@@ -1004,11 +1008,12 @@ fn typed_text(action: &ChordAction) -> Option<String> {
         // None of these put anything on the screen.  A variant selection is
         // not dead -- `is_dead` asks whether the table had an entry at all --
         // but it types nothing, so it takes no part in the n-gram analysis.
-        // Nor does the switch to Orsy.
+        // Nor does the switch to Orsy, or the host command prefix.
         ChordAction::OneShot(_)
         | ChordAction::Release
         | ChordAction::Variant(_)
-        | ChordAction::Orsy => None,
+        | ChordAction::Orsy
+        | ChordAction::HostCommands => None,
     }
 }
 

@@ -472,6 +472,7 @@ fn action_json(action: &Action) -> String {
         ),
         #[cfg(feature = "orsy")]
         Action::Orsy => "{ \"kind\": \"orsy\" }".to_string(),
+        Action::HostCommands => "{ \"kind\": \"host-commands\" }".to_string(),
     }
 }
 

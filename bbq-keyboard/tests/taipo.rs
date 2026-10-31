@@ -13,6 +13,7 @@
 
 use std::{cell::RefCell, collections::VecDeque};
 
+use bbq_keyboard::layout::host::{HostCommand, Output};
 use bbq_keyboard::layout::taipo::TaipoVariant;
 use bbq_keyboard::{
     layout::{
@@ -50,6 +51,9 @@ const BK: u16 = 0x200;
 /// letters, though the shape is what they mean in either table.
 const VARIANT_TAIPO: u16 = R | S | N | I;
 const VARIANT_DOSH: u16 = A | O | T | E;
+
+/// The Dosh chord that arms the host command layer.
+const HOST_PREFIX: u16 = A | O | T;
 
 /// Shorthands for the two sides.
 const LEFT: Side = Side::Left;
@@ -137,6 +141,8 @@ fn next_mode(mode: LayoutMode, two_row: bool) -> LayoutMode {
 #[derive(PartialEq, Eq, Debug)]
 enum Actions {
     ClearSubMode(MinorMode),
+    HostArmed(bool),
+    HostCommand(HostCommand),
     SendKey(KeyAction),
     SendRawSteno(Stroke),
     SetMode(LayoutMode),
@@ -216,6 +222,16 @@ impl LayoutActions for TestActor {
 
     async fn set_mod_state(&self, oneshot: Mods, sticky: Mods) {
         *self.mod_state.borrow_mut() = (oneshot, sticky);
+    }
+
+    async fn set_host_armed(&self, armed: bool) {
+        self.actions.borrow_mut().push_back(Actions::HostArmed(armed));
+    }
+
+    async fn host_command(&self, command: HostCommand) {
+        self.actions
+            .borrow_mut()
+            .push_back(Actions::HostCommand(command));
     }
 }
 
@@ -2372,6 +2388,164 @@ fn test_variant_chord_two_row() {
     script.chord(LEFT, E | S).types(Keyboard::M);
     script.select_variant(RIGHT, false);
     script.chord(RIGHT, E | S).types(Keyboard::V);
+
+    script.run();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// The host command layer
+//
+// `a+o+t` in dosh arms a one-chord layer: the next chord, on either hand, is a
+// host command if it is one, and is typed as usual if it is not.
+//////////////////////////////////////////////////////////////////////////////
+
+/// Every command in the layer, with the chord that gives it.
+const HOST_CHORDS: &[(u16, HostCommand)] = &[
+    (E, HostCommand::SelectProfile(1)),
+    (T, HostCommand::SelectProfile(2)),
+    (O, HostCommand::SelectProfile(3)),
+    (A, HostCommand::SelectProfile(4)),
+    (E | SP, HostCommand::ClearProfile(1)),
+    (T | SP, HostCommand::ClearProfile(2)),
+    (O | SP, HostCommand::ClearProfile(3)),
+    (A | SP, HostCommand::ClearProfile(4)),
+    (I, HostCommand::Output(Output::Auto)),
+    (N, HostCommand::Output(Output::Usb)),
+    (S, HostCommand::Output(Output::Bluetooth)),
+];
+
+impl Script {
+    /// Type the host command prefix, and expect the layer to arm.
+    fn host_prefix(&mut self, side: Side) -> &mut Self {
+        self.chord(side, HOST_PREFIX)
+            .expect(Actions::HostArmed(true))
+            .idle()
+    }
+}
+
+/// Each command chord after the prefix gives its command and types nothing.
+#[test]
+fn test_host_commands() {
+    for &(chord, command) in HOST_CHORDS {
+        let mut script = Script::dosh();
+        script.host_prefix(LEFT);
+        script
+            .chord(LEFT, chord)
+            .expect(Actions::HostArmed(false))
+            .expect(Actions::HostCommand(command))
+            .idle();
+        script.run();
+    }
+}
+
+/// The layer lasts for one chord: the same chord again is typed.
+#[test]
+fn test_host_layer_is_one_chord() {
+    let mut script = Script::dosh();
+
+    script.host_prefix(LEFT);
+    script
+        .chord(LEFT, E)
+        .expect(Actions::HostArmed(false))
+        .expect(Actions::HostCommand(HostCommand::SelectProfile(1)));
+    script.chord(LEFT, E).types(Keyboard::E);
+
+    script.run();
+}
+
+/// The prefix and the command can be on different hands.
+#[test]
+fn test_host_layer_either_hand() {
+    let mut script = Script::dosh();
+
+    script.host_prefix(LEFT);
+    script
+        .chord(RIGHT, T)
+        .expect(Actions::HostArmed(false))
+        .expect(Actions::HostCommand(HostCommand::SelectProfile(2)));
+    script.host_prefix(RIGHT);
+    script
+        .chord(LEFT, O | SP)
+        .expect(Actions::HostArmed(false))
+        .expect(Actions::HostCommand(HostCommand::ClearProfile(3)));
+
+    script.run();
+}
+
+/// A chord that is not a command disarms the layer and is typed as usual, so
+/// a prefix struck by accident costs nothing unless the next chord happens to
+/// be a command.
+#[test]
+fn test_host_layer_passes_other_chords() {
+    let mut script = Script::dosh();
+
+    script.host_prefix(LEFT);
+    // `e+s` is `m` in dosh.
+    script
+        .chord(LEFT, E | S)
+        .expect(Actions::HostArmed(false))
+        .types(Keyboard::M);
+    script.chord(LEFT, E).types(Keyboard::E);
+
+    script.run();
+}
+
+/// Both thumbs back out: the layer disarms, and nothing else happens.
+#[test]
+fn test_host_layer_cancel() {
+    let mut script = Script::dosh();
+
+    script.host_prefix(LEFT);
+    script.chord(LEFT, SP | BK).expect(Actions::HostArmed(false)).idle();
+    script.chord(LEFT, E).types(Keyboard::E);
+
+    script.run();
+}
+
+/// The prefix while armed is not a command, so it disarms and then arms again.
+#[test]
+fn test_host_prefix_twice() {
+    let mut script = Script::dosh();
+
+    script.host_prefix(LEFT);
+    script
+        .chord(LEFT, HOST_PREFIX)
+        .expect(Actions::HostArmed(false))
+        .expect(Actions::HostArmed(true))
+        .idle();
+    script
+        .chord(LEFT, I)
+        .expect(Actions::HostArmed(false))
+        .expect(Actions::HostCommand(HostCommand::Output(Output::Auto)));
+
+    script.run();
+}
+
+/// A one-shot modifier held across the layer is still held for the chord
+/// typed after it: a host command types nothing, so it does not use it up.
+#[test]
+fn test_host_layer_keeps_oneshot() {
+    let mut script = Script::dosh();
+
+    // Shift is the index pair.
+    script.chord(LEFT, E | I).mod_only(Mods::SHIFT);
+    script.host_prefix(LEFT);
+    script
+        .chord(LEFT, E)
+        .expect(Actions::HostArmed(false))
+        .expect(Actions::HostCommand(HostCommand::SelectProfile(1)));
+    script.chord(LEFT, T).types_mods(Keyboard::T, Mods::SHIFT);
+
+    script.run();
+}
+
+/// The prefix is dosh's; in the taipo table the shape is still unmapped.
+#[test]
+fn test_host_prefix_dosh_only() {
+    let mut script = Script::taipo();
+
+    script.chord(LEFT, HOST_PREFIX).idle();
+    script.chord(LEFT, E).types(Keyboard::E);
 
     script.run();
 }

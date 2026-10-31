@@ -37,6 +37,7 @@ fn chord_types(variant: VariantKey, code: u16) -> Option<String> {
         Action::Release => "release".to_string(),
         Action::Variant(v) => format!("select {v:?}"),
         Action::Orsy => "switch to Orsy".to_string(),
+        Action::HostCommands => "host commands".to_string(),
     })
 }
 

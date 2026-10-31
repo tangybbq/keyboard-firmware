@@ -339,6 +339,10 @@ pub static DOSH_ACTIONS: &[Entry] = &[
     // back, so the one shape does both.
     #[cfg(feature = "orsy")]
     Entry { code: 0x388, action: Action::Orsy, },
+
+    // The host command prefix, `a+o+t`: the next chord selects or clears a
+    // Bluetooth profile or chooses the output.  See the `host` module.
+    Entry { code: 0x007, action: Action::HostCommands, },
 ];
 
 #[cfg(test)]

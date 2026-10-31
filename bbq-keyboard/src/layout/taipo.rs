@@ -55,6 +55,7 @@ use usbd_human_interface_device::page::Keyboard;
 use crate::usb_typer::key_for_char;
 use crate::{KeyEvent, MinorMode, Side, Mods, KeyAction};
 
+use super::host::HOST_COMMANDS;
 use super::{min_tick, taipo_map, LayoutActions};
 
 /// Which chord table the Taipo engine is interpreting chords with.
@@ -170,6 +171,9 @@ pub struct TaipoManager {
     /// with [`take_orsy_request`](Self::take_orsy_request).
     #[cfg(feature = "orsy")]
     orsy_request: bool,
+
+    /// Set by the host command prefix: the next chord is a host command.
+    host_armed: bool,
 }
 
 impl Default for TaipoManager {
@@ -186,6 +190,7 @@ impl Default for TaipoManager {
             reported: (Mods::empty(), Mods::empty()),
             #[cfg(feature = "orsy")]
             orsy_request: false,
+            host_armed: false,
         }
     }
 }
@@ -316,6 +321,22 @@ impl TaipoManager {
                 actions.taipo_chord(tevent.side, tevent.code, end).await;
             }
 
+            // The chord after the host command prefix is looked for in the
+            // host layer first.  Either way the layer is spent; a chord that
+            // is not a host command goes on to the table as usual.  One that
+            // is types nothing, and leaving `down` false makes its release do
+            // nothing either.
+            if self.host_armed {
+                self.host_armed = false;
+                actions.set_host_armed(false).await;
+                if let Some(host) = HOST_COMMANDS.iter().find(|e| e.code == tevent.code) {
+                    if let Some(command) = host.command {
+                        actions.host_command(command).await;
+                    }
+                    continue;
+                }
+            }
+
             // Look up the code to see if we have an action.  The tables are
             // `'static`, so binding the entry here releases the borrow of
             // `self` that `actions()` takes.
@@ -366,6 +387,14 @@ impl TaipoManager {
                     // does nothing.
                     if self.active(is_steno) {
                         self.orsy_request = true;
+                    }
+                }
+                Some(Entry { action: Action::HostCommands, .. }) => {
+                    // Gated as the variant chords are, and like them types
+                    // nothing.
+                    if self.active(is_steno) {
+                        self.host_armed = true;
+                        actions.set_host_armed(true).await;
                     }
                 }
                 Some(Entry { action: Action::Variant(variant), .. }) => {
@@ -1256,6 +1285,10 @@ pub enum Action {
     /// with no mode key; the same chord in Orsy switches back.
     #[cfg(feature = "orsy")]
     Orsy,
+    /// Arm the host command layer: the next chord is looked up in
+    /// [`HOST_COMMANDS`] rather than this table.  See the
+    /// [`host`](super::host) module.
+    HostCommands,
 }
 
 /// The mapping between each key and its Action.

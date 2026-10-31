@@ -20,6 +20,7 @@ use crate::usb_typer::char_for_key;
 pub mod export;
 pub mod fingerprint;
 pub mod dosh;
+pub mod host;
 #[cfg(feature = "orsy")]
 pub mod orsy;
 #[cfg(feature = "qwerty")]
@@ -270,6 +271,7 @@ mod async_traits {
 
     use crate::{KeyAction, MinorMode, Mods, Side};
 
+    use super::host::HostCommand;
     use super::taipo::ChordEnd;
     use super::LayoutMode;
 
@@ -366,6 +368,20 @@ mod async_traits {
         /// here, though an indicator could.
         async fn set_row_position(&self, lower: bool) {
             let _ = lower;
+        }
+
+        /// Report the host command layer being armed by its prefix chord, or
+        /// disarmed by the chord after it, whatever that was.
+        ///
+        /// For an indicator; see [`host`](super::host).
+        async fn set_host_armed(&self, armed: bool) {
+            let _ = armed;
+        }
+
+        /// Carry out a host command: select or clear a Bluetooth profile, or
+        /// choose the output.  A board with no Bluetooth has nothing to do.
+        async fn host_command(&self, command: HostCommand) {
+            let _ = command;
         }
     }
 }

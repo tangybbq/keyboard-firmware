@@ -624,6 +624,7 @@ fn chord_label(action: Option<&ChordAction>) -> String {
         Some(ChordAction::Variant(TaipoVariant::Taipo)) => "→ dosh".into(),
         Some(ChordAction::Variant(TaipoVariant::Dosh)) => "→ taipo".into(),
         Some(ChordAction::Orsy) => "→ orsy".into(),
+        Some(ChordAction::HostCommands) => "host".into(),
         Some(other) => format!("{other:?}"),
     }
 }

@@ -194,6 +194,7 @@ fn entry_hash(h: &mut Fnv, entry: &Entry) {
         }
         #[cfg(feature = "orsy")]
         Action::Orsy => h.byte(6),
+        Action::HostCommands => h.byte(7),
     }
 }
 

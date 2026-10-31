@@ -429,6 +429,9 @@ pub enum ChordAction {
     /// The chord that switches to the Orsy layout.
     #[cfg(feature = "orsy")]
     Orsy,
+    /// The host command prefix.  The chord after it is recorded with its
+    /// meaning in the table, though the engine took it as a host command.
+    HostCommands,
 }
 
 impl ChordAction {
@@ -442,6 +445,7 @@ impl ChordAction {
             Action::Variant(v) => ChordAction::Variant(*v),
             #[cfg(feature = "orsy")]
             Action::Orsy => ChordAction::Orsy,
+            Action::HostCommands => ChordAction::HostCommands,
         }
     }
 }
@@ -1041,6 +1045,7 @@ impl Chord {
                 Some(ChordAction::Variant(v)) => format!("variant {v:?}"),
                 #[cfg(feature = "orsy")]
                 Some(ChordAction::Orsy) => "orsy".to_string(),
+                Some(ChordAction::HostCommands) => "host-commands".to_string(),
             },
         )
     }

@@ -491,12 +491,15 @@ by accident (a sloppy `a+o+t+e`, say) costs nothing.  From Orsy, the user
 switches to Dosh first (`e+i+Sp+Bk`).  The LEDs show the layer armed, and
 afterwards which profile is active.
 
-In `bbq-keyboard`, behind a `bluetooth` cargo feature so `jolt-embassy-rp`
-does not get the chord: `Action::HostCommands` as the prefix's entry, the
-armed state in the Taipo engine next to the variant handling, a
-`HostCommand` table, and `LayoutActions::host_command()` with an empty
-default.  The Dosh fingerprint changes with the feature on, so
-`layouts.json` is regenerated and synced (`sync-layouts.py`).
+In `bbq-keyboard` (`layout/host.rs`): `Action::HostCommands` as the
+prefix's entry, the armed state in the Taipo engine next to the variant
+handling, the `HOST_COMMANDS` table, and `LayoutActions::host_command()`
+and `set_host_armed()` with empty defaults.  It is in every build, not
+behind a cargo feature as first planned: the firmware reports the Dosh
+fingerprint to TaipoTeacher, and a feature that only jolt on the mesa3w
+could have (cargo cannot follow `CONFIG_BT`) would give Dosh two
+fingerprints.  A board with no Bluetooth ignores the commands.  The chord
+after the prefix is still recorded by the replays with its table meaning.
 
 ### Steps
 

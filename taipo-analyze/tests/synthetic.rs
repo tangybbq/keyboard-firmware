@@ -338,7 +338,11 @@ fn test_the_ranking_is_only_of_chords_that_type() {
         for entry in table {
             let types = types_a_character(variant, entry.code);
             match &entry.action {
-                Action::OneShot(_) | Action::Release | Action::Variant(_) | Action::Orsy => {
+                Action::OneShot(_)
+                | Action::Release
+                | Action::Variant(_)
+                | Action::Orsy
+                | Action::HostCommands => {
                     assert!(!types, "{variant:?} 0x{:03x} is not typing", entry.code)
                 }
                 Action::Text(_) => assert!(types, "{variant:?} 0x{:03x} types text", entry.code),
