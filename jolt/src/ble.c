@@ -382,10 +382,23 @@ static void security_changed(struct bt_conn *conn, bt_security_t level,
 	}
 }
 
+/* What the host settled on, which is the host's choice: the keyboard asks
+ * for its preferred parameters a few seconds after connecting, and the host
+ * may take them, or not. */
+static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency,
+			     uint16_t timeout)
+{
+	ARG_UNUSED(conn);
+
+	LOG_INF("Connection interval %u.%02u ms, latency %u, timeout %u ms",
+		interval * 5 / 4, (interval * 125) % 100, latency, timeout * 10);
+}
+
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
 	.disconnected = disconnected,
 	.recycled = recycled,
+	.le_param_updated = le_param_updated,
 	.security_changed = security_changed,
 };
 
