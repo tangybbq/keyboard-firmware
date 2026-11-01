@@ -619,16 +619,20 @@ updates come along for free, though USB stays the better way for big ones.
 
 ### Hosts
 
-1. **keyminder**, through the `btleplug` crate, with an option choosing
-   the keyboard by name.  For testing the firmware side on its own.
-2. **MinderKit**, a `BLETransport` beside `USBTransport`, on CoreBluetooth
+1. **keyminder**, through the `bluest` crate, with `--serial ble:[name]`
+   choosing the keyboard by name.  For testing the firmware side on its
+   own.
+2. **MinderKit**, `MinderBLEDevice` beside the USB `MinderDevice`, both
+   behind a `MinderLink` protocol, on CoreBluetooth
    (`retrieveConnectedPeripherals(withServices:)` finds a keyboard the
-   system already holds).  The open question: whether CoreBluetooth lets
+   system already holds).  The open question, whether CoreBluetooth lets
    an app subscribe to a custom service on a keyboard that macOS's HID
-   holds.  Expected yes, as macOS claims only the HID Service; settle it
-   with a throwaway script before building the transport.
+   holds, came out yes (2026-10-31).  The lookup is by the minder service
+   alone: macOS lists no peripheral by the HID Service, which it keeps to
+   itself.  A round trip is about 30 ms, two connection intervals.
 3. **TaipoTeacher** uses USB when it is there and Bluetooth otherwise, and
-   knows the keyboard by `Hello`'s unique id either way.
+   knows the keyboard by `Hello`'s unique id either way.  A Bluetooth
+   session gives way when the same keyboard is plugged in.
 
 ### Steps
 
