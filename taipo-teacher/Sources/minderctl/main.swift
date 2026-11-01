@@ -5,10 +5,23 @@
 import Foundation
 import MinderKit
 
-let serial = CommandLine.arguments.dropFirst().first
+//
+//     minderctl [serial]       the keyboard on USB, the first or the one with this serial
+//     minderctl --ble [name]   the connected Bluetooth keyboard, or one whose name has this
+var args = CommandLine.arguments.dropFirst()
+let bluetooth = args.first == "--ble"
+if bluetooth { args = args.dropFirst() }
+let choice = args.first
 
 do {
-    let device = try MinderDevice(serial: serial)
+    let device: MinderLink
+    if bluetooth {
+        let ble = try MinderBLEDevice(name: choice)
+        print("bluetooth:    \(ble.name)")
+        device = ble
+    } else {
+        device = try MinderDevice(serial: choice)
+    }
     device.drain()
 
     guard case .hello(let hello) = try device.call(.hello(version: MinderVersion.current)) else {
