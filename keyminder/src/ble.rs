@@ -16,10 +16,6 @@ use futures::{executor::block_on, FutureExt, StreamExt};
 use minder::{ble, HidDecoder, HidWrite, PACKET_SIZE};
 use minicbor::Encode;
 
-/// The HID Service, which every keyboard has: the second way to find a keyboard among the
-/// connected devices, should the host not have listed its minder service.
-const HID_SERVICE: Uuid = Uuid::from_u128(0x0000_1812_0000_1000_8000_0080_5f9b_34fb);
-
 /// A minder connection to a keyboard over Bluetooth.
 pub struct BleLink {
     /// Packets for the worker to write.
@@ -158,8 +154,10 @@ async fn open(want: &str) -> Result<(Adapter, Device, Characteristic, Characteri
     adapter.wait_available().await?;
 
     let service_uuid = Uuid::from_u128(ble::SERVICE);
+    // By the minder service alone.  The HID Service would find nothing more: macOS keeps it to
+    // itself and lists no device by it.
     let devices = adapter
-        .connected_devices_with_services(&[service_uuid, HID_SERVICE])
+        .connected_devices_with_services(&[service_uuid])
         .await?;
 
     for device in devices {
