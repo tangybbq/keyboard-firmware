@@ -15,7 +15,7 @@ import IOUSBHost
 /// `__` spellings.  `copyPipe(withAddress:)` is the exception and keeps its plain name.
 ///
 /// See `docs/spikes/swift-usb/` for the standalone program that established both.
-public final class MinderDevice {
+public final class MinderDevice: MinderLink {
     /// The serial number of the keyboard this is talking to, if it reported one.
     public let serial: String?
 
@@ -204,12 +204,6 @@ public final class MinderDevice {
         // the one buffer safe.
         let message = Array(Data(bytes: readBuffer.bytes, count: got))
         return try Reply.decode(message)
-    }
-
-    /// Send and wait for the reply.
-    public func call(_ request: Request, timeout: TimeInterval = 20.0) throws -> Reply {
-        try send(request)
-        return try receive(timeout: timeout)
     }
 
     /// Throw away anything the device still owes, so a session starts in step.

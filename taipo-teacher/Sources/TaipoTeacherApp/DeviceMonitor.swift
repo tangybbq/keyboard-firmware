@@ -1195,7 +1195,7 @@ public final class DeviceMonitor: ObservableObject {
     }
 
     private nonisolated func drain(
-        _ device: MinderDevice, engine: ChordEngine, clock: inout Clock, layouts: Layouts
+        _ device: MinderLink, engine: ChordEngine, clock: inout Clock, layouts: Layouts
     ) throws {
         while true {
             // Re-checked each time round: a batch can span the moment a password field
@@ -1252,7 +1252,7 @@ public final class DeviceMonitor: ObservableObject {
     }
 
     /// Throw away whatever the device still holds, so a session starts clean.
-    private nonisolated func discardBuffered(_ device: MinderDevice) throws {
+    private nonisolated func discardBuffered(_ device: MinderLink) throws {
         while true {
             guard case .eventLog(let batch) = try device.call(.getEventLog(maxBytes: 3200))
             else { return }
