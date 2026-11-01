@@ -219,7 +219,7 @@ struct LiveView: View {
 
     private var statusColor: Color {
         switch monitor.status {
-        case .connected(_, let mismatch): return mismatch == nil ? .green : .orange
+        case .connected(_, _, let mismatch): return mismatch == nil ? .green : .orange
         case .connecting: return .yellow
         case .failed: return .red
         case .disconnected: return .secondary

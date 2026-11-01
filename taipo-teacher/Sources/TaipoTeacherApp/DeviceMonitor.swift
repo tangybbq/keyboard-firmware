@@ -33,7 +33,8 @@ public final class DeviceMonitor: ObservableObject {
     @Published public private(set) var lastScrub: String?
     /// Where the logs are being written.
     public let logDirectory = LogWriter.defaultDirectory
-    /// The keyboards plugged in, by serial number, as of the last look.
+    /// The keyboards plugged in, by serial number, as of the last look, and the one reached
+    /// over Bluetooth, if one is.
     @Published public private(set) var keyboards: [String] = []
     /// The keyboard to collect from, or nil for whichever is found first.  Remembered across
     /// launches, so a second keyboard kept for testing does not have to be chosen again.
@@ -334,14 +335,15 @@ public final class DeviceMonitor: ObservableObject {
     public enum Status: Equatable {
         case disconnected
         case connecting
-        case connected(device: String, mismatch: LayoutMismatch?)
+        case connected(device: String, bluetooth: Bool, mismatch: LayoutMismatch?)
         case failed(String)
 
         public var summary: String {
             switch self {
             case .disconnected: return "Not connected"
             case .connecting: return "Connecting…"
-            case .connected(let device, let mismatch):
+            case .connected(let device, let bluetooth, let mismatch):
+                let device = bluetooth ? "\(device) over Bluetooth" : device
                 guard mismatch != nil else { return device }
                 return "\(device) — wrong chord tables"
             case .failed(let why): return "Failed: \(why)"
@@ -350,7 +352,7 @@ public final class DeviceMonitor: ObservableObject {
 
         /// The two fingerprints, when they disagree, so the label can say which is which.
         public var mismatch: LayoutMismatch? {
-            if case .connected(_, let mismatch) = self { return mismatch }
+            if case .connected(_, _, let mismatch) = self { return mismatch }
             return nil
         }
     }
@@ -423,6 +425,11 @@ public final class DeviceMonitor: ObservableObject {
     private let switchRequested = Flag(false)
     /// What `keyboards` was last set to.  Only ever touched from `queue`, like `log`.
     nonisolated(unsafe) private var seenKeyboards: [String] = []
+    /// The keyboards on USB, as of the last look.  Only ever touched from `queue`.
+    nonisolated(unsafe) private var pluggedIn: [String] = []
+    /// The keyboard the session has over Bluetooth, if it does.  Only ever touched from
+    /// `queue`.
+    nonisolated(unsafe) private var bluetoothKeyboard: String?
 
     private static let chosenKeyboardKey = "keyboardSerial"
     private(set) var layouts: Layouts?
@@ -569,18 +576,24 @@ public final class DeviceMonitor: ObservableObject {
         return connected + [chosen]
     }
 
-    /// Look at which keyboards are plugged in, and publish it if that has changed.
+    /// Look at which keyboards are plugged in, and publish it, with the one over Bluetooth,
+    /// if that has changed.
     ///
     /// Only on a change: the same list assigned again still fires `objectWillChange`, and
     /// `secureInput` found that each one costs a redraw of everything watching.
     private nonisolated func refreshKeyboards() {
-        let now = MinderDevice.connectedSerials()
+        pluggedIn = MinderDevice.connectedSerials()
+        var now = pluggedIn
+        if let bluetoothKeyboard, !now.contains(bluetoothKeyboard) {
+            now.append(bluetoothKeyboard)
+        }
         guard now != seenKeyboards else { return }
         seenKeyboards = now
         Task { @MainActor [weak self] in self?.keyboards = now }
     }
 
-    /// Whether a session on the keyboard with this serial should carry on.
+    /// Whether a session on the keyboard with this serial should carry on.  A keyboard's
+    /// serial is the `info` its `Hello` gives, which is how one is known over Bluetooth.
     private nonisolated func wanted(_ serial: String?) -> Bool {
         guard let want = chosen.current else { return true }
         return want == serial
@@ -1025,19 +1038,16 @@ public final class DeviceMonitor: ObservableObject {
         switchRequested.current = false
         refreshKeyboards()
 
-        let device: MinderDevice
+        let device: MinderLink
         let hello: HelloInfo
+        let bluetooth: Bool
         let layouts: Layouts
         do {
             layouts = try Layouts.bundled()
-            device = try MinderDevice(serial: chosen.current)
-            device.drain()
-            guard case .hello(let info) = try device.call(.hello(version: MinderVersion.current))
-            else { throw MinderDevice.DeviceError.notFound(serial: nil) }
-            hello = info
-        } catch MinderDevice.DeviceError.notFound {
-            // No keyboard on USB.  Not a failure: it is the normal state while the keyboard
-            // types over Bluetooth, which minder does not reach yet.
+            (device, hello, bluetooth) = try open(chosen.current)
+        } catch MinderDevice.DeviceError.notFound, MinderBLEDevice.DeviceError.notFound {
+            // No keyboard on either.  Not a failure: the keyboard is off, asleep, or typing
+            // into another computer.
             Task { @MainActor [weak self] in self?.status = .disconnected }
             return nil
         } catch {
@@ -1057,9 +1067,16 @@ public final class DeviceMonitor: ObservableObject {
             self?.variant = layouts.defaultVariant
             self?.orsyWords = try? OrsyWords.bundled()
             self?.orsyTheory = layouts.orsy.map { OrsyTheory($0) }
-            self?.status = .connected(device: hello.info, mismatch: mismatch)
+            self?.status = .connected(
+                device: hello.info, bluetooth: bluetooth, mismatch: mismatch)
             self?.nextDrill()
         }
+
+        if bluetooth {
+            bluetoothKeyboard = hello.info
+            refreshKeyboards()
+        }
+        defer { bluetoothKeyboard = nil }
 
         guard hello.supports(Capability.keyLog) else {
             runningFlag.current = false
@@ -1110,10 +1127,16 @@ public final class DeviceMonitor: ObservableObject {
             var wasSecure: Bool?
             // Keyboards come and go while this one is connected, and the menu should say so.
             var lookedAt = Date()
-            while self.isRunning && self.wanted(device.serial) {
+            while self.isRunning && self.wanted(hello.info) {
                 if Date().timeIntervalSince(lookedAt) > 2 {
                     self.refreshKeyboards()
                     lookedAt = Date()
+                    // Plugged in while collecting over Bluetooth: end the session, and the
+                    // reconnect, straight away, finds it on USB.
+                    if bluetooth && self.pluggedIn.contains(hello.info) {
+                        switchRequested.current = true
+                        break
+                    }
                 }
                 // Pausing stops the device recording, not just this end: the point of a
                 // pause is that nothing is being kept, and the records live on the
@@ -1167,6 +1190,35 @@ public final class DeviceMonitor: ObservableObject {
         _ = try? device.call(.setLogging(enabled: false, watermark: 0))
         Task { @MainActor [weak self] in self?.recording = false }
         return hello.bootID.map { (hello.info, $0) }
+    }
+
+    /// Open the keyboard chosen, or the first found: on USB if it is plugged in, and over
+    /// Bluetooth if not.  The link, what the keyboard said to `Hello`, and whether the link
+    /// is Bluetooth.
+    ///
+    /// USB first as the better link: a round trip there is well under a millisecond, and
+    /// over Bluetooth it is two connection intervals, on the link the typing uses.
+    private nonisolated func open(_ chosen: String?) throws -> (MinderLink, HelloInfo, Bool) {
+        do {
+            let usb = try MinderDevice(serial: chosen)
+            return (usb, try hello(usb), false)
+        } catch MinderDevice.DeviceError.notFound {}
+
+        let ble = try MinderBLEDevice()
+        let info = try hello(ble)
+        // Over Bluetooth a keyboard is only known by name until it has said Hello.
+        if let chosen, info.info != chosen {
+            throw MinderBLEDevice.DeviceError.notFound
+        }
+        return (ble, info, true)
+    }
+
+    /// Start a session on a link: drain what an earlier client left, and say Hello.
+    private nonisolated func hello(_ device: MinderLink) throws -> HelloInfo {
+        device.drain()
+        guard case .hello(let info) = try device.call(.hello(version: MinderVersion.current))
+        else { throw MinderDevice.DeviceError.notFound(serial: nil) }
+        return info
     }
 
     private nonisolated var isPaused: Bool { pausedFlag.current }

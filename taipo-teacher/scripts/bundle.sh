@@ -53,6 +53,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <!-- Menu bar only: the collector runs in the background, and the practice window is
          opened from the menu when it is wanted. -->
     <key>LSUIElement</key>               <true/>
+    <!-- The key log over Bluetooth, when the keyboard is not plugged in.  Without this,
+         macOS kills the app the moment it asks for Bluetooth. -->
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Taipo Teacher reads the key log from your keyboard over Bluetooth when it is not plugged in.</string>
 </dict>
 </plist>
 PLIST
