@@ -400,7 +400,7 @@ Since then the four white LEDs drive the indicator through a single-colour
 PWM backend (`2290a4b`..`c4d48c4`), and the layout and matrix are tickless
 (`be54c68`, `5c3d879`).  Not yet: Bluetooth HID (planned below), the
 battery (and Seeed's advice to drive `P0.14` low when sensing it), and
-sleep.
+sleep (since done; see "Sleep").
 
 ---
 
@@ -646,6 +646,39 @@ updates come along for free, though USB stays the better way for big ones.
    the transport, then the choice between them.
 5. **Then**: the settable base name (a request writing it to settings,
    read by `ble.c`), and a RAM ring of log lines fetched by a request.
+
+---
+
+## Sleep (2026-11-01)
+
+Until now the mesa3w never slept: the CPU idled between keys, but the
+connection stayed up for ever at an 11.25 to 15 ms interval with no
+peripheral latency, so the radio woke 70 to 90 times a second.  Two
+layers, the second only on battery:
+
+1. **Peripheral latency 30.**  Idle, the keyboard answers the host about
+   every 0.5 s instead of every 15 ms; a key report cancels the skipping
+   and goes at the next event, so typing is no slower.  What the host
+   sends (the Caps Lock LED, minder's requests) waits up to 0.5 s while
+   the keyboard is idle.  The host chooses whether to take it; `ble.c`
+   logs what it settled on.
+2. **System OFF after 15 minutes without a key**, on battery only (VBUS
+   absent).  `sleep.c` ends the connection with "remote power off", so the
+   host lets go at once, drives the matrix's driven lines high and arms
+   GPIO sense on the sensed ones, and powers off.  Any key wakes it, as a
+   reset: it boots, reconnects to the active profile's host (the profile
+   is in settings), and the waking key goes nowhere, since reports with no
+   host are dropped.  Whatever was in RAM goes, the key log included,
+   which after 15 idle minutes a host has long since drained.
+
+Only keys count as activity.  Minder traffic does not keep the keyboard
+awake, so TaipoTeacher left running sees it disconnect, and finds it
+again after it wakes.
+
+To measure, with the PPK2: idle connected current before and after the
+latency (the host must take it; see the log line), the current in System
+OFF, and how long a wake takes to typing.  The battery divider's
+2.5 uA through `P0.14`, held low as Seeed advise, stays in System OFF.
 
 ---
 

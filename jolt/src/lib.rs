@@ -208,6 +208,35 @@ static EXECUTOR: StaticCell<Executor> = StaticCell::new();
 /// for a key.  Waiting is cheap to start, so this needn't be long; as on jolt-embassy-rp.
 const IDLE_SCANS: u32 = 500;
 
+/// How long without a key down before the keyboard sleeps, on a board that can.
+#[cfg(CONFIG_POWEROFF)]
+const SLEEP_AFTER: embassy_time::Duration = embassy_time::Duration::from_secs(15 * 60);
+
+#[cfg(CONFIG_POWEROFF)]
+unsafe extern "C" {
+    fn jolt_sleep_allowed() -> bool;
+    fn jolt_sleep() -> !;
+}
+
+/// Wait for a key to go down.  On a board that can sleep (`sleep.c`), it sleeps instead if none
+/// has for [`SLEEP_AFTER`] and it is on battery; a key then wakes it by resetting it.  Only keys
+/// count: minder's traffic, a host polling for the key log, does not keep it awake.
+async fn wait_for_key(matrix: &mut matrix::Matrix) {
+    #[cfg(CONFIG_POWEROFF)]
+    loop {
+        if let Either::First(()) = select(matrix.key_wait(), Timer::after(SLEEP_AFTER)).await {
+            return;
+        }
+        // SAFETY: reads a register; no preconditions.
+        if unsafe { jolt_sleep_allowed() } {
+            // SAFETY: no preconditions; it powers the chip off and does not return.
+            unsafe { jolt_sleep() }
+        }
+    }
+    #[cfg(not(CONFIG_POWEROFF))]
+    matrix.key_wait().await
+}
+
 #[embassy_executor::task]
 async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>) -> () {
     let board_info = get_board_info().expect("Board info not present");
@@ -231,7 +260,7 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
         // With no key down there is nothing to scan until one goes down.
         let idle_start = Instant::now();
         let layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed);
-        matrix.key_wait().await;
+        wait_for_key(&mut matrix).await;
 
         // A check that the keyboard sleeps when idle: while the matrix waited, nothing should have
         // woken the layout.  One line per wake from idle, so at most one per burst of typing.

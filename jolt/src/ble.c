@@ -343,11 +343,15 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	}
 }
 
+/* Given at each disconnection, for ble_power_off() to wait on. */
+static K_SEM_DEFINE(disconnected_sem, 0, 1);
+
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	LOG_INF("Disconnected %s: 0x%02x %s", bt_conn_dst_str(conn), reason,
 		bt_hci_err_to_str(reason));
 	ble_ready_callback(false, 0);
+	k_sem_give(&disconnected_sem);
 }
 
 /* Advertising stops when a host connects; once that connection's object is
@@ -577,6 +581,36 @@ int ble_set_enabled(bool enabled)
 	atomic_set(&ble_enabled, enabled);
 	k_work_submit_to_queue(&ble_workq, &enable_work);
 	return 0;
+}
+
+static void power_off_conn(struct bt_conn *conn, void *data)
+{
+	int *count = data;
+
+	if (bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_POWER_OFF) == 0) {
+		(*count)++;
+	}
+}
+
+/* Before the chip powers off (sleep.c): stop advertising, and end the
+ * connection saying the keyboard is powering off, so the host lets go at
+ * once rather than at the supervision timeout.  Waits, briefly, for the
+ * disconnection to go out; it is never undone, as the next thing is a reset.
+ * Called from jolt's own thread, never the Bluetooth stack's. */
+void ble_power_off(void)
+{
+	int count = 0;
+
+	if (!ble_up) {
+		return;
+	}
+	atomic_set(&ble_enabled, 0);
+	(void)bt_le_adv_stop();
+	k_sem_reset(&disconnected_sem);
+	bt_conn_foreach(BT_CONN_TYPE_LE, power_off_conn, &count);
+	if (count > 0) {
+		(void)k_sem_take(&disconnected_sem, K_MSEC(500));
+	}
 }
 
 static void report_sent(struct bt_conn *conn, void *user_data)
