@@ -10,3 +10,4 @@ target_sources(app PRIVATE src/usb.c src/usbd_support.c src/platform.c src/minde
 target_sources_ifdef(CONFIG_BT app PRIVATE src/ble.c src/minder_ble.c)
 target_sources_ifdef(CONFIG_FUEL_GAUGE app PRIVATE src/battery.c)
 target_sources_ifdef(CONFIG_POWEROFF app PRIVATE src/sleep.c)
+target_sources_ifdef(CONFIG_NORDIC_QSPI_NOR app PRIVATE src/qspi_off.c)
