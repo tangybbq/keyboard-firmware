@@ -29,6 +29,7 @@ use alloc::vec::Vec;
 use bbq_keyboard::LayoutMode;
 use bbq_keyboard::Mods;
 use bbq_keyboard::indicator::{Indicator, Level, ModeDisplay};
+use embassy_time::Duration;
 use smart_leds::RGB8;
 
 use super::{LedSet, Shade};
@@ -90,18 +91,36 @@ pub enum Feedback {
 /// The LEDs that show [`Feedback::Usb`].
 const USB_SLOTS: [usize; 2] = [0, 3];
 
+/// How often a single-color LED showing the mode blinks.
+///
+/// A steady glow, however dim, keeps the PWM and the fast clock running, which on the mesa3w is
+/// most of what the keyboard draws while idle.  A short blink at full needs neither: the driver
+/// sets a pin at 0 or 100 % as a plain GPIO.  The LEDs cost about 1 mA each while lit, so four of
+/// them average 4 mA x `MODE_BLINK_ON` / `MODE_BLINK_EVERY`.
+pub const MODE_BLINK_EVERY: Duration = Duration::from_secs(3);
+
+/// How long each blink of the mode lasts.
+pub const MODE_BLINK_ON: Duration = Duration::from_millis(15);
+
 /// What a level looks like on a single-color LED, as a brightness in percent.
 ///
 /// Brightness is all such an LED has, and its position already says which modifier it is, so
 /// these only have to tell the levels apart.  Each is about three times the one below, which the
-/// eye sees as roughly even steps: the mode dimmest, as in Orsy it is on the whole time, then
-/// Orsy's pending state, then held, with latched at full, as held to latched is the distinction
-/// the indicator turns on.  The pending capital and being within a word are on different LEDs, so
-/// they can share a level.  Provisional, to be tuned by eye on the board.
-fn brightness(level: Level) -> u8 {
+/// eye sees as roughly even steps: Orsy's pending state, then held, with latched at full, as held
+/// to latched is the distinction the indicator turns on.  The pending capital and being within a
+/// word are on different LEDs, so they can share a level.  Provisional, to be tuned by eye on the
+/// board.  The mode, which in Orsy is shown the whole time, is not a steady level at all, but a
+/// blink at full; see [`MODE_BLINK_EVERY`].
+fn brightness(level: Level, blink: bool) -> u8 {
     match level {
         Level::Off => 0,
-        Level::Mode => 3,
+        Level::Mode => {
+            if blink {
+                100
+            } else {
+                0
+            }
+        }
         Level::CapNext | Level::InWord => 10,
         Level::Held => 30,
         Level::Latched => 100,
@@ -122,6 +141,9 @@ pub struct LedManager {
 
     /// A host command's result, while it is being shown; over the indicator.
     feedback: Option<Feedback>,
+
+    /// A single-color LED showing the mode is partway through its blink.
+    mode_blink: bool,
 }
 
 impl LedManager {
@@ -137,6 +159,7 @@ impl LedManager {
             indicator: Indicator::new(ModeDisplay::Steady),
             host_armed: false,
             feedback: None,
+            mode_blink: false,
         }
     }
 
@@ -163,6 +186,15 @@ impl LedManager {
     pub fn set_orsy_pending(&mut self, cap: bool, in_word: bool) {
         self.indicator.set_orsy_pending(cap, in_word);
         self.render();
+    }
+
+    /// Start or end a blink of the mode, on single-color LEDs.  Nothing is redrawn unless some
+    /// LED is showing the mode.
+    pub fn set_mode_blink(&mut self, on: bool) {
+        self.mode_blink = on;
+        if (0..MOD_LEDS.len()).any(|slot| self.indicator.level(slot) == Level::Mode) {
+            self.render();
+        }
     }
 
     /// Show the host command layer armed, or not.
@@ -228,7 +260,7 @@ impl LedManager {
                     Level::CapNext => CAP_NEXT,
                     Level::InWord => IN_WORD,
                 },
-                brightness: brightness(level),
+                brightness: brightness(level, self.mode_blink),
             };
         }
         self.leds.update(&self.shades);

@@ -192,6 +192,8 @@ async fn main(spawner: Spawner, unique: &'static str) -> () {
 
     spawner.spawn(hid::sender_task().unwrap());
     spawner.spawn(host::feedback_task().unwrap());
+    #[cfg(dt = "chosen::bbq_mono_leds")]
+    spawner.spawn(mode_blink_task().unwrap());
     spawner.spawn(minder::minder_task(unique).unwrap());
     spawner.spawn(minder::test_event_task().unwrap());
     spawner.spawn(minder::reset_task().unwrap());
@@ -554,6 +556,19 @@ impl Timable for WrapTimer {
     fn get_ticks(&self) -> u64 {
         // SAFETY: reads the cycle counter; no preconditions.
         unsafe { k_cycle_get_64() }
+    }
+}
+
+/// Blink the mode on single-color LEDs; see [`leds::manager::MODE_BLINK_EVERY`].  It runs in
+/// every mode, but only redraws while some LED shows the mode.
+#[cfg(dt = "chosen::bbq_mono_leds")]
+#[embassy_executor::task]
+async fn mode_blink_task() -> () {
+    loop {
+        Timer::after(leds::manager::MODE_BLINK_EVERY).await;
+        with_leds(|leds| leds.set_mode_blink(true)).await;
+        Timer::after(leds::manager::MODE_BLINK_ON).await;
+        with_leds(|leds| leds.set_mode_blink(false)).await;
     }
 }
 
