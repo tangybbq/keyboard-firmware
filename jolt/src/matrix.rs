@@ -175,8 +175,9 @@ impl Debouncer {
             }
             KeyState::Debounce(target) => {
                 if target != pressed {
-                    // Reset the counter any time the state isn't our goal.
-                    self.counter = 0;
+                    // Back where it started: the bounce settled, and there is no transition.  A
+                    // further change starts the count over.
+                    self.state = KeyState::Stable(pressed);
                     KeyAction::None
                 } else {
                     self.counter += 1;
