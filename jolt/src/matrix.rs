@@ -39,9 +39,10 @@ impl Matrix {
         result
     }
 
-    /// How many keys are down, as of the last scan.
-    pub fn pressed(&self) -> usize {
-        self.pressed
+    /// No key is down, and none is partway through debouncing, as of the last scan.  Scanning can
+    /// stop and wait for a key: there is nothing in progress to lose.
+    pub fn is_idle(&self) -> bool {
+        self.pressed == 0 && self.state.iter().all(Debouncer::is_idle)
     }
 
     /// Wait for a key to go down.
@@ -162,6 +163,11 @@ impl Debouncer {
             state: KeyState::Stable(false),
             counter: 0,
         }
+    }
+
+    /// Up, and not debouncing.
+    fn is_idle(&self) -> bool {
+        self.state == KeyState::Stable(false)
     }
 
     fn react(&mut self, pressed: bool) -> KeyAction {

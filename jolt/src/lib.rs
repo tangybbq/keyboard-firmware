@@ -204,10 +204,6 @@ async fn main(spawner: Spawner, unique: &'static str) -> () {
 /// A single executor to run most of the system. Runs in the main thread.
 static EXECUTOR: StaticCell<Executor> = StaticCell::new();
 
-/// How many scans in a row, 1 ms apart, with no key down before the matrix goes back to waiting
-/// for a key.  Waiting is cheap to start, so this needn't be long; as on jolt-embassy-rp.
-const IDLE_SCANS: u32 = 500;
-
 /// How long without a key down before the keyboard sleeps, on a board that can.
 #[cfg(CONFIG_POWEROFF)]
 const SLEEP_AFTER: embassy_time::Duration = embassy_time::Duration::from_secs(15 * 60);
@@ -263,7 +259,7 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
         wait_for_key(&mut matrix).await;
 
         // A check that the keyboard sleeps when idle: while the matrix waited, nothing should have
-        // woken the layout.  One line per wake from idle, so at most one per burst of typing.
+        // woken the layout.  One line per wake from idle, which is one per stroke or chord.
         let idle_layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed) - layout_wakes;
         printkln!(
             "Matrix wake: idle {} ms, {} layout wakes; last active {} scans, {} layout wakes",
@@ -275,9 +271,12 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
         let layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed);
         active_scans = 0;
 
+        // Scan until every key is up and settled, then go straight back to waiting.  The release's
+        // debounce has already seen the matrix quiet, and the wait, being on the level, returns at
+        // once if a key went down meanwhile.  The layout's chord timers run in `layout_task`, so
+        // nothing here needs to keep going after the last release.
         let mut ticker = Ticker::every(embassy_time::Duration::from_millis(1));
-        let mut idle_scans = 0;
-        while idle_scans < IDLE_SCANS {
+        loop {
             active_scans += 1;
             let mut events = Vec::new();
             matrix.scan(|code, pressed| {
@@ -310,10 +309,8 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
                     .await;
                 LAYOUT_WAKE.signal(());
             }
-            if matrix.pressed() == 0 {
-                idle_scans += 1;
-            } else {
-                idle_scans = 0;
+            if matrix.is_idle() {
+                break;
             }
             ticker.next().await;
         }
