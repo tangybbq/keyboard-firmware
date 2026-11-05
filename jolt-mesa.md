@@ -680,6 +680,28 @@ latency (the host must take it; see the log line), the current in System
 OFF, and how long a wake takes to typing.  The battery divider's
 2.5 uA through `P0.14`, held low as Seeed advise, stays in System OFF.
 
+### Measured (2026-11-05)
+
+On the PPK2, powering the battery input.  **Unplug the Tag-Connect
+entirely**: with SWD attached the readings come out well above these.
+A temporary 30 s `SLEEP_AFTER` makes System OFF quick to reach.
+
+- **Idle, connected: about 22 uA.**  A connection event about every
+  350 ms (11.25 ms x 31, so the host took latency 30), peaking near
+  18 mA at +8 dBm.  Between them, about eleven brief spikes of roughly
+  400 uA, some 30 ms apart, not yet explained.  The controller does
+  not wake for the events it skips, embassy's time driver is a one-shot
+  timer, and jolt has nothing on a 30 ms period.
+- **System OFF: about 4.6 uA**, most of it the divider.  About four
+  blips a second of roughly 350 uA remain.  The chip runs nothing in
+  System OFF, so they are probably the module's charger or regulator.
+- **The module's QSPI flash** (unused) sat in standby until
+  `qspi_off.c` put it in deep power-down.  That saved about 13 uA,
+  in System OFF as well as running.
+- **Typing:** the matrix used to scan for another 500 ms after the last
+  key came up.  It now goes back to waiting as soon as every key is up
+  and settled.
+
 ---
 
 # Commit plan
