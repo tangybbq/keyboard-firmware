@@ -704,6 +704,131 @@ A temporary 30 s `SLEEP_AFTER` makes System OFF quick to reach.
 
 ---
 
+## Updates over the air (planned 2026-11-07)
+
+Today a new mesa3w image goes in through the J-Link on the Tag-Connect,
+or the XIAO's UF2 bootloader over USB with a double-tap of reset.  The
+goal is to update it the way minder already talks to it, over Bluetooth
+while it is the Mac's keyboard, and over USB with the same command.
+
+### Where the image goes
+
+The XIAO's layout (`nrf52840_partition_uf2_sdv7.dtsi`) stays: the MBR
+and an unused SoftDevice in 0x0 to 0x27000, the Adafruit UF2 bootloader
+from 0xf4000, storage and board info just below it.  Only the
+application's 788 KiB changes.  Keeping all that keeps UF2 as the
+recovery when an update goes wrong.
+
+| Region | Where | Size |
+|---|---|---|
+| MCUboot | 0x27000 to 0x33000 | 48 KiB, to be measured |
+| Slot 0, the running image | 0x33000 to 0xec000 | 740 KiB |
+| Storage, board info, UF2 | unchanged | |
+| Slot 1, the upload | QSPI flash, 0x0 to 0xb8000 | 736 KiB |
+
+The module's QSPI flash is a P25Q16H, 2 MiB, so about 1.3 MiB of it is
+left over (dictionaries, some day).  The image is 367 KiB today.  Two
+slots inside the chip's own flash would be about 370 KiB each, which the
+image would outgrow almost at once; that is why slot 1 is on the QSPI.
+
+The Adafruit bootloader starts whatever is at 0x27000, as it starts the
+application now, and MCUboot starts slot 0.  The first thing to check is
+that this chain boots.
+
+### MCUboot
+
+- Built by sysbuild, for the mesa3w only: `b-mesa3w.sh` passes
+  `--sysbuild` and a mesa3w sysbuild config, so the RP2040 builds stay
+  as they are.  The partition table is one dtsi that both the shield and
+  `sysbuild/mcuboot.overlay` include.  The uf2_sdv7 dtsi calls the UF2
+  bootloader's partition `boot_partition`, which is MCUboot's label, so
+  that node is deleted and defined again.
+- MCUboot gets the QSPI driver (it works without multithreading), and
+  the board's CDC ACM console turned off, as the shield does for jolt.
+- **Swap using move**, so that a new image runs once on trial and is
+  reverted unless it confirms itself.  Each slot's sectors are 4 KiB, as
+  swap-move needs.  The simpler choice is overwrite-only, leaving UF2 as
+  the only way back from a bad image.
+- **A wake from System OFF is a reset**, so MCUboot runs on every wake.
+  `BOOT_VALIDATE_SLOT0=n` skips hashing and checking the signature of
+  740 KiB before the first key is read; the check happens once, when an
+  upload is installed.  The wake-to-typing time is measured before and
+  after.
+- Since every wake is a reset, an image on trial has to confirm itself
+  well before the 15-minute sleep, or the next key reverts it.  jolt
+  confirms once it is up: USB enumerated, or a Bluetooth host connected.
+- The signing key lives outside the repository, and the build script
+  finds it through an environment variable.
+
+### The QSPI flash's power
+
+`qspi_off.c` puts the flash in deep power-down at boot and never wakes
+it.  Instead the driver's runtime PM (`zephyr,pm-device-runtime-auto`
+on the flash node, `CONFIG_PM_DEVICE_RUNTIME`) wakes it for each
+operation and puts it back to deep power-down after a short dwell.
+`qspi_off.c` goes, and the PPK2 has to show the same 22 uA idle and
+4.6 uA in System OFF as before.
+
+### Minder
+
+Minder already has the parts: `Program` erases a 4 KiB page and writes
+what it is given, `Hash` checks a range, and `Reset` reboots.  The
+changes:
+
+- **A QSPI window.**  Addresses from 0x12000000, where the nRF52840 maps
+  the QSPI flash for XIP, reach the QSPI device through `flash_write`
+  and `flash_read`.  Nothing uses XIP.
+- **`Program` only writes slot 1** (and the data region, which the
+  mesa3w does not have).  Today it writes anywhere in the chip's flash,
+  which with MCUboot at 0x27000 would let a bad request overwrite the
+  bootloader.
+- **A new request**, under a new capability, gives slot 1's address and
+  size and the running image's version and state (on trial or
+  confirmed), so keyminder hard-codes nothing.
+- **No request to mark the upgrade.**  imgtool's `--pad` writes the
+  trailer into the image, the magic that marks it pending, and with
+  `--confirm` permanent rather than on trial.  The build already makes
+  the confirmed image (`zephyr.signed.confirmed.bin`); the on-trial one
+  is another imgtool run.
+
+### keyminder
+
+`keyminder upgrade <image>`, over USB or `-s ble:`:
+
+1. Asks for slot 1, and checks the image's header magic and that it is
+   exactly the slot's size, which padding makes it.
+2. Writes every page but the last.  An all-0xFF page is sent as a
+   `Program` with no data, which only erases it, so a stale swap status
+   from an earlier upload never survives.
+3. Checks the whole slot with `Hash`.
+4. Writes the last page, which holds the trailer's magic.  An upload cut
+   off at any point before this leaves nothing pending.
+5. Sends `Reset`, waits for the keyboard to come back, and prints its
+   version and state.
+
+At 64 bytes a packet a page is 66 packets; the 92 pages of a 367 KiB
+image should take well under a minute over Bluetooth.  Measure before
+raising the MTU.
+
+### Steps
+
+1. **QSPI runtime PM** in place of `qspi_off.c`, and the PPK2 again.
+   Useful alone and needed for everything after.
+2. **MCUboot**: the partitions, sysbuild for the mesa3w, the key.
+   Flashed with the J-Link (`merged.hex`), and as a UF2 of it.  Check
+   the boot chain, MCUboot's size, and the wake-to-typing time.
+3. **jolt confirms its image** once it is up, and logs the image's
+   version and state at boot.
+4. **Minder**: the QSPI window, `Program` held to slot 1, and the
+   request for slot 1 and the image state.
+5. **keyminder upgrade.**  First over USB, then over Bluetooth while
+   typing.
+6. **Later**: an Update button in TaipoTeacher; mcumgr, if updates from
+   a phone are ever wanted (its tools find a device by scanning, and a
+   connected mesa3w does not advertise).
+
+---
+
 # Commit plan
 
 One commit per numbered step unless the compiler forces two together, which
