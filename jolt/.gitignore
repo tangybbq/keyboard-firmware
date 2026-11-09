@@ -1,1 +1,4 @@
 build/
+
+# MCUboot signing keys (mcuboot-p256.pem): private, never committed.
+*.pem

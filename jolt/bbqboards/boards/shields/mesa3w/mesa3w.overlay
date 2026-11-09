@@ -16,12 +16,17 @@
 #include <zephyr/dt-bindings/adc/nrf-saadc.h>
 #include <zephyr/dt-bindings/battery/battery.h>
 
+/* MCUboot at 0x27000, jolt in slot 0 after it, slot 1 on the QSPI flash. */
+#include "mesa3w-partitions.dtsi"
+
 / {
 	aliases {
 		matrix = &kbd_matrix;
 	};
 
 	chosen {
+		zephyr,code-partition = &slot0_partition;
+
 		zephyr,matrix = &kbd_matrix;
 		bbq,mono-leds = &mono_leds;
 

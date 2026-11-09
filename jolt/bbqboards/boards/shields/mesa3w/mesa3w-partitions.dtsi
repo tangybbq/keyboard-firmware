@@ -1,0 +1,70 @@
+/* The mesa3w's flash layout, for MCUboot and jolt both.
+ *
+ * jolt's shield overlay includes this, and b-mesa3w.sh gives it to MCUboot
+ * as an extra overlay, so the two images can never disagree.  It sets no
+ * `chosen`: MCUboot's own app.overlay points its code partition at
+ * `boot_partition`, and the shield points jolt's at `slot0_partition`.
+ *
+ * The XIAO's layout (nrf52840_partition_uf2_sdv7.dtsi) stays around it: the
+ * MBR and the unused SoftDevice below 0x27000, the storage partition (the
+ * shield cuts it to 28 KiB), the board-info page at 0xf3000, and the Adafruit
+ * UF2 bootloader from 0xf4000.  The UF2 bootloader starts whatever is at
+ * 0x27000, which is now MCUboot.  Images go in with the J-Link, but the UF2
+ * bootloader stays, a way back with nothing but USB (a UF2 made with
+ * uf2conv.py from MCUboot's hex and jolt's zephyr.slot0.hex).
+ *
+ *   0x027000  MCUboot          48 KiB
+ *   0x033000  slot 0          740 KiB  (185 sectors)
+ *   0x0ec000  storage          28 KiB
+ *   0x0f3000  board info        4 KiB
+ *   0x0f4000  UF2 bootloader   48 KiB
+ *
+ *   QSPI 0x000000  slot 1     736 KiB  (184 sectors)
+ *
+ * Swap using move wants slot 0 one sector bigger than slot 1, and the same
+ * 4 KiB sectors in both: the nRF52840's pages, and the P25Q16H's sectors as
+ * long as the QSPI driver's page layout is 4096 (MCUboot's config sets it).
+ * The rest of the QSPI flash, about 1.3 MiB, is unassigned.
+ */
+
+/* The uf2_sdv7 dtsi calls the UF2 bootloader `boot_partition`, which is the
+ * label MCUboot looks for, and its `code_partition` covers what is now
+ * MCUboot and slot 0. */
+/delete-node/ &boot_partition;
+/delete-node/ &code_partition;
+
+&flash0 {
+	partitions {
+		boot_partition: partition@27000 {
+			compatible = "zephyr,mapped-partition";
+			reg = <0x00027000 0x0000c000>;
+			label = "mcuboot";
+		};
+
+		slot0_partition: partition@33000 {
+			compatible = "zephyr,mapped-partition";
+			reg = <0x00033000 0x000b9000>;
+			label = "image-0";
+		};
+
+		uf2_partition: partition@f4000 {
+			compatible = "zephyr,mapped-partition";
+			reg = <0x000f4000 0x0000c000>;
+			label = "UF2";
+			read-only;
+		};
+	};
+};
+
+&p25q16h {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		slot1_partition: partition@0 {
+			reg = <0x00000000 0x000b8000>;
+			label = "image-1";
+		};
+	};
+};
