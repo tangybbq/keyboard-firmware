@@ -35,7 +35,7 @@ use zephyr::{
 
 #[cfg(CONFIG_BT)]
 use crate::minder_ble;
-use crate::{keylog, minder_usb};
+use crate::{image, keylog, minder_usb};
 
 unsafe extern "C" {
     fn jolt_boot_id() -> u64;
@@ -272,9 +272,7 @@ impl Minder {
                     RESET_REQ.signal(());
                     Reply::Reset
                 }
-                Ok(Request::ImageInfo) => Reply::Error {
-                    text: "ImageInfo is not supported".into(),
-                },
+                Ok(Request::ImageInfo) => image_info(),
                 Ok(Request::Hash { offset, size }) => self.hash(offset, size),
                 Ok(Request::Program { offset, data }) => self.program(offset, data.into()),
                 Ok(Request::GetEvent { timeout_ms }) => match self.get_event(timeout_ms).await {
@@ -378,17 +376,28 @@ impl Minder {
             info: self.unique.into(),
             boot_id: Some(self.boot_id),
             layout_fingerprint: Some(layout_fingerprint()),
-            capabilities: Some(vec![
-                cap::EVENTS.to_string(),
-                cap::TEST_EVENTS.to_string(),
-                cap::FLASH.to_string(),
-                cap::KEY_LOG.to_string(),
-            ]),
+            capabilities: Some(self.capabilities()),
         }
+    }
+
+    fn capabilities(&self) -> Vec<alloc::string::String> {
+        let mut caps = vec![
+            cap::EVENTS.to_string(),
+            cap::TEST_EVENTS.to_string(),
+            cap::FLASH.to_string(),
+            cap::KEY_LOG.to_string(),
+        ];
+        if image::slot().is_some() {
+            caps.push(cap::IMAGE.to_string());
+        }
+        caps
     }
 
     /// Calculate the hash of a region.  Sync.
     fn hash(&self, offset: u32, size: u32) -> Reply {
+        if let Some(slot) = image::slot().filter(|&slot| within(offset, size, slot)) {
+            return hash_slot(offset - slot.0, size);
+        }
         if !within(offset, size, data_region()) {
             return Reply::Error {
                 text: "Out of bounds".into(),
@@ -421,6 +430,23 @@ impl Minder {
         if data.len() > ERASE_SIZE {
             return Reply::Error {
                 text: "Program larger than a single erase block".into(),
+            };
+        }
+
+        // Slot 1, where an update goes, is outside the chip's own flash: on the mesa3w, the
+        // QSPI flash, which takes writes of a multiple of 4 bytes.  Every page of an image
+        // padded to the slot is a whole 4 KiB.
+        if let Some(slot) = image::slot().filter(|&slot| within(offset, ERASE_SIZE as u32, slot)) {
+            if !data.len().is_multiple_of(4) {
+                return Reply::Error {
+                    text: "Program to the update slot must be a multiple of 4 bytes".into(),
+                };
+            }
+            return match image::program(offset - slot.0, &data, ERASE_SIZE) {
+                Ok(()) => Reply::ProgramDone,
+                Err(err) => Reply::Error {
+                    text: format!("program error: {}", err),
+                },
             };
         }
 
@@ -476,6 +502,47 @@ fn flash_device() -> (u32, u32) {
 /// is written, as on jolt-embassy-rp.  An nRF52840 has only the one MiB, so there they reach
 /// nothing.
 const DATA_OFFSET: u32 = 0x10_0000;
+
+/// Hash `size` bytes of slot 1, from `offset` into it.  The slot is not memory-mapped (the QSPI
+/// flash is read through its driver), so it is read a piece at a time.
+fn hash_slot(offset: u32, size: u32) -> Reply {
+    let mut hasher = Sha256::new();
+    let mut buf = [0u8; 512];
+    let mut done = 0;
+    while done < size {
+        let len = (size - done).min(buf.len() as u32);
+        let piece = &mut buf[..len as usize];
+        if let Err(err) = image::read(offset + done, piece) {
+            return Reply::Error {
+                text: format!("read error: {}", err),
+            };
+        }
+        hasher.update(&*piece);
+        done += len;
+    }
+    let digest: [u8; 32] = hasher.finalize().into();
+    Reply::Hash {
+        hash: digest.into(),
+    }
+}
+
+/// Answer `ImageInfo`: where an update goes, and what is running.
+fn image_info() -> Reply {
+    match image::info() {
+        Some(Ok(info)) => Reply::ImageInfo {
+            slot_offset: info.slot.0,
+            slot_size: info.slot.1,
+            version: info.version,
+            confirmed: info.confirmed,
+        },
+        Some(Err(err)) => Reply::Error {
+            text: format!("no image header: {}", err),
+        },
+        None => Reply::Error {
+            text: "ImageInfo is not supported".into(),
+        },
+    }
+}
 
 /// Whether `size` bytes at `offset` lie wholly within `region`, a start address and size.
 fn within(offset: u32, size: u32, (start, len): (u32, u32)) -> bool {

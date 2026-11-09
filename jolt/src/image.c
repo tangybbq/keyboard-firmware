@@ -11,14 +11,104 @@
  *
  * At boot this says which image is running and whether it is confirmed, for
  * the RTT log.
+ *
+ * Minder writes an update into slot 1 through here (minder.rs, image.rs).
+ * Slot 1 is on the QSPI flash, which minder's Hash and Program address at
+ * the nRF52840's mapping of it, 0x12000000 up (the `qspi_mm` region), so
+ * that one address space covers both flashes.  Nothing reads it through
+ * that mapping; the reads and writes go through the flash driver, which
+ * wakes the chip from deep power-down for each.
  */
 
+#include <errno.h>
+#include <zephyr/devicetree.h>
 #include <zephyr/dfu/mcuboot.h>
 #include <zephyr/init.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/storage/flash_map.h>
 
 LOG_MODULE_REGISTER(jolt_image, LOG_LEVEL_INF);
+
+/* Slot 1's partition is on the QSPI flash chip, whose parent is the QSPI
+ * controller, whose `qspi_mm` region is where the chip is mapped. */
+#define SLOT1_NODE DT_NODELABEL(slot1_partition)
+#define SLOT1_QSPI DT_PARENT(DT_GPARENT(SLOT1_NODE))
+#define SLOT1_MAPPED (DT_REG_ADDR_BY_NAME(SLOT1_QSPI, qspi_mm) + DT_REG_ADDR(SLOT1_NODE))
+
+BUILD_ASSERT(DT_NODE_HAS_COMPAT(SLOT1_QSPI, nordic_nrf_qspi),
+	     "minder's window onto slot 1 assumes it is on the nRF QSPI flash");
+
+/* What minder's ImageInfo reports; image.rs has the same layout. */
+struct jolt_image_info {
+	uint32_t slot_addr;
+	uint32_t slot_size;
+	uint8_t major;
+	uint8_t minor;
+	uint16_t revision;
+	uint32_t build;
+	bool confirmed;
+};
+
+static const struct flash_area *slot1(void)
+{
+	static const struct flash_area *fa;
+
+	if (fa == NULL && flash_area_open(PARTITION_ID(slot1_partition), &fa) != 0) {
+		fa = NULL;
+	}
+	return fa;
+}
+
+/* Where slot 1 is, as minder addresses it, and its size. */
+void jolt_slot_region(uint32_t *addr, uint32_t *size)
+{
+	*addr = SLOT1_MAPPED;
+	*size = DT_REG_SIZE(SLOT1_NODE);
+}
+
+/* Read from slot 1, at an offset into it. */
+int jolt_slot_read(uint32_t offset, uint8_t *buf, size_t len)
+{
+	const struct flash_area *fa = slot1();
+
+	return fa ? flash_area_read(fa, offset, buf, len) : -ENODEV;
+}
+
+/* Erase a block of slot 1 and write `len` bytes at its start; the rest stays
+ * erased.  The QSPI flash takes writes of a multiple of 4 bytes. */
+int jolt_slot_program(uint32_t offset, const uint8_t *data, size_t len, size_t erase_size)
+{
+	const struct flash_area *fa = slot1();
+	int err;
+
+	if (fa == NULL) {
+		return -ENODEV;
+	}
+	err = flash_area_erase(fa, offset, erase_size);
+	if (err || len == 0) {
+		return err;
+	}
+	return flash_area_write(fa, offset, data, len);
+}
+
+/* The running image's version and state, and where an update goes. */
+int jolt_image_info(struct jolt_image_info *info)
+{
+	struct mcuboot_img_header header;
+	int err;
+
+	jolt_slot_region(&info->slot_addr, &info->slot_size);
+	err = boot_read_bank_header(PARTITION_ID(slot0_partition), &header, sizeof(header));
+	if (err) {
+		return err;
+	}
+	info->major = header.h.v1.sem_ver.major;
+	info->minor = header.h.v1.sem_ver.minor;
+	info->revision = header.h.v1.sem_ver.revision;
+	info->build = header.h.v1.sem_ver.build_num;
+	info->confirmed = boot_is_img_confirmed();
+	return 0;
+}
 
 /* Confirm the running image, if it is on trial.  Called from the executor;
  * the write is a few bytes of slot 0's trailer, and only happens once, on
