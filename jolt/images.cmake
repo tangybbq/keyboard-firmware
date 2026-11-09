@@ -1,6 +1,7 @@
-# zephyr.slot0.hex: jolt signed for the J-Link, beside the build's own
-# signed images.  Included from CMakeLists.txt when MCUboot boots jolt (the
-# mesa3w); gdb.sh's `z` loads it.
+# jolt's MCUboot images, beside the build's own signed ones.  Included from
+# CMakeLists.txt when MCUboot boots jolt (the mesa3w).
+#
+# zephyr.slot0.hex: jolt signed for the J-Link; gdb.sh's `z` loads it.
 #
 # The build signs jolt for slot 1, where an update goes: its padded images
 # end at slot 1's size, a sector short of slot 0's end, where MCUboot keeps

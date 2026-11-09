@@ -9,7 +9,7 @@
 #
 # gdb.sh's `zb` and `z` load the first two.  This script configures from
 # scratch; after a change, `west build` (or `ninja -C build`) in this
-# directory rebuilds what changed, zephyr.slot0.hex included (slot0.cmake).
+# directory rebuilds what changed, zephyr.slot0.hex included (images.cmake).
 #
 # Images are signed with mcuboot-p256.pem in this directory, which is kept
 # out of git; MCUboot only boots images signed with it.  The board-info block

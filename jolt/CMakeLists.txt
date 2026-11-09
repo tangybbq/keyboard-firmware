@@ -14,5 +14,5 @@ target_sources_ifdef(CONFIG_MCUBOOT_IMG_MANAGER app PRIVATE src/image.c)
 
 # The mesa3w: jolt signed for the J-Link as well as for updates.
 if(CONFIG_BOOTLOADER_MCUBOOT)
-  include(slot0.cmake)
+  include(images.cmake)
 endif()
