@@ -17,6 +17,8 @@ use bbq_steno::Stroke;
 use core::ffi::c_int;
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
+#[cfg(CONFIG_POWEROFF)]
+use embassy_futures::select::{Either3, select3};
 #[cfg(feature = "steno")]
 use embassy_sync::channel::Channel;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex, signal::Signal};
@@ -216,15 +218,38 @@ unsafe extern "C" {
     fn jolt_sleep() -> !;
 }
 
+/// A request to sleep now, from the host layer's command (`request_sleep`).
+#[cfg(CONFIG_POWEROFF)]
+static SLEEP_NOW: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+
+/// Have the keyboard sleep as soon as every key is up, as it does after [`SLEEP_AFTER`] without
+/// one.  Returns false, and does nothing, where it would not sleep by itself: on USB power, or on
+/// a board that cannot.
+pub fn request_sleep() -> bool {
+    #[cfg(CONFIG_POWEROFF)]
+    // SAFETY: reads a register; no preconditions.
+    if unsafe { jolt_sleep_allowed() } {
+        SLEEP_NOW.signal(());
+        return true;
+    }
+    false
+}
+
 /// Wait for a key to go down.  On a board that can sleep (`sleep.c`), it sleeps instead if none
 /// has for [`SLEEP_AFTER`] and it is on battery; a key then wakes it by resetting it.  Only keys
 /// count: minder's traffic, a host polling for the key log, does not keep it awake.
+///
+/// It also sleeps when asked to (`request_sleep`).  This only runs once every key is up and
+/// settled, so a request made by a chord waits here for its keys to come up: a key still down
+/// when the chip powers off would wake it again at once.
 async fn wait_for_key(matrix: &mut matrix::Matrix) {
     #[cfg(CONFIG_POWEROFF)]
     loop {
-        if let Either::First(()) = select(matrix.key_wait(), Timer::after(SLEEP_AFTER)).await {
+        let sleep = Timer::after(SLEEP_AFTER);
+        if let Either3::First(()) = select3(matrix.key_wait(), sleep, SLEEP_NOW.wait()).await {
             return;
         }
+        // Asked again, since USB may have come since a request.
         // SAFETY: reads a register; no preconditions.
         if unsafe { jolt_sleep_allowed() } {
             // SAFETY: no preconditions; it powers the chip off and does not return.

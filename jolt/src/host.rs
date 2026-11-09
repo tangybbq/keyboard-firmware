@@ -1,4 +1,5 @@
-//! The host commands: selecting and clearing Bluetooth profiles, and choosing where reports go.
+//! The host commands: selecting and clearing Bluetooth profiles, choosing where reports go, and
+//! sleeping now.
 //!
 //! The layout gives them through `LayoutActions::host_command` (see
 //! `bbq_keyboard::layout::host`).  Each shows on the LEDs for a moment what it did: the LED it was
@@ -8,6 +9,10 @@
 //! choice made (`hid::route_feedback`), and the sender shows it again whenever it changes by
 //! itself: USB plugged in or out, or a Bluetooth host connecting, whether after a select, a wake,
 //! or a link that dropped and came back.
+//!
+//! Sleeping shows nothing when it is taken: the keyboard goes dark once the chord's keys are up.
+//! Where it would not sleep by itself (on USB power), it is refused, every LED red, rather than
+//! doing nothing.
 
 use bbq_keyboard::layout::host::HostCommand;
 use embassy_futures::select::{Either, select};
@@ -42,6 +47,13 @@ pub fn command(command: HostCommand) {
             } else {
                 Feedback::Refused
             }
+        }
+        HostCommand::Sleep => {
+            if crate::request_sleep() {
+                printkln!("Host command {:?}: sleeping once the keys are up", command);
+                return;
+            }
+            Feedback::Refused
         }
     };
     printkln!("Host command {:?}: {:?}", command, feedback);

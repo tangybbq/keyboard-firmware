@@ -495,6 +495,7 @@ hand, is looked up in a small command table instead of `DOSH_ACTIONS`:
 | `e` / `t` / `o` / `a` (bottom row, index first) | Select profile 1–4: reconnect if bonded, otherwise advertise for pairing |
 | the same, plus the `Sp` thumb (`0x108` ...) | Clear that profile's bond |
 | `i` / `n` / `s` (top row, index first) | Output: auto / USB / Bluetooth |
+| the `Bk` thumb (`0x200`, Dosh's space) | Sleep now, on battery (added 2026-11-09) |
 | both thumbs | Cancel |
 
 Any other chord disarms the layer and is then typed as usual, so arming it
@@ -674,6 +675,13 @@ layers, the second only on battery:
 Only keys count as activity.  Minder traffic does not keep the keyboard
 awake, so TaipoTeacher left running sees it disconnect, and finds it
 again after it wakes.
+
+**Sleep now** (2026-11-09): `a+o+t+e` then the `Bk` thumb (Dosh's space)
+takes the same path at once, for testing sleep without a short
+`SLEEP_AFTER`, and for putting the keyboard away.  It waits until every
+key is up, since a key still down as the chip powers off would wake it
+straight away.  On USB power it is refused, every LED red, as the timer
+would not sleep either.
 
 To measure, with the PPK2: idle connected current before and after the
 latency (the host must take it; see the log line), the current in System

@@ -1,6 +1,6 @@
 //! Commands to the keyboard about its hosts: which Bluetooth profile is
 //! active, forgetting a profile's bond, and whether reports go over USB or
-//! Bluetooth.
+//! Bluetooth; and one to put it to sleep.
 //!
 //! They are reached through a prefix chord in the Dosh table,
 //! [`Action::HostCommands`](super::taipo::Action::HostCommands) (`a+o+t+e`),
@@ -13,6 +13,7 @@
 //! | `e` / `t` / `o` / `a`                 | select profile 1 / 2 / 3 / 4  |
 //! | the same, plus the `Sp` thumb         | clear that profile            |
 //! | `i` / `n` / `s`                       | output auto / USB / Bluetooth |
+//! | the `Bk` thumb                        | sleep now                     |
 //! | both thumbs                           | cancel                        |
 //!
 //! The bit names are Taipo's, as everywhere; in Dosh `Sp` (`0x100`) is the
@@ -36,6 +37,10 @@ pub enum HostCommand {
     ClearProfile(u8),
     /// Choose where reports go.
     Output(Output),
+    /// Sleep now, as the keyboard does after long enough without a key, once
+    /// every key is up.  Only where it would sleep by itself: on battery, on a
+    /// board that can.
+    Sleep,
 }
 
 /// Where the keyboard's reports go.
@@ -73,6 +78,9 @@ pub static HOST_COMMANDS: &[HostEntry] = &[
     HostEntry { code: 0x080, command: Some(HostCommand::Output(Output::Auto)) },
     HostEntry { code: 0x040, command: Some(HostCommand::Output(Output::Usb)) },
     HostEntry { code: 0x020, command: Some(HostCommand::Output(Output::Bluetooth)) },
+
+    // The `Bk` thumb alone (Dosh's space).
+    HostEntry { code: 0x200, command: Some(HostCommand::Sleep) },
 
     // Both thumbs, the null chord everywhere else, backs out.
     HostEntry { code: 0x300, command: None },

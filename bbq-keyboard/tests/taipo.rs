@@ -2409,6 +2409,7 @@ const HOST_CHORDS: &[(u16, HostCommand)] = &[
     (I, HostCommand::Output(Output::Auto)),
     (N, HostCommand::Output(Output::Usb)),
     (S, HostCommand::Output(Output::Bluetooth)),
+    (BK, HostCommand::Sleep),
 ];
 
 impl Script {
