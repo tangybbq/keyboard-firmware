@@ -81,8 +81,9 @@ pub struct ImageInfo {
 }
 
 impl Flasher {
-    /// Greet the device, and check that it takes updates.
-    pub fn check_image_support(&mut self) -> Result<()> {
+    /// Greet the device, and check that it takes updates.  Returns its serial number (the
+    /// `info` of its `Hello`), which finds this keyboard again after the reset.
+    pub fn check_image_support(&mut self) -> Result<String> {
         let hello: Reply = self.minder.call(&Request::Hello {
             version: minder::VERSION.to_string(),
         })?;
@@ -93,7 +94,10 @@ impl Flasher {
                 hello
             );
         }
-        Ok(())
+        match hello {
+            Reply::Hello { info, .. } => Ok(info),
+            _ => unreachable!("supports() is only true of a Hello"),
+        }
     }
 
     /// Where the update slot is, and what is running.

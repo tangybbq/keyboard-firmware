@@ -43,7 +43,8 @@ enum Commands {
 
 #[derive(clap::Args, Debug)]
 struct UpgradeArgs {
-    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
+    /// Serial number of the keyboard to talk to; for Bluetooth, `ble:` and its serial number or
+    /// part of its name.
     #[arg(short, long)]
     serial: String,
     /// The update image: signed, padded to the slot, and pending (jolt's build makes it).
@@ -56,7 +57,8 @@ struct UpgradeArgs {
 
 #[derive(clap::Args, Debug)]
 struct LogArgs {
-    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
+    /// Serial number of the keyboard to talk to; for Bluetooth, `ble:` and its serial number or
+    /// part of its name.
     #[arg(short, long)]
     serial: String,
     /// File to append to.
@@ -75,14 +77,16 @@ struct LogArgs {
 
 #[derive(clap::Args, Debug)]
 struct ChatArgs {
-    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
+    /// Serial number of the keyboard to talk to; for Bluetooth, `ble:` and its serial number or
+    /// part of its name.
     #[arg(short, long)]
     serial: String,
 }
 
 #[derive(clap::Args, Debug)]
 struct PollArgs {
-    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
+    /// Serial number of the keyboard to talk to; for Bluetooth, `ble:` and its serial number or
+    /// part of its name.
     #[arg(short, long)]
     serial: String,
     /// How long the device should hold each poll open, in milliseconds.
@@ -107,7 +111,8 @@ struct PollArgs {
 
 #[derive(clap::Args, Debug)]
 struct DictArgs {
-    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
+    /// Serial number of the keyboard to talk to; for Bluetooth, `ble:` and its serial number or
+    /// part of its name.
     #[arg(short, long)]
     serial: String,
     /// Which dictionary to update
@@ -469,8 +474,17 @@ fn upgrade(args: &UpgradeArgs) -> Result<()> {
     let image = UpdateImage::load(&args.image)?;
 
     let mut flasher = Flasher::new(&args.serial)?;
-    flasher.check_image_support()?;
+    let serial = flasher.check_image_support()?;
+    // After the reset, look for this keyboard by its serial number, whatever `--serial` said:
+    // over Bluetooth a name can match another keyboard, and the one to report on is the one
+    // just updated.
+    let again = if args.serial.starts_with("ble:") {
+        format!("ble:{}", serial)
+    } else {
+        serial.clone()
+    };
     let info = flasher.image_info()?;
+    println!("Keyboard {}", serial);
     println!(
         "Running {}, {}",
         info.version,
@@ -500,7 +514,7 @@ fn upgrade(args: &UpgradeArgs) -> Result<()> {
     drop(flasher);
 
     println!("Waiting for the keyboard: MCUboot swaps the images, then it reconnects");
-    let after = upgrade::wait_for_keyboard(&args.serial, Duration::from_secs(180))?;
+    let after = upgrade::wait_for_keyboard(&again, Duration::from_secs(180))?;
     println!(
         "Running {}, {}",
         after.version,

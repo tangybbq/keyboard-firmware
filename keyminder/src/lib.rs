@@ -17,8 +17,10 @@
 //! # Links
 //!
 //! A keyboard is reached over USB by its serial number, or over Bluetooth by giving
-//! `ble:` and then part of its name (`ble:` alone takes the first connected keyboard with
-//! the minder service).  Over Bluetooth the same ordering holds; see [`ble`].
+//! `ble:` and then its serial number (the same one, which its `Hello` gives as `info`) or part
+//! of its name.  `ble:` alone takes the only connected keyboard with the minder service.  A
+//! choice that matches more than one keyboard is refused, with the list: two keyboards on the
+//! same profile have the same name.  Over Bluetooth the same ordering holds; see [`ble`].
 
 pub mod ble;
 pub mod upgrade;
@@ -170,8 +172,8 @@ struct UsbLink {
 }
 
 impl VendorMinder {
-    /// Open the keyboard with the given serial number, or with `ble:` and part of its name,
-    /// over Bluetooth.
+    /// Open the keyboard with the given serial number, or with `ble:` and its serial number or
+    /// part of its name, over Bluetooth.
     pub fn new(serial: &str) -> Result<Self> {
         let link = match serial.strip_prefix("ble:") {
             Some(name) => Link::Ble(ble::BleLink::open(name)?),

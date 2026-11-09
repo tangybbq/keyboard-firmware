@@ -13,7 +13,7 @@ use anyhow::{anyhow, Context, Result};
 use bluest::{Adapter, Characteristic, Device, Uuid};
 use futures::channel::mpsc as async_mpsc;
 use futures::{executor::block_on, FutureExt, StreamExt};
-use minder::{ble, HidDecoder, HidWrite, PACKET_SIZE};
+use minder::{ble, HidDecoder, HidWrite, Reply, Request, PACKET_SIZE};
 use minicbor::Encode;
 
 /// A minder connection to a keyboard over Bluetooth.
@@ -27,8 +27,9 @@ pub struct BleLink {
 }
 
 impl BleLink {
-    /// Find a connected keyboard whose name contains `name` (any, if it is empty) and that
-    /// carries the minder service, and open the service.
+    /// Find the connected keyboard with the minder service whose serial number is `name`, or
+    /// else whose Bluetooth name contains it (any, if it is empty), and open the service.  More
+    /// than one match is an error that lists them.
     pub fn open(name: &str) -> Result<Self> {
         let (setup_tx, setup_rx) = mpsc::channel();
         let (outgoing, outgoing_rx) = async_mpsc::unbounded();
@@ -146,7 +147,52 @@ async fn worker(
     }
 }
 
+/// A connected keyboard with the minder service, and its two characteristics.
+struct Candidate {
+    device: Device,
+    request: Characteristic,
+    reply: Characteristic,
+    name: String,
+    /// The `info` of its `Hello`, which is also its USB serial number, once asked; `Err` if it
+    /// did not say.
+    serial: Option<Result<String>>,
+}
+
+impl Candidate {
+    /// Ask for its serial number, if that has not been done.
+    async fn ask(&mut self) -> &Option<Result<String>> {
+        if self.serial.is_none() {
+            self.serial = Some(ask_serial(&self.request, &self.reply).await);
+        }
+        &self.serial
+    }
+
+    fn is_serial(&self, want: &str) -> bool {
+        matches!(&self.serial, Some(Ok(serial)) if serial == want)
+    }
+
+    fn describe(&self) -> String {
+        match &self.serial {
+            Some(Ok(serial)) => format!("{} ({})", self.name, serial),
+            Some(Err(err)) => format!("{} (serial unknown: {})", self.name, err),
+            None => self.name.clone(),
+        }
+    }
+}
+
 /// Find the keyboard and its two characteristics, and say what was found.
+///
+/// `want` picks the keyboard: part of its Bluetooth name, or else its serial number exactly
+/// (the USB serial, which is also the `info` of its `Hello`).  Two keyboards on the same
+/// profile have the same name, "Jolt Keyboard 1", so a choice that matches more than one
+/// keyboard is refused, with the list, rather than settled by whichever macOS happened to list
+/// first.
+///
+/// Asking a keyboard its serial number is a minder request, and another program can be
+/// talking minder to the same keyboard: macOS gives both programs every reply, so a `Hello`
+/// from here interrupts, say, TaipoTeacher's long poll and hands it a reply it did not ask
+/// for.  So the name is tried first, and a keyboard is only asked when the name cannot settle
+/// it: a serial number to match, or several keyboards to tell apart.
 async fn open(want: &str) -> Result<(Adapter, Device, Characteristic, Characteristic, String)> {
     let adapter = Adapter::default()
         .await
@@ -160,11 +206,9 @@ async fn open(want: &str) -> Result<(Adapter, Device, Characteristic, Characteri
         .connected_devices_with_services(&[service_uuid])
         .await?;
 
+    let mut candidates = Vec::new();
     for device in devices {
         let name = device.name_async().await.unwrap_or_default();
-        if !name.contains(want) {
-            continue;
-        }
         // Connected to the host is not connected for this program; this is quick.
         adapter.connect_device(&device).await?;
         let Some(service) = device
@@ -177,29 +221,146 @@ async fn open(want: &str) -> Result<(Adapter, Device, Characteristic, Characteri
         };
         let request = characteristic(&service, ble::REQUEST).await?;
         let reply = characteristic(&service, ble::REPLY).await?;
-
-        let max = request.max_write_len_async().await?;
-        if max < PACKET_SIZE {
-            return Err(anyhow!(
-                "{} takes writes of {} bytes, and minder's packets are {}: the ATT MTU is \
-                 too small",
-                name,
-                max,
-                PACKET_SIZE
-            ));
-        }
-        let found = format!("{} (writes up to {} bytes)", name, max);
-        return Ok((adapter, device, request, reply, found));
+        candidates.push(Candidate {
+            device,
+            request,
+            reply,
+            name,
+            serial: None,
+        });
     }
 
-    Err(anyhow!(
-        "no connected keyboard{} has the minder service",
-        if want.is_empty() {
-            String::new()
-        } else {
-            format!(" named like {:?}", want)
+    let named = candidates.iter().filter(|c| c.name.contains(want)).count();
+    let mut chosen: Vec<Candidate> = if named > 0 {
+        candidates
+            .into_iter()
+            .filter(|c| c.name.contains(want))
+            .collect()
+    } else {
+        // No name has it, so it is a serial number, which only the keyboards can say.
+        let mut found = Vec::new();
+        for mut c in candidates {
+            c.ask().await;
+            if c.is_serial(want) {
+                found.push(c);
+            }
         }
-    ))
+        found
+    };
+
+    let candidate = match chosen.len() {
+        0 => {
+            return Err(anyhow!(
+                "no connected keyboard{} has the minder service",
+                if want.is_empty() {
+                    String::new()
+                } else {
+                    format!(" named like, or with the serial number, {:?}", want)
+                }
+            ))
+        }
+        1 => chosen.remove(0),
+        _ => {
+            let mut list = Vec::new();
+            for c in chosen.iter_mut() {
+                c.ask().await;
+                list.push(format!("  {}", c.describe()));
+            }
+            return Err(anyhow!(
+                "{} connected keyboards match {:?}; choose one with `ble:` and its serial \
+                 number:\n{}",
+                list.len(),
+                want,
+                list.join("\n")
+            ));
+        }
+    };
+
+    let max = candidate.request.max_write_len_async().await?;
+    if max < PACKET_SIZE {
+        return Err(anyhow!(
+            "{} takes writes of {} bytes, and minder's packets are {}: the ATT MTU is too small",
+            candidate.name,
+            max,
+            PACKET_SIZE
+        ));
+    }
+    let found = format!("{} (writes up to {} bytes)", candidate.describe(), max);
+    Ok((adapter, candidate.device, candidate.request, candidate.reply, found))
+}
+
+/// How long a keyboard has to answer the `Hello` that asks its serial number.  An idle keyboard
+/// answers its host only every half second or so (peripheral latency), and a request takes a
+/// round trip.
+const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Ask a keyboard for its serial number: the `info` of its `Hello`.
+async fn ask_serial(request: &Characteristic, reply: &Characteristic) -> Result<String> {
+    let mut notifications = reply.notify().await?;
+
+    let mut packets = Vec::new();
+    minder::hid_encode(
+        &Request::Hello {
+            version: minder::VERSION.to_string(),
+        },
+        Collect(&mut packets),
+    )
+    .map_err(|err| anyhow!("encoding Hello: {}", err))?;
+    for packet in &packets {
+        request.write_without_response(packet).await?;
+    }
+
+    let mut decoder = HidDecoder::new();
+    let mut deadline = Box::pin(timer(HELLO_TIMEOUT).fuse());
+    loop {
+        futures::select! {
+            note = notifications.next().fuse() => match note {
+                Some(Ok(packet)) => {
+                    if packet.is_empty() {
+                        continue;
+                    }
+                    decoder.add_packet(&packet);
+                    if decoder.is_ready() {
+                        // A long poll pending from another client (TaipoTeacher) is answered
+                        // first, with `NoEvent`, and the Hello after it; skip whatever comes
+                        // before the Hello.
+                        if let Ok(Reply::Hello { info, .. }) = decoder.decode::<Reply>() {
+                            return Ok(info);
+                        }
+                        decoder = HidDecoder::new();
+                    }
+                }
+                Some(Err(err)) => return Err(err.into()),
+                None => return Err(anyhow!("the Bluetooth link closed")),
+            },
+            () = deadline => return Err(anyhow!("no answer to Hello")),
+        }
+    }
+}
+
+/// Collects the packets `hid_encode` makes.
+struct Collect<'a>(&'a mut Vec<Vec<u8>>);
+
+impl HidWrite for Collect<'_> {
+    type Error = String;
+
+    fn write_packet(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
+        self.0.push(buf.to_vec());
+        Ok(())
+    }
+}
+
+/// A future that finishes after `delay`.  Nothing here has an async runtime with timers, so a
+/// thread sleeps and then says so.
+fn timer(delay: Duration) -> impl std::future::Future<Output = ()> {
+    let (done, wait) = futures::channel::oneshot::channel();
+    thread::spawn(move || {
+        thread::sleep(delay);
+        let _ = done.send(());
+    });
+    async move {
+        let _ = wait.await;
+    }
 }
 
 async fn characteristic(service: &bluest::Service, uuid: u128) -> Result<Characteristic> {
