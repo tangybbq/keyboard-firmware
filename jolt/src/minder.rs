@@ -259,7 +259,16 @@ impl Minder {
                 continue;
             }
 
-            let reply = match minicbor::decode::<Request>(&rbuf) {
+            let request = minicbor::decode::<Request>(&rbuf);
+            // An update or a dictionary is many of these, each of many packets, which with the
+            // keyboard's idle peripheral latency crawl.
+            #[cfg(CONFIG_BT)]
+            if matches!(link, Link::Ble)
+                && matches!(request, Ok(Request::Hash { .. } | Request::Program { .. }))
+            {
+                minder_ble::busy();
+            }
+            let reply = match request {
                 Ok(Request::Hello { version }) => self.hello(&version),
                 Ok(Request::ReadFlash { offset, size }) => {
                     // Not implemented on jolt-embassy-rp either, where it panics.

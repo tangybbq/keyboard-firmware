@@ -14,6 +14,14 @@ use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal}
 unsafe extern "C" {
     fn minder_ble_read_copy(dst: *mut u8, cap: usize) -> usize;
     fn minder_ble_write(src: *const u8, len: usize) -> c_int;
+    fn ble_minder_busy();
+}
+
+/// Minder is doing flash work (`Hash`, `Program`) over Bluetooth: have the link quick both ways
+/// until it stops for a few seconds.  See `ble_minder_busy` in `ble.c`.
+pub fn busy() {
+    // SAFETY: no preconditions; it only queues work on ble.c's queue.
+    unsafe { ble_minder_busy() }
 }
 
 /// A failed reply, as a negative errno: no host connected and subscribed, an ATT MTU too small

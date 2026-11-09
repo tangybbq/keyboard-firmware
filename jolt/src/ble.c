@@ -398,6 +398,70 @@ static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t l
 		interval * 5 / 4, (interval * 125) % 100, latency, timeout * 10);
 }
 
+/*
+ * Minder's flash work, an update or a dictionary, wants the link quick both
+ * ways.  With peripheral latency 30 the keyboard, idle, listens only every
+ * 31st connection event, about every 350 ms, and the host's packets wait for
+ * it: a 4 KiB Program, 66 packets, took over 20 s.  So while minder hashes
+ * and programs over Bluetooth, the keyboard asks the host for latency 0, and
+ * asks for its usual latency again once the work has stopped for
+ * MINDER_FAST_HOLD.  Only those requests, not TaipoTeacher's key log polls,
+ * which would otherwise hold the latency off all day.  The host chooses; RTT
+ * shows what it took (le_param_updated).
+ */
+#define MINDER_FAST_HOLD K_SECONDS(3)
+
+static atomic_t minder_fast;
+
+static void set_params(struct bt_conn *conn, void *data)
+{
+	const struct bt_le_conn_param *param = data;
+	int err = bt_conn_le_param_update(conn, param);
+
+	if (err != 0 && err != -EALREADY) {
+		LOG_WRN("Connection parameter update failed: %d", err);
+	}
+}
+
+static void minder_fast_handler(struct k_work *work)
+{
+	ARG_UNUSED(work);
+
+	struct bt_le_conn_param param = BT_LE_CONN_PARAM_INIT(
+		CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT, 0,
+		CONFIG_BT_PERIPHERAL_PREF_TIMEOUT);
+
+	bt_conn_foreach(BT_CONN_TYPE_LE, set_params, &param);
+}
+
+static void minder_slow_handler(struct k_work *work)
+{
+	ARG_UNUSED(work);
+
+	struct bt_le_conn_param param = BT_LE_CONN_PARAM_INIT(
+		CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT,
+		CONFIG_BT_PERIPHERAL_PREF_LATENCY, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT);
+
+	atomic_clear(&minder_fast);
+	bt_conn_foreach(BT_CONN_TYPE_LE, set_params, &param);
+}
+
+static K_WORK_DEFINE(minder_fast_work, minder_fast_handler);
+static K_WORK_DELAYABLE_DEFINE(minder_slow_work, minder_slow_handler);
+
+/* Minder is doing flash work over Bluetooth: hold the latency at 0 until it
+ * has stopped for MINDER_FAST_HOLD.  From jolt's thread. */
+void ble_minder_busy(void)
+{
+	if (!ble_up) {
+		return;
+	}
+	if (!atomic_set(&minder_fast, 1)) {
+		k_work_submit_to_queue(&ble_workq, &minder_fast_work);
+	}
+	k_work_reschedule_for_queue(&ble_workq, &minder_slow_work, MINDER_FAST_HOLD);
+}
+
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
 	.disconnected = disconnected,
