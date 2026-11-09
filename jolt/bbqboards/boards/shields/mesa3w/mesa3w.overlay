@@ -115,6 +115,16 @@
 	status = "disabled";
 };
 
+/* The QSPI flash, a P25Q16H, is suspended (in deep power-down) as soon as
+ * its driver has initialized it, and again a few milliseconds after each
+ * use; the driver resumes it for each operation.  Its init leaves it in
+ * standby, about 13 uA more, which is why this is not left to the default.
+ * The driver's init also takes it out of deep power-down, so a reset, or a
+ * wake from System OFF, comes back through here. */
+&p25q16h {
+	zephyr,pm-device-runtime-auto;
+};
+
 /* The LEDs on D7..D10.  `nordic,invert` idles the pins high, so the LEDs stay
  * dark until the PWM drives them. */
 &pinctrl {
