@@ -816,8 +816,12 @@ raising the MTU.
 1. **QSPI runtime PM** in place of `qspi_off.c`, and the PPK2 again.
    Useful alone and needed for everything after.
 2. **MCUboot**: the partitions, sysbuild for the mesa3w, the key.
-   Flashed with the J-Link (`merged.hex`), and as a UF2 of it.  Check
-   the boot chain, MCUboot's size, and the wake-to-typing time.
+   Flashed with the J-Link, each image on its own: gdb.sh's `zb` for
+   MCUboot, `z` for jolt's `zephyr.slot0.hex`, signed again by
+   b-mesa3w.sh padded to the whole of slot 0 (the build's own padded
+   image is slot 1's size, for updates, and would leave slot 0's trailer
+   as it was).  Check the boot chain, MCUboot's size (31.5 KiB), and the
+   wake-to-typing time.
 3. **jolt confirms its image** once it is up, and logs the image's
    version and state at boot.
 4. **Minder**: the QSPI window, `Program` held to slot 1, and the
