@@ -2,6 +2,8 @@
 # CMakeLists.txt when MCUboot boots jolt (the mesa3w).
 #
 # zephyr.slot0.hex: jolt signed for the J-Link; gdb.sh's `z` loads it.
+# zephyr.update.bin: jolt signed for an update; `keyminder upgrade` uploads
+# it.
 #
 # The build signs jolt for slot 1, where an update goes: its padded images
 # end at slot 1's size, a sector short of slot 0's end, where MCUboot keeps
@@ -15,8 +17,15 @@
 # two sectors long (256 sectors of swap status).  Signing to a bin and
 # converting that keeps every 0xff, and the J-Link erases the whole slot.
 #
-# A custom command rather than a step in b-mesa3w.sh, so that an ordinary
-# incremental `west build` brings it up to date with the rest.
+# The update is padded to the whole of slot 1, with its trailer marked
+# pending on trial (imgtool's --pad without --confirm), so that writing it
+# into slot 1 page for page is the whole of an upload: MCUboot swaps it in at
+# the next reset, and jolt confirms it once a host connects (image.c).  The
+# build's own zephyr.signed.bin has no trailer, and its confirmed image is
+# permanent, which would leave nothing to revert to.
+#
+# Custom commands rather than steps in b-mesa3w.sh, so that an ordinary
+# incremental `west build` brings them up to date with the rest.
 
 dt_nodelabel(slot0_node NODELABEL "slot0_partition" REQUIRED)
 dt_reg_addr(slot0_addr PATH ${slot0_node})
@@ -47,3 +56,24 @@ add_custom_command(
   VERBATIM
 )
 add_custom_target(slot0_image ALL DEPENDS ${slot0_hex})
+
+dt_nodelabel(slot1_node NODELABEL "slot1_partition" REQUIRED)
+dt_reg_size(slot1_size PATH ${slot1_node})
+set(update_bin ${kernel_dir}/${KERNEL_NAME}.update.bin)
+
+add_custom_command(
+  OUTPUT ${update_bin}
+  COMMAND ${PYTHON_EXECUTABLE} ${IMGTOOL} sign
+    --version ${CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION}
+    --header-size ${CONFIG_ROM_START_OFFSET}
+    --slot-size ${slot1_size}
+    --align ${write_block_size}
+    --key ${CONFIG_MCUBOOT_SIGNATURE_KEY_FILE}
+    --pad
+    ${kernel_dir}/${KERNEL_BIN_NAME} ${update_bin}
+  DEPENDS ${logical_target_for_zephyr_elf} ${kernel_dir}/${KERNEL_BIN_NAME}
+    ${CONFIG_MCUBOOT_SIGNATURE_KEY_FILE}
+  COMMENT "Signing jolt for an update: ${KERNEL_NAME}.update.bin"
+  VERBATIM
+)
+add_custom_target(update_image ALL DEPENDS ${update_bin})
