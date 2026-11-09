@@ -786,34 +786,48 @@ changes:
 
 - **A QSPI window.**  Addresses from 0x12000000, where the nRF52840 maps
   the QSPI flash for XIP, reach the QSPI device through `flash_write`
-  and `flash_read`.  Nothing uses XIP.
+  and `flash_read`.  Nothing uses XIP.  (Built 2026-11-09 in `image.c`,
+  through the flash area; `Hash` reads it 512 bytes at a time, and
+  `Program` to it takes a multiple of 4 bytes, as the QSPI flash
+  needs.)
 - **`Program` only writes slot 1** (and the data region, which the
   mesa3w does not have).  Today it writes anywhere in the chip's flash,
   which with MCUboot at 0x27000 would let a bad request overwrite the
   bootloader.
 - **A new request**, under a new capability, gives slot 1's address and
   size and the running image's version and state (on trial or
-  confirmed), so keyminder hard-codes nothing.
+  confirmed), so keyminder hard-codes nothing.  (`Request::ImageInfo`,
+  capability `image`; minder's `VERSION` is unchanged, since the golden
+  wire vectors carry it.)
 - **No request to mark the upgrade.**  imgtool's `--pad` writes the
   trailer into the image, the magic that marks it pending, and with
-  `--confirm` permanent rather than on trial.  The build already makes
-  the confirmed image (`zephyr.signed.confirmed.bin`); the on-trial one
-  is another imgtool run.
+  `--confirm` permanent rather than on trial.  The build makes the
+  on-trial one, `zephyr.update.bin`, in `jolt/images.cmake`; the
+  permanent one is not used, as it would leave nothing to revert to.
 
 ### keyminder
 
-`keyminder upgrade <image>`, over USB or `-s ble:`:
+`keyminder upgrade -s <serial or ble:name> [-i image] [--no-reset]`, as
+built 2026-11-09 (`keyminder/src/upgrade.rs`); the image defaults to
+`../jolt/build/jolt/zephyr/zephyr.update.bin`, so it runs from
+`keyminder/`:
 
-1. Asks for slot 1, and checks the image's header magic and that it is
-   exactly the slot's size, which padding makes it.
-2. Writes every page but the last.  An all-0xFF page is sent as a
-   `Program` with no data, which only erases it, so a stale swap status
-   from an earlier upload never survives.
-3. Checks the whole slot with `Hash`.
-4. Writes the last page, which holds the trailer's magic.  An upload cut
-   off at any point before this leaves nothing pending.
-5. Sends `Reset`, waits for the keyboard to come back, and prints its
-   version and state.
+1. Checks the image: MCUboot's header magic at the start, and the
+   trailer's magic at the end, which only the padded image has (so
+   `zephyr.signed.bin` is turned away).  Asks for slot 1 and the running
+   image, checks that the image is exactly the slot's size, and refuses
+   if the running image is on trial, since slot 1 then holds the image
+   MCUboot would revert to.
+2. Hashes the slot page by page, as `dict` does, and writes only the
+   pages that differ, so an interrupted upload picks up where it
+   stopped.  An all-0xFF page is sent as a `Program` with no data, which
+   only erases it, so a stale swap status never survives.
+3. The last page, which holds the trailer's magic, is erased before
+   anything else is written and written after everything else.  An
+   upload cut off at any point leaves nothing pending.
+4. Checks the whole slot with `Hash`.
+5. Sends `Reset`, waits (up to three minutes) for the keyboard to come
+   back over the same link, and prints its version and state.
 
 At 64 bytes a packet a page is 66 packets; the 92 pages of a 367 KiB
 image should take well under a minute over Bluetooth.  Measure before
@@ -822,20 +836,23 @@ raising the MTU.
 ### Steps
 
 1. **QSPI runtime PM** in place of `qspi_off.c`, and the PPK2 again.
-   Useful alone and needed for everything after.
+   Useful alone and needed for everything after.  (Done; idle about
+   23.5 uA.)
 2. **MCUboot**: the partitions, sysbuild for the mesa3w, the key.
    Flashed with the J-Link, each image on its own: gdb.sh's `zb` for
    MCUboot, `z` for jolt's `zephyr.slot0.hex`, signed again by
-   b-mesa3w.sh padded to the whole of slot 0 (the build's own padded
-   image is slot 1's size, for updates, and would leave slot 0's trailer
-   as it was).  Check the boot chain, MCUboot's size (31.5 KiB), and the
-   wake-to-typing time.
-3. **jolt confirms its image** once it is up, and logs the image's
-   version and state at boot.
-4. **Minder**: the QSPI window, `Program` held to slot 1, and the
-   request for slot 1 and the image state.
+   `jolt/images.cmake` padded to the whole of slot 0 (the build's own
+   padded image is slot 1's size, for updates, and would leave slot 0's
+   trailer as it was).  Check the boot chain, MCUboot's size (31.5 KiB),
+   and the wake-to-typing time.  (Done; it boots and sleeps.)
+3. **jolt confirms its image** once a host connects (a route for reports
+   arrives, in `hid::sender_task`), and logs the image's version and
+   state at boot.  (Built.)
+4. **Minder**: the QSPI window, `Program` held to slot 1 and the data
+   region on every board, and the request for slot 1 and the image
+   state.  (Built.)
 5. **keyminder upgrade.**  First over USB, then over Bluetooth while
-   typing.
+   typing.  (Built; not yet tried.)
 6. **Later**: an Update button in TaipoTeacher; mcumgr, if updates from
    a phone are ever wanted (its tools find a device by scanning, and a
    connected mesa3w does not advertise).
