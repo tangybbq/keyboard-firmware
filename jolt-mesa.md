@@ -745,10 +745,10 @@ that this chain boots.
   that node is deleted and defined again.
 - MCUboot gets the QSPI driver (it works without multithreading), and
   the board's CDC ACM console turned off, as the shield does for jolt.
-- **Swap using move**, so that a new image runs once on trial and is
-  reverted unless it confirms itself.  Each slot's sectors are 4 KiB, as
-  swap-move needs.  The simpler choice is overwrite-only, leaving UF2 as
-  the only way back from a bad image.
+- **Swap using move** (decided 2026-11-09), so that a new image runs
+  once on trial and is reverted unless it confirms itself.  Each slot's
+  sectors are 4 KiB, as swap-move needs.  Overwrite-only was the simpler
+  choice, leaving UF2 as the only way back from a bad image.
 - **A wake from System OFF is a reset**, so MCUboot runs on every wake.
   `BOOT_VALIDATE_SLOT0=n` skips hashing and checking the signature of
   740 KiB before the first key is read; the check happens once, when an
@@ -757,8 +757,9 @@ that this chain boots.
 - Since every wake is a reset, an image on trial has to confirm itself
   well before the 15-minute sleep, or the next key reverts it.  jolt
   confirms once it is up: USB enumerated, or a Bluetooth host connected.
-- The signing key lives outside the repository, and the build script
-  finds it through an environment variable.
+- The signing key is ECDSA P-256 (decided 2026-11-09).  It lives in
+  `jolt/`, beside the build scripts, in a file that `.gitignore` keeps
+  out of the repository.
 
 ### The QSPI flash's power
 
