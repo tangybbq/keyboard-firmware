@@ -386,21 +386,7 @@ impl Minder {
 
     /// Calculate the hash of a region.  Sync.
     fn hash(&self, offset: u32, size: u32) -> Reply {
-        // Validate that the offset and size is in a valid region.
-        let (flash_start, flash_size) = data_region();
-        if offset < flash_start {
-            return Reply::Error {
-                text: "Out of bounds".into(),
-            };
-        }
-
-        if let Some(end) = offset.checked_add(size) {
-            if end > flash_start + flash_size {
-                return Reply::Error {
-                    text: "Out of bounds".into(),
-                };
-            }
-        } else {
+        if !within(offset, size, data_region()) {
             return Reply::Error {
                 text: "Out of bounds".into(),
             };
@@ -432,6 +418,14 @@ impl Minder {
         if data.len() > ERASE_SIZE {
             return Reply::Error {
                 text: "Program larger than a single erase block".into(),
+            };
+        }
+
+        // The whole block is erased, so the whole block has to be in the data region: below it
+        // is the firmware, and on the mesa3w MCUboot.
+        if !within(offset, ERASE_SIZE as u32, data_region()) {
+            return Reply::Error {
+                text: "Out of bounds".into(),
             };
         }
 
@@ -473,14 +467,19 @@ fn flash_device() -> (u32, u32) {
     }
 }
 
-/// How far into the flash device `Hash` may start.
+/// How far into the flash device `Hash` and `Program` may start.
 ///
 /// The first MiB is the firmware's, and above it is where data such as the steno dictionaries
-/// is written, as on jolt-embassy-rp.  An nRF52840 has only the one MiB, so there `Hash` reads
+/// is written, as on jolt-embassy-rp.  An nRF52840 has only the one MiB, so there they reach
 /// nothing.
 const DATA_OFFSET: u32 = 0x10_0000;
 
-/// The part of the flash `Hash` may read, as its start address and size.
+/// Whether `size` bytes at `offset` lie wholly within `region`, a start address and size.
+fn within(offset: u32, size: u32, (start, len): (u32, u32)) -> bool {
+    offset >= start && offset.checked_add(size).is_some_and(|end| end <= start + len)
+}
+
+/// The part of the flash `Hash` may read and `Program` may write, as its start address and size.
 fn data_region() -> (u32, u32) {
     let (base, size) = flash_device();
     let offset = DATA_OFFSET.min(size);
