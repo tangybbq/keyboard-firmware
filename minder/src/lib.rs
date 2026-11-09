@@ -53,6 +53,9 @@ pub const PACKET_SIZE: usize = 64;
 // `capabilities`.  The version is informational; `capabilities` is what a host should
 // actually branch on, because it degrades one feature at a time instead of assuming a
 // total order on releases.
+//
+// Not bumped for `Request::ImageInfo`: a host finds it by the `image` capability, and the
+// golden vectors, which other implementations check against, carry this string.
 pub static VERSION: &'static str = "2026-08-30a";
 
 /// The capability names a device may report in [`Reply::Hello`].
@@ -70,6 +73,9 @@ pub mod cap {
     pub const FLASH: &str = "flash";
     /// The key event log: `SetLogging`, `GetEventLog` and `EventLogAck` work.
     pub const KEY_LOG: &str = "key-log";
+    /// Firmware updates through MCUboot: `ImageInfo` is answered, and `Hash` and `Program`
+    /// reach the slot it names, where an update is written.
+    pub const IMAGE: &str = "image";
 }
 
 /// Minder over Bluetooth: the GATT service a keyboard with a radio carries beside its HID
@@ -172,6 +178,14 @@ pub enum Request {
         #[n(0)]
         through_seq: u32,
     },
+    /// Where a firmware update goes, and what is running now; answered with
+    /// [`Reply::ImageInfo`].  Only a device with [`crate::cap::IMAGE`] answers it.
+    ///
+    /// An update is an MCUboot image, signed and padded to the slot's size with its trailer
+    /// marked: written with `Program`, checked with `Hash`, and installed by MCUboot at the next
+    /// `Reset`.  Nothing more is asked of the device; the trailer says the image is pending.
+    #[n(11)]
+    ImageInfo,
     #[n(255)]
     Reset,
 }
@@ -305,6 +319,25 @@ pub enum Reply {
         #[n(5)]
         remaining: u32,
     },
+    /// The answer to [`Request::ImageInfo`].
+    #[n(10)]
+    ImageInfo {
+        /// Where the update slot starts, as `Hash` and `Program` address it.  Not necessarily
+        /// in the device's own flash: on the mesa3w it is the external QSPI flash, at the
+        /// address the nRF52840 maps it to.
+        #[n(0)]
+        slot_offset: u32,
+        /// The update slot's size, which an image must be padded to exactly.
+        #[n(1)]
+        slot_size: u32,
+        /// The running image's version, as MCUboot's header has it: `major.minor.revision+build`.
+        #[n(2)]
+        version: String,
+        /// Whether the running image is confirmed.  An update runs on trial, and MCUboot puts
+        /// the previous image back at the next reset unless it is confirmed first.
+        #[n(3)]
+        confirmed: bool,
+    },
     #[n(254)]
     Error {
         #[n(0)]
@@ -435,6 +468,7 @@ mod tests_bulk {
         check::<Request>(&Request::GetEvent { timeout_ms: u32::MAX });
         check::<Request>(&Request::TestEvent { count: 1, delay_ms: 0 });
         check::<Request>(&Request::TestEvent { count: 100, delay_ms: 1000 });
+        check::<Request>(&Request::ImageInfo);
     }
 
     #[test]
@@ -443,6 +477,12 @@ mod tests_bulk {
         check::<Reply>(&Reply::Event { event: Event::Test { seq: u32::MAX } });
         check::<Reply>(&Reply::NoEvent);
         check::<Reply>(&Reply::Ok);
+        check::<Reply>(&Reply::ImageInfo {
+            slot_offset: 0x1200_0000,
+            slot_size: 0xb8000,
+            version: "0.0.0+0".to_string(),
+            confirmed: false,
+        });
     }
 
     /// A `Reply::Hello` from firmware predating `boot_id` and its neighbours still

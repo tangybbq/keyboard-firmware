@@ -203,6 +203,8 @@ impl<Rd: EndpointOut, Wr: EndpointIn> Minder<Rd, Wr> {
                     todo!();
                 }
                 Ok(Request::Reset) => self.reset().await,
+                // No MCUboot here; the capability list does not offer it.
+                Ok(Request::ImageInfo) => Reply::Error { text: "ImageInfo is not supported".into() },
                 Ok(Request::Hash { offset, size }) => self.hash(offset, size),
                 Ok(Request::Program { offset, data }) => self.program(offset, data.into()),
                 Ok(Request::GetEvent { timeout_ms }) => match self.get_event(timeout_ms).await {
