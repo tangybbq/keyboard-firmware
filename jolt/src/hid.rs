@@ -22,6 +22,7 @@ use zephyr::{
 };
 
 use crate::host;
+use crate::image;
 use crate::leds::manager::Feedback;
 
 unsafe extern "C" {
@@ -231,6 +232,8 @@ pub async fn sender_task() -> () {
             shown = route;
             if route.is_some() {
                 host::show(route_shown(route));
+                // A host can reach the keyboard, so an update is good enough to keep.
+                image::host_reached();
             }
         }
 

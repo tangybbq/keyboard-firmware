@@ -20,5 +20,6 @@ fn main() {
     // here, as on the boards without it the cfg does not exist at all.
     println!("cargo::rustc-check-cfg=cfg(CONFIG_BT)");
     println!("cargo::rustc-check-cfg=cfg(CONFIG_POWEROFF)");
+    println!("cargo::rustc-check-cfg=cfg(CONFIG_MCUBOOT_IMG_MANAGER)");
     zephyr_build::export_kconfig_bool_options();
 }

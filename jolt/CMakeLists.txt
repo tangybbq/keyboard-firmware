@@ -10,6 +10,7 @@ target_sources(app PRIVATE src/usb.c src/usbd_support.c src/platform.c src/minde
 target_sources_ifdef(CONFIG_BT app PRIVATE src/ble.c src/minder_ble.c)
 target_sources_ifdef(CONFIG_FUEL_GAUGE app PRIVATE src/battery.c)
 target_sources_ifdef(CONFIG_POWEROFF app PRIVATE src/sleep.c)
+target_sources_ifdef(CONFIG_MCUBOOT_IMG_MANAGER app PRIVATE src/image.c)
 
 # The mesa3w: jolt signed for the J-Link as well as for updates.
 if(CONFIG_BOOTLOADER_MCUBOOT)

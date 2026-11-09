@@ -40,6 +40,7 @@ use bbq_keyboard::layout::taipo::TaipoVariant;
 
 mod hid;
 mod host;
+mod image;
 mod keylog;
 mod leds;
 mod matrix;
