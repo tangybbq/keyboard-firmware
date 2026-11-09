@@ -21,6 +21,7 @@
 //! the minder service).  Over Bluetooth the same ordering holds; see [`ble`].
 
 pub mod ble;
+pub mod upgrade;
 
 use std::{io::Write, path::Path, time::Duration};
 

@@ -1,9 +1,15 @@
 //! Keyminder.
 
-use std::{fs::OpenOptions, io::Write, path::PathBuf, time::Instant};
+use std::{
+    fs::OpenOptions,
+    io::Write,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use keyminder::upgrade::{self, UpdateImage};
 use keyminder::{EventPump, FlashImage, Flasher, Flow, VendorMinder};
 use minder::{Reply, Request};
 
@@ -31,6 +37,21 @@ enum Commands {
     Dict(DictArgs),
     /// Record the key event log to a file.
     Log(LogArgs),
+    /// Update the keyboard's firmware, through MCUboot.
+    Upgrade(UpgradeArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct UpgradeArgs {
+    /// Serial number of the keyboard to talk to, or `ble:` and part of its name for Bluetooth.
+    #[arg(short, long)]
+    serial: String,
+    /// The update image: signed, padded to the slot, and pending (jolt's build makes it).
+    #[arg(short, long, default_value = "../jolt/build/jolt/zephyr/zephyr.update.bin")]
+    image: PathBuf,
+    /// Leave the update pending without resetting; it installs at the next reset or wake.
+    #[arg(long)]
+    no_reset: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -118,6 +139,9 @@ fn main() -> Result<()> {
         }
         Commands::Log(args) => {
             log(args)?;
+        }
+        Commands::Upgrade(args) => {
+            upgrade(args)?;
         }
     }
 
@@ -437,6 +461,58 @@ fn drain_all(
             return Ok(());
         }
     }
+}
+
+/// Upload a firmware update into the keyboard's update slot, reset it, and say what it runs
+/// once it is back.
+fn upgrade(args: &UpgradeArgs) -> Result<()> {
+    let image = UpdateImage::load(&args.image)?;
+
+    let mut flasher = Flasher::new(&args.serial)?;
+    flasher.check_image_support()?;
+    let info = flasher.image_info()?;
+    println!(
+        "Running {}, {}",
+        info.version,
+        if info.confirmed { "confirmed" } else { "on trial" }
+    );
+    // On trial, slot 1 holds the image MCUboot would revert to; writing over it would leave
+    // the revert swapping in a half-written or different image.
+    if !info.confirmed {
+        return Err(anyhow::anyhow!(
+            "the running image is on trial, and slot 1 holds the one it reverts to.  Let it \
+             confirm (it does once a host connects) or reset it to revert, then try again."
+        ));
+    }
+    println!(
+        "Uploading {} ({} bytes) to {:#010x}",
+        image.version,
+        image.data.len(),
+        info.slot_offset
+    );
+    flasher.upload(&info, &image)?;
+
+    if args.no_reset {
+        println!("Not resetting; it installs at the next reset or wake from sleep");
+        return Ok(());
+    }
+    flasher.reset()?;
+    drop(flasher);
+
+    println!("Waiting for the keyboard: MCUboot swaps the images, then it reconnects");
+    let after = upgrade::wait_for_keyboard(&args.serial, Duration::from_secs(180))?;
+    println!(
+        "Running {}, {}",
+        after.version,
+        if after.confirmed { "confirmed" } else { "on trial, not yet confirmed" }
+    );
+    if after.version != image.version {
+        println!(
+            "MCUboot did not install {}; the RTT log says why (a bad signature, for one)",
+            image.version
+        );
+    }
+    Ok(())
 }
 
 fn dict(args: &DictArgs) -> Result<()> {
