@@ -29,6 +29,7 @@ use alloc::vec::Vec;
 use bbq_keyboard::LayoutMode;
 use bbq_keyboard::Mods;
 use bbq_keyboard::indicator::{Indicator, Level, ModeDisplay};
+#[cfg(dt = "chosen::bbq_mono_leds")]
 use embassy_time::Duration;
 use smart_leds::RGB8;
 
@@ -96,10 +97,13 @@ const USB_SLOTS: [usize; 2] = [0, 3];
 /// A steady glow, however dim, keeps the PWM and the fast clock running, which on the mesa3w is
 /// most of what the keyboard draws while idle.  A short blink at full needs neither: the driver
 /// sets a pin at 0 or 100 % as a plain GPIO.  The LEDs cost about 1 mA each while lit, so four of
-/// them average 4 mA x `MODE_BLINK_ON` / `MODE_BLINK_EVERY`.
+/// them average 4 mA x `MODE_BLINK_ON` / `MODE_BLINK_EVERY`.  Only a board with single-color LEDs
+/// runs the blink (`mode_blink_task`).
+#[cfg(dt = "chosen::bbq_mono_leds")]
 pub const MODE_BLINK_EVERY: Duration = Duration::from_secs(3);
 
 /// How long each blink of the mode lasts.
+#[cfg(dt = "chosen::bbq_mono_leds")]
 pub const MODE_BLINK_ON: Duration = Duration::from_millis(15);
 
 /// What a level looks like on a single-color LED, as a brightness in percent.
@@ -190,6 +194,7 @@ impl LedManager {
 
     /// Start or end a blink of the mode, on single-color LEDs.  Nothing is redrawn unless some
     /// LED is showing the mode.
+    #[cfg(dt = "chosen::bbq_mono_leds")]
     pub fn set_mode_blink(&mut self, on: bool) {
         self.mode_blink = on;
         if (0..MOD_LEDS.len()).any(|slot| self.indicator.level(slot) == Level::Mode) {
