@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/dfu/mcuboot.h>
+#include <zephyr/drivers/clock_control/nrf_clock_control.h>
 #include <zephyr/init.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/storage/flash_map.h>
@@ -66,12 +67,48 @@ void jolt_slot_region(uint32_t *addr, uint32_t *size)
 	*size = DT_REG_SIZE(SLOT1_NODE);
 }
 
+/*
+ * The nRF52840's QSPI corrupts what it moves to and from the flash when the
+ * high frequency clock changes source during the transfer (anomaly 244),
+ * and the Bluetooth controller starts the crystal for each radio event and
+ * stops it after.  Zephyr's QSPI driver does nothing about it on the
+ * nRF52840.  Here a 4 KiB write over Bluetooth lost its sixth 256-byte
+ * page nearly every time, presumably the one programmed as the next
+ * connection event came round.  So the crystal is held on around every use
+ * of slot 1, and the clock cannot change under it.
+ */
+#define HFCLK DEVICE_DT_GET_ONE(nordic_nrf_clock_hfclk)
+
+/* Start the crystal and wait until it runs, which takes about a
+ * millisecond.  A success is matched by a hfxo_release(). */
+static int hfxo_hold(void)
+{
+	int err = nrf_clock_control_request_sync(HFCLK, NULL, K_MSEC(100));
+
+	return err < 0 ? err : 0;
+}
+
+static void hfxo_release(void)
+{
+	(void)nrf_clock_control_release(HFCLK, NULL);
+}
+
 /* Read from slot 1, at an offset into it. */
 int jolt_slot_read(uint32_t offset, uint8_t *buf, size_t len)
 {
 	const struct flash_area *fa = slot1();
+	int err;
 
-	return fa ? flash_area_read(fa, offset, buf, len) : -ENODEV;
+	if (fa == NULL) {
+		return -ENODEV;
+	}
+	err = hfxo_hold();
+	if (err < 0) {
+		return err;
+	}
+	err = flash_area_read(fa, offset, buf, len);
+	hfxo_release();
+	return err;
 }
 
 /* Erase a block of slot 1 and write `len` bytes at its start; the rest stays
@@ -84,11 +121,16 @@ int jolt_slot_program(uint32_t offset, const uint8_t *data, size_t len, size_t e
 	if (fa == NULL) {
 		return -ENODEV;
 	}
-	err = flash_area_erase(fa, offset, erase_size);
-	if (err || len == 0) {
+	err = hfxo_hold();
+	if (err < 0) {
 		return err;
 	}
-	return flash_area_write(fa, offset, data, len);
+	err = flash_area_erase(fa, offset, erase_size);
+	if (err == 0 && len != 0) {
+		err = flash_area_write(fa, offset, data, len);
+	}
+	hfxo_release();
+	return err;
 }
 
 /* The running image's version and state, and where an update goes. */
