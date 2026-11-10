@@ -405,9 +405,11 @@ static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t l
  * it: a 4 KiB Program, 66 packets, took over 20 s.  So while minder hashes
  * and programs over Bluetooth, the keyboard asks the host for latency 0, and
  * asks for its usual latency again once the work has stopped for
- * MINDER_FAST_HOLD.  Only those requests, not TaipoTeacher's key log polls,
- * which would otherwise hold the latency off all day.  The host chooses; RTT
- * shows what it took (le_param_updated).
+ * MINDER_FAST_HOLD.  Each packet of a request of many counts as work too,
+ * since a Program still arriving is not yet a request minder has seen.  Not
+ * TaipoTeacher's key log polls, one packet each, which would otherwise hold
+ * the latency off all day.  The host chooses; RTT shows what it took
+ * (le_param_updated).
  */
 #define MINDER_FAST_HOLD K_SECONDS(3)
 
@@ -450,7 +452,9 @@ static K_WORK_DEFINE(minder_fast_work, minder_fast_handler);
 static K_WORK_DELAYABLE_DEFINE(minder_slow_work, minder_slow_handler);
 
 /* Minder is doing flash work over Bluetooth: hold the latency at 0 until it
- * has stopped for MINDER_FAST_HOLD.  From jolt's thread. */
+ * has stopped for MINDER_FAST_HOLD.  From jolt's thread, for a Hash or a
+ * Program, and from the Bluetooth RX thread, for each packet of a request
+ * of many (minder_ble.c). */
 void ble_minder_busy(void)
 {
 	if (!ble_up) {

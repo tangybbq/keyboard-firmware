@@ -35,6 +35,9 @@ LOG_MODULE_REGISTER(jolt_minder_ble, LOG_LEVEL_INF);
 extern void minder_ble_read_callback(size_t len);
 extern void minder_ble_write_callback(int result);
 
+/* In ble.c. */
+extern void ble_minder_busy(void);
+
 /* Bigger than the biggest message either way, as in minder_usb.c. */
 #define MINDER_BUF_SIZE 4224
 
@@ -161,6 +164,13 @@ static ssize_t write_request(struct bt_conn *conn, const struct bt_gatt_attr *at
 		/* The size check ends a message long before the sequence
 		 * number could wrap. */
 		request_seq++;
+		/* A request of many packets, a Program, comes much faster
+		 * with the latency off, and minder.rs only turns it off once
+		 * a whole request is in: so each packet holds it off too,
+		 * or the 3 s hold runs out while a Program is still
+		 * arriving.  Not the last packet, so that the one-packet
+		 * key log polls never turn it on. */
+		ble_minder_busy();
 	}
 	return len;
 }
