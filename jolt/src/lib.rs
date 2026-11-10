@@ -306,7 +306,9 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
         // debounce has already seen the matrix quiet, and the wait, being on the level, returns at
         // once if a key went down meanwhile.  The layout's chord timers run in `layout_task`, so
         // nothing here needs to keep going after the last release.
-        let mut ticker = Ticker::every(embassy_time::Duration::from_millis(1));
+        let mut ticker = Ticker::every(embassy_time::Duration::from_millis(
+            matrix::SCAN_INTERVAL_MS,
+        ));
         loop {
             active_scans += 1;
             let mut events = Vec::new();

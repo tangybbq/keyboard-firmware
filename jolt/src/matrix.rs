@@ -160,7 +160,18 @@ struct Debouncer {
     counter: usize,
 }
 
-const DEBOUNCE_COUNT: usize = 20;
+/// How often the matrix is scanned while a key is down or settling.
+///
+/// Each scan wakes the CPU, and on the nRF52840 the wake costs several times what the scan itself
+/// does: about 0.65 uC, so 650 uA at a 1 ms scan.  The cost of a longer interval is that key
+/// events are timed, and so chords are judged, to that resolution.
+pub const SCAN_INTERVAL_MS: u64 = 5;
+
+/// How long a key has to hold a new state before it counts.
+const DEBOUNCE_MS: u64 = 20;
+
+/// The debounce time, in scans after the one that first saw the change.
+const DEBOUNCE_COUNT: usize = (DEBOUNCE_MS / SCAN_INTERVAL_MS) as usize;
 
 impl Debouncer {
     fn new() -> Debouncer {
