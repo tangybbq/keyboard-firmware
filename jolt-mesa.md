@@ -852,10 +852,35 @@ raising the MTU.
    region on every board, and the request for slot 1 and the image
    state.  (Built.)
 5. **keyminder upgrade.**  First over USB, then over Bluetooth while
-   typing.  (Built; not yet tried.)
+   typing.  (Worked over Bluetooth, 2026-11-09; see below.)
 6. **Later**: an Update button in TaipoTeacher; mcumgr, if updates from
    a phone are ever wanted (its tools find a device by scanning, and a
    connected mesa3w does not advertise).
+
+### The first update over Bluetooth (2026-11-09)
+
+On Keyboard 4, `keyminder upgrade -s ble:4` wrote 94 pages and the
+trailer (the rest of the slot was already 0xFF) in about 1 min 40 s,
+checked the slot's hash, reset, and found the keyboard back and
+confirmed about 40 s later.  Slot 1 then held the old image, so MCUboot
+had swapped.  Two things stood in the way first:
+
+- **macOS turns down a short interval after connecting.**  The keyboard
+  asks for latency 0 while minder hashes or programs over Bluetooth,
+  since at latency 30 a 4 KiB `Program`, 66 packets, takes over 20 s.
+  bluetoothd rejected the request: "The min requested is lower that the
+  desired min: 9 < 15".  It takes the 11.25 ms asked for at connecting,
+  but a later request needs a least interval of 15 ms (Jolt is not one
+  of the HID devices it lets go lower).  Minder's requests ask for
+  15 ms, least and most, and a `Program` takes about 1 s.  What macOS
+  decides shows in `log stream --predicate 'process == "bluetoothd"'`,
+  with no J-Link needed.
+- **nRF52840 anomaly 244.**  The QSPI corrupts transfers to and from
+  the flash when the HF clock changes source mid-transfer, and the
+  Bluetooth controller starts and stops the crystal around each radio
+  event.  Nearly every 4 KiB write lost its sixth 256-byte flash page,
+  left erased.  Zephyr's QSPI driver has no workaround on the nRF52840,
+  so `image.c` holds the crystal on around each use of slot 1.
 
 ---
 
