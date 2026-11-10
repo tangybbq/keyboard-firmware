@@ -413,6 +413,18 @@ static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t l
  */
 #define MINDER_FAST_HOLD K_SECONDS(3)
 
+/*
+ * The interval these two requests ask for: 15 ms, both least and most.
+ * macOS took the 11.25 ms the keyboard asks for at connecting, but turns
+ * down any later request whose least is under 15 ms ("The min requested is
+ * lower that the desired min: 9 < 15", in bluetoothd's log), Jolt not being
+ * one of the HID devices it lets go lower.  Apple's rules allow a least of
+ * 15 ms when the most is 15 ms too.  The request putting the latency back
+ * asks for 15 ms as well, or it would be turned down and the link left at
+ * latency 0.
+ */
+#define MINDER_INT 12
+
 static atomic_t minder_fast;
 
 static void set_params(struct bt_conn *conn, void *data)
@@ -430,8 +442,7 @@ static void minder_fast_handler(struct k_work *work)
 	ARG_UNUSED(work);
 
 	struct bt_le_conn_param param = BT_LE_CONN_PARAM_INIT(
-		CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT, 0,
-		CONFIG_BT_PERIPHERAL_PREF_TIMEOUT);
+		MINDER_INT, MINDER_INT, 0, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT);
 
 	bt_conn_foreach(BT_CONN_TYPE_LE, set_params, &param);
 }
@@ -441,8 +452,8 @@ static void minder_slow_handler(struct k_work *work)
 	ARG_UNUSED(work);
 
 	struct bt_le_conn_param param = BT_LE_CONN_PARAM_INIT(
-		CONFIG_BT_PERIPHERAL_PREF_MIN_INT, CONFIG_BT_PERIPHERAL_PREF_MAX_INT,
-		CONFIG_BT_PERIPHERAL_PREF_LATENCY, CONFIG_BT_PERIPHERAL_PREF_TIMEOUT);
+		MINDER_INT, MINDER_INT, CONFIG_BT_PERIPHERAL_PREF_LATENCY,
+		CONFIG_BT_PERIPHERAL_PREF_TIMEOUT);
 
 	atomic_clear(&minder_fast);
 	bt_conn_foreach(BT_CONN_TYPE_LE, set_params, &param);
