@@ -279,6 +279,7 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
     spawner.spawn(layout_task(layout).unwrap());
     // What the last active stretch cost, reported at the next wake.
     let mut active_scans = 0usize;
+    let mut debounce_scans = 0usize;
     let mut active_layout_wakes = 0usize;
     loop {
         // With no key down there is nothing to scan until one goes down.
@@ -290,14 +291,16 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
         // woken the layout.  One line per wake from idle, which is one per stroke or chord.
         let idle_layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed) - layout_wakes;
         printkln!(
-            "Matrix wake: idle {} ms, {} layout wakes; last active {} scans, {} layout wakes",
+            "Matrix wake: idle {} ms, {} layout wakes; last active {} scans ({} debouncing), {} layout wakes",
             idle_start.elapsed().as_millis(),
             idle_layout_wakes,
             active_scans,
+            debounce_scans,
             active_layout_wakes,
         );
         let layout_wakes = LAYOUT_WAKES.load(Ordering::Relaxed);
         active_scans = 0;
+        debounce_scans = 0;
 
         // Scan until every key is up and settled, then go straight back to waiting.  The release's
         // debounce has already seen the matrix quiet, and the wait, being on the level, returns at
@@ -339,6 +342,11 @@ async fn keyboard_task(spawner: Spawner, rows: Vec<GpioPin>, cols: Vec<GpioPin>)
             }
             if matrix.is_idle() {
                 break;
+            }
+            // The rest of the scans only watch keys that are held: the ones a slower scan could
+            // drop without touching the timing of an edge.
+            if matrix.is_debouncing() {
+                debounce_scans += 1;
             }
             ticker.next().await;
         }
