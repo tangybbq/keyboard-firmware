@@ -844,7 +844,10 @@ raising the MTU.
    `jolt/images.cmake` padded to the whole of slot 0 (the build's own
    padded image is slot 1's size, for updates, and would leave slot 0's
    trailer as it was).  Check the boot chain, MCUboot's size (31.5 KiB),
-   and the wake-to-typing time.  (Done; it boots and sleeps.)
+   and the wake-to-typing time.  (Done; it boots and sleeps.)  Without
+   the J-Link, `build/mesa3w-<version>.uf2` holds both images, MCUboot and
+   the same padded slot 0, for the board's UF2 bootloader
+   (`jolt/sysbuild.cmake`).
 3. **jolt confirms its image** once a host connects (a route for reports
    arrives, in `hid::sender_task`), and logs the image's version and
    state at boot.  (Built.)
