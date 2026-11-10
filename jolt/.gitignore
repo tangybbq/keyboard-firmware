@@ -2,3 +2,7 @@ build/
 
 # MCUboot signing keys (mcuboot-p256.pem): private, never committed.
 *.pem
+
+# The build counter, the last part of the version MCUboot images are signed
+# with (images.cmake); each machine keeps its own.
+build-number
